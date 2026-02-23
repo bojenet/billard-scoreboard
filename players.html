@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Spielerverwaltung</title>
+
+<style>
+body {
+    margin:0;
+    font-family:Arial;
+    background:linear-gradient(180deg,#1e1f29,#14151c);
+    color:white;
+    text-align:center;
+}
+
+h1 {
+    margin-top:40px;
+    font-size:40px;
+}
+
+.container {
+    width:700px;
+    margin:40px auto;
+}
+
+.add-box {
+    background:#2a2b35;
+    padding:20px;
+    border-radius:15px;
+    margin-bottom:30px;
+}
+
+.add-box input {
+    font-size:18px;
+    padding:10px;
+    width:250px;
+    border-radius:8px;
+    border:none;
+}
+
+.add-box button {
+    font-size:18px;
+    padding:10px 20px;
+    margin-left:10px;
+    background:#3f4fa3;
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+}
+
+table {
+    width:100%;
+    border-collapse:collapse;
+    background:#2a2b35;
+    border-radius:15px;
+    overflow:hidden;
+}
+
+th {
+    background:#181922;
+    padding:15px;
+}
+
+td {
+    padding:15px;
+    border-top:1px solid #333;
+}
+
+.delete-btn {
+    background:#b33939;
+    border:none;
+    color:white;
+    padding:6px 14px;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+.delete-btn:hover {
+    background:#d64545;
+}
+
+.nav-btn {
+    margin-top:40px;
+    padding:10px 30px;
+    font-size:18px;
+    background:#444;
+    border:none;
+    border-radius:8px;
+    color:white;
+    cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<h1>Spielerverwaltung</h1>
+
+<div class="container">
+
+    <div class="add-box">
+        <input type="text" id="newPlayer" placeholder="Neuer Spieler">
+        <button onclick="addPlayer()">Hinzufügen</button>
+    </div>
+
+    <table id="playerTable">
+        <tr>
+            <th>Name</th>
+            <th>Aktion</th>
+        </tr>
+    </table>
+
+</div>
+
+<button class="nav-btn" onclick="window.location.href='index.html'">
+Zurück
+</button>
+
+<script>
+
+async function loadPlayers(){
+
+    const res = await fetch('/api/players');
+    const data = await res.json();
+
+    const table = document.getElementById("playerTable");
+
+    table.innerHTML = `
+        <tr>
+            <th>Name</th>
+            <th>Aktion</th>
+        </tr>
+    `;
+
+    data.forEach(p => {
+
+        table.innerHTML += `
+            <tr>
+                <td>${p.name}</td>
+                <td>
+                    <button class="delete-btn" onclick="deletePlayer(${p.id})">
+                        Löschen
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+async function addPlayer(){
+
+    const name = document.getElementById("newPlayer").value.trim();
+    if(!name) return;
+
+    await fetch('/api/players', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name})
+    });
+
+    document.getElementById("newPlayer").value="";
+    loadPlayers();
+}
+
+async function deletePlayer(id){
+
+    if(!confirm("Spieler wirklich löschen?")) return;
+
+    await fetch('/api/players/'+id, {
+        method:'DELETE'
+    });
+
+    loadPlayers();
+}
+
+loadPlayers();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Neues Match</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(180deg, #1e1f29, #14151c);
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 0 30px 0;
+            font-size: 42px;
+            font-weight: 600;
+        }
+
+        .container {
+            width: 1200px;
+            max-width: 90%;
+            margin: 0 auto 80px auto;
+            height: calc(100vh - 120px);
+            /* Header abziehen */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+
+        .section {
+            background: #2a2b35;
+            padding: 20px;
+            border-radius: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        }
+
+        .section h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1.3fr;
+            gap: 12px;
+            align-items: start;
+        }
+
+        select,
+        input {
+            font-size: 18px;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+        }
+
+        .points-box {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .quick-defaults,
+        .adjust {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .quick-defaults button,
+        .adjust button {
+            padding: 6px 12px;
+            font-size: 14px;
+            border: none;
+            border-radius: 8px;
+            background: #444;
+            color: white;
+            cursor: pointer;
+        }
+
+        .quick-defaults button:hover,
+        .adjust button:hover {
+            background: #3f4fa3;
+        }
+
+        .start-btn {
+            margin-top: 30px;
+            width: 100%;
+            padding: 20px;
+            font-size: 24px;
+            border: none;
+            border-radius: 20px;
+            background: #3f4fa3;
+            color: white;
+            cursor: pointer;
+        }
+
+        .nav-btn {
+            margin-top: 20px;
+            padding: 10px 30px;
+            font-size: 16px;
+            background: #444;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+        }
+
+        /* TOUCH SELECTS */
+
+        .touch-player-select,
+        .touch-select {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .touch-player-btn,
+        .touch-select-btn {
+            background: #444;
+            padding: 14px 18px;
+            border-radius: 12px;
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+        .touch-player-btn.active,
+        .touch-select-btn.active {
+            background: #3f4fa3;
+            font-weight: 600;
+        }
+
+        .button-row-bottom {
+            display: flex;
+            gap: 20px;
+            margin-top: 40px;
+        }
+
+        .button-row-bottom .start-btn {
+            flex: 1;
+            /* beide gleich breit */
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">Neues Match</div>
+
+    <div class="container">
+
+        <!-- ================= SPIELER 1 ================= -->
+        <div class="section">
+            <h3>Spieler 1</h3>
+            <div class="row">
+
+                <!-- PLAYER -->
+                <select id="player1" style="display:none;"></select>
+                <div id="touchPlayer1" class="touch-player-select"></div>
+
+                <!-- DISCIPLINE -->
+                <select id="discipline1" style="display:none;">
+                    <option value="Freie Partie">Freie Partie</option>
+                    <option value="Cadre 35/2">Cadre 35/2</option>
+                    <option value="Cadre 52/2">Cadre 52/2</option>
+                    <option value="Einband">Einband</option>
+                    <option value="Dreiband">Dreiband</option>
+                </select>
+                <div id="touchDiscipline1" class="touch-select"></div>
+
+                <!-- POINTS -->
+                <div class="points-box">
+
+                    <input type="number" id="target1" value="">
+
+                    <div class="quick-defaults">
+                        <button type="button" onclick="setTarget('target1',50)">50</button>
+                        <button type="button" onclick="setTarget('target1',100)">100</button>
+                        <button type="button" onclick="setTarget('target1',150)">150</button>
+                        <button type="button" onclick="setTarget('target1',200)">200</button>
+                        <button type="button" onclick="setTarget('target1',300)">300</button>
+                    </div>
+
+                    <div class="adjust">
+                        <button type="button" onclick="adjustTarget('target1', -10)">-10</button>
+                        <button type="button" onclick="adjustTarget('target1', -1)">-1</button>
+                        <button type="button" onclick="adjustTarget('target1', 1)">+1</button>
+                        <button type="button" onclick="adjustTarget('target1', 10)">+10</button>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ================= SPIELER 2 ================= -->
+        <div class="section">
+            <h3>Spieler 2</h3>
+            <div class="row">
+
+                <select id="player2" style="display:none;"></select>
+                <div id="touchPlayer2" class="touch-player-select"></div>
+
+                <select id="discipline2" style="display:none;">
+                    <option value="Freie Partie">Freie Partie</option>
+                    <option value="Cadre 35/2">Cadre 35/2</option>
+                    <option value="Cadre 52/2">Cadre 52/2</option>
+                    <option value="Einband">Einband</option>
+                    <option value="Dreiband">Dreiband</option>
+                </select>
+                <div id="touchDiscipline2" class="touch-select"></div>
+
+                <div class="points-box">
+
+                    <input type="number" id="target2" value="">
+
+                    <div class="quick-defaults">
+                        <button type="button" onclick="setTarget('target2',50)">50</button>
+                        <button type="button" onclick="setTarget('target2',100)">100</button>
+                        <button type="button" onclick="setTarget('target2',150)">150</button>
+                        <button type="button" onclick="setTarget('target2',200)">200</button>
+                        <button type="button" onclick="setTarget('target2',300)">300</button>
+                    </div>
+
+                    <div class="adjust">
+                        <button type="button" onclick="adjustTarget('target2', -10)">-10</button>
+                        <button type="button" onclick="adjustTarget('target2', -1)">-1</button>
+                        <button type="button" onclick="adjustTarget('target2', 1)">+1</button>
+                        <button type="button" onclick="adjustTarget('target2', 10)">+10</button>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Maximale Aufnahmen</h3>
+            <input type="number" id="maxInnings" value="15">
+        </div>
+        <div class="button-row-bottom">
+            <button class="start-btn" onclick="startMatch()">
+                Match starten
+            </button>
+
+            <button class="start-btn" onclick="window.location.href='index.html'">
+                Zurück
+            </button>
+
+            <button class="start-btn" onclick="resetAll()">
+                Reset
+            </button>
+        </div>
+
+        <script>
+
+            /* SPIELER LADEN */
+            async function loadPlayers() {
+                const res = await fetch('/api/players');
+                const players = await res.json();
+
+                const p1 = document.getElementById('player1');
+                const p2 = document.getElementById('player2');
+                const t1 = document.getElementById('touchPlayer1');
+                const t2 = document.getElementById('touchPlayer2');
+
+                p1.innerHTML = "";
+                p2.innerHTML = "";
+                t1.innerHTML = "";
+                t2.innerHTML = "";
+
+                players.forEach(p => {
+                    p1.add(new Option(p.name, p.name));
+                    p2.add(new Option(p.name, p.name));
+
+                    const b1 = document.createElement("div");
+                    b1.className = "touch-player-btn";
+                    b1.innerText = p.name;
+                    b1.onclick = () => {
+                        if (p2.value === p.name) return;
+                        p1.value = p.name;
+                        t1.querySelectorAll(".touch-player-btn").forEach(x => x.classList.remove("active"));
+                        b1.classList.add("active");
+                    };
+                    t1.appendChild(b1);
+
+                    const b2 = document.createElement("div");
+                    b2.className = "touch-player-btn";
+                    b2.innerText = p.name;
+                    b2.onclick = () => {
+                        if (p1.value === p.name) return;
+                        p2.value = p.name;
+                        t2.querySelectorAll(".touch-player-btn").forEach(x => x.classList.remove("active"));
+                        b2.classList.add("active");
+                    };
+                    t2.appendChild(b2);
+                });
+                p1.value = "";
+                p2.value = "";
+                p1.selectedIndex = -1;
+                p2.selectedIndex = -1;
+
+            }
+
+            /* DISCIPLINE TOUCH */
+            function buildTouchDiscipline(selectId, containerId) {
+                const select = document.getElementById(selectId);
+                const container = document.getElementById(containerId);
+
+                for (let i = 0; i < select.options.length; i++) {
+                    const option = select.options[i];
+                    const btn = document.createElement("div");
+                    btn.className = "touch-select-btn";
+                    btn.innerText = option.text;
+                    btn.onclick = () => {
+                        select.value = option.value;
+                        container.querySelectorAll(".touch-select-btn").forEach(x => x.classList.remove("active"));
+                        btn.classList.add("active");
+                    };
+                    container.appendChild(btn);
+                }
+            }
+
+            function setTarget(id, value) {
+                document.getElementById(id).value = value;
+            }
+
+            function adjustTarget(id, value) {
+                const input = document.getElementById(id);
+                let current = parseInt(input.value) || 0;
+                current += value;
+                if (current < 1) current = 1;
+                input.value = current;
+            }
+
+            async function startMatch() {
+                const p1 = document.getElementById('player1').value;
+                const p2 = document.getElementById('player2').value;
+
+                if (!p1 || !p2 || p1 === p2) {
+                    alert("Bitte zwei unterschiedliche Spieler wählen");
+                    return;
+                }
+
+                const res = await fetch('/api/match', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        player1: p1,
+                        player2: p2,
+                        discipline1: document.getElementById('discipline1').value,
+                        discipline2: document.getElementById('discipline2').value,
+                        target1: parseInt(document.getElementById('target1').value),
+                        target2: parseInt(document.getElementById('target2').value),
+                        maxInnings: parseInt(document.getElementById('maxInnings').value)
+                    })
+                });
+
+                const data = await res.json();
+                window.location.href = "/scoreboard.html?match=" + data.matchId;
+            }
+
+            window.addEventListener("DOMContentLoaded", () => {
+                loadPlayers();
+                buildTouchDiscipline("discipline1", "touchDiscipline1");
+                buildTouchDiscipline("discipline2", "touchDiscipline2");
+            });
+
+            function resetAll() {
+
+                // Spieler zurücksetzen
+                document.getElementById('player1').value = "";
+                document.getElementById('player2').value = "";
+
+                document.querySelectorAll('#touchPlayer1 .touch-player-btn')
+                    .forEach(b => b.classList.remove("active"));
+
+                document.querySelectorAll('#touchPlayer2 .touch-player-btn')
+                    .forEach(b => b.classList.remove("active"));
+
+                // Disziplin zurücksetzen
+                document.getElementById('discipline1').value = "";
+                document.getElementById('discipline2').value = "";
+
+                document.querySelectorAll('#touchDiscipline1 .touch-select-btn')
+                    .forEach(b => b.classList.remove("active"));
+
+                document.querySelectorAll('#touchDiscipline2 .touch-select-btn')
+                    .forEach(b => b.classList.remove("active"));
+
+                // Zielpunkte
+                document.getElementById('target1').value = "";
+                document.getElementById('target2').value = "";
+
+                // Max Aufnahmen
+                document.getElementById('maxInnings').value = 15;
+            }
+
+
+
+        </script>
+
+</body>
+
+</html>
