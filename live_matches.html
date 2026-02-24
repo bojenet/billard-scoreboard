@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Laufende Matches</title>
+
+<style>
+body {
+    font-family: Arial;
+    background:#1e1b1b;
+    color:white;
+    text-align:center;
+}
+
+table {
+    margin:40px auto;
+    border-collapse:collapse;
+    width:90%;
+}
+
+th, td {
+    border:1px solid #444;
+    padding:10px;
+}
+
+tr:hover {
+    background:#2c2c2c;
+    cursor:pointer;
+}
+
+button {
+    font-size:18px;
+    padding:8px 20px;
+    margin-top:20px;
+}
+</style>
+</head>
+<body>
+
+<h1>Laufende Matches</h1>
+
+<table id="matchTable">
+    <tr>
+        <th>Datum</th>
+        <th>Spieler</th>
+        <th>Stand</th>
+    </tr>
+</table>
+
+<button onclick="window.location.href='index.html'">Zurück</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+
+<script>
+
+async function loadLiveMatches() {
+
+    const { data, error } = await supabaseClient
+        .from("matches")
+        .select("*")
+        .eq("finished", 0)
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    const table = document.getElementById("matchTable");
+
+    data.forEach(match => {
+
+        const row = document.createElement("tr");
+
+        const date = new Date(match.created_at).toLocaleString();
+
+        row.innerHTML = `
+            <td>${date}</td>
+            <td>${match.player1} vs ${match.player2}</td>
+            <td>${match.score1} : ${match.score2}</td>
+        `;
+
+        row.onclick = () => {
+            window.location.href = "scoreboard.html?match=" + match.id;
+        };
+
+        table.appendChild(row);
+    });
+}
+
+loadLiveMatches();
+
+</script>
+
+</body>
+</html>
