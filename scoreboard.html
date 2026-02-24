@@ -674,21 +674,25 @@
             }, 1000);
         }
 
-        if (isViewer) {
+       window.addEventListener("DOMContentLoaded", function () {
 
-            // Buttons unten ausblenden
-            document.querySelector(".controls").style.display = "none";
+    if (isViewer) {
 
-            // Spieler nicht klickbar
-            document.getElementById("p1").onclick = null;
-            document.getElementById("p2").onclick = null;
+        const controls = document.querySelector(".controls");
+        if (controls) controls.style.display = "none";
 
-            // Endscreen Buttons ausblenden
-            const endButtons = document.querySelectorAll(".end-buttons button");
-            endButtons.forEach(btn => btn.style.display = "none");
+        const p1 = document.getElementById("p1");
+        const p2 = document.getElementById("p2");
 
-            // QR anzeigen
-            const qrBox = document.getElementById("qrBox");
+        if (p1) p1.onclick = null;
+        if (p2) p2.onclick = null;
+
+        const endButtons = document.querySelectorAll(".end-buttons button");
+        endButtons.forEach(btn => btn.style.display = "none");
+
+        const qrBox = document.getElementById("qrBox");
+
+        if (qrBox) {
             qrBox.style.display = "block";
 
             const remoteUrl =
@@ -701,7 +705,9 @@
                 height: 180
             });
         }
+    }
 
+});
 
         /* ================= LOAD MATCH ================= */
 
