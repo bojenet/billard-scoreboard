@@ -674,40 +674,40 @@
             }, 1000);
         }
 
-       window.addEventListener("DOMContentLoaded", function () {
+        window.addEventListener("DOMContentLoaded", function () {
 
-    if (isViewer) {
+            if (isViewer) {
 
-        const controls = document.querySelector(".controls");
-        if (controls) controls.style.display = "none";
+                const controls = document.querySelector(".controls");
+                if (controls) controls.style.display = "none";
 
-        const p1 = document.getElementById("p1");
-        const p2 = document.getElementById("p2");
+                const p1 = document.getElementById("p1");
+                const p2 = document.getElementById("p2");
 
-        if (p1) p1.onclick = null;
-        if (p2) p2.onclick = null;
+                if (p1) p1.onclick = null;
+                if (p2) p2.onclick = null;
 
-        const endButtons = document.querySelectorAll(".end-buttons button");
-        endButtons.forEach(btn => btn.style.display = "none");
+                const endButtons = document.querySelectorAll(".end-buttons button");
+                endButtons.forEach(btn => btn.style.display = "none");
 
-        const qrBox = document.getElementById("qrBox");
+                const qrBox = document.getElementById("qrBox");
 
-        if (qrBox) {
-            qrBox.style.display = "block";
+                if (qrBox) {
+                    qrBox.style.display = "block";
 
-            const remoteUrl =
-                window.location.origin +
-                "/remote.html?match=" + matchId;
+                    const remoteUrl =
+                        window.location.origin +
+                        "/remote.html?match=" + matchId;
 
-            new QRCode(document.getElementById("qrcode"), {
-                text: remoteUrl,
-                width: 180,
-                height: 180
-            });
-        }
-    }
+                    new QRCode(document.getElementById("qrcode"), {
+                        text: remoteUrl,
+                        width: 180,
+                        height: 180
+                    });
+                }
+            }
 
-});
+        });
 
         /* ================= LOAD MATCH ================= */
 
@@ -922,7 +922,11 @@
                     inn2,
                     totalInnings,
                     activePlayer,
-                    finished
+                    finished,
+                    series1,
+                    series2,
+                    high1,
+                    high2
                 })
                 .eq("id", matchId);
 
@@ -1216,6 +1220,10 @@
                         totalInnings = d.totalInnings;
                         activePlayer = d.activePlayer;
                         finished = d.finished;
+                        series1 = d.series1 || 0;
+                        series2 = d.series2 || 0;
+                        high1 = d.high1 || 0;
+                        high2 = d.high2 || 0;
 
                         updateUI();
                     }
