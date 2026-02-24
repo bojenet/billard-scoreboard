@@ -163,7 +163,7 @@ async function loadLiveMatches() {
   const { data, error } = await supabaseClient
     .from("matches")
     .select("*")
-    .eq("status", "live")
+    .eq("status", "1")
     .order("started_at", { ascending: false });
 
   if (error) {
