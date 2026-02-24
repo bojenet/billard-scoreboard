@@ -58,10 +58,28 @@ button {
 
 async function loadArchive() {
 
-    const res = await fetch('/api/archive');
-    const data = await res.json();
+    const { data, error } = await supabaseClient
+        .from("archive")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        console.error(error);
+        return;
+    }
 
     const table = document.getElementById('archiveTable');
+
+    // Tabelle zurücksetzen (Header behalten)
+    table.innerHTML = `
+        <tr>
+            <th>Datum</th>
+            <th>Spieler</th>
+            <th>Ergebnis</th>
+            <th>AVG</th>
+            <th>HR</th>
+        </tr>
+    `;
 
     data.forEach(match => {
 
@@ -78,16 +96,13 @@ async function loadArchive() {
         `;
 
         row.onclick = () => {
-            window.location.href = "archive_detail.html?id=" + match.id;
+            window.location.href =
+                "archive_detail.html?id=" + match.id;
         };
 
         table.appendChild(row);
     });
 }
-
-loadArchive();
-
-</script>
 
 </body>
 </html>
