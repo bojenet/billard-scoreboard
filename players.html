@@ -125,8 +125,15 @@ Zurück
 
 async function loadPlayers(){
 
-    const res = await fetch('/api/players');
-    const data = await res.json();
+    const { data, error } = await supabaseClient
+        .from("players")
+        .select("*")
+        .order("name", { ascending: true });
+
+    if(error){
+        console.error(error);
+        return;
+    }
 
     const table = document.getElementById("playerTable");
 
@@ -157,11 +164,14 @@ async function addPlayer(){
     const name = document.getElementById("newPlayer").value.trim();
     if(!name) return;
 
-    await fetch('/api/players', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({name})
-    });
+    const { error } = await supabaseClient
+        .from("players")
+        .insert([{ name }]);
+
+    if(error){
+        console.error(error);
+        return;
+    }
 
     document.getElementById("newPlayer").value="";
     loadPlayers();
@@ -171,9 +181,15 @@ async function deletePlayer(id){
 
     if(!confirm("Spieler wirklich löschen?")) return;
 
-    await fetch('/api/players/'+id, {
-        method:'DELETE'
-    });
+    const { error } = await supabaseClient
+        .from("players")
+        .delete()
+        .eq("id", id);
+
+    if(error){
+        console.error(error);
+        return;
+    }
 
     loadPlayers();
 }
@@ -181,6 +197,3 @@ async function deletePlayer(id){
 loadPlayers();
 
 </script>
-
-</body>
-</html>
