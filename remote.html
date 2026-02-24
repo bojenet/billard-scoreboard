@@ -58,6 +58,23 @@
 <body>
 
     <h1>Match Remote</h1>
+    <div id="miniScore" style="
+    width:100%;
+    max-width:500px;
+    margin-bottom:30px;
+    padding:20px;
+    background:#162b66;
+    border-radius:20px;">
+
+        <div id="miniP1" style="font-size:22px; margin-bottom:8px;"></div>
+        <div id="miniP2" style="font-size:22px;"></div>
+
+        <div style="margin-top:15px; font-size:18px; opacity:.8;">
+            <span id="activeInfo"></span> |
+            <span id="seriesInfo"></span>
+        </div>
+
+    </div>
     <h2 id="activeInfo"></h2>
     <h3 id="seriesInfo"></h3>
     <div class="button-grid">
@@ -102,13 +119,22 @@
 
             if (!matchData) return;
 
+            // Spielernamen + Score
+            document.getElementById("miniP1").innerText =
+                matchData.player1 + "   " + matchData.score1;
+
+            document.getElementById("miniP2").innerText =
+                matchData.player2 + "   " + matchData.score2;
+
+            // Aktiver Spieler
             const activeText =
                 matchData.activePlayer === 1
-                    ? "Spieler 1 ist dran"
-                    : "Spieler 2 ist dran";
+                    ? matchData.player1 + " ist dran"
+                    : matchData.player2 + " ist dran";
 
             document.getElementById("activeInfo").innerText = activeText;
 
+            // Aktuelle Serie
             const currentSeries =
                 matchData.activePlayer === 1
                     ? matchData.series1
