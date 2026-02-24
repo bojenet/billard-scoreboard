@@ -90,21 +90,24 @@
                 .single();
 
             if (error) {
-                alert("Match nicht gefunden");
+                console.error(error);
                 return;
             }
 
             matchData = data;
+            updateDisplay();
         }
 
         function updateDisplay() {
 
             if (!matchData) return;
 
-            document.getElementById("activeInfo").innerText =
+            const activeText =
                 matchData.activePlayer === 1
                     ? "Spieler 1 ist dran"
                     : "Spieler 2 ist dran";
+
+            document.getElementById("activeInfo").innerText = activeText;
 
             const currentSeries =
                 matchData.activePlayer === 1
@@ -114,7 +117,6 @@
             document.getElementById("seriesInfo").innerText =
                 "Serie: " + (currentSeries > 0 ? "+" + currentSeries : "0");
         }
-
 
         async function updateMatch(updateObj) {
 
@@ -126,16 +128,23 @@
             if (error) {
                 console.error(error);
             }
-        }
 
-        await loadMatch();
-        updateDisplay();
+            await loadMatch();
+        }
 
         async function add(value) {
 
             await loadMatch();
 
-            let { activePlayer, series1, series2, score1, score2, target1, target2 } = matchData;
+            let {
+                activePlayer,
+                series1,
+                series2,
+                score1,
+                score2,
+                target1,
+                target2
+            } = matchData;
 
             if (activePlayer === 1) {
 
@@ -208,15 +217,13 @@
             });
         }
 
-        async function undo() {
-
-            alert("Undo über Remote noch nicht implementiert 😉");
-        }
-
         async function finish() {
 
             await updateMatch({ finished: 1 });
         }
+
+        // Initial load
+        loadMatch();
 
     </script>
 
