@@ -1,201 +1,215 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<meta charset="UTF-8">
-<title>Billard</title>
+    <meta charset="UTF-8">
+    <title>Billard</title>
 
-<style>
-body {
-    margin:0;
-    font-family:Arial;
-    background:linear-gradient(180deg,#1e1f29,#14151c);
-    color:white;
-}
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial;
+            background: linear-gradient(180deg, #1e1f29, #14151c);
+            color: white;
+        }
 
-#exitZone{
-    position:fixed;
-    top:0;
-    right:0;
-    width:120px;
-    height:120px;
-    z-index:9999;
-}
+        #exitZone {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 120px;
+            height: 120px;
+            z-index: 9999;
+        }
 
-/* HEADER */
-.header {
-    text-align:center;
-    padding:60px 0 20px 0;
-    font-size:48px;
-    font-weight:600;
-}
+        /* HEADER */
+        .header {
+            text-align: center;
+            padding: 60px 0 20px 0;
+            font-size: 48px;
+            font-weight: 600;
+        }
 
-/* GRID */
-.grid {
-    width:1000px;
-    max-width:92%;
-    margin:60px auto;
-    display:grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap:40px;
-}
+        /* GRID */
+        .grid {
+            width: 1000px;
+            max-width: 92%;
+            margin: 60px auto;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+        }
 
-/* TILE */
-.tile {
-    background:#2a2b35;
-    border-radius:25px;
-    height:200px;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
-    cursor:pointer;
-    transition:0.25s;
-    box-shadow:0 20px 40px rgba(0,0,0,0.4);
-}
+        /* TILE */
+        .tile {
+            background: #2a2b35;
+            border-radius: 25px;
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.25s;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
 
-.tile:hover {
-    background:#3f4fa3;
-    transform:translateY(-6px);
-}
+        .tile:hover {
+            background: #3f4fa3;
+            transform: translateY(-6px);
+        }
 
-.tile-title {
-    font-size:26px;
-    margin-bottom:12px;
-}
+        .tile-title {
+            font-size: 26px;
+            margin-bottom: 12px;
+        }
 
-.tile-sub {
-    font-size:14px;
-    opacity:0.6;
-}
+        .tile-sub {
+            font-size: 14px;
+            opacity: 0.6;
+        }
 
-/* LIVE STYLE */
-.tile.live {
-    border:2px solid #ff4d4d;
-    animation:pulse 1.8s infinite;
-}
+        /* LIVE STYLE */
+        .tile.live {
+            border: 2px solid #ff4d4d;
+            animation: pulse 1.8s infinite;
+        }
 
-@keyframes pulse {
-    0% { box-shadow:0 0 0 0 rgba(255,77,77,0.6); }
-    70% { box-shadow:0 0 0 15px rgba(255,77,77,0); }
-    100% { box-shadow:0 0 0 0 rgba(255,77,77,0); }
-}
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.6);
+            }
 
-.footer {
-    text-align:center;
-    margin-top:100px;
-    font-size:14px;
-    opacity:0.4;
-}
-</style>
+            70% {
+                box-shadow: 0 0 0 15px rgba(255, 77, 77, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 77, 77, 0);
+            }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 100px;
+            font-size: 14px;
+            opacity: 0.4;
+        }
+    </style>
 </head>
+
 <body>
 
-<div id="exitZone"></div>
+    <div id="exitZone"></div>
 
-<div class="header">
-    Billard System
-</div>
-
-<div class="grid" id="mainGrid">
-
-    <!-- Live Matches werden hier dynamisch eingefügt -->
-
-    <div class="tile" onclick="window.location.href='match_setup.html'">
-        <div class="tile-title">Match</div>
-        <div class="tile-sub">Neue Partie starten</div>
+    <div class="header">
+        Billard System
     </div>
 
-    <div class="tile" onclick="alert('Training folgt später')">
-        <div class="tile-title">Trainings</div>
-        <div class="tile-sub">Übungen & Serienmodus</div>
+    <div class="grid" id="mainGrid">
+
+        <!-- Live Matches werden hier dynamisch eingefügt -->
+
+        <div class="tile" onclick="window.location.href='match_setup.html'">
+            <div class="tile-title">Match</div>
+            <div class="tile-sub">Neue Partie starten</div>
+        </div>
+
+        <div class="tile" onclick="alert('Training folgt später')">
+            <div class="tile-title">Trainings</div>
+            <div class="tile-sub">Übungen & Serienmodus</div>
+        </div>
+
+        <div class="tile" onclick="window.location.href='players.html'">
+            <div class="tile-title">Spielerverwaltung</div>
+            <div class="tile-sub">Spieler hinzufügen & löschen</div>
+        </div>
+
+        <div class="tile" onclick="window.location.href='archive.html'">
+            <div class="tile-title">Archiv</div>
+            <div class="tile-sub">Gespielte Partien ansehen</div>
+        </div>
+
     </div>
 
-    <div class="tile" onclick="window.location.href='players.html'">
-        <div class="tile-title">Spielerverwaltung</div>
-        <div class="tile-sub">Spieler hinzufügen & löschen</div>
+    <div class="footer">
+        Scoreboard
     </div>
 
-    <div class="tile" onclick="window.location.href='archive.html'">
-        <div class="tile-title">Archiv</div>
-        <div class="tile-sub">Gespielte Partien ansehen</div>
-    </div>
+    <!-- EXIT ZONE -->
+    <script>
+        let exitTimer = null;
+        const exitZone = document.getElementById("exitZone");
 
-</div>
+        exitZone.addEventListener("touchstart", () => {
+            exitTimer = setTimeout(() => {
+                window.open('', '_self');
+                window.close();
+            }, 5000);
+        });
 
-<div class="footer">
-    Scoreboard
-</div>
+        exitZone.addEventListener("touchend", () => {
+            clearTimeout(exitTimer);
+        });
+    </script>
 
-<!-- EXIT ZONE -->
-<script>
-let exitTimer = null;
-const exitZone = document.getElementById("exitZone");
+    <!-- SUPABASE -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-exitZone.addEventListener("touchstart", () => {
-    exitTimer = setTimeout(() => {
-        window.open('', '_self');
-        window.close();
-    }, 5000);
-});
+    <script>
+        const supabaseUrl = "https://kstqhcaazuuxchqtnyfc.supabase.co";
+        const supabaseKey = "sb_publishable_0C-Hj42NxQ1UCHMkadC-Pw_KWDg6o2r";
 
-exitZone.addEventListener("touchend", () => {
-    clearTimeout(exitTimer);
-});
-</script>
+        const supabaseClient = supabase.createClient(
+            supabaseUrl,
+            supabaseKey
+        );
+    </script>
 
-<!-- SUPABASE -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- LOAD LIVE MATCHES -->
+    <script>
+        async function loadLiveMatches() {
 
-<script>
-const supabaseUrl = "https://kstqhcaazuuxchqtnyfc.supabase.co";
-const supabaseKey = "sb_publishable_0C-Hj42NxQ1UCHMkadC-Pw_KWDg6o2r";
+            const { data, error } = await supabaseClient
+                .from("matches")
+                .select("*")
+                .eq("status", "1")
+                .order("started_at", { ascending: false });
 
-const supabaseClient = supabase.createClient(
-  supabaseUrl,
-  supabaseKey
-);
-</script>
+            if (error) {
+                console.log("Fehler:", error);
+                return;
+            }
 
-<!-- LOAD LIVE MATCHES -->
-<script>
-async function loadLiveMatches() {
+            if (!data || data.length === 0) return;
 
-  const { data, error } = await supabaseClient
-    .from("matches")
-    .select("*")
-    .eq("status", "1")
-    .order("started_at", { ascending: false });
+            const grid = document.getElementById("mainGrid");
 
-  if (error) {
-    console.log("Fehler:", error);
-    return;
-  }
+            data.forEach(match => {
 
-  if (!data || data.length === 0) return;
+                const tile = document.createElement("div");
+                tile.className = "tile live";
+                tile.onclick = () => {
+                    window.location.href = "scoreboard.html?match=" + match.id;
+                };
 
-  const grid = document.getElementById("mainGrid");
+                tile.innerHTML = `
+  <div class="tile-title">🔴 ${match.player1} vs ${match.player2}</div>
+  <div class="tile-sub">
+    ${match.discipline1}
+  </div>
+  <div class="tile-sub" style="margin-top:8px;font-size:16px;opacity:0.9;">
+    ${match.score1} : ${match.score2} · Aufnahme ${match.totalInnings}
+  </div>
+`;
 
-  data.forEach(match => {
+                grid.prepend(tile);
+            });
+        }
 
-    const tile = document.createElement("div");
-    tile.className = "tile live";
-    tile.onclick = () => {
-      window.location.href = "scoreboard.html?match=" + match.id;
-    };
-
-    tile.innerHTML = `
-      <div class="tile-title">🔴 ${match.player1} vs ${match.player2}</div>
-      <div class="tile-sub">
-        ${match.discipline} · Aufnahme ${match.innings || 1}
-      </div>
-    `;
-
-    grid.prepend(tile);
-  });
-}
-
-loadLiveMatches();
-</script>
+        loadLiveMatches();
+    </script>
 
 </body>
+
 </html>
