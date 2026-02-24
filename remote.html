@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Remote</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+    margin:0;
+    font-family: Arial;
+    background:#0f1c3f;
+    color:white;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+}
+
+h1 {
+    margin-bottom:30px;
+}
+
+.button-grid {
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:20px;
+    width:100%;
+    max-width:500px;
+}
+
+button {
+    padding:30px;
+    font-size:28px;
+    font-weight:bold;
+    border:none;
+    border-radius:20px;
+    background:#1c3380;
+    color:white;
+}
+
+button:active {
+    transform:scale(0.95);
+}
+
+.switch {
+    background:#ffd84a;
+    color:black;
+}
+
+.danger {
+    background:#aa2222;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Match Remote</h1>
+
+<div class="button-grid">
+    <button onclick="add(1)">+1</button>
+    <button onclick="add(5)">+5</button>
+    <button onclick="add(10)">+10</button>
+    <button onclick="add(-1)">-1</button>
+
+    <button class="switch" onclick="switchPlayer()">Wechsel</button>
+    <button onclick="undo()">Undo</button>
+
+    <button class="danger" onclick="finish()">Beenden</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+
+<script>
+
+const matchId = new URLSearchParams(window.location.search).get("match");
+
+let matchData = null;
+
+async function loadMatch() {
+
+    const { data, error } = await supabaseClient
+        .from("matches")
+        .select("*")
+        .eq("id", matchId)
+        .single();
+
+    if (error) {
+        alert("Match nicht gefunden");
+        return;
+    }
+
+    matchData = data;
+}
+
+async function updateMatch(updateObj) {
+
+    const { error } = await supabaseClient
+        .from("matches")
+        .update(updateObj)
+        .eq("id", matchId);
+
+    if (error) {
+        console.error(error);
+    }
+}
+
+async function add(value) {
+
+    await loadMatch();
+
+    let { score1, score2, activePlayer, target1, target2 } = matchData;
+
+    if (activePlayer === 1) {
+        score1 += value;
+        if (score1 < 0) score1 = 0;
+        if (target1 > 0 && score1 > target1) score1 = target1;
+    } else {
+        score2 += value;
+        if (score2 < 0) score2 = 0;
+        if (target2 > 0 && score2 > target2) score2 = target2;
+    }
+
+    await updateMatch({ score1, score2 });
+}
+
+async function switchPlayer() {
+
+    await loadMatch();
+
+    let { activePlayer, inn1, inn2, totalInnings } = matchData;
+
+    if (activePlayer === 1) {
+        inn1++;
+        activePlayer = 2;
+    } else {
+        inn2++;
+        totalInnings++;
+        activePlayer = 1;
+    }
+
+    await updateMatch({ activePlayer, inn1, inn2, totalInnings });
+}
+
+async function undo() {
+
+    alert("Undo über Remote noch nicht implementiert 😉");
+}
+
+async function finish() {
+
+    await updateMatch({ finished: 1 });
+}
+
+</script>
+
+</body>
+</html>
