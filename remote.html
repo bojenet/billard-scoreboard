@@ -1,160 +1,225 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<meta charset="UTF-8">
-<title>Remote</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>Remote</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<style>
-body {
-    margin:0;
-    font-family: Arial;
-    background:#0f1c3f;
-    color:white;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    padding:20px;
-}
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial;
+            background: #0f1c3f;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
 
-h1 {
-    margin-bottom:30px;
-}
+        h1 {
+            margin-bottom: 30px;
+        }
 
-.button-grid {
-    display:grid;
-    grid-template-columns: 1fr 1fr;
-    gap:20px;
-    width:100%;
-    max-width:500px;
-}
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 500px;
+        }
 
-button {
-    padding:30px;
-    font-size:28px;
-    font-weight:bold;
-    border:none;
-    border-radius:20px;
-    background:#1c3380;
-    color:white;
-}
+        button {
+            padding: 30px;
+            font-size: 28px;
+            font-weight: bold;
+            border: none;
+            border-radius: 20px;
+            background: #1c3380;
+            color: white;
+        }
 
-button:active {
-    transform:scale(0.95);
-}
+        button:active {
+            transform: scale(0.95);
+        }
 
-.switch {
-    background:#ffd84a;
-    color:black;
-}
+        .switch {
+            background: #ffd84a;
+            color: black;
+        }
 
-.danger {
-    background:#aa2222;
-}
-</style>
+        .danger {
+            background: #aa2222;
+        }
+    </style>
 </head>
 
 <body>
 
-<h1>Match Remote</h1>
+    <h1>Match Remote</h1>
+    <h2 id="activeInfo"></h2>
+    <h3 id="seriesInfo"></h3>
+    <div class="button-grid">
+        <button onclick="add(1)">+1</button>
+        <button onclick="add(5)">+5</button>
+        <button onclick="add(10)">+10</button>
+        <button onclick="add(-1)">-1</button>
 
-<div class="button-grid">
-    <button onclick="add(1)">+1</button>
-    <button onclick="add(5)">+5</button>
-    <button onclick="add(10)">+10</button>
-    <button onclick="add(-1)">-1</button>
+        <button class="switch" onclick="switchPlayer()">Wechsel</button>
+        <button onclick="undo()">Undo</button>
 
-    <button class="switch" onclick="switchPlayer()">Wechsel</button>
-    <button onclick="undo()">Undo</button>
+        <button class="danger" onclick="finish()">Beenden</button>
+    </div>
 
-    <button class="danger" onclick="finish()">Beenden</button>
-</div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase.js"></script>
+    <script>
 
-<script>
+        const matchId = new URLSearchParams(window.location.search).get("match");
 
-const matchId = new URLSearchParams(window.location.search).get("match");
+        let matchData = null;
 
-let matchData = null;
+        async function loadMatch() {
 
-async function loadMatch() {
+            const { data, error } = await supabaseClient
+                .from("matches")
+                .select("*")
+                .eq("id", matchId)
+                .single();
 
-    const { data, error } = await supabaseClient
-        .from("matches")
-        .select("*")
-        .eq("id", matchId)
-        .single();
+            if (error) {
+                alert("Match nicht gefunden");
+                return;
+            }
 
-    if (error) {
-        alert("Match nicht gefunden");
-        return;
-    }
+            matchData = data;
+        }
 
-    matchData = data;
-}
+        function updateDisplay() {
 
-async function updateMatch(updateObj) {
+            if (!matchData) return;
 
-    const { error } = await supabaseClient
-        .from("matches")
-        .update(updateObj)
-        .eq("id", matchId);
+            document.getElementById("activeInfo").innerText =
+                matchData.activePlayer === 1
+                    ? "Spieler 1 ist dran"
+                    : "Spieler 2 ist dran";
 
-    if (error) {
-        console.error(error);
-    }
-}
+            const currentSeries =
+                matchData.activePlayer === 1
+                    ? matchData.series1
+                    : matchData.series2;
 
-async function add(value) {
+            document.getElementById("seriesInfo").innerText =
+                "Serie: " + (currentSeries > 0 ? "+" + currentSeries : "0");
+        }
 
-    await loadMatch();
 
-    let { score1, score2, activePlayer, target1, target2 } = matchData;
+        async function updateMatch(updateObj) {
 
-    if (activePlayer === 1) {
-        score1 += value;
-        if (score1 < 0) score1 = 0;
-        if (target1 > 0 && score1 > target1) score1 = target1;
-    } else {
-        score2 += value;
-        if (score2 < 0) score2 = 0;
-        if (target2 > 0 && score2 > target2) score2 = target2;
-    }
+            const { error } = await supabaseClient
+                .from("matches")
+                .update(updateObj)
+                .eq("id", matchId);
 
-    await updateMatch({ score1, score2 });
-}
+            if (error) {
+                console.error(error);
+            }
+        }
 
-async function switchPlayer() {
+        await loadMatch();
+        updateDisplay();
 
-    await loadMatch();
+        async function add(value) {
 
-    let { activePlayer, inn1, inn2, totalInnings } = matchData;
+            await loadMatch();
 
-    if (activePlayer === 1) {
-        inn1++;
-        activePlayer = 2;
-    } else {
-        inn2++;
-        totalInnings++;
-        activePlayer = 1;
-    }
+            let { activePlayer, series1, series2, score1, score2, target1, target2 } = matchData;
 
-    await updateMatch({ activePlayer, inn1, inn2, totalInnings });
-}
+            if (activePlayer === 1) {
 
-async function undo() {
+                series1 += value;
+                if (series1 < 0) series1 = 0;
 
-    alert("Undo über Remote noch nicht implementiert 😉");
-}
+                if (target1 > 0 && score1 + series1 > target1)
+                    series1 = target1 - score1;
 
-async function finish() {
+            } else {
 
-    await updateMatch({ finished: 1 });
-}
+                series2 += value;
+                if (series2 < 0) series2 = 0;
 
-</script>
+                if (target2 > 0 && score2 + series2 > target2)
+                    series2 = target2 - score2;
+            }
+
+            await updateMatch({ series1, series2 });
+        }
+
+        async function switchPlayer() {
+
+            await loadMatch();
+
+            let {
+                activePlayer,
+                series1,
+                series2,
+                score1,
+                score2,
+                high1,
+                high2,
+                inn1,
+                inn2,
+                totalInnings
+            } = matchData;
+
+            if (activePlayer === 1) {
+
+                score1 += series1;
+                if (series1 > high1) high1 = series1;
+
+                series1 = 0;
+                inn1++;
+                activePlayer = 2;
+
+            } else {
+
+                score2 += series2;
+                if (series2 > high2) high2 = series2;
+
+                series2 = 0;
+                inn2++;
+                totalInnings++;
+                activePlayer = 1;
+            }
+
+            await updateMatch({
+                score1,
+                score2,
+                series1,
+                series2,
+                high1,
+                high2,
+                activePlayer,
+                inn1,
+                inn2,
+                totalInnings
+            });
+        }
+
+        async function undo() {
+
+            alert("Undo über Remote noch nicht implementiert 😉");
+        }
+
+        async function finish() {
+
+            await updateMatch({ finished: 1 });
+        }
+
+    </script>
 
 </body>
+
 </html>
