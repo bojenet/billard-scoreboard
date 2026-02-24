@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Billard</title>
+
+<style>
+body {
+    margin:0;
+    font-family:Arial;
+    background:linear-gradient(180deg,#1e1f29,#14151c);
+    color:white;
+}
+
+#exitZone{
+    position:fixed;
+    top:0;
+    right:0;
+    width:120px;
+    height:120px;
+    z-index:9999;
+}
+
+.header {
+    text-align:center;
+    padding:60px 0 20px 0;
+    font-size:48px;
+    font-weight:600;
+}
+
+.grid {
+    width:900px;
+    max-width:90%;
+    margin:80px auto;
+    display:grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap:40px;
+}
+
+.tile {
+    background:#2a2b35;
+    border-radius:25px;
+    height:200px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    cursor:pointer;
+    transition:0.25s;
+    box-shadow:0 20px 40px rgba(0,0,0,0.4);
+}
+
+.tile:hover {
+    background:#3f4fa3;
+    transform:translateY(-6px);
+}
+
+.tile-title {
+    font-size:28px;
+    margin-bottom:10px;
+}
+
+.tile-sub {
+    font-size:14px;
+    opacity:0.6;
+}
+
+.footer {
+    text-align:center;
+    margin-top:120px;
+    font-size:14px;
+    opacity:0.4;
+}
+</style>
+</head>
+<body>
+<div id="exitZone"></div>
+<div class="header">
+    Billard System
+</div>
+
+<div class="grid">
+
+    <div class="tile" onclick="window.location.href='match_setup.html'">
+        <div class="tile-title">Match</div>
+        <div class="tile-sub">Neue Partie starten</div>
+    </div>
+
+    <div class="tile" onclick="alert('Training folgt später')">
+        <div class="tile-title">Trainings</div>
+        <div class="tile-sub">Übungen & Serienmodus</div>
+    </div>
+
+    <div class="tile" onclick="window.location.href='players.html'">
+        <div class="tile-title">Spielerverwaltung</div>
+        <div class="tile-sub">Spieler hinzufügen & löschen</div>
+    </div>
+
+    <div class="tile" onclick="window.location.href='archive.html'">
+        <div class="tile-title">Archiv</div>
+        <div class="tile-sub">Gespielte Partien ansehen</div>
+    </div>
+
+</div>
+
+<div class="footer">
+    Scoreboard
+</div>
+
+<script>
+
+let exitTimer = null;
+const exitZone = document.getElementById("exitZone");
+
+exitZone.addEventListener("touchstart", () => {
+    exitTimer = setTimeout(() => {
+
+        // Chromium komplett schließen
+        window.open('', '_self');
+        window.close();
+
+    }, 5000); // 5 Sekunden gedrückt halten
+});
+
+exitZone.addEventListener("touchend", () => {
+    clearTimeout(exitTimer);
+});
+
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const supabaseUrl = "https://kstqhcaazuuxchqtnyfc.supabase.co";
+const supabaseKey = "sb_publishable_0C-Hj42NxQ1UCHMkadC-Pw_KWDg6o2r";
+
+const supabaseClient = supabase.createClient(
+  supabaseUrl,
+  supabaseKey
+);
+
+console.log("Supabase initialisiert");
+</script>
+
+<script>
+async function testConnection() {
+  const { data, error } = await supabaseClient
+    .from("players")
+    .select("*");
+
+  console.log("DB Test:", data, error);
+}
+
+testConnection();
+</script>
+
+</body>
+</html>

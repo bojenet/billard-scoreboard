@@ -160,6 +160,16 @@
 
         /* ================= CENTER ================= */
 
+        .center-wrapper {
+            position: relative;
+            width: 240px;
+            height: 340px;
+            /* Fixe Höhe für gesamten Bereich */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
         .center-box {
             width: 240px;
             height: 240px;
@@ -171,8 +181,19 @@
             box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
         }
 
-        .center-number {
-            font-size: 130px;
+        .series-display {
+            position: absolute;
+            bottom: 0;
+            /* fix unten */
+            width: 100%;
+            text-align: center;
+            font-size: 70px;
+            font-weight: 800;
+        }
+
+        #totalInnings {
+            font-size: 150px;
+            /* gewünschte Größe */
             font-weight: 700;
         }
 
@@ -369,9 +390,17 @@
         }
 
         @keyframes flash {
-            0% {transform: scale(1);}
-            40% {transform: scale(1.5);}
-            100% {transform: scale(1);}
+            0% {
+                transform: scale(1);
+            }
+
+            40% {
+                transform: scale(1.5);
+            }
+
+            100% {
+                transform: scale(1);
+            }
         }
 
         .flash {
@@ -435,11 +464,14 @@
 
 
         <!-- CENTER -->
-        <div style="display:flex; flex-direction:column; align-items:center;">
+        <div class="center-wrapper">
+
             <div class="center-box">
                 <div class="center-number" id="totalInnings">1</div>
             </div>
-            <div id="currentSeries" class="series-display">0</div>
+
+            <div id="currentSeries" class="series-display"></div>
+
         </div>
 
 
@@ -553,6 +585,10 @@
         </div>
     </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+
+    
     <script>
 
         const matchId = new URLSearchParams(window.location.search).get("match");
@@ -640,6 +676,24 @@
 
             p1.className = activePlayer === 1 ? "player active-white" : "player inactive";
             p2.className = activePlayer === 2 ? "player active-yellow" : "player inactive";
+            // Scores
+            document.getElementById("score1").innerText = score1;
+            document.getElementById("score2").innerText = score2;
+
+            // Serie im Center anzeigen
+            let seriesDisplay = document.getElementById("currentSeries");
+
+            if (activePlayer === 1) {
+
+                seriesDisplay.innerText = series1 > 0 ? series1 : "";
+                seriesDisplay.style.color = "#ffffff";   // Spieler 1 = Weiß
+
+            } else {
+
+                seriesDisplay.innerText = series2 > 0 ? series2 : "";
+                seriesDisplay.style.color = "#ffd84a";   // Spieler 2 = Gelb
+            }
+
         }
 
         /* ================= POINTS ================= */
@@ -651,22 +705,14 @@
             saveState();
 
             if (activePlayer === 1) {
-                let newScore = score1 + value;
-                if (newScore < 0) newScore = 0;
-                if (target1 > 0 && newScore > target1) newScore = target1;
-                score1 = newScore;
-                if (value > 0) series1 += value;
+                series1 += value;
+                if (series1 < 0) series1 = 0;
             } else {
-                let newScore = score2 + value;
-                if (newScore < 0) newScore = 0;
-                if (target2 > 0 && newScore > target2) newScore = target2;
-                score2 = newScore;
-                if (value > 0) series2 += value;
+                series2 += value;
+                if (series2 < 0) series2 = 0;
             }
 
-            updateUI();
-            checkWinner();
-
+            updateUI(); // zeigt nur Serie
         }
 
         /* ================= SWITCH ================= */
@@ -679,24 +725,39 @@
             saveState();
 
             if (activePlayer === 1) {
-                if (series1 > high1) high1 = series1;
+
+                // Serie wird jetzt verbucht
+                score1 += series1;
+
+                if (series1 > high1)
+                    high1 = series1;
+
                 innings1.push(series1);
+
                 series1 = 0;
                 inn1++;
+
             } else {
-                if (series2 > high2) high2 = series2;
+
+                score2 += series2;
+
+                if (series2 > high2)
+                    high2 = series2;
+
                 innings2.push(series2);
+
                 series2 = 0;
                 inn2++;
             }
 
-            if (activePlayer === 2 && p === 1) totalInnings++;
+            // Neue Gesamtaufnahme
+            if (activePlayer === 2 && p === 1)
+                totalInnings++;
 
             activePlayer = p;
 
-            checkWinner();
-
             updateUI();
+            checkWinner();
         }
 
         function playerClick(p) {
@@ -949,14 +1010,14 @@
 
             window.location.href = "/";
         }
-function flashSeries() {
+        function flashSeries() {
 
-    const el = document.getElementById("currentSeries");
+            const el = document.getElementById("currentSeries");
 
-    el.classList.remove("flash");
-    void el.offsetWidth;
-    el.classList.add("flash");
-}
+            el.classList.remove("flash");
+            void el.offsetWidth;
+            el.classList.add("flash");
+        }
 
     </script>
 </body>
