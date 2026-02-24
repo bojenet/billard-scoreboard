@@ -667,8 +667,17 @@
         /* ================= LOAD MATCH ================= */
 
         async function loadMatch() {
-            const res = await fetch('/api/match/' + matchId);
-            const d = await res.json();
+
+            const { data: d, error } = await supabaseClient
+                .from("matches")
+                .select("*")
+                .eq("id", matchId)
+                .single();
+
+            if (error) {
+                console.error(error);
+                return;
+            }
 
             document.getElementById("player1Name").innerText = d.player1;
             document.getElementById("player2Name").innerText = d.player2;
@@ -1016,16 +1025,15 @@
                 duration: seconds
             };
 
-            await fetch('/api/archive', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            const { error } = await supabaseClient
+                .from("archive")
+                .insert([data]); 
 
-            window.location.href = "/";
-        }
+            if (error) {
+                console.error(error);
+                return;
+            }
 
-        function discardMatch() {
             window.location.href = "/";
         }
 
