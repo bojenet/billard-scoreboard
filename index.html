@@ -21,6 +21,7 @@ body {
     z-index:9999;
 }
 
+/* HEADER */
 .header {
     text-align:center;
     padding:60px 0 20px 0;
@@ -28,15 +29,17 @@ body {
     font-weight:600;
 }
 
+/* GRID */
 .grid {
-    width:900px;
-    max-width:90%;
-    margin:80px auto;
+    width:1000px;
+    max-width:92%;
+    margin:60px auto;
     display:grid;
     grid-template-columns: repeat(2, 1fr);
     gap:40px;
 }
 
+/* TILE */
 .tile {
     background:#2a2b35;
     border-radius:25px;
@@ -56,8 +59,8 @@ body {
 }
 
 .tile-title {
-    font-size:28px;
-    margin-bottom:10px;
+    font-size:26px;
+    margin-bottom:12px;
 }
 
 .tile-sub {
@@ -65,21 +68,37 @@ body {
     opacity:0.6;
 }
 
+/* LIVE STYLE */
+.tile.live {
+    border:2px solid #ff4d4d;
+    animation:pulse 1.8s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow:0 0 0 0 rgba(255,77,77,0.6); }
+    70% { box-shadow:0 0 0 15px rgba(255,77,77,0); }
+    100% { box-shadow:0 0 0 0 rgba(255,77,77,0); }
+}
+
 .footer {
     text-align:center;
-    margin-top:120px;
+    margin-top:100px;
     font-size:14px;
     opacity:0.4;
 }
 </style>
 </head>
 <body>
+
 <div id="exitZone"></div>
+
 <div class="header">
     Billard System
 </div>
 
-<div class="grid">
+<div class="grid" id="mainGrid">
+
+    <!-- Live Matches werden hier dynamisch eingefügt -->
 
     <div class="tile" onclick="window.location.href='match_setup.html'">
         <div class="tile-title">Match</div>
@@ -107,27 +126,24 @@ body {
     Scoreboard
 </div>
 
+<!-- EXIT ZONE -->
 <script>
-
 let exitTimer = null;
 const exitZone = document.getElementById("exitZone");
 
 exitZone.addEventListener("touchstart", () => {
     exitTimer = setTimeout(() => {
-
-        // Chromium komplett schließen
         window.open('', '_self');
         window.close();
-
-    }, 5000); // 5 Sekunden gedrückt halten
+    }, 5000);
 });
 
 exitZone.addEventListener("touchend", () => {
     clearTimeout(exitTimer);
 });
-
 </script>
 
+<!-- SUPABASE -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
@@ -138,20 +154,47 @@ const supabaseClient = supabase.createClient(
   supabaseUrl,
   supabaseKey
 );
-
-console.log("Supabase initialisiert");
 </script>
 
+<!-- LOAD LIVE MATCHES -->
 <script>
-async function testConnection() {
-  const { data, error } = await supabaseClient
-    .from("players")
-    .select("*");
+async function loadLiveMatches() {
 
-  console.log("DB Test:", data, error);
+  const { data, error } = await supabaseClient
+    .from("matches")
+    .select("*")
+    .eq("status", "live")
+    .order("started_at", { ascending: false });
+
+  if (error) {
+    console.log("Fehler:", error);
+    return;
+  }
+
+  if (!data || data.length === 0) return;
+
+  const grid = document.getElementById("mainGrid");
+
+  data.forEach(match => {
+
+    const tile = document.createElement("div");
+    tile.className = "tile live";
+    tile.onclick = () => {
+      window.location.href = "scoreboard.html?id=" + match.id;
+    };
+
+    tile.innerHTML = `
+      <div class="tile-title">🔴 ${match.player1} vs ${match.player2}</div>
+      <div class="tile-sub">
+        ${match.discipline} · Aufnahme ${match.innings || 1}
+      </div>
+    `;
+
+    grid.prepend(tile);
+  });
 }
 
-testConnection();
+loadLiveMatches();
 </script>
 
 </body>
