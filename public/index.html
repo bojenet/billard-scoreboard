@@ -142,7 +142,17 @@ const supabaseClient = supabase.createClient(
 console.log("Supabase initialisiert");
 </script>
 
+<script>
+async function testConnection() {
+  const { data, error } = await supabaseClient
+    .from("players")
+    .select("*");
 
+  console.log("DB Test:", data, error);
+}
+
+testConnection();
+</script>
 
 </body>
 </html>
