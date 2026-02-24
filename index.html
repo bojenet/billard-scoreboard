@@ -180,7 +180,7 @@ async function loadLiveMatches() {
     const tile = document.createElement("div");
     tile.className = "tile live";
     tile.onclick = () => {
-      window.location.href = "scoreboard.html?id=" + match.id;
+      window.location.href = "scoreboard.html?match=" + match.id;
     };
 
     tile.innerHTML = `
