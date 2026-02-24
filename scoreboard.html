@@ -160,14 +160,15 @@
 
         /* ================= CENTER ================= */
 
+
+
         .center-wrapper {
             position: relative;
             width: 240px;
             height: 340px;
-            /* Fixe Höhe für gesamten Bereich */
             display: flex;
+            align-items: center;
             justify-content: center;
-            align-items: flex-start;
         }
 
         .center-box {
@@ -178,17 +179,17 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
         }
 
         .series-display {
             position: absolute;
-            bottom: 0;
-            /* fix unten */
+            top: 320px;
+            /* exakt unter der Box */
             width: 100%;
             text-align: center;
-            font-size: 70px;
-            font-weight: 800;
+            font-size: 130px;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
         }
 
         #totalInnings {
@@ -295,6 +296,29 @@
             opacity: .8;
         }
 
+        .end-meta-top {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 40px;
+            margin-bottom: 50px;
+            font-size: 18px;
+            opacity: .85;
+        }
+
+        .end-discipline {
+            font-size: 18px;
+            opacity: .7;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, .1);
+            padding: 6px 0;
+        }
+
         /* Serien Tabellen */
 
         .series-tables {
@@ -372,13 +396,6 @@
 
         .discard-btn:hover {
             background: #444;
-        }
-
-        .series-display {
-            margin-top: 30px;
-            font-size: 60px;
-            font-weight: 800;
-            transition: transform .3s ease;
         }
 
         .series-white {
@@ -464,6 +481,19 @@
 
 
         <!-- CENTER -->
+
+        <div id="nachstossLabel" style="
+    position:absolute;
+    top: 250px;
+    width:100%;
+    text-align:center;
+    font-size:28px;
+    font-weight:600;
+    color:#ffd84a;
+    display:none;">
+            Nachstoß
+        </div>
+
         <div class="center-wrapper">
 
             <div class="center-box">
@@ -526,31 +556,41 @@
 
             <h1 id="winnerText"></h1>
 
+            <!-- META OBEN -->
+            <div class="end-meta-top">
+
+                <div class="meta-row">
+                    <span>Dauer:</span>
+                    <span id="endDuration"></span>
+                </div>
+            </div>
+
+            <!-- SPIELER DATEN -->
             <div class="end-stats">
 
                 <div class="end-player">
                     <h2 id="endName1"></h2>
+                    <div class="end-discipline" id="endDisc1"></div>
                     <div>Punkte: <span id="endScore1"></span></div>
-                    <div>AVG: <span id="endAvg1"></span></div>
+                    <div>Aufnahmen: <span id="endInnings"></span></div>
+                    <div>DS: <span id="endAvg1"></span></div>
                     <div>HR: <span id="endHs1"></span></div>
                     <div>Prozent: <span id="endPercent1"></span></div>
                 </div>
 
                 <div class="end-player">
                     <h2 id="endName2"></h2>
+                    <div class="end-discipline" id="endDisc2"></div>
                     <div>Punkte: <span id="endScore2"></span></div>
-                    <div>AVG: <span id="endAvg2"></span></div>
+                    <div>Aufnahmen: <span id="endInnings"></span></div>
+                    <div>DS: <span id="endAvg2"></span></div>
                     <div>HR: <span id="endHs2"></span></div>
                     <div>Prozent: <span id="endPercent2"></span></div>
                 </div>
 
             </div>
 
-            <div class="end-meta">
-                <div>Aufnahmen: <span id="endInnings"></span></div>
-                <div>Dauer: <span id="endDuration"></span></div>
-            </div>
-
+            <!-- SERIEN -->
             <div class="series-tables">
 
                 <div class="series-block">
@@ -569,6 +609,7 @@
                 <button class="save-btn" onclick="saveMatch()">Partie speichern</button>
                 <button class="discard-btn" onclick="discardMatch()">Verwerfen</button>
             </div>
+
         </div>
     </div>
     <!-- ================= ABORT OVERLAY ================= -->
@@ -585,10 +626,10 @@
         </div>
     </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
 
-    
+
     <script>
 
         const matchId = new URLSearchParams(window.location.search).get("match");
@@ -685,13 +726,28 @@
 
             if (activePlayer === 1) {
 
-                seriesDisplay.innerText = series1 > 0 ? series1 : "";
-                seriesDisplay.style.color = "#ffffff";   // Spieler 1 = Weiß
+                seriesDisplay.innerText =
+                    series1 > 0 ? "+" + series1 : "";
+
+                seriesDisplay.style.color = "#ffffff";
 
             } else {
 
-                seriesDisplay.innerText = series2 > 0 ? series2 : "";
-                seriesDisplay.style.color = "#ffd84a";   // Spieler 2 = Gelb
+                seriesDisplay.innerText =
+                    series2 > 0 ? "+" + series2 : "";
+
+                seriesDisplay.style.color = "#ffd84a";
+            }
+            let nachstoss = document.getElementById("nachstossLabel");
+
+            if (target1 > 0 && score1 >= target1 && inn1 > inn2) {
+                nachstoss.style.display = "block";
+            }
+            else if (target2 > 0 && score2 >= target2 && inn2 > inn1) {
+                nachstoss.style.display = "block";
+            }
+            else {
+                nachstoss.style.display = "none";
             }
 
         }
@@ -705,14 +761,27 @@
             saveState();
 
             if (activePlayer === 1) {
+
                 series1 += value;
                 if (series1 < 0) series1 = 0;
+
+                // 🔒 Begrenzung auf Ziel
+                if (target1 > 0 && score1 + series1 > target1) {
+                    series1 = target1 - score1;
+                }
+
             } else {
+
                 series2 += value;
                 if (series2 < 0) series2 = 0;
+
+                // 🔒 Begrenzung auf Ziel
+                if (target2 > 0 && score2 + series2 > target2) {
+                    series2 = target2 - score2;
+                }
             }
 
-            updateUI(); // zeigt nur Serie
+            updateUI();
         }
 
         /* ================= SWITCH ================= */
@@ -777,32 +846,41 @@
 
         function checkWinner() {
 
-            // 1️⃣ Sofortiger Sieg bei Zielerreichung
-            if (target1 > 0 && score1 >= target1) {
-                showEnd(1);
-                return;
+            // Beide Spieler haben gleich viele Aufnahmen gespielt
+            if (inn1 === inn2) {
+
+                // Zielprüfung jetzt erst erlauben
+                if (target1 > 0 && score1 >= target1 && score2 < target2) {
+                    showEnd(1);
+                    return;
+                }
+
+                if (target2 > 0 && score2 >= target2 && score1 < target1) {
+                    showEnd(2);
+                    return;
+                }
+
+                // Beide Ziel erreicht → höhere Punktzahl gewinnt
+                if (target1 > 0 && target2 > 0 &&
+                    score1 >= target1 && score2 >= target2) {
+
+                    if (score1 > score2) showEnd(1);
+                    else if (score2 > score1) showEnd(2);
+                    else showEnd(0);
+
+                    return;
+                }
             }
 
-            if (target2 > 0 && score2 >= target2) {
-                showEnd(2);
-                return;
-            }
-
-            // 2️⃣ Max Aufnahmen erreicht → Prozent entscheidet
+            // Max-Aufnahmen-Regel bleibt
             if (maxInnings > 0 && totalInnings >= maxInnings && inn1 === inn2) {
 
                 let percent1 = target1 > 0 ? score1 / target1 : 0;
                 let percent2 = target2 > 0 ? score2 / target2 : 0;
 
-                if (percent1 > percent2) {
-                    showEnd(1);
-                }
-                else if (percent2 > percent1) {
-                    showEnd(2);
-                }
-                else {
-                    showEnd(0); // Remis
-                }
+                if (percent1 > percent2) showEnd(1);
+                else if (percent2 > percent1) showEnd(2);
+                else showEnd(0);
             }
         }
 
@@ -903,7 +981,16 @@
                 score2,
                 player2Name.innerText
             );
+            document.getElementById("endDiscipline").innerText =
+                document.getElementById("discipline1Big").innerText;
 
+            document.getElementById("endTargetMeta").innerText =
+                target1 + (maxInnings > 0 ? " / " + maxInnings : "");
+            const disciplineText =
+                document.getElementById("discipline1Big").innerText;
+
+            document.getElementById("endDisc1").innerText = disciplineText;
+            document.getElementById("endDisc2").innerText = disciplineText;
 
         }
 
