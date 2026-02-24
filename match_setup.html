@@ -261,16 +261,23 @@
             </button>
         </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script src="js/supabase.js"></script>
 
 
         <script>
 
-            /* SPIELER LADEN */
             async function loadPlayers() {
-                const res = await fetch('/api/players');
-                const players = await res.json();
+
+                const { data: players, error } = await supabaseClient
+                    .from("players")
+                    .select("*")
+                    .order("name", { ascending: true });
+
+                if (error) {
+                    console.error(error);
+                    return;
+                }
 
                 const p1 = document.getElementById('player1');
                 const p2 = document.getElementById('player2');
@@ -308,11 +315,11 @@
                     };
                     t2.appendChild(b2);
                 });
+
                 p1.value = "";
                 p2.value = "";
                 p1.selectedIndex = -1;
                 p2.selectedIndex = -1;
-
             }
 
             /* DISCIPLINE TOUCH */
@@ -347,6 +354,7 @@
             }
 
             async function startMatch() {
+
                 const p1 = document.getElementById('player1').value;
                 const p2 = document.getElementById('player2').value;
 
@@ -355,22 +363,34 @@
                     return;
                 }
 
-                const res = await fetch('/api/match', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                const { data, error } = await supabaseClient
+                    .from("matches")
+                    .insert([{
                         player1: p1,
                         player2: p2,
                         discipline1: document.getElementById('discipline1').value,
                         discipline2: document.getElementById('discipline2').value,
                         target1: parseInt(document.getElementById('target1').value),
                         target2: parseInt(document.getElementById('target2').value),
-                        maxInnings: parseInt(document.getElementById('maxInnings').value)
-                    })
-                });
+                        maxInnings: parseInt(document.getElementById('maxInnings').value),
+                        score1: 0,
+                        score2: 0,
+                        inn1: 0,
+                        inn2: 0,
+                        totalInnings: 1,
+                        activePlayer: 1,
+                        finished: false
+                    }])
+                    .select();
 
-                const data = await res.json();
-                window.location.href = "/scoreboard.html?match=" + data.matchId;
+                if (error) {
+                    console.error(error);
+                    return;
+                }
+
+                const matchId = data[0].id;
+
+                window.location.href = "/scoreboard.html?match=" + matchId;
             }
 
             window.addEventListener("DOMContentLoaded", () => {
