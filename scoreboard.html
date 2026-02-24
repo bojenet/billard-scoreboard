@@ -648,6 +648,7 @@
         let seconds = 0;
         let maxInnings = 0;
         let timerInterval;
+        let channel;
 
         /* ================= TIMER ================= */
 
@@ -704,6 +705,7 @@
 
             updateUI();
             startTimer();
+            subscribeToMatch();
         }
 
         /* ================= UPDATE UI ================= */
@@ -1141,6 +1143,36 @@
             el.classList.remove("flash");
             void el.offsetWidth;
             el.classList.add("flash");
+        }
+
+        function subscribeToMatch() {
+
+            channel = supabaseClient
+                .channel('match-' + matchId)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'matches',
+                        filter: 'id=eq.' + matchId
+                    },
+                    (payload) => {
+
+                        const d = payload.new;
+
+                        score1 = d.score1;
+                        score2 = d.score2;
+                        inn1 = d.inn1;
+                        inn2 = d.inn2;
+                        totalInnings = d.totalInnings;
+                        activePlayer = d.activePlayer;
+                        finished = d.finished;
+
+                        updateUI();
+                    }
+                )
+                .subscribe();
         }
 
     </script>
