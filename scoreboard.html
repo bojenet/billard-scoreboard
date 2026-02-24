@@ -652,16 +652,22 @@
 
         /* ================= TIMER ================= */
 
-        function startTimer() {
+        function startTimer(startedAt) {
+
             timerInterval = setInterval(() => {
-                if (!finished) {
-                    seconds++;
-                    let m = Math.floor(seconds / 60);
-                    let s = seconds % 60;
-                    document.getElementById("gameTime").innerText =
-                        String(m).padStart(2, "0") + ":" +
-                        String(s).padStart(2, "0");
-                }
+
+                const startTime = new Date(startedAt).getTime();
+                const now = Date.now();
+
+                const diff = Math.floor((now - startTime) / 1000);
+
+                let m = Math.floor(diff / 60);
+                let s = diff % 60;
+
+                document.getElementById("gameTime").innerText =
+                    String(m).padStart(2, "0") + ":" +
+                    String(s).padStart(2, "0");
+
             }, 1000);
         }
 
@@ -704,7 +710,7 @@
                 (maxInnings > 0 ? "/" + maxInnings : "");
 
             updateUI();
-            startTimer();
+            startTimer(d.started_at);
             subscribeToMatch();
         }
 
