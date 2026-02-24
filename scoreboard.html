@@ -633,6 +633,7 @@
     <script>
 
         const matchId = new URLSearchParams(window.location.search).get("match");
+        const isViewer = new URLSearchParams(window.location.search).get("viewer") === "1";
 
         let score1 = 0, score2 = 0;
         let inn1 = 0, inn2 = 0;
@@ -670,6 +671,31 @@
 
             }, 1000);
         }
+
+        if (isViewer) {
+
+            // Steuerbuttons unten ausblenden
+            document.querySelector(".controls").style.display = "none";
+
+            // Spieler nicht klickbar machen
+            document.getElementById("p1").onclick = null;
+            document.getElementById("p2").onclick = null;
+
+            // Abort & End Buttons deaktivieren
+            const endButtons = document.querySelectorAll(".end-buttons button");
+            endButtons.forEach(btn => btn.style.display = "none");
+
+            // Optional: kleines Badge anzeigen
+            const badge = document.createElement("div");
+            badge.innerText = "VIEWER MODE";
+            badge.style.position = "fixed";
+            badge.style.top = "10px";
+            badge.style.right = "20px";
+            badge.style.opacity = "0.4";
+            badge.style.fontSize = "14px";
+            document.body.appendChild(badge);
+        }
+
 
         /* ================= LOAD MATCH ================= */
 
@@ -712,7 +738,7 @@
             updateUI();
             startTimer(d.started_at);
             subscribeToMatch();
-        
+
             console.log("started_at:", d.started_at);
 
         }
