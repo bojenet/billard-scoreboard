@@ -1,89 +1,94 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<meta charset="UTF-8">
-<title>Archiv Detail</title>
+    <meta charset="UTF-8">
+    <title>Archiv Detail</title>
 
-<style>
-body {
-    font-family: Arial;
-    background:#1e1b1b;
-    color:white;
-    text-align:center;
-}
+    <style>
+        body {
+            font-family: Arial;
+            background: #1e1b1b;
+            color: white;
+            text-align: center;
+        }
 
-h1 {
-    margin-top:30px;
-}
+        h1 {
+            margin-top: 30px;
+        }
 
-.section {
-    margin:30px auto;
-    width:90%;
-}
+        .section {
+            margin: 30px auto;
+            width: 90%;
+        }
 
-table {
-    border-collapse:collapse;
-    margin:20px auto;
-}
+        table {
+            border-collapse: collapse;
+            margin: 20px auto;
+        }
 
-th, td {
-    border:1px solid #444;
-    padding:8px 14px;
-}
+        th,
+        td {
+            border: 1px solid #444;
+            padding: 8px 14px;
+        }
 
-.series-container {
-    display:flex;
-    justify-content:center;
-    gap:60px;
-    margin-top:40px;
-}
+        .series-container {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            margin-top: 40px;
+        }
 
-button {
-    font-size:18px;
-    padding:8px 20px;
-    margin-top:30px;
-}
-</style>
+        button {
+            font-size: 18px;
+            padding: 8px 20px;
+            margin-top: 30px;
+        }
+    </style>
 </head>
+
 <body>
 
-<h1>Partie Details</h1>
+    <h1>Partie Details</h1>
 
-<div id="meta"></div>
+    <div id="meta"></div>
 
-<div class="series-container">
-    <div>
-        <h3 id="name1"></h3>
-        <table id="series1"></table>
+    <div class="series-container">
+        <div>
+            <h3 id="name1"></h3>
+            <table id="series1"></table>
+        </div>
+        <div>
+            <h3 id="name2"></h3>
+            <table id="series2"></table>
+        </div>
     </div>
-    <div>
-        <h3 id="name2"></h3>
-        <table id="series2"></table>
-    </div>
-</div>
 
-<button onclick="window.location.href='archive.html'">Zurück</button>
+    <button onclick="window.location.href='archive.html'">Zurück</button>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
 
-<script>
+    <script>
 
-const id = new URLSearchParams(window.location.search).get("id");
+        const id = new URLSearchParams(window.location.search).get("id");
 
-async function loadDetail(){
+        async function loadDetail() {
 
-    const res = await fetch('/api/archive');
-    const data = await res.json();
+            const { data: match, error } = await supabaseClient
+                .from("archive")
+                .select("*")
+                .eq("id", id)
+                .single();
 
-    const match = data.find(m => m.id == id);
+            if (error || !match) {
+                document.body.innerHTML = "Nicht gefunden";
+                console.error(error);
+                return;
+            }
 
-    if(!match){
-        document.body.innerHTML = "Nicht gefunden";
-        return;
-    }
-
-    document.getElementById("meta").innerHTML = `
+            document.getElementById("meta").innerHTML = `
         <div>${match.player1} vs ${match.player2}</div>
         <div>Ergebnis: ${match.score1} : ${match.score2}</div>
         <div>AVG: ${match.avg1} / ${match.avg2}</div>
@@ -91,17 +96,18 @@ async function loadDetail(){
         <div>Aufnahmen: ${match.innings}</div>
     `;
 
-    document.getElementById("name1").innerText = match.player1;
-    document.getElementById("name2").innerText = match.player2;
+            document.getElementById("name1").innerText = match.player1;
+            document.getElementById("name2").innerText = match.player2;
 
-    buildSeries("series1", JSON.parse(match.series1));
-    buildSeries("series2", JSON.parse(match.series2));
-}
+            // Wenn series als JSONB gespeichert ist → kein JSON.parse nötig
+            buildSeries("series1", match.series1);
+            buildSeries("series2", match.series2);
+        }
 
-function buildSeries(tableId, seriesArray){
+        function buildSeries(tableId, seriesArray) {
 
-    const table = document.getElementById(tableId);
-    table.innerHTML = `
+            const table = document.getElementById(tableId);
+            table.innerHTML = `
         <tr>
             <th>Aufn</th>
             <th>Serie</th>
@@ -109,24 +115,25 @@ function buildSeries(tableId, seriesArray){
         </tr>
     `;
 
-    let cumulative = 0;
+            let cumulative = 0;
 
-    for(let i=0;i<seriesArray.length;i++){
-        cumulative += seriesArray[i];
+            for (let i = 0; i < seriesArray.length; i++) {
+                cumulative += seriesArray[i];
 
-        table.innerHTML += `
+                table.innerHTML += `
             <tr>
-                <td>${i+1}</td>
+                <td>${i + 1}</td>
                 <td>${seriesArray[i]}</td>
                 <td>${cumulative}</td>
             </tr>
         `;
-    }
-}
+            }
+        }
 
-loadDetail();
+        loadDetail();
 
-</script>
+    </script>
 
 </body>
+
 </html>
