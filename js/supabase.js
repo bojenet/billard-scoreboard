@@ -7,3 +7,13 @@ window.supabaseClient = supabase.createClient(
 );
 
 console.log("Supabase initialisiert");
+
+async function testDB() {
+  const { data, error } = await supabaseClient
+    .from("players")
+    .select("*");
+
+  console.log("DB Test:", data, error);
+}
+
+testDB();
