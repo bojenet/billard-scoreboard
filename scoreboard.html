@@ -686,6 +686,14 @@
             target2 = Number(d.target2 || 0);
             maxInnings = Number(d.maxInnings || 0);
 
+            score1 = d.score1 || 0;
+            score2 = d.score2 || 0;
+            inn1 = d.inn1 || 0;
+            inn2 = d.inn2 || 0;
+            totalInnings = d.totalInnings || 1;
+            activePlayer = d.activePlayer || 1;
+            finished = d.finished || 0;
+
             document.getElementById("discipline1Big").innerText =
                 d.discipline1 + " – " + d.target1 +
                 (maxInnings > 0 ? "/" + maxInnings : "");
@@ -694,6 +702,7 @@
                 d.discipline2 + " – " + d.target2 +
                 (maxInnings > 0 ? "/" + maxInnings : "");
 
+            updateUI();
             startTimer();
         }
 
@@ -836,6 +845,7 @@
 
             updateUI();
             checkWinner();
+            updateMatchInDB();
         }
 
         function playerClick(p) {
@@ -852,6 +862,25 @@
             }
         }
 
+        async function updateMatchInDB() {
+
+            const { error } = await supabaseClient
+                .from("matches")
+                .update({
+                    score1,
+                    score2,
+                    inn1,
+                    inn2,
+                    totalInnings,
+                    activePlayer,
+                    finished
+                })
+                .eq("id", matchId);
+
+            if (error) {
+                console.error("Update Fehler:", error);
+            }
+        }
 
         function checkWinner() {
 
@@ -1027,7 +1056,7 @@
 
             const { error } = await supabaseClient
                 .from("archive")
-                .insert([data]); 
+                .insert([data]);
 
             if (error) {
                 console.error(error);
