@@ -626,6 +626,8 @@
         </div>
     </div>
 
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
 
@@ -674,26 +676,30 @@
 
         if (isViewer) {
 
-            // Steuerbuttons unten ausblenden
+            // Buttons unten ausblenden
             document.querySelector(".controls").style.display = "none";
 
-            // Spieler nicht klickbar machen
+            // Spieler nicht klickbar
             document.getElementById("p1").onclick = null;
             document.getElementById("p2").onclick = null;
 
-            // Abort & End Buttons deaktivieren
+            // Endscreen Buttons ausblenden
             const endButtons = document.querySelectorAll(".end-buttons button");
             endButtons.forEach(btn => btn.style.display = "none");
 
-            // Optional: kleines Badge anzeigen
-            const badge = document.createElement("div");
-            badge.innerText = "VIEWER MODE";
-            badge.style.position = "fixed";
-            badge.style.top = "10px";
-            badge.style.right = "20px";
-            badge.style.opacity = "0.4";
-            badge.style.fontSize = "14px";
-            document.body.appendChild(badge);
+            // QR anzeigen
+            const qrBox = document.getElementById("qrBox");
+            qrBox.style.display = "block";
+
+            const remoteUrl =
+                window.location.origin +
+                "/remote.html?match=" + matchId;
+
+            new QRCode(document.getElementById("qrcode"), {
+                text: remoteUrl,
+                width: 180,
+                height: 180
+            });
         }
 
 
@@ -1212,6 +1218,23 @@
         }
 
     </script>
+
+    <div id="qrBox" style="
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: rgba(0,0,0,0.6);
+    padding: 20px;
+    border-radius: 20px;
+    display: none;
+    text-align:center;
+">
+        <div style="font-size:14px; opacity:.6; margin-bottom:10px;">
+            Remote öffnen
+        </div>
+        <div id="qrcode"></div>
+    </div>
+
 </body>
 
 </html>
