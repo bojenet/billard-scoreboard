@@ -330,6 +330,18 @@
                 return;
             }
 
+            const { data: archiveMatch, error: archiveError } = await supabaseClient
+                .from("archive")
+                .select("*")
+                .eq("matchId", id)
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (archiveError) {
+                console.error("Archivdaten laden fehlgeschlagen:", archiveError);
+            }
+
             const createdAt = match.created_at || match.started_at;
             const innings1 = Number(match.inn1 || 0);
             const innings2 = Number(match.inn2 || 0);
@@ -354,7 +366,11 @@
             document.getElementById("high1").innerText = match.high1 ?? 0;
             document.getElementById("high2").innerText = match.high2 ?? 0;
 
-            buildRows(match);
+            const matchForSeries = archiveMatch
+                ? { ...match, series1: archiveMatch.series1, series2: archiveMatch.series2 }
+                : match;
+
+            buildRows(matchForSeries);
         }
 
         loadDetail();
