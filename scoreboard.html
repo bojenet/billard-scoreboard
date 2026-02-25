@@ -544,7 +544,7 @@
             <button class="main-btn" onclick="addPoints(10)">+10</button>
             <button onclick="addPoints(-1)">-1</button>
             <button onclick="undo()">Undo</button>
-            <button class="abort-btn" onclick="abortMatch()">Zurück</button>
+            <button class="abort-btn" onclick="abortMatch()">Beenden</button>
         </div>
 
     </div>
@@ -612,15 +612,31 @@
 
         </div>
     </div>
-    <!-- ================= ABORT OVERLAY ================= -->
+
+
+    <!-- ================= BEENDEN OVERLAY ================= -->
     <div id="abortOverlay" class="end-overlay">
-        <div class="end-box" style="max-width:700px; text-align:center;">
+        <div class="end-box" style="max-width:800px; text-align:center;">
 
-            <h1>Partie wirklich abbrechen?</h1>
+            <h1>Partie beenden?</h1>
 
-            <div style="margin-top:40px;" class="end-buttons">
-                <button class="discard-btn" onclick="closeAbort()">Weiter spielen</button>
-                <button class="save-btn" onclick="confirmAbort()">Abbrechen</button>
+            <div style="margin-top:20px; font-size:20px; opacity:.8;">
+                Aktueller Stand:<br><br>
+                <strong id="abortScoreText"></strong>
+            </div>
+
+            <div style="margin-top:50px;" class="end-buttons">
+                <button class="discard-btn" onclick="closeAbort()">
+                    Weiter spielen
+                </button>
+
+                <button class="save-btn" onclick="saveAndExit()">
+                    Speichern
+                </button>
+
+                <button class="discard-btn" onclick="discardAndExit()">
+                    Verwerfen
+                </button>
             </div>
 
         </div>
@@ -1201,10 +1217,11 @@
 
         function abortMatch() {
 
-            if (finished) {
-                window.location.href = "/";
-                return;
-            }
+            // Text vorbereiten
+            document.getElementById("abortScoreText").innerText =
+                player1Name.innerText + " " + score1 +
+                " : " +
+                score2 + " " + player2Name.innerText;
 
             document.getElementById("abortOverlay").style.display = "flex";
         }
@@ -1223,6 +1240,24 @@
 
             window.location.href = "/";
         }
+
+        async function saveAndExit() {
+
+            await saveMatch(); // nutzt deine bestehende Funktion
+
+            // saveMatch macht already redirect
+        }
+
+        function discardAndExit() {
+
+            clearInterval(timerInterval);
+
+            window.location.href = "/";
+        }
+
+
+
+
         function flashSeries() {
 
             const el = document.getElementById("currentSeries");
