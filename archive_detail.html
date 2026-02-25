@@ -379,6 +379,7 @@
             const createdAt = match.created_at || match.started_at;
             const innings1 = Number(match.inn1 || 0);
             const innings2 = Number(match.inn2 || 0);
+            const playedInnings = Math.max(innings1, innings2);
             const avg1 = innings1 > 0 ? (Number(match.score1 || 0) / innings1).toFixed(3) : "0.000";
             const avg2 = innings2 > 0 ? (Number(match.score2 || 0) / innings2).toFixed(3) : "0.000";
 
@@ -387,7 +388,7 @@
             document.getElementById("player1").innerText = match.player1 || "-";
             document.getElementById("player2").innerText = match.player2 || "-";
             document.getElementById("result").innerText = `${match.score1 ?? 0} : ${match.score2 ?? 0}`;
-            document.getElementById("totalInnings").innerText = match.totalInnings ?? "-";
+            document.getElementById("totalInnings").innerText = playedInnings;
 
             document.getElementById("leftName").innerText = match.player1 || "-";
             document.getElementById("rightName").innerText = match.player2 || "-";
