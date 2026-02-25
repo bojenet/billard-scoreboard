@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Training</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(180deg, #1e1f29, #14151c);
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            padding: 56px 0 18px;
+            font-size: 48px;
+            font-weight: 700;
+        }
+
+        .sub {
+            text-align: center;
+            opacity: 0.75;
+            font-size: 18px;
+            margin-bottom: 34px;
+        }
+
+        .grid {
+            width: min(1050px, 92%);
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 26px;
+        }
+
+        .tile {
+            min-height: 220px;
+            border-radius: 20px;
+            background: linear-gradient(180deg, #2b2e40, #25293a);
+            border: 1px solid #3a4060;
+            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.35);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: transform .18s ease, background .18s ease;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .tile:hover {
+            transform: translateY(-4px);
+            background: linear-gradient(180deg, #36407a, #2c3361);
+        }
+
+        .tile-title {
+            font-size: 34px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .tile-sub {
+            font-size: 18px;
+            opacity: 0.82;
+        }
+
+        .actions {
+            width: min(1050px, 92%);
+            margin: 30px auto 40px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 14px 26px;
+            border: none;
+            border-radius: 12px;
+            background: #4352a8;
+            color: white;
+            font-size: 22px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        @media (max-width: 900px) {
+            .header {
+                font-size: 40px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">Training</div>
+    <div class="sub">Bitte Trainingsmodus wählen</div>
+
+    <div class="grid">
+        <div class="tile" onclick="window.location.href='training_go_on.html'">
+            <div class="tile-title">Go-on Partie</div>
+            <div class="tile-sub">Serien & Aufnahme-Fokus</div>
+        </div>
+
+        <div class="tile" onclick="window.location.href='training_countdown_hs.html'">
+            <div class="tile-title">Countdown HS</div>
+            <div class="tile-sub">Rückwärts zur Höchstserie</div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn" onclick="window.location.href='index.html'">Zurück</button>
+    </div>
+</body>
+</html>
