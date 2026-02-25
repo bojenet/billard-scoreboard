@@ -144,6 +144,28 @@
                 });
         }
 
+        function subscribeToMatch() {
+
+            supabaseClient
+                .channel('remote-match-' + matchId)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'matches',
+                        filter: 'id=eq.' + matchId
+                    },
+                    (payload) => {
+
+                        matchData = payload.new;
+                        updateDisplay();
+                    }
+                )
+                .subscribe();
+        }
+
+        subscribeToMatch();
 
         function updateDisplay() {
 
