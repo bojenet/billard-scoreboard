@@ -634,8 +634,9 @@
 
     <script>
 
+        let viewerMode = false;
+
         const matchId = new URLSearchParams(window.location.search).get("match");
-        const isViewer = new URLSearchParams(window.location.search).get("viewer") === "1";
 
         let score1 = 0, score2 = 0;
         let inn1 = 0, inn2 = 0;
@@ -674,40 +675,6 @@
             }, 1000);
         }
 
-        window.addEventListener("DOMContentLoaded", function () {
-
-            if (isViewer) {
-
-                const controls = document.querySelector(".controls");
-                if (controls) controls.style.display = "none";
-
-                const p1 = document.getElementById("p1");
-                const p2 = document.getElementById("p2");
-
-                if (p1) p1.onclick = null;
-                if (p2) p2.onclick = null;
-
-                const endButtons = document.querySelectorAll(".end-buttons button");
-                endButtons.forEach(btn => btn.style.display = "none");
-
-                const qrBox = document.getElementById("qrBox");
-
-                if (qrBox) {
-                    qrBox.style.display = "block";
-
-                    const remoteUrl =
-                        window.location.origin +
-                        "/remote.html?match=" + matchId;
-
-                    new QRCode(document.getElementById("qrcode"), {
-                        text: remoteUrl,
-                        width: 180,
-                        height: 180
-                    });
-                }
-            }
-
-        });
 
         /* ================= LOAD MATCH ================= */
 
@@ -723,6 +690,13 @@
                 console.error(error);
                 return;
             }
+
+            if (d.controlMode === "remote") {
+                viewerMode = true;
+            } else {
+                viewerMode = false;
+            }
+
 
             document.getElementById("player1Name").innerText = d.player1;
             document.getElementById("player2Name").innerText = d.player2;
@@ -754,6 +728,47 @@
             console.log("started_at:", d.started_at);
 
         }
+
+        function applyControlMode() {
+
+            const controls = document.querySelector(".controls");
+            const p1 = document.getElementById("p1");
+            const p2 = document.getElementById("p2");
+
+            if (viewerMode) {
+                if (controls) controls.style.display = "none";
+                if (p1) p1.onclick = null;
+                if (p2) p2.onclick = null;
+            } else {
+                if (controls) controls.style.display = "flex";
+            }
+        }
+        applyControlMode();
+        showQRTemporarily();
+
+        function showQRTemporarily() {
+
+            const qrBox = document.getElementById("qrBox");
+            if (!qrBox) return;
+
+            const remoteUrl =
+                window.location.origin +
+                "/remote.html?match=" + matchId;
+
+            qrBox.style.display = "block";
+            document.getElementById("qrcode").innerHTML = "";
+
+            new QRCode(document.getElementById("qrcode"), {
+                text: remoteUrl,
+                width: 180,
+                height: 180
+            });
+
+            setTimeout(() => {
+                qrBox.style.display = "none";
+            }, 60000);
+        }
+
 
         /* ================= UPDATE UI ================= */
 
