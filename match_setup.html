@@ -158,96 +158,114 @@
 
     <div class="container">
 
-        <!-- ================= SPIELER 1 ================= -->
-        <div class="section">
-            <h3>Spieler 1</h3>
-            <div class="row">
+<div class="players-row">
 
-                <!-- PLAYER -->
-                <select id="player1" style="display:none;"></select>
-                <div id="touchPlayer1" class="touch-player-select"></div>
+    <!-- ================= SPIELER 1 ================= -->
+    <div class="section player-column">
 
-                <!-- DISCIPLINE -->
-                <select id="discipline1" style="display:none;">
-                    <option value="Freie Partie">Freie Partie</option>
-                    <option value="Cadre 35/2">Cadre 35/2</option>
-                    <option value="Cadre 52/2">Cadre 52/2</option>
-                    <option value="Cadre 47/2">Cadre 47/2</option>
-                    <option value="Cadre 47/1">Cadre 47/1</option>
-                    <option value="Cadre 71/2">Cadre 71/2</option>
-                    <option value="Einband">Einband</option>
-                    <option value="Dreiband">Dreiband</option>
-                </select>
-                <div id="touchDiscipline1" class="touch-select"></div>
+        <h3>Spieler 1</h3>
 
-                <!-- POINTS -->
-                <div class="points-box">
+        <!-- PLAYER -->
+        <select id="player1" style="display:none;"></select>
+        <div id="touchPlayer1" class="touch-player-select"></div>
 
-                    <input type="number" id="target1" value="">
+        <!-- DISCIPLINE -->
+        <select id="discipline1" style="display:none;">
+            <option value="Freie Partie">Freie Partie</option>
+            <option value="Cadre 35/2">Cadre 35/2</option>
+            <option value="Cadre 52/2">Cadre 52/2</option>
+            <option value="Cadre 47/2">Cadre 47/2</option>
+            <option value="Cadre 47/1">Cadre 47/1</option>
+            <option value="Cadre 71/2">Cadre 71/2</option>
+            <option value="Einband">Einband</option>
+            <option value="Dreiband">Dreiband</option>
+        </select>
 
-                    <div class="quick-defaults">
-                        <button type="button" onclick="setTarget('target1',50)">50</button>
-                        <button type="button" onclick="setTarget('target1',100)">100</button>
-                        <button type="button" onclick="setTarget('target1',150)">150</button>
-                        <button type="button" onclick="setTarget('target1',200)">200</button>
-                        <button type="button" onclick="setTarget('target1',300)">300</button>
-                    </div>
-
-                    <div class="adjust">
-                        <button type="button" onclick="adjustTarget('target1', -10)">-10</button>
-                        <button type="button" onclick="adjustTarget('target1', -1)">-1</button>
-                        <button type="button" onclick="adjustTarget('target1', 1)">+1</button>
-                        <button type="button" onclick="adjustTarget('target1', 10)">+10</button>
-                    </div>
-
-                </div>
-
-            </div>
+        <div style="margin-top:20px;">
+            <div style="margin-bottom:10px; font-weight:600;">Disziplin</div>
+            <div id="touchDiscipline1" class="touch-select"></div>
         </div>
 
-        <!-- ================= SPIELER 2 ================= -->
-        <div class="section">
-            <h3>Spieler 2</h3>
-            <div class="row">
+        <!-- POINTS -->
+        <div class="points-box" style="margin-top:25px;">
 
-                <select id="player2" style="display:none;"></select>
-                <div id="touchPlayer2" class="touch-player-select"></div>
+            <div style="margin-bottom:10px; font-weight:600;">Zielpunkte</div>
 
-                <select id="discipline2" style="display:none;">
-                    <option value="Freie Partie">Freie Partie</option>
-                    <option value="Cadre 35/2">Cadre 35/2</option>
-                    <option value="Cadre 52/2">Cadre 52/2</option>
-                    <option value="Cadre 47/2">Cadre 47/2</option>
-                    <option value="Cadre 47/1">Cadre 47/1</option>
-                    <option value="Cadre 71/2">Cadre 71/2</option>
-                    <option value="Einband">Einband</option>
-                    <option value="Dreiband">Dreiband</option>
-                </select>
-                <div id="touchDiscipline2" class="touch-select"></div>
+            <input type="number" id="target1" value="">
 
-                <div class="points-box">
-
-                    <input type="number" id="target2" value="">
-
-                    <div class="quick-defaults">
-                        <button type="button" onclick="setTarget('target2',50)">50</button>
-                        <button type="button" onclick="setTarget('target2',100)">100</button>
-                        <button type="button" onclick="setTarget('target2',150)">150</button>
-                        <button type="button" onclick="setTarget('target2',200)">200</button>
-                        <button type="button" onclick="setTarget('target2',300)">300</button>
-                    </div>
-
-                    <div class="adjust">
-                        <button type="button" onclick="adjustTarget('target2', -10)">-10</button>
-                        <button type="button" onclick="adjustTarget('target2', -1)">-1</button>
-                        <button type="button" onclick="adjustTarget('target2', 1)">+1</button>
-                        <button type="button" onclick="adjustTarget('target2', 10)">+10</button>
-                    </div>
-
-                </div>
-
+            <div class="quick-defaults">
+                <button type="button" onclick="setTarget('target1',50)">50</button>
+                <button type="button" onclick="setTarget('target1',100)">100</button>
+                <button type="button" onclick="setTarget('target1',150)">150</button>
+                <button type="button" onclick="setTarget('target1',200)">200</button>
+                <button type="button" onclick="setTarget('target1',300)">300</button>
             </div>
+
+            <div class="adjust">
+                <button type="button" onclick="adjustTarget('target1', -10)">-10</button>
+                <button type="button" onclick="adjustTarget('target1', -1)">-1</button>
+                <button type="button" onclick="adjustTarget('target1', 1)">+1</button>
+                <button type="button" onclick="adjustTarget('target1', 10)">+10</button>
+            </div>
+
         </div>
+
+    </div>
+
+
+    <!-- ================= SPIELER 2 ================= -->
+    <div class="section player-column">
+
+        <h3>Spieler 2</h3>
+
+        <!-- PLAYER -->
+        <select id="player2" style="display:none;"></select>
+        <div id="touchPlayer2" class="touch-player-select"></div>
+
+        <!-- DISCIPLINE -->
+        <select id="discipline2" style="display:none;">
+            <option value="Freie Partie">Freie Partie</option>
+            <option value="Cadre 35/2">Cadre 35/2</option>
+            <option value="Cadre 52/2">Cadre 52/2</option>
+            <option value="Cadre 47/2">Cadre 47/2</option>
+            <option value="Cadre 47/1">Cadre 47/1</option>
+            <option value="Cadre 71/2">Cadre 71/2</option>
+            <option value="Einband">Einband</option>
+            <option value="Dreiband">Dreiband</option>
+        </select>
+
+        <div style="margin-top:20px;">
+            <div style="margin-bottom:10px; font-weight:600;">Disziplin</div>
+            <div id="touchDiscipline2" class="touch-select"></div>
+        </div>
+
+        <!-- POINTS -->
+        <div class="points-box" style="margin-top:25px;">
+
+            <div style="margin-bottom:10px; font-weight:600;">Zielpunkte</div>
+
+            <input type="number" id="target2" value="">
+
+            <div class="quick-defaults">
+                <button type="button" onclick="setTarget('target2',50)">50</button>
+                <button type="button" onclick="setTarget('target2',100)">100</button>
+                <button type="button" onclick="setTarget('target2',150)">150</button>
+                <button type="button" onclick="setTarget('target2',200)">200</button>
+                <button type="button" onclick="setTarget('target2',300)">300</button>
+            </div>
+
+            <div class="adjust">
+                <button type="button" onclick="adjustTarget('target2', -10)">-10</button>
+                <button type="button" onclick="adjustTarget('target2', -1)">-1</button>
+                <button type="button" onclick="adjustTarget('target2', 1)">+1</button>
+                <button type="button" onclick="adjustTarget('target2', 10)">+10</button>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 
         <div class="section">
             <h3>Maximale Aufnahmen</h3>
@@ -255,9 +273,9 @@
         </div>
 
         <select id="controlMode">
-            <option value="local">Bedienung am Bildschirm</option>
-            <option value="remote">Nur Remote</option>
-        </select>
+    <option value="local">Bedienung am Bildschirm</option>
+    <option value="remote">Nur Remote</option>
+</select>
 
         <div class="button-row-bottom">
             <button class="start-btn" onclick="startMatch()">
