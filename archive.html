@@ -6,98 +6,173 @@
 
 <style>
 body {
-    font-family: Arial;
-    background:#1e1b1b;
-    color:white;
-    text-align:center;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(180deg, #1e1f29, #14151c);
+    color: white;
+}
+
+.page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 20px 40px;
+}
+
+h1 {
+    margin: 0 0 24px;
+    font-size: 42px;
+    text-align: center;
+}
+
+.table-wrap {
+    background: #222431;
+    border: 1px solid #33384b;
+    border-radius: 14px;
+    overflow: hidden;
 }
 
 table {
-    margin:40px auto;
-    border-collapse:collapse;
-    width:90%;
+    width: 100%;
+    border-collapse: collapse;
 }
 
-th, td {
-    border:1px solid #444;
-    padding:10px;
+th {
+    text-align: left;
+    background: #181922;
+    color: #c7cede;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    padding: 14px 16px;
 }
 
-tr:hover {
-    background:#2c2c2c;
-    cursor:pointer;
+td {
+    padding: 14px 16px;
+    border-top: 1px solid #34384a;
 }
 
-button {
-    font-size:18px;
-    padding:8px 20px;
-    margin-top:20px;
+tr.data-row:hover {
+    background: #2a2e40;
+    cursor: pointer;
+}
+
+.status {
+    display: inline-block;
+    min-width: 90px;
+    text-align: center;
+    font-size: 13px;
+    border-radius: 999px;
+    padding: 4px 10px;
+}
+
+.status.running {
+    background: #563315;
+    color: #ffcc97;
+}
+
+.status.finished {
+    background: #174a2f;
+    color: #a3e5bf;
+}
+
+.empty {
+    text-align: center;
+    color: #a7afc3;
+}
+
+.actions {
+    margin-top: 22px;
+    text-align: center;
+}
+
+.nav-btn {
+    font-size: 18px;
+    padding: 10px 28px;
+    border: none;
+    border-radius: 8px;
+    background: #444;
+    color: white;
+    cursor: pointer;
 }
 </style>
 </head>
 <body>
 
-<h1>Archiv</h1>
+<div class="page">
+    <h1>Archiv</h1>
 
-<table id="archiveTable">
-    <tr>
-        <th>Datum</th>
-        <th>Spieler</th>
-        <th>Ergebnis</th>
-        <th>AVG</th>
-        <th>HR</th>
-    </tr>
-</table>
+    <div class="table-wrap">
+        <table id="archiveTable">
+            <tr>
+                <th>Datum</th>
+                <th>Spieler</th>
+                <th>Disziplin</th>
+                <th>Ergebnis</th>
+                <th>Aufnahmen</th>
+                <th>Status</th>
+            </tr>
+        </table>
+    </div>
 
-<button onclick="window.location.href='/'">Zurück</button>
+    <div class="actions">
+        <button class="nav-btn" onclick="window.location.href='/'">Zur&uuml;ck</button>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
 
 <script>
-
 async function loadArchive() {
-
     const { data, error } = await supabaseClient
-        .from("archive")
+        .from("matches")
         .select("*")
+        .eq("finished", 1)
         .order("created_at", { ascending: false });
 
     if (error) {
-        console.error(error);
+        console.error("Archiv laden fehlgeschlagen:", error);
         return;
     }
 
-    const table = document.getElementById('archiveTable');
-
-    // Tabelle zurücksetzen (Header behalten)
+    const table = document.getElementById("archiveTable");
     table.innerHTML = `
         <tr>
             <th>Datum</th>
             <th>Spieler</th>
+            <th>Disziplin</th>
             <th>Ergebnis</th>
-            <th>AVG</th>
-            <th>HR</th>
+            <th>Aufnahmen</th>
+            <th>Status</th>
         </tr>
     `;
 
-    data.forEach(match => {
+    if (!data || data.length === 0) {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td class="empty" colspan="6">Keine Partien gefunden</td>`;
+        table.appendChild(row);
+        return;
+    }
 
-        const row = document.createElement('tr');
+    data.forEach((match) => {
+        const row = document.createElement("tr");
+        row.className = "data-row";
 
-        const date = new Date(match.created_at).toLocaleString();
+        const createdAt = match.created_at || match.started_at;
+        const date = createdAt ? new Date(createdAt).toLocaleString() : "-";
+        const statusClass = Number(match.finished) === 1 ? "finished" : "running";
+        const statusText = Number(match.finished) === 1 ? "Beendet" : "Laufend";
 
         row.innerHTML = `
             <td>${date}</td>
             <td>${match.player1} vs ${match.player2}</td>
-            <td>${match.score1} : ${match.score2}</td>
-            <td>${match.avg1} / ${match.avg2}</td>
-            <td>${match.hs1} / ${match.hs2}</td>
+            <td>${match.discipline1 || "-"}</td>
+            <td>${match.score1 ?? 0} : ${match.score2 ?? 0}</td>
+            <td>${match.totalInnings ?? "-"}</td>
+            <td><span class="status ${statusClass}">${statusText}</span></td>
         `;
 
         row.onclick = () => {
-            window.location.href =
-                "archive_detail.html?id=" + match.id;
+            window.location.href = "scoreboard.html?match=" + match.id;
         };
 
         table.appendChild(row);
@@ -105,7 +180,6 @@ async function loadArchive() {
 }
 
 loadArchive();
-
 </script>
 
 </body>
