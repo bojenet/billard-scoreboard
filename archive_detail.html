@@ -223,10 +223,6 @@
 
             <table class="summary">
                 <tr>
-                    <th id="statsName1">Spieler 1</th>
-                    <th id="statsName2">Spieler 2</th>
-                </tr>
-                <tr>
                     <td>
                         <div class="stat-item">
                             <span class="stat-label">Anzahl der B&auml;lle</span>
@@ -295,7 +291,7 @@
             const grid = document.getElementById("scoreGrid");
             let sumLeft = 0;
             let sumRight = 0;
-            const rowCount = Math.max(25, totalInnings, seriesLeft.length, seriesRight.length);
+            const rowCount = Math.max(5, totalInnings, seriesLeft.length, seriesRight.length);
 
             for (let i = 1; i <= rowCount; i++) {
                 const left = Number(seriesLeft[i - 1] || 0);
@@ -349,9 +345,6 @@
 
             document.getElementById("leftName").innerText = match.player1 || "-";
             document.getElementById("rightName").innerText = match.player2 || "-";
-            document.getElementById("statsName1").innerText = match.player1 || "Spieler 1";
-            document.getElementById("statsName2").innerText = match.player2 || "Spieler 2";
-
             document.getElementById("balls1").innerText = match.score1 ?? 0;
             document.getElementById("balls2").innerText = match.score2 ?? 0;
             document.getElementById("innings1").innerText = innings1;
