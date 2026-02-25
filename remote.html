@@ -119,23 +119,30 @@
         // REALTIME SUBSCRIPTION
         // ===============================
 
-        supabaseClient
-            .channel('match-' + matchId)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'matches',
-                    filter: 'id=eq.' + matchId
-                },
-                (payload) => {
-                    console.log("Live Update:", payload);
-                    matchData = payload.new;
-                    updateDisplay();
-                }
-            )
-            .subscribe();
+        async function subscribeToMatch() {
+
+            if (!matchId) return;
+
+            supabaseClient
+                .channel('match-' + matchId)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'matches',
+                        filter: 'id=eq.' + matchId
+                    },
+                    (payload) => {
+                        console.log("Realtime received:", payload);
+                        matchData = payload.new;
+                        updateDisplay();
+                    }
+                )
+                .subscribe((status) => {
+                    console.log("Subscription status:", status);
+                });
+        }
 
 
         function updateDisplay() {
@@ -177,7 +184,7 @@
             if (error) {
                 console.error(error);
             }
-         }
+        }
 
         async function add(value) {
 
@@ -268,7 +275,9 @@
         }
 
         // Initial load
-        loadMatch();
+        loadMatch().then(() => {
+            subscribeToMatch();
+        });
 
     </script>
 
