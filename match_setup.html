@@ -541,9 +541,30 @@
 
                 const p1 = document.getElementById('player1').value;
                 const p2 = document.getElementById('player2').value;
+                const d1 = document.getElementById('discipline1').value;
+                const d2 = document.getElementById('discipline2').value;
+                const target1 = parseInt(document.getElementById('target1').value, 10);
+                const target2 = parseInt(document.getElementById('target2').value, 10);
+                const maxInnings = parseInt(document.getElementById('maxInnings').value, 10);
 
                 if (!p1 || !p2 || p1 === p2) {
                     alert("Bitte zwei unterschiedliche Spieler wählen");
+                    return;
+                }
+
+                if (!d1 || !d2) {
+                    alert("Bitte für beide Spieler eine Disziplin wählen");
+                    return;
+                }
+
+                if (!Number.isInteger(target1) || target1 < 1 ||
+                    !Number.isInteger(target2) || target2 < 1) {
+                    alert("Bitte für beide Spieler gültige Zielpunkte eingeben (mindestens 1)");
+                    return;
+                }
+
+                if (!Number.isInteger(maxInnings) || maxInnings < 1) {
+                    alert("Bitte gültige maximale Aufnahmen eingeben (mindestens 1)");
                     return;
                 }
 
@@ -552,11 +573,11 @@
                     .insert([{
                         player1: p1,
                         player2: p2,
-                        discipline1: document.getElementById('discipline1').value,
-                        discipline2: document.getElementById('discipline2').value,
-                        target1: parseInt(document.getElementById('target1').value),
-                        target2: parseInt(document.getElementById('target2').value),
-                        maxInnings: parseInt(document.getElementById('maxInnings').value),
+                        discipline1: d1,
+                        discipline2: d2,
+                        target1,
+                        target2,
+                        maxInnings,
                         score1: 0,
                         score2: 0,
                         inn1: 0,
@@ -616,6 +637,7 @@
 
                 buildTouchDiscipline("discipline1", "touchDiscipline1");
                 buildTouchDiscipline("discipline2", "touchDiscipline2");
+                resetAll();
 
             });
 
