@@ -1185,6 +1185,19 @@
                 status: 0
             };
 
+            try {
+                localStorage.setItem(
+                    "series_" + matchId,
+                    JSON.stringify({
+                        series1: innings1,
+                        series2: innings2,
+                        savedAt: new Date().toISOString()
+                    })
+                );
+            } catch (e) {
+                console.warn("Lokaler Serien-Cache fehlgeschlagen:", e);
+            }
+
             const { data: existingArchiveRows, error: existingArchiveError } = await supabaseClient
                 .from("archive")
                 .select("id")
@@ -1194,7 +1207,6 @@
 
             if (existingArchiveError) {
                 console.error("Archivsuche fehlgeschlagen:", existingArchiveError);
-                alert("Partie gespeichert, aber Serienverlauf konnte nicht archiviert werden.");
                 window.location.href = "/";
                 return;
             }
@@ -1216,7 +1228,6 @@
 
             if (archiveWriteError) {
                 console.error("Archivspeicherung fehlgeschlagen:", archiveWriteError);
-                alert("Partie gespeichert, aber Serienverlauf konnte nicht archiviert werden.");
             }
 
             window.location.href = "/";

@@ -395,9 +395,19 @@
                 }) || archiveRows[0];
             }
 
+            let localSeries = null;
+            try {
+                const raw = localStorage.getItem("series_" + id);
+                localSeries = raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                localSeries = null;
+            }
+
             const matchForSeries = archiveMatch
                 ? { ...match, series1: archiveMatch.series1, series2: archiveMatch.series2 }
-                : match;
+                : localSeries
+                    ? { ...match, series1: localSeries.series1, series2: localSeries.series2 }
+                    : match;
 
             buildRows(matchForSeries);
         }
