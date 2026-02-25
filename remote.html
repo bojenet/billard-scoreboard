@@ -94,214 +94,207 @@
 
     <script>
 
-        const matchId = new URLSearchParams(window.location.search).get("match");
+const matchId = new URLSearchParams(window.location.search).get("match");
 
-        let matchData = null;
+let matchData = null;
 
-        async function loadMatch() {
+// ===============================
+// LOAD MATCH
+// ===============================
 
-            const { data, error } = await supabaseClient
-                .from("matches")
-                .select("*")
-                .eq("id", matchId)
-                .single();
+async function loadMatch() {
 
-            if (error) {
-                console.error(error);
-                return;
+    const { data, error } = await supabaseClient
+        .from("matches")
+        .select("*")
+        .eq("id", matchId)
+        .single();
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    matchData = data;
+    updateDisplay();
+}
+
+// ===============================
+// REALTIME SUBSCRIPTION
+// ===============================
+
+function subscribeToMatch() {
+
+    if (!matchId) return;
+
+    supabaseClient
+        .channel('remote-match-' + matchId)
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'matches',
+                filter: 'id=eq.' + matchId
+            },
+            (payload) => {
+                matchData = payload.new;
+                updateDisplay();
             }
+        )
+        .subscribe();
+}
 
-            matchData = data;
-            updateDisplay();
-        }
+// ===============================
+// UI UPDATE
+// ===============================
 
-        // ===============================
-        // REALTIME SUBSCRIPTION
-        // ===============================
+function updateDisplay() {
 
-        async function subscribeToMatch() {
+    if (!matchData) return;
 
-            if (!matchId) return;
+    document.getElementById("miniP1").innerText =
+        matchData.player1 + "   " + matchData.score1;
 
-            supabaseClient
-                .channel('match-' + matchId)
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'UPDATE',
-                        schema: 'public',
-                        table: 'matches',
-                        filter: 'id=eq.' + matchId
-                    },
-                    (payload) => {
-                        console.log("Realtime received:", payload);
-                        matchData = payload.new;
-                        updateDisplay();
-                    }
-                )
-                .subscribe((status) => {
-                    console.log("Subscription status:", status);
-                });
-        }
+    document.getElementById("miniP2").innerText =
+        matchData.player2 + "   " + matchData.score2;
 
-        function subscribeToMatch() {
+    const activeText =
+        matchData.activePlayer === 1
+            ? matchData.player1 + " ist dran"
+            : matchData.player2 + " ist dran";
 
-            supabaseClient
-                .channel('remote-match-' + matchId)
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'UPDATE',
-                        schema: 'public',
-                        table: 'matches',
-                        filter: 'id=eq.' + matchId
-                    },
-                    (payload) => {
+    document.getElementById("activeInfo").innerText = activeText;
 
-                        matchData = payload.new;
-                        updateDisplay();
-                    }
-                )
-                .subscribe();
-        }
+    const currentSeries =
+        matchData.activePlayer === 1
+            ? matchData.series1
+            : matchData.series2;
 
-        subscribeToMatch();
+    document.getElementById("seriesInfo").innerText =
+        "Serie: " + (currentSeries > 0 ? "+" + currentSeries : "0");
+}
 
-        function updateDisplay() {
+// ===============================
+// UPDATE DB
+// ===============================
 
-            if (!matchData) return;
+async function updateMatch(updateObj) {
 
-            // Spielernamen + Score
-            document.getElementById("miniP1").innerText =
-                matchData.player1 + "   " + matchData.score1;
+    const { error } = await supabaseClient
+        .from("matches")
+        .update(updateObj)
+        .eq("id", matchId);
 
-            document.getElementById("miniP2").innerText =
-                matchData.player2 + "   " + matchData.score2;
+    if (error) console.error(error);
+}
 
-            // Aktiver Spieler
-            const activeText =
-                matchData.activePlayer === 1
-                    ? matchData.player1 + " ist dran"
-                    : matchData.player2 + " ist dran";
+// ===============================
+// ADD POINTS (SERIES)
+// ===============================
 
-            document.getElementById("activeInfo").innerText = activeText;
+async function add(value) {
 
-            // Aktuelle Serie
-            const currentSeries =
-                matchData.activePlayer === 1
-                    ? matchData.series1
-                    : matchData.series2;
+    if (!matchData) return;
 
-            document.getElementById("seriesInfo").innerText =
-                "Serie: " + (currentSeries > 0 ? "+" + currentSeries : "0");
-        }
+    let {
+        activePlayer,
+        series1,
+        series2,
+        score1,
+        score2,
+        target1,
+        target2
+    } = matchData;
 
-        async function updateMatch(updateObj) {
+    if (activePlayer === 1) {
 
-            const { error } = await supabaseClient
-                .from("matches")
-                .update(updateObj)
-                .eq("id", matchId);
+        series1 += value;
+        if (series1 < 0) series1 = 0;
 
-            if (error) {
-                console.error(error);
-            }
-        }
+        if (target1 > 0 && score1 + series1 > target1)
+            series1 = target1 - score1;
 
-        async function add(value) {
+    } else {
 
+        series2 += value;
+        if (series2 < 0) series2 = 0;
 
-            let {
-                activePlayer,
-                series1,
-                series2,
-                score1,
-                score2,
-                target1,
-                target2
-            } = matchData;
+        if (target2 > 0 && score2 + series2 > target2)
+            series2 = target2 - score2;
+    }
 
-            if (activePlayer === 1) {
+    await updateMatch({ series1, series2 });
+}
 
-                series1 += value;
-                if (series1 < 0) series1 = 0;
+// ===============================
+// SWITCH PLAYER
+// ===============================
 
-                if (target1 > 0 && score1 + series1 > target1)
-                    series1 = target1 - score1;
+async function switchPlayer() {
 
-            } else {
+    if (!matchData) return;
 
-                series2 += value;
-                if (series2 < 0) series2 = 0;
+    let {
+        activePlayer,
+        series1,
+        series2,
+        score1,
+        score2,
+        high1,
+        high2,
+        inn1,
+        inn2,
+        totalInnings
+    } = matchData;
 
-                if (target2 > 0 && score2 + series2 > target2)
-                    series2 = target2 - score2;
-            }
+    if (activePlayer === 1) {
 
-            await updateMatch({ series1, series2 });
-        }
+        score1 += series1;
+        if (series1 > high1) high1 = series1;
 
-        async function switchPlayer() {
+        series1 = 0;
+        inn1++;
+        activePlayer = 2;
 
+    } else {
 
-            let {
-                activePlayer,
-                series1,
-                series2,
-                score1,
-                score2,
-                high1,
-                high2,
-                inn1,
-                inn2,
-                totalInnings
-            } = matchData;
+        score2 += series2;
+        if (series2 > high2) high2 = series2;
 
-            if (activePlayer === 1) {
+        series2 = 0;
+        inn2++;
+        totalInnings++;
+        activePlayer = 1;
+    }
 
-                score1 += series1;
-                if (series1 > high1) high1 = series1;
+    await updateMatch({
+        score1,
+        score2,
+        series1,
+        series2,
+        high1,
+        high2,
+        activePlayer,
+        inn1,
+        inn2,
+        totalInnings
+    });
+}
 
-                series1 = 0;
-                inn1++;
-                activePlayer = 2;
+// ===============================
+// FINISH
+// ===============================
 
-            } else {
+async function finish() {
+    await updateMatch({ finished: 1 });
+}
 
-                score2 += series2;
-                if (series2 > high2) high2 = series2;
+// INIT
+loadMatch();
+subscribeToMatch();
 
-                series2 = 0;
-                inn2++;
-                totalInnings++;
-                activePlayer = 1;
-            }
-
-            await updateMatch({
-                score1,
-                score2,
-                series1,
-                series2,
-                high1,
-                high2,
-                activePlayer,
-                inn1,
-                inn2,
-                totalInnings
-            });
-        }
-
-        async function finish() {
-
-            await updateMatch({ finished: 1 });
-        }
-
-        // Initial load
-        loadMatch().then(() => {
-            subscribeToMatch();
-        });
-
-    </script>
+</script>
 
 </body>
 
