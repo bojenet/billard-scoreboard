@@ -634,10 +634,10 @@
 
     <script>
 
-        let viewerMode = false;
 
         const matchId = new URLSearchParams(window.location.search).get("match");
 
+        let viewerMode = false;
         let score1 = 0, score2 = 0;
         let inn1 = 0, inn2 = 0;
         let totalInnings = 1;
@@ -736,10 +736,13 @@
             const p2 = document.getElementById("p2");
 
             if (viewerMode) {
+
                 if (controls) controls.style.display = "none";
                 if (p1) p1.onclick = null;
                 if (p2) p2.onclick = null;
+
             } else {
+
                 if (controls) controls.style.display = "flex";
             }
         }
