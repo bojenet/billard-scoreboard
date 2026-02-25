@@ -1142,6 +1142,18 @@
 
         async function saveMatch() {
 
+            const finalSeries1 = [...innings1];
+            const finalSeries2 = [...innings2];
+
+            // Wenn die letzte Aufnahme noch nicht per Spielerwechsel verbucht wurde,
+            // beim Speichern in den Serienverlauf aufnehmen.
+            if (series1 > 0 && finalSeries1.length < inn1) {
+                finalSeries1.push(series1);
+            }
+            if (series2 > 0 && finalSeries2.length < inn2) {
+                finalSeries2.push(series2);
+            }
+
             const data = {
                 score1,
                 score2,
@@ -1179,8 +1191,8 @@
                 avg2: inn2 > 0 ? (score2 / inn2).toFixed(3) : "0.000",
                 hs1: high1,
                 hs2: high2,
-                series1: innings1,
-                series2: innings2,
+                series1: finalSeries1,
+                series2: finalSeries2,
                 duration: seconds,
                 status: 0
             };
@@ -1189,8 +1201,8 @@
                 localStorage.setItem(
                     "series_" + matchId,
                     JSON.stringify({
-                        series1: innings1,
-                        series2: innings2,
+                        series1: finalSeries1,
+                        series2: finalSeries2,
                         savedAt: new Date().toISOString()
                     })
                 );
