@@ -733,21 +733,29 @@
 
         function applyControlMode() {
 
-            const controls = document.querySelector(".controls");
-            const p1 = document.getElementById("p1");
-            const p2 = document.getElementById("p2");
+    const controls = document.querySelector(".controls");
 
-            if (viewerMode) {
+    console.log("applyControlMode läuft – viewerMode:", viewerMode);
 
-                if (controls) controls.style.display = "none";
-                if (p1) p1.onclick = null;
-                if (p2) p2.onclick = null;
+    if (!controls) {
+        console.log("KEINE .controls gefunden!");
+        return;
+    }
 
-            } else {
+    if (viewerMode) {
 
-                if (controls) controls.style.display = "flex";
-            }
-        }
+        controls.style.display = "none";
+
+        document.getElementById("p1").onclick = null;
+        document.getElementById("p2").onclick = null;
+
+    } else {
+
+        controls.style.display = "flex";
+    }
+}
+        
+
         applyControlMode();
         showQRTemporarily();
 
