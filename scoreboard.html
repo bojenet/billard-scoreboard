@@ -1248,9 +1248,35 @@
             // saveMatch macht already redirect
         }
 
-        function discardAndExit() {
+        async function discardMatch() {
+            await discardAndExit();
+        }
+
+        async function discardAndExit() {
 
             clearInterval(timerInterval);
+
+            if (channel) {
+                supabaseClient.removeChannel(channel);
+            }
+
+            const { data, error, count } = await supabaseClient
+                .from("matches")
+                .delete()
+                .eq("id", matchId)
+                .select("id", { count: "exact" });
+
+            if (error) {
+                console.error("Löschen fehlgeschlagen:", error);
+                alert("Verwerfen fehlgeschlagen. Bitte erneut versuchen.");
+                return;
+            }
+
+            if ((count ?? data?.length ?? 0) === 0) {
+                console.error("Keine Partie gelöscht. Prüfe Match-ID/RLS.", { matchId });
+                alert("Partie konnte nicht gelöscht werden.");
+                return;
+            }
 
             window.location.href = "/";
         }
