@@ -1,139 +1,323 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <meta charset="UTF-8">
-    <title>Archiv Detail</title>
+    <title>Partiezettel</title>
 
     <style>
         body {
-            font-family: Arial;
-            background: #1e1b1b;
-            color: white;
-            text-align: center;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(180deg, #1e1f29, #14151c);
+            color: #e9edf7;
         }
 
-        h1 {
-            margin-top: 30px;
+        .page {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 28px 18px 36px;
         }
 
-        .section {
-            margin: 30px auto;
-            width: 90%;
-        }
-
-        table {
-            border-collapse: collapse;
-            margin: 20px auto;
-        }
-
-        th,
-        td {
-            border: 1px solid #444;
-            padding: 8px 14px;
-        }
-
-        .series-container {
+        .actions {
             display: flex;
-            justify-content: center;
-            gap: 60px;
-            margin-top: 40px;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
         }
 
-        button {
-            font-size: 18px;
-            padding: 8px 20px;
-            margin-top: 30px;
+        .btn {
+            font-size: 16px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            background: #4b536f;
+            cursor: pointer;
+        }
+
+        .btn.primary {
+            background: #355fd4;
+        }
+
+        .sheet {
+            background: #202333;
+            border: 1px solid #3a4058;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .sheet-header {
+            text-align: center;
+            border-bottom: 1px solid #3a4058;
+            padding: 14px 10px 12px;
+        }
+
+        .sheet-header h1 {
+            margin: 0 0 4px;
+            font-size: 24px;
+            letter-spacing: 0.3px;
+        }
+
+        .sheet-header .sub {
+            opacity: 0.8;
+            font-size: 14px;
+        }
+
+        .meta {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .meta td {
+            border: 1px solid #3a4058;
+            padding: 8px 10px;
+            font-size: 14px;
+        }
+
+        .meta .label {
+            width: 120px;
+            color: #aeb8cf;
+        }
+
+        .score-grid {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .score-grid th,
+        .score-grid td {
+            border: 1px solid #3a4058;
+            text-align: center;
+            padding: 6px 4px;
+            font-size: 13px;
+        }
+
+        .score-grid th {
+            background: #191c2a;
+            color: #c7d0e5;
+        }
+
+        .score-grid td.name-cell {
+            text-align: left;
+            padding-left: 10px;
+            font-weight: 700;
+        }
+
+        .inn-col {
+            width: 52px;
+            color: #aeb8cf;
+        }
+
+        .mark-row td {
+            border-top-color: #8a3d3d;
+        }
+
+        .summary {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .summary td {
+            border: 1px solid #3a4058;
+            text-align: center;
+            padding: 8px 4px;
+            font-size: 14px;
+        }
+
+        .summary .label {
+            color: #aeb8cf;
+            font-size: 13px;
+        }
+
+        @media print {
+            body {
+                background: white;
+                color: black;
+            }
+
+            .page {
+                max-width: none;
+                padding: 0;
+            }
+
+            .actions {
+                display: none;
+            }
+
+            .sheet {
+                border: 1px solid #666;
+                border-radius: 0;
+            }
         }
     </style>
 </head>
-
 <body>
-
-    <h1>Partie Details</h1>
-
-    <div id="meta"></div>
-
-    <div class="series-container">
-        <div>
-            <h3 id="name1"></h3>
-            <table id="series1"></table>
+    <div class="page">
+        <div class="actions">
+            <button class="btn" onclick="window.location.href='archive.html'">Zur&uuml;ck</button>
+            <button class="btn primary" onclick="window.print()">Drucken</button>
         </div>
-        <div>
-            <h3 id="name2"></h3>
-            <table id="series2"></table>
+
+        <div class="sheet">
+            <div class="sheet-header">
+                <h1>Partiezettel</h1>
+                <div class="sub">Billard-Gemeinschaft Hamburg e.V.</div>
+            </div>
+
+            <table class="meta">
+                <tr>
+                    <td class="label">Disziplin</td>
+                    <td id="discipline">-</td>
+                    <td class="label">Datum</td>
+                    <td id="date">-</td>
+                </tr>
+                <tr>
+                    <td class="label">Spieler 1</td>
+                    <td id="player1">-</td>
+                    <td class="label">Spieler 2</td>
+                    <td id="player2">-</td>
+                </tr>
+                <tr>
+                    <td class="label">Ergebnis</td>
+                    <td id="result">-</td>
+                    <td class="label">Aufnahmen</td>
+                    <td id="totalInnings">-</td>
+                </tr>
+            </table>
+
+            <table class="score-grid" id="scoreGrid">
+                <tr>
+                    <th>Serie</th>
+                    <th>Gesamt</th>
+                    <th class="inn-col">Aufn.</th>
+                    <th>Serie</th>
+                    <th>Gesamt</th>
+                </tr>
+                <tr>
+                    <td class="name-cell" colspan="2" id="leftName">-</td>
+                    <td class="inn-col"></td>
+                    <td class="name-cell" colspan="2" id="rightName">-</td>
+                </tr>
+            </table>
+
+            <table class="summary">
+                <tr>
+                    <td class="label">Anzahl der B&auml;lle</td>
+                    <td class="label">Anzahl der Aufnahmen</td>
+                    <td class="label">Durchschnitt</td>
+                    <td class="label">H&ouml;chstserie</td>
+                </tr>
+                <tr>
+                    <td id="balls1">-</td>
+                    <td id="innings1">-</td>
+                    <td id="avg1">-</td>
+                    <td id="high1">-</td>
+                </tr>
+                <tr>
+                    <td id="balls2">-</td>
+                    <td id="innings2">-</td>
+                    <td id="avg2">-</td>
+                    <td id="high2">-</td>
+                </tr>
+            </table>
         </div>
     </div>
-
-    <button onclick="window.location.href='archive.html'">Zurück</button>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
 
     <script>
-
         const id = new URLSearchParams(window.location.search).get("id");
 
-        async function loadDetail() {
+        function toSeries(value) {
+            if (Array.isArray(value)) return value;
+            if (typeof value === "string") {
+                try {
+                    const parsed = JSON.parse(value);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (e) {
+                    return [];
+                }
+            }
+            return [];
+        }
 
+        function buildRows(match) {
+            const seriesLeft = toSeries(match.series1);
+            const seriesRight = toSeries(match.series2);
+            const totalInnings = Number(match.totalInnings || 0);
+
+            const grid = document.getElementById("scoreGrid");
+            let sumLeft = 0;
+            let sumRight = 0;
+            const rowCount = Math.max(25, totalInnings, seriesLeft.length, seriesRight.length);
+
+            for (let i = 1; i <= rowCount; i++) {
+                const left = Number(seriesLeft[i - 1] || 0);
+                const right = Number(seriesRight[i - 1] || 0);
+                if (left) sumLeft += left;
+                if (right) sumRight += right;
+
+                const tr = document.createElement("tr");
+                if (i === 6 || i === 12 || i === 18 || i === 24) {
+                    tr.className = "mark-row";
+                }
+
+                tr.innerHTML = `
+                    <td>${left || ""}</td>
+                    <td>${sumLeft || ""}</td>
+                    <td class="inn-col">${i}</td>
+                    <td>${right || ""}</td>
+                    <td>${sumRight || ""}</td>
+                `;
+
+                grid.appendChild(tr);
+            }
+        }
+
+        async function loadDetail() {
             const { data: match, error } = await supabaseClient
-                .from("archive")
+                .from("matches")
                 .select("*")
                 .eq("id", id)
+                .eq("finished", 1)
                 .single();
 
             if (error || !match) {
-                document.body.innerHTML = "Nicht gefunden";
-                console.error(error);
+                document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Partie nicht gefunden.</div>";
+                console.error("Partie laden fehlgeschlagen:", error);
                 return;
             }
 
-            document.getElementById("meta").innerHTML = `
-        <div>${match.player1} vs ${match.player2}</div>
-        <div>Ergebnis: ${match.score1} : ${match.score2}</div>
-        <div>AVG: ${match.avg1} / ${match.avg2}</div>
-        <div>HR: ${match.hs1} / ${match.hs2}</div>
-        <div>Aufnahmen: ${match.innings}</div>
-    `;
+            const createdAt = match.created_at || match.started_at;
+            const innings1 = Number(match.inn1 || 0);
+            const innings2 = Number(match.inn2 || 0);
+            const avg1 = innings1 > 0 ? (Number(match.score1 || 0) / innings1).toFixed(3) : "0.000";
+            const avg2 = innings2 > 0 ? (Number(match.score2 || 0) / innings2).toFixed(3) : "0.000";
 
-            document.getElementById("name1").innerText = match.player1;
-            document.getElementById("name2").innerText = match.player2;
+            document.getElementById("discipline").innerText = match.discipline1 || "-";
+            document.getElementById("date").innerText = createdAt ? new Date(createdAt).toLocaleString() : "-";
+            document.getElementById("player1").innerText = match.player1 || "-";
+            document.getElementById("player2").innerText = match.player2 || "-";
+            document.getElementById("result").innerText = `${match.score1 ?? 0} : ${match.score2 ?? 0}`;
+            document.getElementById("totalInnings").innerText = match.totalInnings ?? "-";
 
-            // Wenn series als JSONB gespeichert ist → kein JSON.parse nötig
-            buildSeries("series1", match.series1);
-            buildSeries("series2", match.series2);
-        }
+            document.getElementById("leftName").innerText = match.player1 || "-";
+            document.getElementById("rightName").innerText = match.player2 || "-";
 
-        function buildSeries(tableId, seriesArray) {
+            document.getElementById("balls1").innerText = match.score1 ?? 0;
+            document.getElementById("balls2").innerText = match.score2 ?? 0;
+            document.getElementById("innings1").innerText = innings1;
+            document.getElementById("innings2").innerText = innings2;
+            document.getElementById("avg1").innerText = avg1;
+            document.getElementById("avg2").innerText = avg2;
+            document.getElementById("high1").innerText = match.high1 ?? 0;
+            document.getElementById("high2").innerText = match.high2 ?? 0;
 
-            const table = document.getElementById(tableId);
-            table.innerHTML = `
-        <tr>
-            <th>Aufn</th>
-            <th>Serie</th>
-            <th>Gesamt</th>
-        </tr>
-    `;
-
-            let cumulative = 0;
-
-            for (let i = 0; i < seriesArray.length; i++) {
-                cumulative += seriesArray[i];
-
-                table.innerHTML += `
-            <tr>
-                <td>${i + 1}</td>
-                <td>${seriesArray[i]}</td>
-                <td>${cumulative}</td>
-            </tr>
-        `;
-            }
+            buildRows(match);
         }
 
         loadDetail();
-
     </script>
-
 </body>
-
 </html>
