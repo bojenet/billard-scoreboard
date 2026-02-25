@@ -1143,28 +1143,28 @@
         async function saveMatch() {
 
             const data = {
-                matchId,
-                player1: player1Name.innerText,
-                player2: player2Name.innerText,
                 score1,
                 score2,
-                innings: totalInnings,
-                avg1: inn1 > 0 ? (score1 / inn1).toFixed(3) : "0.000",
-                avg2: inn2 > 0 ? (score2 / inn2).toFixed(3) : "0.000",
-                hs1: high1,
-                hs2: high2,
-                series1: innings1,
-                series2: innings2,
-                duration: seconds,
-                status: 0
+                inn1,
+                inn2,
+                totalInnings,
+                activePlayer,
+                series1,
+                series2,
+                high1,
+                high2,
+                status: 0,
+                finished: 1
             };
 
             const { error } = await supabaseClient
-                .from("archive")
-                .insert([data]);
+                .from("matches")
+                .update(data)
+                .eq("id", matchId);
 
             if (error) {
-                console.error(error);
+                console.error("Speichern fehlgeschlagen:", error);
+                alert("Speichern fehlgeschlagen. Bitte erneut versuchen.");
                 return;
             }
 
