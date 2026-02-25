@@ -105,10 +105,9 @@ tr.data-row:hover {
             <tr>
                 <th>Datum</th>
                 <th>Spieler</th>
-                <th>Disziplin</th>
+                <th>Disziplinen</th>
                 <th>Ergebnis</th>
                 <th>Aufnahmen</th>
-                <th>Status</th>
             </tr>
         </table>
     </div>
@@ -139,16 +138,15 @@ async function loadArchive() {
         <tr>
             <th>Datum</th>
             <th>Spieler</th>
-            <th>Disziplin</th>
+            <th>Disziplinen</th>
             <th>Ergebnis</th>
             <th>Aufnahmen</th>
-            <th>Status</th>
         </tr>
     `;
 
     if (!data || data.length === 0) {
         const row = document.createElement("tr");
-        row.innerHTML = `<td class="empty" colspan="6">Keine Partien gefunden</td>`;
+        row.innerHTML = `<td class="empty" colspan="5">Keine Partien gefunden</td>`;
         table.appendChild(row);
         return;
     }
@@ -159,16 +157,18 @@ async function loadArchive() {
 
         const createdAt = match.created_at || match.started_at;
         const date = createdAt ? new Date(createdAt).toLocaleString() : "-";
-        const statusClass = Number(match.finished) === 1 ? "finished" : "running";
-        const statusText = Number(match.finished) === 1 ? "Beendet" : "Laufend";
+        const discipline1 = match.discipline1 || "-";
+        const discipline2 = match.discipline2 || "-";
+        const disciplineText = discipline1 === discipline2
+            ? discipline1
+            : `${discipline1} / ${discipline2}`;
 
         row.innerHTML = `
             <td>${date}</td>
             <td>${match.player1} vs ${match.player2}</td>
-            <td>${match.discipline1 || "-"}</td>
+            <td>${disciplineText}</td>
             <td>${match.score1 ?? 0} : ${match.score2 ?? 0}</td>
             <td>${match.totalInnings ?? "-"}</td>
-            <td><span class="status ${statusClass}">${statusText}</span></td>
         `;
 
         row.onclick = () => {
