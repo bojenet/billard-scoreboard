@@ -543,6 +543,8 @@
                 const p2 = document.getElementById('player2').value;
                 const d1 = document.getElementById('discipline1').value;
                 const d2 = document.getElementById('discipline2').value;
+                const d1Selected = !!document.querySelector('#touchDiscipline1 .touch-select-btn.active');
+                const d2Selected = !!document.querySelector('#touchDiscipline2 .touch-select-btn.active');
                 const target1 = parseInt(document.getElementById('target1').value, 10);
                 const target2 = parseInt(document.getElementById('target2').value, 10);
                 const maxInnings = parseInt(document.getElementById('maxInnings').value, 10);
@@ -552,7 +554,7 @@
                     return;
                 }
 
-                if (!d1 || !d2) {
+                if (!d1 || !d2 || !d1Selected || !d2Selected) {
                     alert("Bitte für beide Spieler eine Disziplin wählen");
                     return;
                 }
