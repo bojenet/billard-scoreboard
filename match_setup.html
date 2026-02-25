@@ -22,17 +22,27 @@
             font-weight: 600;
         }
 
-        .container {
-            width: 1200px;
-            max-width: 90%;
-            margin: 0 auto 80px auto;
-            height: calc(100vh - 120px);
-            /* Header abziehen */
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
+        
+.container {
+    width: 1600px;
+    max-width: 95%;
+    margin: 0 auto;
+    height: calc(100vh - 120px);
+    display: flex;
+    flex-direction: column;
+}
 
+.players-row {
+    display: flex;
+    gap: 40px;
+    flex: 1;
+}
+
+.player-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
 
         .section {
             background: #2a2b35;
