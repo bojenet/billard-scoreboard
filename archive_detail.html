@@ -316,7 +316,7 @@
             const grid = document.getElementById("scoreGrid");
             let sumLeft = 0;
             let sumRight = 0;
-            const rowCount = Math.max(5, playedInnings);
+            const rowCount = playedInnings;
 
             for (let i = 1; i <= rowCount; i++) {
                 const leftRaw = seriesLeft[i - 1];
