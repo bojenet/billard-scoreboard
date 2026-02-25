@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Countdown HS</title>
+    <title>Countdown HS Setup</title>
     <style>
         body {
             margin: 0;
@@ -11,51 +11,207 @@
             color: white;
         }
 
-        .wrap {
-            width: min(920px, 92%);
-            margin: 70px auto;
+        .page {
+            width: min(1080px, 94%);
+            margin: 44px auto;
+        }
+
+        .header {
             text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 46px;
+            font-weight: 700;
+        }
+
+        .header p {
+            margin: 10px 0 0;
+            opacity: 0.8;
+            font-size: 18px;
+        }
+
+        .card {
             background: linear-gradient(180deg, #2b2e40, #24283a);
             border: 1px solid #3a4060;
             border-radius: 20px;
-            padding: 36px 28px;
+            padding: 24px 22px;
             box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
         }
 
-        h1 {
-            margin: 0 0 14px;
-            font-size: 46px;
+        .section {
+            margin-bottom: 24px;
         }
 
-        p {
+        .section-title {
             margin: 0;
-            opacity: 0.8;
-            font-size: 20px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .section-sub {
+            margin: 8px 0 14px;
+            opacity: 0.74;
+            font-size: 15px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            padding: 11px 16px;
+            border: none;
+            border-radius: 10px;
+            background: #454b62;
+            color: white;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid #575f7c;
+            transition: background .15s ease, border-color .15s ease, transform .15s ease;
+        }
+
+        .chip:hover {
+            transform: translateY(-1px);
+        }
+
+        .chip.active {
+            background: #4054b9;
+            border-color: #7587e6;
         }
 
         .actions {
-            margin-top: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
         }
 
         .btn {
-            padding: 12px 22px;
+            padding: 14px 16px;
             border: none;
             border-radius: 12px;
-            background: #4352a8;
             color: white;
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 700;
             cursor: pointer;
+        }
+
+        .btn-start {
+            background: linear-gradient(180deg, #4d64db, #344ac0);
+        }
+
+        .btn-back {
+            background: #465396;
+        }
+
+        @media (max-width: 760px) {
+            .actions {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 36px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="wrap">
-        <h1>Countdown HS</h1>
-        <p>Trainingsmodus angelegt. Funktionale Logik kann als nächstes ergänzt werden.</p>
-        <div class="actions">
-            <button class="btn" onclick="window.location.href='training.html'">Zurück</button>
+    <div class="page">
+        <div class="header">
+            <h1>Countdown HS</h1>
+            <p>Disziplin und Trainingsdauer wählen</p>
+        </div>
+
+        <div class="card">
+            <div class="section">
+                <h2 class="section-title">Disziplin</h2>
+                <div class="section-sub">Trainingsmodus für einen Spieler</div>
+                <div id="disciplineButtons" class="btn-group"></div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Zeit</h2>
+                <div class="section-sub">Countdown-Laufzeit</div>
+                <div id="timeButtons" class="btn-group">
+                    <button class="chip" data-minutes="30">30 min</button>
+                    <button class="chip" data-minutes="45">45 min</button>
+                    <button class="chip" data-minutes="60">1 Std</button>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-start" onclick="startCountdownTraining()">Starten</button>
+                <button class="btn btn-back" onclick="window.location.href='training.html'">Zurück</button>
+            </div>
         </div>
     </div>
+
+    <script>
+        const disciplines = [
+            "Freie Partie",
+            "Cadre 35/2",
+            "Cadre 52/2",
+            "Cadre 47/2",
+            "Cadre 47/1",
+            "Cadre 71/2",
+            "Einband",
+            "Dreiband"
+        ];
+
+        let selectedDiscipline = "";
+        let selectedMinutes = 0;
+
+        function buildDisciplineButtons() {
+            const container = document.getElementById("disciplineButtons");
+            container.innerHTML = "";
+
+            disciplines.forEach((discipline) => {
+                const btn = document.createElement("button");
+                btn.className = "chip";
+                btn.innerText = discipline;
+                btn.onclick = () => {
+                    selectedDiscipline = discipline;
+                    container.querySelectorAll(".chip").forEach((x) => x.classList.remove("active"));
+                    btn.classList.add("active");
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function bindTimeButtons() {
+            const timeButtons = document.querySelectorAll("#timeButtons .chip");
+            timeButtons.forEach((btn) => {
+                btn.onclick = () => {
+                    selectedMinutes = Number(btn.dataset.minutes || 0);
+                    timeButtons.forEach((x) => x.classList.remove("active"));
+                    btn.classList.add("active");
+                };
+            });
+        }
+
+        function startCountdownTraining() {
+            if (!selectedDiscipline) {
+                alert("Bitte eine Disziplin auswählen.");
+                return;
+            }
+            if (!selectedMinutes) {
+                alert("Bitte eine Zeit auswählen.");
+                return;
+            }
+            const params = new URLSearchParams({
+                discipline: selectedDiscipline,
+                minutes: String(selectedMinutes)
+            });
+            window.location.href = "training_countdown_hs_run.html?" + params.toString();
+        }
+
+        buildDisciplineButtons();
+        bindTimeButtons();
+    </script>
 </body>
 </html>

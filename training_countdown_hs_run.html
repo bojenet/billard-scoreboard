@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Countdown HS Training</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(180deg, #1e1f29, #14151c);
+            color: white;
+        }
+
+        .page {
+            width: min(1100px, 94%);
+            margin: 28px auto 32px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 10px;
+            padding: 10px 16px;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            background: #4a58a6;
+            cursor: pointer;
+        }
+
+        .btn.danger {
+            background: #b04545;
+        }
+
+        .board {
+            background: linear-gradient(180deg, #2a2d3f, #232638);
+            border: 1px solid #3a4060;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38);
+        }
+
+        .meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            border-bottom: 1px solid #3a4060;
+        }
+
+        .meta-item {
+            padding: 14px 16px;
+            border-right: 1px solid #3a4060;
+        }
+
+        .meta-item:nth-child(2n) {
+            border-right: none;
+        }
+
+        .meta-label {
+            font-size: 13px;
+            opacity: 0.72;
+            margin-bottom: 4px;
+        }
+
+        .meta-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .timer-wrap {
+            text-align: center;
+            padding: 18px 14px 8px;
+            border-bottom: 1px solid #3a4060;
+        }
+
+        .timer-label {
+            opacity: 0.78;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .timer {
+            font-size: 92px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            line-height: 1;
+            color: #d9e2ff;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border-bottom: 1px solid #3a4060;
+        }
+
+        .stat {
+            padding: 12px;
+            text-align: center;
+            border-right: 1px solid #3a4060;
+        }
+
+        .stat:last-child {
+            border-right: none;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.72;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 30px;
+            font-weight: 800;
+        }
+
+        .input-section {
+            padding: 16px;
+            border-bottom: 1px solid #3a4060;
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .series-input {
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 30px;
+            font-weight: 700;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 14px;
+            background: #eff3ff;
+            color: #1a1d2c;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            border: none;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            background: #4a58a6;
+            cursor: pointer;
+        }
+
+        .action-btn.primary {
+            background: #2f9b56;
+        }
+
+        .history {
+            padding: 14px 16px 18px;
+        }
+
+        .history-title {
+            margin-bottom: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            opacity: 0.85;
+        }
+
+        .history-list {
+            min-height: 28px;
+            font-size: 17px;
+            line-height: 1.45;
+            opacity: 0.94;
+            word-break: break-word;
+        }
+
+        @media (max-width: 900px) {
+            .timer {
+                font-size: 68px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .input-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="topbar">
+            <button class="btn" onclick="window.location.href='training_countdown_hs.html'">Zurück zum Setup</button>
+            <button class="btn danger" onclick="resetTraining()">Reset</button>
+        </div>
+
+        <div class="board">
+            <div class="meta">
+                <div class="meta-item">
+                    <div class="meta-label">Modus</div>
+                    <div class="meta-value">Countdown HS</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Disziplin</div>
+                    <div class="meta-value" id="disciplineValue">-</div>
+                </div>
+            </div>
+
+            <div class="timer-wrap">
+                <div class="timer-label">Restzeit</div>
+                <div class="timer" id="timerValue">00:00</div>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Punkte</div>
+                    <div class="stat-value" id="scoreValue">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Aufnahmen</div>
+                    <div class="stat-value" id="inningsValue">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">HS</div>
+                    <div class="stat-value" id="highValue">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">DS</div>
+                    <div class="stat-value" id="avgValue">0.000</div>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <input id="seriesInput" class="series-input" type="number" min="0" value="0" />
+                <div class="controls">
+                    <button class="action-btn primary" onclick="commitInning()">Aufnahme zählen</button>
+                    <button class="action-btn" onclick="adjustSeries(1)">+1</button>
+                    <button class="action-btn" onclick="adjustSeries(5)">+5</button>
+                    <button class="action-btn" onclick="adjustSeries(10)">+10</button>
+                    <button class="action-btn" onclick="adjustSeries(-1)">-1</button>
+                </div>
+            </div>
+
+            <div class="history">
+                <div class="history-title">Serienverlauf</div>
+                <div class="history-list" id="historyValue">-</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const discipline = params.get("discipline") || "";
+        const minutes = Number(params.get("minutes") || 0);
+
+        if (!discipline || ![30, 45, 60].includes(minutes)) {
+            window.location.href = "training_countdown_hs.html";
+        }
+
+        let totalScore = 0;
+        let innings = 0;
+        let highSeries = 0;
+        let history = [];
+        let remainingSeconds = minutes * 60;
+        let timerId = null;
+
+        function formatTime(totalSeconds) {
+            const min = Math.floor(totalSeconds / 60);
+            const sec = totalSeconds % 60;
+            return String(min).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+        }
+
+        function render() {
+            document.getElementById("disciplineValue").innerText = discipline;
+            document.getElementById("timerValue").innerText = formatTime(remainingSeconds);
+            document.getElementById("scoreValue").innerText = totalScore;
+            document.getElementById("inningsValue").innerText = innings;
+            document.getElementById("highValue").innerText = highSeries;
+            document.getElementById("avgValue").innerText = innings > 0
+                ? (totalScore / innings).toFixed(3)
+                : "0.000";
+            document.getElementById("historyValue").innerText = history.length > 0
+                ? history.join(", ")
+                : "-";
+        }
+
+        function startTimer() {
+            timerId = setInterval(() => {
+                if (remainingSeconds <= 0) {
+                    clearInterval(timerId);
+                    timerId = null;
+                    alert("Zeit abgelaufen.");
+                    return;
+                }
+                remainingSeconds--;
+                render();
+            }, 1000);
+        }
+
+        function adjustSeries(delta) {
+            const input = document.getElementById("seriesInput");
+            let value = Number(input.value || 0);
+            value += delta;
+            if (value < 0) value = 0;
+            input.value = value;
+        }
+
+        function commitInning() {
+            if (remainingSeconds <= 0) return;
+
+            const input = document.getElementById("seriesInput");
+            const series = Number(input.value || 0);
+            if (!Number.isFinite(series) || series < 0) {
+                alert("Bitte eine gültige Serie eingeben (mindestens 0).");
+                return;
+            }
+
+            history.push(series);
+            innings += 1;
+            totalScore += series;
+            if (series > highSeries) highSeries = series;
+            input.value = 0;
+            render();
+        }
+
+        function resetTraining() {
+            if (!confirm("Training wirklich zurücksetzen?")) return;
+
+            totalScore = 0;
+            innings = 0;
+            highSeries = 0;
+            history = [];
+            remainingSeconds = minutes * 60;
+            document.getElementById("seriesInput").value = 0;
+            render();
+
+            if (!timerId) startTimer();
+        }
+
+        document.getElementById("seriesInput").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                commitInning();
+            }
+        });
+
+        render();
+        startTimer();
+    </script>
+</body>
+</html>
