@@ -115,6 +115,29 @@
             updateDisplay();
         }
 
+        // ===============================
+        // REALTIME SUBSCRIPTION
+        // ===============================
+
+        supabaseClient
+            .channel('match-' + matchId)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'matches',
+                    filter: 'id=eq.' + matchId
+                },
+                (payload) => {
+                    console.log("Live Update:", payload);
+                    matchData = payload.new;
+                    updateDisplay();
+                }
+            )
+            .subscribe();
+
+
         function updateDisplay() {
 
             if (!matchData) return;
@@ -154,13 +177,10 @@
             if (error) {
                 console.error(error);
             }
-
-            await loadMatch();
-        }
+         }
 
         async function add(value) {
 
-            await loadMatch();
 
             let {
                 activePlayer,
@@ -194,7 +214,6 @@
 
         async function switchPlayer() {
 
-            await loadMatch();
 
             let {
                 activePlayer,
