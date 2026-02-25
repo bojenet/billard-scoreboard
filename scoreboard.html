@@ -725,6 +725,10 @@
             startTimer(d.started_at);
             subscribeToMatch();
 
+            applyControlMode();
+            showQRTemporarily();
+
+
             console.log("started_at:", d.started_at);
             console.log(d.controlMode);
             console.log("viewerMode:", viewerMode);
@@ -733,31 +737,30 @@
 
         function applyControlMode() {
 
-    const controls = document.querySelector(".controls");
+            const controls = document.querySelector(".controls");
 
-    console.log("applyControlMode läuft – viewerMode:", viewerMode);
+            console.log("applyControlMode läuft – viewerMode:", viewerMode);
 
-    if (!controls) {
-        console.log("KEINE .controls gefunden!");
-        return;
-    }
+            if (!controls) {
+                console.log("KEINE .controls gefunden!");
+                return;
+            }
 
-    if (viewerMode) {
+            if (viewerMode) {
 
-        controls.style.display = "none";
+                controls.style.display = "none";
 
-        document.getElementById("p1").onclick = null;
-        document.getElementById("p2").onclick = null;
+                document.getElementById("p1").onclick = null;
+                document.getElementById("p2").onclick = null;
 
-    } else {
+            } else {
 
-        controls.style.display = "flex";
-    }
-}
-        
+                controls.style.display = "flex";
+            }
+        }
 
-        applyControlMode();
-        showQRTemporarily();
+
+
 
         function showQRTemporarily() {
 
