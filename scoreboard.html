@@ -1185,12 +1185,37 @@
                 status: 0
             };
 
-            const { error: archiveError } = await supabaseClient
+            const { data: existingArchiveRows, error: existingArchiveError } = await supabaseClient
                 .from("archive")
-                .upsert([archiveData], { onConflict: "matchId" });
+                .select("id")
+                .eq("matchId", matchId)
+                .order("created_at", { ascending: false })
+                .limit(1);
 
-            if (archiveError) {
-                console.error("Archivspeicherung fehlgeschlagen:", archiveError);
+            if (existingArchiveError) {
+                console.error("Archivsuche fehlgeschlagen:", existingArchiveError);
+                alert("Partie gespeichert, aber Serienverlauf konnte nicht archiviert werden.");
+                window.location.href = "/";
+                return;
+            }
+
+            let archiveWriteError = null;
+            if (existingArchiveRows && existingArchiveRows.length > 0) {
+                const existingId = existingArchiveRows[0].id;
+                const { error } = await supabaseClient
+                    .from("archive")
+                    .update(archiveData)
+                    .eq("id", existingId);
+                archiveWriteError = error;
+            } else {
+                const { error } = await supabaseClient
+                    .from("archive")
+                    .insert([archiveData]);
+                archiveWriteError = error;
+            }
+
+            if (archiveWriteError) {
+                console.error("Archivspeicherung fehlgeschlagen:", archiveWriteError);
                 alert("Partie gespeichert, aber Serienverlauf konnte nicht archiviert werden.");
             }
 
