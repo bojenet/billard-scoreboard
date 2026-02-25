@@ -1187,10 +1187,11 @@
 
             const { error: archiveError } = await supabaseClient
                 .from("archive")
-                .insert([archiveData]);
+                .upsert([archiveData], { onConflict: "matchId" });
 
             if (archiveError) {
                 console.error("Archivspeicherung fehlgeschlagen:", archiveError);
+                alert("Partie gespeichert, aber Serienverlauf konnte nicht archiviert werden.");
             }
 
             window.location.href = "/";

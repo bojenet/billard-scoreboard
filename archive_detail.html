@@ -272,9 +272,30 @@
 
         function toSeries(value) {
             if (Array.isArray(value)) return value;
+            if (typeof value === "number") return value > 0 ? [value] : [];
             if (typeof value === "string") {
+                const trimmed = value.trim();
+                if (!trimmed) return [];
+
+                // Postgres array literal, e.g. "{1,2,3}"
+                if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+                    return trimmed
+                        .slice(1, -1)
+                        .split(",")
+                        .map((v) => Number(v.trim()))
+                        .filter((v) => Number.isFinite(v));
+                }
+
+                // CSV fallback, e.g. "1,2,3"
+                if (trimmed.includes(",") && !trimmed.startsWith("[")) {
+                    return trimmed
+                        .split(",")
+                        .map((v) => Number(v.trim()))
+                        .filter((v) => Number.isFinite(v));
+                }
+
                 try {
-                    const parsed = JSON.parse(value);
+                    const parsed = JSON.parse(trimmed);
                     return Array.isArray(parsed) ? parsed : [];
                 } catch (e) {
                     return [];
@@ -330,13 +351,12 @@
                 return;
             }
 
-            const { data: archiveMatch, error: archiveError } = await supabaseClient
+            const { data: archiveRows, error: archiveError } = await supabaseClient
                 .from("archive")
                 .select("*")
                 .eq("matchId", id)
                 .order("created_at", { ascending: false })
-                .limit(1)
-                .maybeSingle();
+                .limit(10);
 
             if (archiveError) {
                 console.error("Archivdaten laden fehlgeschlagen:", archiveError);
@@ -365,6 +385,15 @@
             document.getElementById("avg2").innerText = avg2;
             document.getElementById("high1").innerText = match.high1 ?? 0;
             document.getElementById("high2").innerText = match.high2 ?? 0;
+
+            let archiveMatch = null;
+            if (Array.isArray(archiveRows) && archiveRows.length > 0) {
+                archiveMatch = archiveRows.find((row) => {
+                    const s1 = toSeries(row.series1);
+                    const s2 = toSeries(row.series2);
+                    return s1.length > 0 || s2.length > 0;
+                }) || archiveRows[0];
+            }
 
             const matchForSeries = archiveMatch
                 ? { ...match, series1: archiveMatch.series1, series2: archiveMatch.series2 }
