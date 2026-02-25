@@ -1340,15 +1340,30 @@
                 .eq("id", matchId)
                 .select("id", { count: "exact" });
 
-            if (error) {
-                console.error("Löschen fehlgeschlagen:", error);
-                alert("Verwerfen fehlgeschlagen. Bitte erneut versuchen.");
+            if (!error && (count ?? data?.length ?? 0) > 0) {
+                window.location.href = "/";
                 return;
             }
 
-            if ((count ?? data?.length ?? 0) === 0) {
-                console.error("Keine Partie gelöscht. Prüfe Match-ID/RLS.", { matchId });
-                alert("Partie konnte nicht gelöscht werden.");
+            // Falls DELETE (z.B. wegen RLS) nicht möglich ist:
+            // Match als verworfen markieren, damit es nicht mehr als "live" erscheint.
+            if (error) {
+                console.warn("DELETE fehlgeschlagen, versuche Fallback-Update:", error);
+            } else {
+                console.warn("DELETE ohne Treffer, versuche Fallback-Update:", { matchId });
+            }
+
+            const { error: updateError } = await supabaseClient
+                .from("matches")
+                .update({
+                    status: -1,
+                    finished: 1
+                })
+                .eq("id", matchId);
+
+            if (updateError) {
+                console.error("Verwerfen fehlgeschlagen (DELETE + Fallback):", updateError);
+                alert("Verwerfen fehlgeschlagen. Bitte erneut versuchen.");
                 return;
             }
 

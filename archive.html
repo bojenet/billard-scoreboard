@@ -126,6 +126,7 @@ async function loadArchive() {
         .from("matches")
         .select("*")
         .eq("finished", 1)
+        .eq("status", 0)
         .order("created_at", { ascending: false });
 
     if (error) {

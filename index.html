@@ -173,7 +173,8 @@
             const { data, error } = await supabaseClient
                 .from("matches")
                 .select("*")
-                .eq("status", "1")
+                .eq("status", 1)
+                .eq("finished", 0)
                 .order("started_at", { ascending: false });
 
             if (error) {
