@@ -206,10 +206,6 @@
                 const role = isAdmin ? "admin" : "member";
                 userInfo.innerText = "Eingeloggt als\n" + getDisplayName(user) + " (" + role + ")";
             }
-            const playersTile = document.getElementById("playersTile");
-            if (playersTile && !isAdmin) {
-                playersTile.style.display = "none";
-            }
             const usersTile = document.getElementById("usersTile");
             if (usersTile && !isAdmin) {
                 usersTile.style.display = "none";

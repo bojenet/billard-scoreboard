@@ -148,7 +148,7 @@ async function loadScopedPlayers() {
 }
 
 async function loadPlayers(){
-    const user = await requireAdmin();
+    const user = await requireAuth();
     if (!user) return;
     currentUserId = user.id;
 
