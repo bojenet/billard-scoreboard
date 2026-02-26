@@ -12,7 +12,7 @@
         }
 
         .page {
-            width: min(1100px, 94%);
+            width: min(1160px, 94%);
             margin: 28px auto 32px;
         }
 
@@ -26,6 +26,8 @@
             border-radius: 20px;
             padding: 12px 14px;
             box-shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
         .btn {
@@ -61,17 +63,17 @@
 
         .meta {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(4, 1fr);
             gap: 0;
             border-bottom: 1px solid #27417f;
         }
 
         .meta-item {
-            padding: 16px 18px;
+            padding: 14px 16px;
             border-right: 1px solid #27417f;
         }
 
-        .meta-item:nth-child(2n) {
+        .meta-item:last-child {
             border-right: none;
         }
 
@@ -83,7 +85,7 @@
         }
 
         .meta-value {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 700;
         }
 
@@ -101,12 +103,43 @@
         }
 
         .timer {
-            font-size: 124px;
+            font-size: 118px;
             font-weight: 800;
             letter-spacing: 1px;
             line-height: 1;
             color: #ffd84a;
             text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        }
+
+        .duel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-bottom: 1px solid #27417f;
+        }
+
+        .player-col {
+            border-right: 1px solid #27417f;
+        }
+
+        .player-col:last-child {
+            border-right: none;
+        }
+
+        .player-head {
+            padding: 12px 14px;
+            border-bottom: 1px solid #27417f;
+            background: rgba(8, 16, 44, 0.42);
+        }
+
+        .player-name {
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .player-disc {
+            font-size: 14px;
+            opacity: 0.76;
+            margin-top: 2px;
         }
 
         .stats {
@@ -116,7 +149,7 @@
         }
 
         .stat {
-            padding: 14px 12px;
+            padding: 14px 10px;
             text-align: center;
             border-right: 1px solid #27417f;
         }
@@ -132,15 +165,31 @@
         }
 
         .stat-value {
-            font-size: 36px;
+            font-size: 34px;
             font-weight: 800;
+        }
+
+        .history {
+            padding: 12px 14px 14px;
+            min-height: 58px;
+        }
+
+        .history-title {
+            font-size: 13px;
+            opacity: 0.74;
+            margin-bottom: 6px;
+        }
+
+        .history-value {
+            font-size: 17px;
+            line-height: 1.4;
+            word-break: break-word;
         }
 
         .input-section {
             padding: 18px;
-            border-bottom: 1px solid #27417f;
             display: grid;
-            grid-template-columns: 160px 1fr;
+            grid-template-columns: 220px 1fr;
             gap: 12px;
             align-items: center;
         }
@@ -177,42 +226,42 @@
             transition: transform .15s ease, filter .15s ease;
         }
 
-        .action-btn:hover {
-            transform: translateY(-1px);
-            filter: brightness(1.06);
-        }
-
         .action-btn.primary {
             background: #2f4fe0;
             border-color: #5572f0;
         }
 
-        .history {
-            padding: 16px 18px 20px;
+        .action-btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.06);
         }
 
-        .history-title {
-            margin-bottom: 8px;
-            font-size: 16px;
-            font-weight: 700;
-            opacity: 0.85;
+        .readonly {
+            opacity: 0.72;
+            margin-top: 8px;
+            font-size: 13px;
         }
 
-        .history-list {
-            min-height: 28px;
-            font-size: 17px;
-            line-height: 1.45;
-            opacity: 0.94;
-            word-break: break-word;
-        }
-
-        @media (max-width: 900px) {
-            .timer {
-                font-size: 82px;
+        @media (max-width: 980px) {
+            .meta {
+                grid-template-columns: 1fr 1fr;
             }
 
-            .stats {
-                grid-template-columns: 1fr 1fr;
+            .duel {
+                grid-template-columns: 1fr;
+            }
+
+            .player-col {
+                border-right: none;
+                border-bottom: 1px solid #27417f;
+            }
+
+            .player-col:last-child {
+                border-bottom: none;
+            }
+
+            .timer {
+                font-size: 84px;
             }
 
             .input-section {
@@ -225,18 +274,27 @@
     <div class="page">
         <div class="topbar">
             <button class="btn" onclick="window.location.href='training_countdown_hs.html'">Zurück zum Setup</button>
-            <button class="btn danger" onclick="resetTraining()">Reset</button>
+            <button class="btn" onclick="resetMyStats()">Meine Werte reset</button>
+            <button class="btn danger" id="endSessionBtn" style="display:none;" onclick="endSession()">Session beenden</button>
         </div>
 
         <div class="board">
             <div class="meta">
                 <div class="meta-item">
                     <div class="meta-label">Modus</div>
-                    <div class="meta-value">Countdown HS</div>
+                    <div class="meta-value" id="modeValue">Countdown HS</div>
                 </div>
                 <div class="meta-item">
-                    <div class="meta-label">Disziplin</div>
-                    <div class="meta-value" id="disciplineValue">-</div>
+                    <div class="meta-label">Session</div>
+                    <div class="meta-value" id="sessionValue">Solo</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Status</div>
+                    <div class="meta-value" id="statusValue">Aktiv</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Dauer</div>
+                    <div class="meta-value" id="durationValue">-</div>
                 </div>
             </div>
 
@@ -245,39 +303,54 @@
                 <div class="timer" id="timerValue">00:00</div>
             </div>
 
-            <div class="stats">
-                <div class="stat">
-                    <div class="stat-label">Punkte</div>
-                    <div class="stat-value" id="scoreValue">0</div>
+            <div class="duel">
+                <div class="player-col">
+                    <div class="player-head">
+                        <div class="player-name" id="p1Name">Spieler 1</div>
+                        <div class="player-disc" id="p1Disc">-</div>
+                    </div>
+                    <div class="stats">
+                        <div class="stat"><div class="stat-label">Punkte</div><div class="stat-value" id="p1Score">0</div></div>
+                        <div class="stat"><div class="stat-label">Aufnahmen</div><div class="stat-value" id="p1Innings">0</div></div>
+                        <div class="stat"><div class="stat-label">HS</div><div class="stat-value" id="p1High">0</div></div>
+                        <div class="stat"><div class="stat-label">DS</div><div class="stat-value" id="p1Avg">0.000</div></div>
+                    </div>
+                    <div class="history">
+                        <div class="history-title">Serien</div>
+                        <div class="history-value" id="p1History">-</div>
+                    </div>
                 </div>
-                <div class="stat">
-                    <div class="stat-label">Aufnahmen</div>
-                    <div class="stat-value" id="inningsValue">0</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-label">HS</div>
-                    <div class="stat-value" id="highValue">0</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-label">DS</div>
-                    <div class="stat-value" id="avgValue">0.000</div>
+
+                <div class="player-col">
+                    <div class="player-head">
+                        <div class="player-name" id="p2Name">Spieler 2</div>
+                        <div class="player-disc" id="p2Disc">-</div>
+                    </div>
+                    <div class="stats">
+                        <div class="stat"><div class="stat-label">Punkte</div><div class="stat-value" id="p2Score">0</div></div>
+                        <div class="stat"><div class="stat-label">Aufnahmen</div><div class="stat-value" id="p2Innings">0</div></div>
+                        <div class="stat"><div class="stat-label">HS</div><div class="stat-value" id="p2High">0</div></div>
+                        <div class="stat"><div class="stat-label">DS</div><div class="stat-value" id="p2Avg">0.000</div></div>
+                    </div>
+                    <div class="history">
+                        <div class="history-title">Serien</div>
+                        <div class="history-value" id="p2History">-</div>
+                    </div>
                 </div>
             </div>
 
             <div class="input-section">
                 <input id="seriesInput" class="series-input" type="number" min="0" value="0" />
-                <div class="controls">
-                    <button class="action-btn primary" onclick="commitInning()">Aufnahme zählen</button>
-                    <button class="action-btn" onclick="adjustSeries(1)">+1</button>
-                    <button class="action-btn" onclick="adjustSeries(5)">+5</button>
-                    <button class="action-btn" onclick="adjustSeries(10)">+10</button>
-                    <button class="action-btn" onclick="adjustSeries(-1)">-1</button>
+                <div>
+                    <div class="controls">
+                        <button class="action-btn primary" onclick="commitInning()">Meine Aufnahme zählen</button>
+                        <button class="action-btn" onclick="adjustSeries(1)">+1</button>
+                        <button class="action-btn" onclick="adjustSeries(5)">+5</button>
+                        <button class="action-btn" onclick="adjustSeries(10)">+10</button>
+                        <button class="action-btn" onclick="adjustSeries(-1)">-1</button>
+                    </div>
+                    <div class="readonly" id="readonlyInfo"></div>
                 </div>
-            </div>
-
-            <div class="history">
-                <div class="history-title">Serienverlauf</div>
-                <div class="history-list" id="historyValue">-</div>
             </div>
         </div>
     </div>
@@ -286,54 +359,131 @@
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script>
-        requireAuth();
-
         const params = new URLSearchParams(window.location.search);
-        const discipline = params.get("discipline") || "";
-        const minutes = Number(params.get("minutes") || 0);
+        const soloDiscipline = params.get("discipline") || "";
+        const soloMinutes = Number(params.get("minutes") || 0);
+        const sessionId = params.get("session") || "";
 
-        if (!discipline || ![30, 45, 60].includes(minutes)) {
-            window.location.href = "training_countdown_hs.html";
+        let currentUser = null;
+        let timerId = null;
+        let countdownEndMs = 0;
+        let isDuelMode = false;
+        let isHost = false;
+        let sessionData = null;
+        let realtimeChannel = null;
+
+        let soloState = {
+            p1Name: "Du",
+            p1Disc: "",
+            p1Series: [],
+            p1Score: 0,
+            p1Innings: 0,
+            p1High: 0
+        };
+
+        function parseSeries(value) {
+            if (!Array.isArray(value)) return [];
+            return value
+                .map((x) => Number(x))
+                .filter((x) => Number.isFinite(x) && x >= 0);
         }
 
-        let totalScore = 0;
-        let innings = 0;
-        let highSeries = 0;
-        let history = [];
-        let remainingSeconds = minutes * 60;
-        let timerId = null;
-
         function formatTime(totalSeconds) {
-            const min = Math.floor(totalSeconds / 60);
-            const sec = totalSeconds % 60;
+            const safe = Math.max(0, totalSeconds);
+            const min = Math.floor(safe / 60);
+            const sec = safe % 60;
             return String(min).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
         }
 
-        function render() {
-            document.getElementById("disciplineValue").innerText = discipline;
-            document.getElementById("timerValue").innerText = formatTime(remainingSeconds);
-            document.getElementById("scoreValue").innerText = totalScore;
-            document.getElementById("inningsValue").innerText = innings;
-            document.getElementById("highValue").innerText = highSeries;
-            document.getElementById("avgValue").innerText = innings > 0
-                ? (totalScore / innings).toFixed(3)
-                : "0.000";
-            document.getElementById("historyValue").innerText = history.length > 0
-                ? history.join(", ")
-                : "-";
+        function avg(score, innings) {
+            return innings > 0 ? (score / innings).toFixed(3) : "0.000";
         }
 
-        function startTimer() {
-            timerId = setInterval(() => {
-                if (remainingSeconds <= 0) {
+        function setText(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.innerText = value;
+        }
+
+        function renderDualFromSession(data) {
+            const p1Series = parseSeries(data.host_series);
+            const p2Series = parseSeries(data.guest_series);
+
+            setText("sessionValue", data.id ? data.id.slice(0, 8) : "-");
+            setText("statusValue", data.status === "finished" ? "Beendet" : "Aktiv");
+            setText("durationValue", String(data.duration_minutes || 0) + " min");
+
+            setText("p1Name", data.host_name || "Spieler 1");
+            setText("p1Disc", data.host_discipline || "-");
+            setText("p1Score", String(data.host_score || 0));
+            setText("p1Innings", String(data.host_innings || 0));
+            setText("p1High", String(data.host_high || 0));
+            setText("p1Avg", avg(Number(data.host_score || 0), Number(data.host_innings || 0)));
+            setText("p1History", p1Series.length ? p1Series.join(", ") : "-");
+
+            setText("p2Name", data.guest_name || "Spieler 2");
+            setText("p2Disc", data.guest_discipline || "-");
+            setText("p2Score", String(data.guest_score || 0));
+            setText("p2Innings", String(data.guest_innings || 0));
+            setText("p2High", String(data.guest_high || 0));
+            setText("p2Avg", avg(Number(data.guest_score || 0), Number(data.guest_innings || 0)));
+            setText("p2History", p2Series.length ? p2Series.join(", ") : "-");
+
+            setText("readonlyInfo", isHost
+                ? "Du bearbeitest Spieler 1. Spieler 2 bearbeitet seine eigene Seite."
+                : "Du bearbeitest Spieler 2. Spieler 1 bearbeitet seine eigene Seite.");
+        }
+
+        function renderSolo() {
+            setText("sessionValue", "Solo");
+            setText("statusValue", "Aktiv");
+            setText("durationValue", String(soloMinutes) + " min");
+
+            setText("p1Name", "Du");
+            setText("p1Disc", soloState.p1Disc || "-");
+            setText("p1Score", String(soloState.p1Score));
+            setText("p1Innings", String(soloState.p1Innings));
+            setText("p1High", String(soloState.p1High));
+            setText("p1Avg", avg(soloState.p1Score, soloState.p1Innings));
+            setText("p1History", soloState.p1Series.length ? soloState.p1Series.join(", ") : "-");
+
+            setText("p2Name", "-");
+            setText("p2Disc", "-");
+            setText("p2Score", "0");
+            setText("p2Innings", "0");
+            setText("p2High", "0");
+            setText("p2Avg", "0.000");
+            setText("p2History", "-");
+
+            setText("readonlyInfo", "Solo-Modus: nur dein Ergebnis wird geführt.");
+        }
+
+        function startVisualTimer() {
+            if (timerId) clearInterval(timerId);
+            timerId = setInterval(async () => {
+                const remaining = Math.max(0, Math.floor((countdownEndMs - Date.now()) / 1000));
+                setText("timerValue", formatTime(remaining));
+                if (remaining <= 0) {
                     clearInterval(timerId);
                     timerId = null;
-                    alert("Zeit abgelaufen.");
-                    return;
+                    if (isDuelMode && sessionData?.status !== "finished") {
+                        await markSessionFinished();
+                    }
                 }
-                remainingSeconds--;
-                render();
-            }, 1000);
+            }, 350);
+        }
+
+        async function markSessionFinished() {
+            if (!sessionData?.id) return;
+            const { data } = await supabaseClient
+                .from("training_countdown_hs_sessions")
+                .select("status")
+                .eq("id", sessionData.id)
+                .single();
+            if (data?.status === "finished") return;
+            await supabaseClient
+                .from("training_countdown_hs_sessions")
+                .update({ status: "finished" })
+                .eq("id", sessionData.id);
         }
 
         function adjustSeries(delta) {
@@ -344,8 +494,10 @@
             input.value = value;
         }
 
-        function commitInning() {
-            if (remainingSeconds <= 0) return;
+        async function commitInning() {
+            if (isDuelMode && sessionData?.status === "finished") return;
+            const remaining = Math.max(0, Math.floor((countdownEndMs - Date.now()) / 1000));
+            if (remaining <= 0) return;
 
             const input = document.getElementById("seriesInput");
             const series = Number(input.value || 0);
@@ -354,36 +506,256 @@
                 return;
             }
 
-            history.push(series);
-            innings += 1;
-            totalScore += series;
-            if (series > highSeries) highSeries = series;
+            if (!isDuelMode) {
+                soloState.p1Series.push(series);
+                soloState.p1Innings += 1;
+                soloState.p1Score += series;
+                if (series > soloState.p1High) soloState.p1High = series;
+                input.value = 0;
+                renderSolo();
+                return;
+            }
+
+            if (!sessionData?.id) return;
+
+            if (isHost) {
+                const nextSeries = parseSeries(sessionData.host_series);
+                nextSeries.push(series);
+                const nextScore = Number(sessionData.host_score || 0) + series;
+                const nextInnings = Number(sessionData.host_innings || 0) + 1;
+                const nextHigh = Math.max(Number(sessionData.host_high || 0), series);
+
+                const { error } = await supabaseClient
+                    .from("training_countdown_hs_sessions")
+                    .update({
+                        host_series: nextSeries,
+                        host_score: nextScore,
+                        host_innings: nextInnings,
+                        host_high: nextHigh
+                    })
+                    .eq("id", sessionData.id);
+
+                if (error) {
+                    alert("Deine Serie konnte nicht gespeichert werden: " + error.message);
+                    return;
+                }
+
+                sessionData.host_series = nextSeries;
+                sessionData.host_score = nextScore;
+                sessionData.host_innings = nextInnings;
+                sessionData.host_high = nextHigh;
+            } else {
+                const nextSeries = parseSeries(sessionData.guest_series);
+                nextSeries.push(series);
+                const nextScore = Number(sessionData.guest_score || 0) + series;
+                const nextInnings = Number(sessionData.guest_innings || 0) + 1;
+                const nextHigh = Math.max(Number(sessionData.guest_high || 0), series);
+
+                const { error } = await supabaseClient
+                    .from("training_countdown_hs_sessions")
+                    .update({
+                        guest_series: nextSeries,
+                        guest_score: nextScore,
+                        guest_innings: nextInnings,
+                        guest_high: nextHigh
+                    })
+                    .eq("id", sessionData.id);
+
+                if (error) {
+                    alert("Deine Serie konnte nicht gespeichert werden: " + error.message);
+                    return;
+                }
+
+                sessionData.guest_series = nextSeries;
+                sessionData.guest_score = nextScore;
+                sessionData.guest_innings = nextInnings;
+                sessionData.guest_high = nextHigh;
+            }
+
             input.value = 0;
-            render();
+            renderDualFromSession(sessionData);
         }
 
-        function resetTraining() {
-            if (!confirm("Training wirklich zurücksetzen?")) return;
+        async function resetMyStats() {
+            if (!confirm("Eigene Werte wirklich zurücksetzen?")) return;
 
-            totalScore = 0;
-            innings = 0;
-            highSeries = 0;
-            history = [];
-            remainingSeconds = minutes * 60;
+            if (!isDuelMode) {
+                soloState.p1Series = [];
+                soloState.p1Score = 0;
+                soloState.p1Innings = 0;
+                soloState.p1High = 0;
+                renderSolo();
+                document.getElementById("seriesInput").value = 0;
+                return;
+            }
+
+            if (!sessionData?.id) return;
+            let update = {};
+            if (isHost) {
+                update = {
+                    host_series: [],
+                    host_score: 0,
+                    host_innings: 0,
+                    host_high: 0
+                };
+            } else {
+                update = {
+                    guest_series: [],
+                    guest_score: 0,
+                    guest_innings: 0,
+                    guest_high: 0
+                };
+            }
+
+            const { error } = await supabaseClient
+                .from("training_countdown_hs_sessions")
+                .update(update)
+                .eq("id", sessionData.id);
+
+            if (error) {
+                alert("Reset fehlgeschlagen: " + error.message);
+                return;
+            }
             document.getElementById("seriesInput").value = 0;
-            render();
-
-            if (!timerId) startTimer();
         }
 
-        document.getElementById("seriesInput").addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                commitInning();
+        async function endSession() {
+            if (!isDuelMode || !isHost || !sessionData?.id) return;
+            if (!confirm("Session für beide beenden?")) return;
+
+            const { error } = await supabaseClient
+                .from("training_countdown_hs_sessions")
+                .update({ status: "finished" })
+                .eq("id", sessionData.id);
+
+            if (error) {
+                alert("Session konnte nicht beendet werden: " + error.message);
+            }
+        }
+
+        async function claimGuestSeatIfNeeded(data) {
+            const myEmail = String(currentUser?.email || "").trim().toLowerCase();
+            const guestEmail = String(data?.guest_email || "").trim().toLowerCase();
+            if (!myEmail || myEmail !== guestEmail) return data;
+            if (data.guest_user_id) return data;
+
+            const name = data.guest_name || getDisplayName(currentUser);
+            const { data: updated, error } = await supabaseClient
+                .from("training_countdown_hs_sessions")
+                .update({
+                    guest_user_id: currentUser.id,
+                    guest_name: name
+                })
+                .eq("id", data.id)
+                .is("guest_user_id", null)
+                .select("*")
+                .single();
+
+            if (error || !updated) return data;
+            return updated;
+        }
+
+        async function loadDualSession() {
+            const { data, error } = await supabaseClient
+                .from("training_countdown_hs_sessions")
+                .select("*")
+                .eq("id", sessionId)
+                .single();
+
+            if (error || !data) {
+                alert("Session konnte nicht geladen werden.");
+                window.location.href = "training_countdown_hs.html";
+                return false;
+            }
+
+            sessionData = await claimGuestSeatIfNeeded(data);
+
+            const myEmail = String(currentUser?.email || "").trim().toLowerCase();
+            const allowed =
+                String(sessionData.host_user_id || "") === String(currentUser.id) ||
+                String(sessionData.guest_user_id || "") === String(currentUser.id) ||
+                (myEmail && myEmail === String(sessionData.guest_email || "").trim().toLowerCase());
+
+            if (!allowed) {
+                alert("Kein Zugriff auf diese Session.");
+                window.location.href = "training_countdown_hs.html";
+                return false;
+            }
+
+            isHost = String(sessionData.host_user_id || "") === String(currentUser.id);
+            setText("modeValue", "Countdown HS (2P)");
+            countdownEndMs = new Date(sessionData.ends_at).getTime();
+            renderDualFromSession(sessionData);
+            document.getElementById("endSessionBtn").style.display = isHost ? "inline-block" : "none";
+            return true;
+        }
+
+        function bindRealtime() {
+            if (!sessionData?.id) return;
+            realtimeChannel = supabaseClient
+                .channel("countdown_hs_" + sessionData.id)
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "UPDATE",
+                        schema: "public",
+                        table: "training_countdown_hs_sessions",
+                        filter: "id=eq." + sessionData.id
+                    },
+                    (payload) => {
+                        if (!payload?.new) return;
+                        sessionData = payload.new;
+                        countdownEndMs = new Date(sessionData.ends_at).getTime();
+                        renderDualFromSession(sessionData);
+                    }
+                )
+                .subscribe();
+        }
+
+        async function initSolo() {
+            if (!soloDiscipline || ![30, 45, 60].includes(soloMinutes)) {
+                window.location.href = "training_countdown_hs.html";
+                return;
+            }
+            isDuelMode = false;
+            setText("modeValue", "Countdown HS (Solo)");
+            soloState.p1Disc = soloDiscipline;
+            countdownEndMs = Date.now() + soloMinutes * 60000;
+            renderSolo();
+            startVisualTimer();
+        }
+
+        async function initDual() {
+            isDuelMode = true;
+            const ok = await loadDualSession();
+            if (!ok) return;
+            startVisualTimer();
+            bindRealtime();
+        }
+
+        async function init() {
+            currentUser = await requireAuth();
+            if (!currentUser) return;
+
+            if (sessionId) {
+                await initDual();
+            } else {
+                await initSolo();
+            }
+
+            document.getElementById("seriesInput").addEventListener("keydown", (e) => {
+                if (e.key === "Enter") commitInning();
+            });
+        }
+
+        window.addEventListener("beforeunload", () => {
+            if (timerId) clearInterval(timerId);
+            if (realtimeChannel) {
+                supabaseClient.removeChannel(realtimeChannel);
             }
         });
 
-        render();
-        startTimer();
+        init();
     </script>
 </body>
 </html>

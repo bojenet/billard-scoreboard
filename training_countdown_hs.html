@@ -58,6 +58,26 @@
             font-size: 15px;
         }
 
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .panel {
+            border: 1px solid #2f4ea0;
+            border-radius: 14px;
+            padding: 14px;
+            background: rgba(8, 20, 54, 0.42);
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            opacity: 0.92;
+        }
+
         .btn-group {
             display: flex;
             gap: 10px;
@@ -89,10 +109,90 @@
             box-shadow: 0 8px 24px rgba(255, 216, 74, 0.28);
         }
 
+        .field {
+            margin-bottom: 10px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 14px;
+            opacity: 0.84;
+            margin-bottom: 6px;
+        }
+
+        .field input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #3959ab;
+            border-radius: 10px;
+            padding: 11px 12px;
+            font-size: 16px;
+            color: #fff;
+            background: #112659;
+        }
+
+        .hint {
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        .invite-wrap {
+            margin-top: 8px;
+        }
+
+        .invite-list {
+            border: 1px solid #2f4ea0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .invite-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid #27417f;
+            background: rgba(10, 18, 46, 0.45);
+        }
+
+        .invite-row:last-child {
+            border-bottom: none;
+        }
+
+        .invite-main {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .invite-sub {
+            font-size: 13px;
+            opacity: 0.75;
+            margin-top: 2px;
+        }
+
+        .join-btn {
+            border: none;
+            border-radius: 10px;
+            background: #2f4fe0;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .empty {
+            padding: 12px;
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
         .actions {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 14px;
+            margin-top: 16px;
         }
 
         .btn {
@@ -124,6 +224,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
             .header h1 {
                 font-size: 36px;
             }
@@ -134,14 +238,40 @@
     <div class="page">
         <div class="header">
             <h1>Countdown HS</h1>
-            <p>Disziplin und Trainingsdauer wählen</p>
+            <p>Solo oder Einladung mit zweitem User</p>
         </div>
 
         <div class="card">
             <div class="section">
-                <h2 class="section-title">Disziplin</h2>
-                <div class="section-sub">Trainingsmodus für einen Spieler</div>
-                <div id="disciplineButtons" class="btn-group"></div>
+                <h2 class="section-title">Spielmodus</h2>
+                <div class="btn-group" id="modeButtons">
+                    <button class="chip active" data-mode="solo">Solo</button>
+                    <button class="chip" data-mode="duel">2 Spieler (Einladung)</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Disziplinen</h2>
+                <div class="section-sub">Jeder Spieler kann eine eigene Disziplin haben</div>
+                <div class="grid-2">
+                    <div class="panel">
+                        <div class="panel-title">Spieler 1 (du)</div>
+                        <div id="disciplineButtonsHost" class="btn-group"></div>
+                    </div>
+                    <div class="panel" id="guestPanel" style="display:none;">
+                        <div class="panel-title">Spieler 2</div>
+                        <div class="field">
+                            <label for="guestName">Spielername</label>
+                            <input id="guestName" type="text" placeholder="z.B. Max" />
+                        </div>
+                        <div class="field">
+                            <label for="guestEmail">User-E-Mail (für Einladung)</label>
+                            <input id="guestEmail" type="email" placeholder="name@domain.de" />
+                        </div>
+                        <div id="disciplineButtonsGuest" class="btn-group"></div>
+                        <div class="hint">Der eingeladene User sieht die Session unter Countdown HS und auf dem gemeinsamen Screen.</div>
+                    </div>
+                </div>
             </div>
 
             <div class="section">
@@ -152,6 +282,12 @@
                     <button class="chip" data-minutes="45">45 min</button>
                     <button class="chip" data-minutes="60">1 Std</button>
                 </div>
+            </div>
+
+            <div class="section invite-wrap" id="invitesSection">
+                <h2 class="section-title">Meine Einladungen</h2>
+                <div class="section-sub">Aktive Sessions, in die du eingeladen wurdest</div>
+                <div class="invite-list" id="invitesList"></div>
             </div>
 
             <div class="actions">
@@ -165,8 +301,6 @@
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script>
-        requireAuth();
-
         const disciplines = [
             "Freie Partie",
             "Cadre 35/2",
@@ -178,55 +312,177 @@
             "Dreiband"
         ];
 
-        let selectedDiscipline = "";
+        let currentUser = null;
+        let selectedMode = "solo";
+        let selectedHostDiscipline = "";
+        let selectedGuestDiscipline = "";
         let selectedMinutes = 0;
 
-        function buildDisciplineButtons() {
-            const container = document.getElementById("disciplineButtons");
+        function buildDisciplineButtons(containerId, onSelect) {
+            const container = document.getElementById(containerId);
             container.innerHTML = "";
-
             disciplines.forEach((discipline) => {
                 const btn = document.createElement("button");
                 btn.className = "chip";
                 btn.innerText = discipline;
                 btn.onclick = () => {
-                    selectedDiscipline = discipline;
                     container.querySelectorAll(".chip").forEach((x) => x.classList.remove("active"));
                     btn.classList.add("active");
+                    onSelect(discipline);
                 };
                 container.appendChild(btn);
             });
         }
 
+        function bindModeButtons() {
+            const buttons = document.querySelectorAll("#modeButtons .chip");
+            buttons.forEach((btn) => {
+                btn.onclick = () => {
+                    selectedMode = btn.dataset.mode;
+                    buttons.forEach((x) => x.classList.remove("active"));
+                    btn.classList.add("active");
+                    document.getElementById("guestPanel").style.display = selectedMode === "duel" ? "block" : "none";
+                };
+            });
+        }
+
         function bindTimeButtons() {
-            const timeButtons = document.querySelectorAll("#timeButtons .chip");
-            timeButtons.forEach((btn) => {
+            const buttons = document.querySelectorAll("#timeButtons .chip");
+            buttons.forEach((btn) => {
                 btn.onclick = () => {
                     selectedMinutes = Number(btn.dataset.minutes || 0);
-                    timeButtons.forEach((x) => x.classList.remove("active"));
+                    buttons.forEach((x) => x.classList.remove("active"));
                     btn.classList.add("active");
                 };
             });
         }
 
-        function startCountdownTraining() {
-            if (!selectedDiscipline) {
-                alert("Bitte eine Disziplin auswählen.");
+        function normalizeEmail(value) {
+            return String(value || "").trim().toLowerCase();
+        }
+
+        async function loadIncomingInvites() {
+            if (!currentUser?.email) return;
+            const email = normalizeEmail(currentUser.email);
+            const nowIso = new Date().toISOString();
+
+            const { data, error } = await supabaseClient
+                .from("training_countdown_hs_sessions")
+                .select("id,host_name,guest_name,host_discipline,guest_discipline,duration_minutes,ends_at,status")
+                .eq("guest_email", email)
+                .eq("status", "active")
+                .gte("ends_at", nowIso)
+                .order("created_at", { ascending: false })
+                .limit(10);
+
+            const wrap = document.getElementById("invitesList");
+            if (error) {
+                wrap.innerHTML = `<div class="empty">Einladungen konnten nicht geladen werden (${error.message}).</div>`;
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                wrap.innerHTML = '<div class="empty">Keine aktiven Einladungen.</div>';
+                return;
+            }
+
+            wrap.innerHTML = "";
+            data.forEach((session) => {
+                const row = document.createElement("div");
+                row.className = "invite-row";
+                row.innerHTML = `
+                    <div>
+                        <div class="invite-main">${session.host_name || "Spieler 1"} vs ${session.guest_name || "du"}</div>
+                        <div class="invite-sub">${session.host_discipline || "-"} vs ${session.guest_discipline || "-"} • ${session.duration_minutes} min</div>
+                    </div>
+                    <button class="join-btn">Beitreten</button>
+                `;
+                row.querySelector(".join-btn").onclick = () => {
+                    window.location.href = "training_countdown_hs_run.html?session=" + session.id;
+                };
+                wrap.appendChild(row);
+            });
+        }
+
+        async function startCountdownTraining() {
+            if (!selectedHostDiscipline) {
+                alert("Bitte Disziplin für Spieler 1 auswählen.");
                 return;
             }
             if (!selectedMinutes) {
                 alert("Bitte eine Zeit auswählen.");
                 return;
             }
-            const params = new URLSearchParams({
-                discipline: selectedDiscipline,
-                minutes: String(selectedMinutes)
-            });
-            window.location.href = "training_countdown_hs_run.html?" + params.toString();
+
+            if (selectedMode === "solo") {
+                const params = new URLSearchParams({
+                    discipline: selectedHostDiscipline,
+                    minutes: String(selectedMinutes)
+                });
+                window.location.href = "training_countdown_hs_run.html?" + params.toString();
+                return;
+            }
+
+            const guestName = String(document.getElementById("guestName").value || "").trim();
+            const guestEmail = normalizeEmail(document.getElementById("guestEmail").value);
+            if (!guestName) {
+                alert("Bitte Spielernamen für Spieler 2 eingeben.");
+                return;
+            }
+            if (!guestEmail) {
+                alert("Bitte User-E-Mail für die Einladung eingeben.");
+                return;
+            }
+            if (!selectedGuestDiscipline) {
+                alert("Bitte Disziplin für Spieler 2 auswählen.");
+                return;
+            }
+
+            const now = new Date();
+            const endsAt = new Date(now.getTime() + selectedMinutes * 60000);
+            const payload = {
+                host_user_id: currentUser.id,
+                host_name: getDisplayName(currentUser),
+                host_discipline: selectedHostDiscipline,
+                guest_email: guestEmail,
+                guest_name: guestName,
+                guest_discipline: selectedGuestDiscipline,
+                duration_minutes: selectedMinutes,
+                status: "active",
+                started_at: now.toISOString(),
+                ends_at: endsAt.toISOString()
+            };
+
+            const { data, error } = await supabaseClient
+                .from("training_countdown_hs_sessions")
+                .insert(payload)
+                .select("id")
+                .single();
+
+            if (error || !data?.id) {
+                alert("Einladung konnte nicht gestartet werden: " + (error?.message || "Unbekannter Fehler"));
+                return;
+            }
+
+            window.location.href = "training_countdown_hs_run.html?session=" + data.id;
         }
 
-        buildDisciplineButtons();
-        bindTimeButtons();
+        async function init() {
+            currentUser = await requireAuth();
+            if (!currentUser) return;
+
+            buildDisciplineButtons("disciplineButtonsHost", (value) => {
+                selectedHostDiscipline = value;
+            });
+            buildDisciplineButtons("disciplineButtonsGuest", (value) => {
+                selectedGuestDiscipline = value;
+            });
+            bindModeButtons();
+            bindTimeButtons();
+            loadIncomingInvites();
+        }
+
+        init();
     </script>
 </body>
 </html>
