@@ -380,6 +380,7 @@
         let isHost = false;
         let sessionData = null;
         let realtimeChannel = null;
+        let sessionPollId = null;
 
         let soloState = {
             p1Name: "Du",
@@ -411,6 +412,19 @@
         function setText(id, value) {
             const el = document.getElementById(id);
             if (el) el.innerText = value;
+        }
+
+        function applyIncomingSession(next) {
+            if (!next) return;
+            sessionData = next;
+            if (sessionData.countdown_started_at) {
+                countdownEndMs = new Date(sessionData.ends_at).getTime();
+                if (!timerId) startVisualTimer();
+            } else {
+                countdownEndMs = Date.now() + Number(sessionData.duration_minutes || 0) * 60000;
+                setText("timerValue", formatTime(Number(sessionData.duration_minutes || 0) * 60));
+            }
+            renderDualFromSession(sessionData);
         }
 
         function renderDualFromSession(data) {
@@ -781,18 +795,29 @@
                     },
                     (payload) => {
                         if (!payload?.new) return;
-                        sessionData = payload.new;
-                        if (sessionData.countdown_started_at) {
-                            countdownEndMs = new Date(sessionData.ends_at).getTime();
-                            if (!timerId) startVisualTimer();
-                        } else {
-                            countdownEndMs = Date.now() + Number(sessionData.duration_minutes || 0) * 60000;
-                            setText("timerValue", formatTime(Number(sessionData.duration_minutes || 0) * 60));
-                        }
-                        renderDualFromSession(sessionData);
+                        applyIncomingSession(payload.new);
                     }
                 )
                 .subscribe();
+        }
+
+        async function pollSession() {
+            if (!sessionId) return;
+            const { data, error } = await supabaseClient
+                .from("training_countdown_hs_sessions")
+                .select("*")
+                .eq("id", sessionId)
+                .single();
+            if (error || !data) return;
+            applyIncomingSession(data);
+        }
+
+        function startSessionPolling() {
+            if (!sessionId) return;
+            if (sessionPollId) clearInterval(sessionPollId);
+            sessionPollId = setInterval(() => {
+                pollSession();
+            }, 2000);
         }
 
         async function initSolo() {
@@ -818,6 +843,7 @@
                 setText("timerValue", formatTime(Number(sessionData.duration_minutes || 0) * 60));
             }
             bindRealtime();
+            startSessionPolling();
         }
 
         async function init() {
@@ -837,8 +863,15 @@
 
         window.addEventListener("beforeunload", () => {
             if (timerId) clearInterval(timerId);
+            if (sessionPollId) clearInterval(sessionPollId);
             if (realtimeChannel) {
                 supabaseClient.removeChannel(realtimeChannel);
+            }
+        });
+
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden && isDuelMode) {
+                pollSession();
             }
         });
 
