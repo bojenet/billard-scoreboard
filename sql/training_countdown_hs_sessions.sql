@@ -13,6 +13,7 @@ create table if not exists public.training_countdown_hs_sessions (
   duration_minutes int not null check (duration_minutes in (30,45,60)),
   status text not null default 'active' check (status in ('active','finished','cancelled')),
   started_at timestamptz not null default now(),
+  countdown_started_at timestamptz,
   ends_at timestamptz not null,
   host_series jsonb not null default '[]'::jsonb,
   guest_series jsonb not null default '[]'::jsonb,
@@ -25,6 +26,9 @@ create table if not exists public.training_countdown_hs_sessions (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.training_countdown_hs_sessions
+  add column if not exists countdown_started_at timestamptz;
 
 create index if not exists idx_countdown_hs_host on public.training_countdown_hs_sessions(host_user_id);
 create index if not exists idx_countdown_hs_guest_user on public.training_countdown_hs_sessions(guest_user_id);

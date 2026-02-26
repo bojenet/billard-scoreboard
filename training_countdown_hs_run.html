@@ -274,6 +274,7 @@
     <div class="page">
         <div class="topbar">
             <button class="btn" onclick="window.location.href='training_countdown_hs.html'">Zurück zum Setup</button>
+            <button class="btn" id="startCountdownBtn" style="display:none;" onclick="startCountdownNow()">Countdown starten</button>
             <button class="btn" onclick="resetMyStats()">Meine Werte reset</button>
             <button class="btn danger" id="endSessionBtn" style="display:none;" onclick="endSession()">Session beenden</button>
         </div>
@@ -367,6 +368,7 @@
         let currentUser = null;
         let timerId = null;
         let countdownEndMs = 0;
+        let countdownStarted = false;
         let isDuelMode = false;
         let isHost = false;
         let sessionData = null;
@@ -409,7 +411,9 @@
             const p2Series = parseSeries(data.guest_series);
 
             setText("sessionValue", data.id ? data.id.slice(0, 8) : "-");
-            setText("statusValue", data.status === "finished" ? "Beendet" : "Aktiv");
+            const started = !!data.countdown_started_at;
+            countdownStarted = started;
+            setText("statusValue", data.status === "finished" ? "Beendet" : (started ? "Aktiv" : "Warten auf Start"));
             setText("durationValue", String(data.duration_minutes || 0) + " min");
 
             setText("p1Name", data.host_name || "Spieler 1");
@@ -428,9 +432,20 @@
             setText("p2Avg", avg(Number(data.guest_score || 0), Number(data.guest_innings || 0)));
             setText("p2History", p2Series.length ? p2Series.join(", ") : "-");
 
-            setText("readonlyInfo", isHost
-                ? "Du bearbeitest Spieler 1. Spieler 2 bearbeitet seine eigene Seite."
-                : "Du bearbeitest Spieler 2. Spieler 1 bearbeitet seine eigene Seite.");
+            if (!started) {
+                setText("readonlyInfo", isHost
+                    ? "Countdown ist noch nicht gestartet. Starte erst, wenn beide eingeloggt sind."
+                    : "Warte auf den Start durch Spieler 1.");
+            } else {
+                setText("readonlyInfo", isHost
+                    ? "Du bearbeitest Spieler 1. Spieler 2 bearbeitet seine eigene Seite."
+                    : "Du bearbeitest Spieler 2. Spieler 1 bearbeitet seine eigene Seite.");
+            }
+
+            const startBtn = document.getElementById("startCountdownBtn");
+            if (startBtn) {
+                startBtn.style.display = isHost && data.status !== "finished" && !started ? "inline-block" : "none";
+            }
         }
 
         function renderSolo() {
@@ -496,6 +511,10 @@
 
         async function commitInning() {
             if (isDuelMode && sessionData?.status === "finished") return;
+            if (isDuelMode && !countdownStarted) {
+                alert("Countdown wurde noch nicht gestartet.");
+                return;
+            }
             const remaining = Math.max(0, Math.floor((countdownEndMs - Date.now()) / 1000));
             if (remaining <= 0) return;
 
@@ -633,6 +652,37 @@
             }
         }
 
+        async function startCountdownNow() {
+            if (!isDuelMode || !isHost || !sessionData?.id) return;
+            if (sessionData.countdown_started_at) return;
+
+            const now = new Date();
+            const endsAt = new Date(now.getTime() + Number(sessionData.duration_minutes || 0) * 60000);
+
+            const { data, error } = await supabaseClient
+                .from("training_countdown_hs_sessions")
+                .update({
+                    countdown_started_at: now.toISOString(),
+                    started_at: now.toISOString(),
+                    ends_at: endsAt.toISOString()
+                })
+                .eq("id", sessionData.id)
+                .is("countdown_started_at", null)
+                .select("*")
+                .single();
+
+            if (error || !data) {
+                alert("Countdown konnte nicht gestartet werden: " + (error?.message || "Unbekannter Fehler"));
+                return;
+            }
+
+            sessionData = data;
+            countdownEndMs = new Date(sessionData.ends_at).getTime();
+            countdownStarted = true;
+            renderDualFromSession(sessionData);
+            startVisualTimer();
+        }
+
         async function claimGuestSeatIfNeeded(data) {
             const myEmail = String(currentUser?.email || "").trim().toLowerCase();
             const guestEmail = String(data?.guest_email || "").trim().toLowerCase();
@@ -684,7 +734,11 @@
 
             isHost = String(sessionData.host_user_id || "") === String(currentUser.id);
             setText("modeValue", "Countdown HS (2P)");
-            countdownEndMs = new Date(sessionData.ends_at).getTime();
+            if (sessionData.countdown_started_at) {
+                countdownEndMs = new Date(sessionData.ends_at).getTime();
+            } else {
+                countdownEndMs = Date.now() + Number(sessionData.duration_minutes || 0) * 60000;
+            }
             renderDualFromSession(sessionData);
             document.getElementById("endSessionBtn").style.display = isHost ? "inline-block" : "none";
             return true;
@@ -705,7 +759,13 @@
                     (payload) => {
                         if (!payload?.new) return;
                         sessionData = payload.new;
-                        countdownEndMs = new Date(sessionData.ends_at).getTime();
+                        if (sessionData.countdown_started_at) {
+                            countdownEndMs = new Date(sessionData.ends_at).getTime();
+                            if (!timerId) startVisualTimer();
+                        } else {
+                            countdownEndMs = Date.now() + Number(sessionData.duration_minutes || 0) * 60000;
+                            setText("timerValue", formatTime(Number(sessionData.duration_minutes || 0) * 60));
+                        }
                         renderDualFromSession(sessionData);
                     }
                 )
@@ -729,7 +789,11 @@
             isDuelMode = true;
             const ok = await loadDualSession();
             if (!ok) return;
-            startVisualTimer();
+            if (sessionData?.countdown_started_at) {
+                startVisualTimer();
+            } else {
+                setText("timerValue", formatTime(Number(sessionData.duration_minutes || 0) * 60));
+            }
             bindRealtime();
         }
 

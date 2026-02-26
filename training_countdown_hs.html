@@ -364,14 +364,12 @@
         async function loadIncomingInvites() {
             if (!currentUser?.email) return;
             const email = normalizeEmail(currentUser.email);
-            const nowIso = new Date().toISOString();
 
             const { data, error } = await supabaseClient
                 .from("training_countdown_hs_sessions")
                 .select("id,host_name,guest_name,host_discipline,guest_discipline,duration_minutes,ends_at,status")
                 .eq("guest_email", email)
                 .eq("status", "active")
-                .gte("ends_at", nowIso)
                 .order("created_at", { ascending: false })
                 .limit(10);
 
