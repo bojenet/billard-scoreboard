@@ -142,6 +142,11 @@
             <div class="tile-sub">Spieler hinzufügen & löschen</div>
         </div>
 
+        <div id="usersTile" class="tile" onclick="window.location.href='users.html'">
+            <div class="tile-title">Userverwaltung</div>
+            <div class="tile-sub">Rollen & Rechte verwalten</div>
+        </div>
+
         <div class="tile" onclick="window.location.href='archive.html'">
             <div class="tile-title">Archiv</div>
             <div class="tile-sub">Gespielte Partien ansehen</div>
@@ -180,9 +185,14 @@
         async function loadLiveMatches() {
             const user = await requireAuth();
             if (!user) return;
+            const isAdmin = await hasAdminAccess(user);
             const playersTile = document.getElementById("playersTile");
-            if (playersTile && !isAdminUser(user)) {
+            if (playersTile && !isAdmin) {
                 playersTile.style.display = "none";
+            }
+            const usersTile = document.getElementById("usersTile");
+            if (usersTile && !isAdmin) {
+                usersTile.style.display = "none";
             }
             const ownedNames = await getOwnedPlayerNames(user.id);
 

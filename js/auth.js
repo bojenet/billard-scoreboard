@@ -14,6 +14,28 @@ function isAdminUser(user) {
   return appRole === "admin" || userRole === "admin";
 }
 
+async function getUserRole(userId) {
+  if (!userId) return null;
+  const { data, error } = await supabaseClient
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Konnte user role nicht laden:", error);
+    return null;
+  }
+  return data?.role || null;
+}
+
+async function hasAdminAccess(user) {
+  if (!user) return false;
+  if (isAdminUser(user)) return true;
+  const role = await getUserRole(user.id);
+  return role === "admin";
+}
+
 async function requireAuth() {
   const user = await getCurrentUser();
   if (!user) {
@@ -27,7 +49,8 @@ async function requireAuth() {
 async function requireAdmin() {
   const user = await requireAuth();
   if (!user) return null;
-  if (!isAdminUser(user)) {
+  const admin = await hasAdminAccess(user);
+  if (!admin) {
     document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Admin-Zugriff.</div>";
     return null;
   }

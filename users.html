@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Userverwaltung</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(180deg, #0f1c3f, #0a122b);
+      color: white;
+    }
+
+    .page {
+      width: min(1100px, 94%);
+      margin: 34px auto 30px;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: 44px;
+      text-align: center;
+    }
+
+    .card {
+      background: linear-gradient(180deg, #162b66, #0f1c3f);
+      border: 1px solid #2d488f;
+      border-radius: 20px;
+      box-shadow: 0 22px 50px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      border-bottom: 1px solid #27417f;
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 16px;
+    }
+
+    th {
+      background: #12255a;
+      font-size: 14px;
+      letter-spacing: 0.4px;
+      opacity: 0.9;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .uid {
+      opacity: 0.7;
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    select {
+      background: #1c3380;
+      color: white;
+      border: 1px solid #3659bb;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .save-btn {
+      border: none;
+      border-radius: 9px;
+      background: #2f4fe0;
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+
+    .actions {
+      margin-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      background: #1c3380;
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .msg {
+      font-size: 14px;
+      opacity: 0.85;
+      min-height: 20px;
+    }
+
+    .msg.ok { color: #b6f5c4; }
+    .msg.err { color: #ffb6b6; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Userverwaltung</h1>
+    <div class="card">
+      <table id="usersTable">
+        <tr>
+          <th>E-Mail</th>
+          <th>User ID</th>
+          <th>Rolle</th>
+          <th>Aktion</th>
+        </tr>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button class="btn" onclick="window.location.href='index.html'">Zurück</button>
+      <div id="msg" class="msg"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    function setMsg(text, type) {
+      const el = document.getElementById("msg");
+      el.className = "msg " + (type || "");
+      el.innerText = text || "";
+    }
+
+    async function loadUsers() {
+      const admin = await requireAdmin();
+      if (!admin) return;
+
+      const { data: profiles, error: profilesError } = await supabaseClient
+        .from("profiles")
+        .select("id,email")
+        .order("email", { ascending: true });
+
+      if (profilesError) {
+        setMsg("Profiles laden fehlgeschlagen: " + profilesError.message, "err");
+        return;
+      }
+
+      const { data: roles, error: rolesError } = await supabaseClient
+        .from("user_roles")
+        .select("user_id,role");
+
+      if (rolesError) {
+        setMsg("Rollen laden fehlgeschlagen: " + rolesError.message, "err");
+        return;
+      }
+
+      const roleByUser = {};
+      (roles || []).forEach((r) => {
+        roleByUser[r.user_id] = r.role || "member";
+      });
+
+      const table = document.getElementById("usersTable");
+      table.innerHTML = `
+        <tr>
+          <th>E-Mail</th>
+          <th>User ID</th>
+          <th>Rolle</th>
+          <th>Aktion</th>
+        </tr>
+      `;
+
+      (profiles || []).forEach((p) => {
+        const row = document.createElement("tr");
+        const role = roleByUser[p.id] || "member";
+        row.innerHTML = `
+          <td>${p.email || "-"}</td>
+          <td class="uid">${p.id}</td>
+          <td>
+            <select id="role_${p.id}">
+              <option value="member" ${role === "member" ? "selected" : ""}>member</option>
+              <option value="admin" ${role === "admin" ? "selected" : ""}>admin</option>
+            </select>
+          </td>
+          <td>
+            <button class="save-btn" onclick="saveRole('${p.id}')">Speichern</button>
+          </td>
+        `;
+        table.appendChild(row);
+      });
+    }
+
+    async function saveRole(userId) {
+      const admin = await requireAdmin();
+      if (!admin) return;
+      setMsg("", "");
+
+      const role = document.getElementById("role_" + userId).value;
+      const { error } = await supabaseClient
+        .from("user_roles")
+        .upsert([{ user_id: userId, role }], { onConflict: "user_id" });
+
+      if (error) {
+        setMsg("Rolle speichern fehlgeschlagen: " + error.message, "err");
+        return;
+      }
+
+      setMsg("Rolle gespeichert.", "ok");
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

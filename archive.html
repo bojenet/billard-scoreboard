@@ -145,7 +145,7 @@ tr.data-row:hover {
 async function loadArchive() {
     const user = await requireAuth();
     if (!user) return;
-    const isAdmin = isAdminUser(user);
+    const isAdmin = await hasAdminAccess(user);
     const ownedNames = await getOwnedPlayerNames(user.id);
 
     const { data, error } = await supabaseClient
