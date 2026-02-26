@@ -602,13 +602,14 @@
                 let player2Id = null;
                 const { data: playerRows } = await supabaseClient
                     .from("players")
-                    .select("id,name")
+                    .select("id,name,user_id")
                     .in("name", [p1, p2]);
                 if (Array.isArray(playerRows)) {
                     const p1Row = playerRows.find((x) => x.name === p1);
                     const p2Row = playerRows.find((x) => x.name === p2);
-                    player1Id = p1Row?.id || null;
-                    player2Id = p2Row?.id || null;
+                    // matches.player*_id sind UUIDs (auth.users.id), daher user_id nutzen.
+                    player1Id = p1Row?.user_id || null;
+                    player2Id = p2Row?.user_id || null;
                 }
 
                 const extendedPayload = {
