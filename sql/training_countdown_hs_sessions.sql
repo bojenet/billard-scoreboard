@@ -106,3 +106,71 @@ create policy "countdown_hs_delete_host_admin"
     public.is_admin(auth.uid())
     or auth.uid() = host_user_id
   );
+
+create table if not exists public.training_countdown_hs_messages (
+  id bigserial primary key,
+  session_id uuid not null references public.training_countdown_hs_sessions(id) on delete cascade,
+  sender_user_id uuid not null references auth.users(id) on delete cascade,
+  sender_name text,
+  message text not null check (char_length(message) between 1 and 500),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_countdown_hs_messages_session on public.training_countdown_hs_messages(session_id, created_at);
+create index if not exists idx_countdown_hs_messages_sender on public.training_countdown_hs_messages(sender_user_id);
+
+alter table public.training_countdown_hs_messages enable row level security;
+
+drop policy if exists "countdown_hs_messages_select_participants" on public.training_countdown_hs_messages;
+create policy "countdown_hs_messages_select_participants"
+  on public.training_countdown_hs_messages
+  for select
+  using (
+    public.is_admin(auth.uid())
+    or exists (
+      select 1
+      from public.training_countdown_hs_sessions s
+      where s.id = training_countdown_hs_messages.session_id
+        and (
+          auth.uid() = s.host_user_id
+          or auth.uid() = s.guest_user_id
+          or (
+            s.guest_email is not null
+            and lower(s.guest_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+          )
+        )
+    )
+  );
+
+drop policy if exists "countdown_hs_messages_insert_participants" on public.training_countdown_hs_messages;
+create policy "countdown_hs_messages_insert_participants"
+  on public.training_countdown_hs_messages
+  for insert
+  with check (
+    sender_user_id = auth.uid()
+    and (
+      public.is_admin(auth.uid())
+      or exists (
+        select 1
+        from public.training_countdown_hs_sessions s
+        where s.id = training_countdown_hs_messages.session_id
+          and (
+            auth.uid() = s.host_user_id
+            or auth.uid() = s.guest_user_id
+            or (
+              s.guest_email is not null
+              and lower(s.guest_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+            )
+          )
+      )
+    )
+  );
+
+drop policy if exists "countdown_hs_messages_delete_sender_or_admin" on public.training_countdown_hs_messages;
+create policy "countdown_hs_messages_delete_sender_or_admin"
+  on public.training_countdown_hs_messages
+  for delete
+  using (
+    public.is_admin(auth.uid())
+    or sender_user_id = auth.uid()
+  );

@@ -249,6 +249,93 @@
             font-size: 13px;
         }
 
+        .chat {
+            border-top: 1px solid #27417f;
+            padding: 12px 14px 14px;
+        }
+
+        .chat-head {
+            font-size: 14px;
+            font-weight: 700;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .chat-list {
+            min-height: 80px;
+            max-height: 210px;
+            overflow-y: auto;
+            border: 1px solid #2e4a92;
+            border-radius: 12px;
+            padding: 8px;
+            background: rgba(9, 18, 45, 0.55);
+        }
+
+        .chat-empty {
+            font-size: 13px;
+            opacity: 0.68;
+            padding: 6px 4px;
+        }
+
+        .chat-row {
+            margin: 5px 0;
+            display: flex;
+        }
+
+        .chat-row.mine {
+            justify-content: flex-end;
+        }
+
+        .chat-bubble {
+            max-width: 82%;
+            padding: 7px 10px;
+            border-radius: 10px;
+            border: 1px solid #3659bb;
+            background: #163071;
+            font-size: 14px;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .chat-row.mine .chat-bubble {
+            background: #2a4ce0;
+            border-color: #5d79f3;
+        }
+
+        .chat-meta {
+            font-size: 11px;
+            opacity: 0.72;
+            margin-bottom: 2px;
+        }
+
+        .chat-input {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .chat-input input {
+            border: 1px solid #3959ab;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            color: #fff;
+            background: #112659;
+        }
+
+        .chat-send {
+            border: none;
+            border-radius: 10px;
+            background: #2f4fe0;
+            border: 1px solid #5572f0;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 0 14px;
+            cursor: pointer;
+        }
+
         @media (max-width: 980px) {
             .meta {
                 grid-template-columns: 1fr 1fr;
@@ -360,6 +447,15 @@
                     <div class="readonly" id="readonlyInfo"></div>
                 </div>
             </div>
+
+            <div class="chat" id="chatSection" style="display:none;">
+                <div class="chat-head">Session-Chat</div>
+                <div class="chat-list" id="chatList"></div>
+                <div class="chat-input">
+                    <input id="chatInput" type="text" maxlength="500" placeholder="Nachricht eingeben..." />
+                    <button class="chat-send" onclick="sendChatMessage()">Senden</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -382,6 +478,8 @@
         let sessionData = null;
         let realtimeChannel = null;
         let sessionPollId = null;
+        let chatPollId = null;
+        let chatMessages = [];
 
         let soloState = {
             p1Name: "Du",
@@ -413,6 +511,88 @@
         function setText(id, value) {
             const el = document.getElementById(id);
             if (el) el.innerText = value;
+        }
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function formatTimeShort(iso) {
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return "";
+            return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        }
+
+        function renderChat() {
+            const list = document.getElementById("chatList");
+            if (!list) return;
+
+            if (!isDuelMode) {
+                list.innerHTML = '<div class="chat-empty">Chat nur im 2-Spieler-Modus.</div>';
+                return;
+            }
+
+            if (!chatMessages.length) {
+                list.innerHTML = '<div class="chat-empty">Noch keine Nachrichten.</div>';
+                return;
+            }
+
+            list.innerHTML = chatMessages.map((msg) => {
+                const mine = String(msg.sender_user_id || "") === String(currentUser?.id || "");
+                const sender = escapeHtml(msg.sender_name || "User");
+                const text = escapeHtml(msg.message || "");
+                const time = escapeHtml(formatTimeShort(msg.created_at));
+                return `
+                    <div class="chat-row ${mine ? "mine" : "other"}">
+                        <div class="chat-bubble">
+                            <div class="chat-meta">${sender} • ${time}</div>
+                            <div>${text}</div>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+            list.scrollTop = list.scrollHeight;
+        }
+
+        async function loadChatMessages() {
+            if (!isDuelMode || !sessionData?.id) return;
+            const { data, error } = await supabaseClient
+                .from("training_countdown_hs_messages")
+                .select("id,sender_user_id,sender_name,message,created_at")
+                .eq("session_id", sessionData.id)
+                .order("created_at", { ascending: true })
+                .limit(200);
+            if (error) return;
+            chatMessages = data || [];
+            renderChat();
+        }
+
+        async function sendChatMessage() {
+            if (!isDuelMode || !sessionData?.id) return;
+            const input = document.getElementById("chatInput");
+            if (!input) return;
+            const message = String(input.value || "").trim();
+            if (!message) return;
+
+            const { error } = await supabaseClient
+                .from("training_countdown_hs_messages")
+                .insert({
+                    session_id: sessionData.id,
+                    sender_user_id: currentUser.id,
+                    sender_name: getDisplayName(currentUser),
+                    message
+                });
+
+            if (error) {
+                alert("Nachricht konnte nicht gesendet werden: " + error.message);
+                return;
+            }
+            input.value = "";
         }
 
         function applyIncomingSession(next) {
@@ -504,6 +684,8 @@
             setText("p2History", "-");
 
             setText("readonlyInfo", "Solo-Modus: nur dein Ergebnis wird geführt.");
+            const chatSection = document.getElementById("chatSection");
+            if (chatSection) chatSection.style.display = "none";
         }
 
         function startVisualTimer() {
@@ -799,6 +981,22 @@
                         applyIncomingSession(payload.new);
                     }
                 )
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "INSERT",
+                        schema: "public",
+                        table: "training_countdown_hs_messages",
+                        filter: "session_id=eq." + sessionData.id
+                    },
+                    (payload) => {
+                        if (!payload?.new) return;
+                        const exists = chatMessages.some((x) => Number(x.id) === Number(payload.new.id));
+                        if (exists) return;
+                        chatMessages.push(payload.new);
+                        renderChat();
+                    }
+                )
                 .subscribe();
         }
 
@@ -821,6 +1019,14 @@
             }, 2000);
         }
 
+        function startChatPolling() {
+            if (!sessionId) return;
+            if (chatPollId) clearInterval(chatPollId);
+            chatPollId = setInterval(() => {
+                loadChatMessages();
+            }, 2500);
+        }
+
         async function initSolo() {
             if (!soloDiscipline || ![30, 45, 60].includes(soloMinutes)) {
                 window.location.href = "training_countdown_hs.html";
@@ -838,6 +1044,8 @@
             isDuelMode = true;
             const ok = await loadDualSession();
             if (!ok) return;
+            const chatSection = document.getElementById("chatSection");
+            if (chatSection) chatSection.style.display = "block";
             if (sessionData?.countdown_started_at) {
                 startVisualTimer();
             } else {
@@ -845,6 +1053,8 @@
             }
             bindRealtime();
             startSessionPolling();
+            await loadChatMessages();
+            startChatPolling();
         }
 
         async function init() {
@@ -860,11 +1070,18 @@
             document.getElementById("seriesInput").addEventListener("keydown", (e) => {
                 if (e.key === "Enter") commitInning();
             });
+            const chatInput = document.getElementById("chatInput");
+            if (chatInput) {
+                chatInput.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter") sendChatMessage();
+                });
+            }
         }
 
         window.addEventListener("beforeunload", () => {
             if (timerId) clearInterval(timerId);
             if (sessionPollId) clearInterval(sessionPollId);
+            if (chatPollId) clearInterval(chatPollId);
             if (realtimeChannel) {
                 supabaseClient.removeChannel(realtimeChannel);
             }
@@ -873,6 +1090,7 @@
         document.addEventListener("visibilitychange", () => {
             if (!document.hidden && isDuelMode) {
                 pollSession();
+                loadChatMessages();
             }
         });
 
