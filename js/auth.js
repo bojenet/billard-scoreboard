@@ -58,11 +58,28 @@ async function requireAdmin() {
 }
 
 async function signOutAndRedirect() {
-  const { error } = await supabaseClient.auth.signOut();
+  const { error } = await supabaseClient.auth.signOut({ scope: "global" });
   if (error) {
     console.error("Logout fehlgeschlagen:", error);
   }
-  window.location.href = "/login.html";
+  // Fallback: lokale Session-Artefakte entfernen.
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("sb-")) {
+        localStorage.removeItem(key);
+      }
+    }
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith("sb-")) {
+        sessionStorage.removeItem(key);
+      }
+    }
+  } catch (e) {
+    console.warn("Session-Cleanup fehlgeschlagen:", e);
+  }
+  window.location.replace("/login.html?logged_out=1");
 }
 
 async function getOwnedPlayerNames(userId) {
@@ -89,4 +106,14 @@ function isOwnedMatch(match, userId, ownedNames) {
     if (ownedNames.includes(match.player1) || ownedNames.includes(match.player2)) return true;
   }
   return false;
+}
+
+function getDisplayName(user) {
+  if (!user) return "";
+  return (
+    user.user_metadata?.display_name ||
+    user.user_metadata?.full_name ||
+    user.email ||
+    user.id
+  );
 }

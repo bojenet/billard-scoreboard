@@ -96,6 +96,8 @@
         }
 
         async function redirectIfSessionExists() {
+            const explicitLogout = new URLSearchParams(window.location.search).get("logged_out") === "1";
+            if (explicitLogout) return;
             const { data, error } = await supabaseClient.auth.getSession();
             if (error) {
                 console.error("Session-Check fehlgeschlagen:", error);
