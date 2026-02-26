@@ -355,6 +355,7 @@
         async function loadDetail() {
             const user = await requireAuth();
             if (!user) return;
+            const isAdmin = await hasAdminAccess(user);
             const ownedNames = await getOwnedPlayerNames(user.id);
 
             const { data: match, error } = await supabaseClient
@@ -370,7 +371,7 @@
                 return;
             }
 
-            if (!isOwnedMatch(match, user.id, ownedNames)) {
+            if (!isAdmin && !isOwnedMatch(match, user.id, ownedNames)) {
                 document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf diese Partie.</div>";
                 return;
             }

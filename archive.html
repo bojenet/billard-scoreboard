@@ -172,9 +172,11 @@ async function loadArchive() {
         </tr>
     `;
 
-    const filtered = (data || []).filter((match) =>
-        isOwnedMatch(match, user.id, ownedNames)
-    );
+    const filtered = isAdmin
+        ? (data || [])
+        : (data || []).filter((match) =>
+            isOwnedMatch(match, user.id, ownedNames)
+        );
 
     if (!filtered || filtered.length === 0) {
         const row = document.createElement("tr");
