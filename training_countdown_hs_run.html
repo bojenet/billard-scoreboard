@@ -369,6 +369,7 @@
         <div class="topbar">
             <button class="btn" onclick="window.location.href='training_countdown_hs.html'">Zurück zum Setup</button>
             <button class="btn" id="startCountdownBtn" style="display:none;" onclick="startCountdownNow()">Countdown starten</button>
+            <button class="btn" id="finishNowBtn" onclick="finishChallengeNow()">Beenden & speichern</button>
             <button class="btn" onclick="resetMyStats()">Meine Werte reset</button>
             <button class="btn danger" id="endSessionBtn" style="display:none;" onclick="endSession()">Session beenden</button>
         </div>
@@ -482,6 +483,7 @@
         let chatMessages = [];
         let resultSaved = false;
         let soloStartedAtIso = null;
+        let localChallengeEnded = false;
 
         let soloState = {
             p1Name: "Du",
@@ -630,6 +632,11 @@
 
             if (!error) {
                 resultSaved = true;
+                const finishBtn = document.getElementById("finishNowBtn");
+                if (finishBtn) {
+                    finishBtn.disabled = true;
+                    finishBtn.innerText = "Gespeichert";
+                }
             } else {
                 console.warn("Challenge-Ergebnis (2P) konnte nicht gespeichert werden:", reason, error);
             }
@@ -739,11 +746,15 @@
                     startBtn.innerText = guestReady ? "Countdown starten" : "Warte auf Spieler 2";
                 }
             }
+
+            if (localChallengeEnded && data.status !== "finished") {
+                setText("readonlyInfo", "Deine Challenge ist beendet und gespeichert.");
+            }
         }
 
         function renderSolo() {
             setText("sessionValue", "Solo");
-            setText("statusValue", "Aktiv");
+            setText("statusValue", localChallengeEnded ? "Beendet" : "Aktiv");
             setText("durationValue", String(soloMinutes) + " min");
 
             setText("p1Name", "Du");
@@ -762,7 +773,9 @@
             setText("p2Avg", "0.000");
             setText("p2History", "-");
 
-            setText("readonlyInfo", "Solo-Modus: nur dein Ergebnis wird geführt.");
+            setText("readonlyInfo", localChallengeEnded
+                ? "Challenge beendet und gespeichert."
+                : "Solo-Modus: nur dein Ergebnis wird geführt.");
             const chatSection = document.getElementById("chatSection");
             if (chatSection) chatSection.style.display = "none";
         }
@@ -806,6 +819,10 @@
         }
 
         async function commitInning() {
+            if (localChallengeEnded) {
+                alert("Challenge ist bereits beendet.");
+                return;
+            }
             if (isDuelMode && sessionData?.status === "finished") return;
             if (isDuelMode && !countdownStarted) {
                 alert("Countdown wurde noch nicht gestartet.");
@@ -892,6 +909,10 @@
         }
 
         async function resetMyStats() {
+            if (localChallengeEnded) {
+                alert("Nach dem Beenden kann nicht mehr zurückgesetzt werden.");
+                return;
+            }
             if (!confirm("Eigene Werte wirklich zurücksetzen?")) return;
 
             if (!isDuelMode) {
@@ -937,7 +958,11 @@
         async function endSession() {
             if (!isDuelMode || !isHost || !sessionData?.id) return;
             if (!confirm("Session für beide beenden?")) return;
+            await endSessionInternal("host_end_session");
+        }
 
+        async function endSessionInternal(reason) {
+            if (!isDuelMode || !isHost || !sessionData?.id) return;
             const { error } = await supabaseClient
                 .from("training_countdown_hs_sessions")
                 .update({ status: "finished" })
@@ -947,7 +972,37 @@
                 alert("Session konnte nicht beendet werden: " + error.message);
                 return;
             }
-            await persistCurrentChallengeResult("host_end_session");
+            sessionData.status = "finished";
+            localChallengeEnded = true;
+            await persistCurrentChallengeResult(reason || "host_end_session");
+            renderDualFromSession(sessionData);
+        }
+
+        async function finishChallengeNow() {
+            if (localChallengeEnded || resultSaved) return;
+
+            if (!isDuelMode) {
+                if (!confirm("Challenge jetzt beenden und speichern?")) return;
+                localChallengeEnded = true;
+                if (timerId) {
+                    clearInterval(timerId);
+                    timerId = null;
+                }
+                await persistCurrentChallengeResult("manual_finish_solo");
+                renderSolo();
+                return;
+            }
+
+            if (isHost) {
+                if (!confirm("Challenge für beide jetzt beenden und speichern?")) return;
+                await endSessionInternal("manual_finish_host");
+                return;
+            }
+
+            if (!confirm("Dein Ergebnis jetzt beenden und speichern?")) return;
+            localChallengeEnded = true;
+            await persistCurrentChallengeResult("manual_finish_guest");
+            renderDualFromSession(sessionData || {});
         }
 
         async function startCountdownNow() {
