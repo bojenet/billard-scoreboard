@@ -52,6 +52,12 @@
         .danger {
             background: #aa2222;
         }
+
+        button[disabled] {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none !important;
+        }
     </style>
 </head>
 
@@ -101,6 +107,7 @@ let currentUserId = "";
 let ownedPlayerNames = [];
 let remoteChannel = null;
 let pollId = null;
+let remoteHistory = [];
 
 // ===============================
 // LOAD MATCH
@@ -190,8 +197,14 @@ function updateDisplay() {
             ? matchData.series1
             : matchData.series2;
 
-    document.getElementById("miniSeriesInfo").innerText =
-        "Serie: " + (currentSeries > 0 ? "+" + currentSeries : "0");
+    if (Number(matchData.finished || 0) === 1) {
+        document.getElementById("miniSeriesInfo").innerText = "Partie beendet";
+        setControlsEnabled(false);
+    } else {
+        document.getElementById("miniSeriesInfo").innerText =
+            "Serie: " + (currentSeries > 0 ? "+" + currentSeries : "0");
+        setControlsEnabled(true);
+    }
 }
 
 // ===============================
@@ -224,6 +237,64 @@ async function pollMatch() {
     updateDisplay();
 }
 
+function setControlsEnabled(enabled) {
+    document.querySelectorAll(".button-grid button").forEach((btn) => {
+        btn.disabled = !enabled;
+    });
+}
+
+function isFinished() {
+    return !!matchData && Number(matchData.finished || 0) === 1;
+}
+
+function detectWinner(state) {
+    const score1 = Number(state.score1 || 0);
+    const score2 = Number(state.score2 || 0);
+    const inn1 = Number(state.inn1 || 0);
+    const inn2 = Number(state.inn2 || 0);
+    const target1 = Number(state.target1 || 0);
+    const target2 = Number(state.target2 || 0);
+    const totalInnings = Number(state.totalInnings || 0);
+    const maxInnings = Number(state.maxInnings || 0);
+
+    if (inn1 === inn2) {
+        if (target1 > 0 && score1 >= target1 && score2 < target2) return 1;
+        if (target2 > 0 && score2 >= target2 && score1 < target1) return 2;
+        if (target1 > 0 && target2 > 0 && score1 >= target1 && score2 >= target2) {
+            if (score1 > score2) return 1;
+            if (score2 > score1) return 2;
+            return 0;
+        }
+    }
+
+    if (maxInnings > 0 && totalInnings >= maxInnings && inn1 === inn2) {
+        const percent1 = target1 > 0 ? score1 / target1 : 0;
+        const percent2 = target2 > 0 ? score2 / target2 : 0;
+        if (percent1 > percent2) return 1;
+        if (percent2 > percent1) return 2;
+        return 0;
+    }
+
+    return null;
+}
+
+function saveHistory() {
+    if (!matchData) return;
+    remoteHistory.push({
+        score1: matchData.score1,
+        score2: matchData.score2,
+        series1: matchData.series1,
+        series2: matchData.series2,
+        high1: matchData.high1,
+        high2: matchData.high2,
+        activePlayer: matchData.activePlayer,
+        inn1: matchData.inn1,
+        inn2: matchData.inn2,
+        totalInnings: matchData.totalInnings,
+        finished: matchData.finished
+    });
+}
+
 // ===============================
 // ADD POINTS (SERIES)
 // ===============================
@@ -231,6 +302,8 @@ async function pollMatch() {
 async function add(value) {
 
     if (!matchData) return;
+    if (isFinished()) return;
+    saveHistory();
 
     let {
         activePlayer,
@@ -269,6 +342,8 @@ async function add(value) {
 async function switchPlayer() {
 
     if (!matchData) return;
+    if (isFinished()) return;
+    saveHistory();
 
     let {
         activePlayer,
@@ -303,7 +378,7 @@ async function switchPlayer() {
         activePlayer = 1;
     }
 
-    await updateMatch({
+    const nextState = {
         score1,
         score2,
         series1,
@@ -313,8 +388,24 @@ async function switchPlayer() {
         activePlayer,
         inn1,
         inn2,
-        totalInnings
-    });
+        totalInnings,
+        finished: Number(matchData.finished || 0)
+    };
+
+    const winner = detectWinner({ ...matchData, ...nextState });
+    if (winner !== null) {
+        nextState.finished = 1;
+    }
+
+    await updateMatch(nextState);
+}
+
+async function undo() {
+    if (!matchData) return;
+    if (isFinished()) return;
+    if (!remoteHistory.length) return;
+    const prev = remoteHistory.pop();
+    await updateMatch(prev);
 }
 
 // ===============================
@@ -322,6 +413,8 @@ async function switchPlayer() {
 // ===============================
 
 async function finish() {
+    if (!matchData) return;
+    if (isFinished()) return;
     await updateMatch({ finished: 1 });
 }
 
