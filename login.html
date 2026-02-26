@@ -55,6 +55,18 @@
             cursor: pointer;
         }
 
+        .btn-secondary {
+            margin-top: 10px;
+            background: #243b90;
+        }
+
+        .btn-link {
+            margin-top: 10px;
+            background: transparent;
+            border: 1px solid #3f5fc0;
+            color: #dbe4ff;
+        }
+
         .error {
             min-height: 20px;
             margin: 10px 0 0;
@@ -70,6 +82,8 @@
         <input id="email" type="email" placeholder="E-Mail" autocomplete="username" />
         <input id="password" type="password" placeholder="Passwort" autocomplete="current-password" />
         <button onclick="login()">Anmelden</button>
+        <button class="btn-secondary" onclick="signUp()">Konto erstellen</button>
+        <button class="btn-link" onclick="resetPassword()">Passwort zurücksetzen</button>
         <div id="errorText" class="error"></div>
     </div>
 
@@ -99,6 +113,7 @@
             const password = document.getElementById("password").value;
             const errorText = document.getElementById("errorText");
             errorText.innerText = "";
+            errorText.style.color = "#ffb6b6";
 
             if (!email || !password) {
                 errorText.innerText = "Bitte E-Mail und Passwort eingeben.";
@@ -116,6 +131,56 @@
             }
 
             window.location.href = resolveNextPath();
+        }
+
+        async function signUp() {
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value;
+            const errorText = document.getElementById("errorText");
+            errorText.innerText = "";
+            errorText.style.color = "#ffb6b6";
+
+            if (!email || !password || password.length < 6) {
+                errorText.innerText = "Bitte E-Mail und Passwort (mind. 6 Zeichen) eingeben.";
+                return;
+            }
+
+            const { error } = await supabaseClient.auth.signUp({
+                email,
+                password
+            });
+
+            if (error) {
+                errorText.innerText = "Registrierung fehlgeschlagen: " + error.message;
+                return;
+            }
+
+            errorText.style.color = "#b7f7c5";
+            errorText.innerText = "Konto erstellt. Falls E-Mail-Bestätigung aktiv ist, bitte Postfach prüfen.";
+        }
+
+        async function resetPassword() {
+            const email = document.getElementById("email").value.trim();
+            const errorText = document.getElementById("errorText");
+            errorText.innerText = "";
+            errorText.style.color = "#ffb6b6";
+
+            if (!email) {
+                errorText.innerText = "Bitte zuerst E-Mail eingeben.";
+                return;
+            }
+
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + "/login.html"
+            });
+
+            if (error) {
+                errorText.innerText = "Reset fehlgeschlagen: " + error.message;
+                return;
+            }
+
+            errorText.style.color = "#b7f7c5";
+            errorText.innerText = "Reset-Mail wurde gesendet.";
         }
 
         redirectIfSessionExists();
