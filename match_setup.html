@@ -440,6 +440,7 @@
             let selectedMode = "local";
             let currentUserId = "";
             let ownedPlayerNames = [];
+            let availablePlayers = [];
 
 
             function selectMode(mode) {
@@ -459,13 +460,39 @@
 
                 const { data: players, error } = await supabaseClient
                     .from("players")
-                    .select("*")
+                    .select("id,name,user_id")
                     .order("name", { ascending: true });
 
                 if (error) {
                     console.error(error);
                     return;
                 }
+
+                const byName = new Map();
+                (players || []).forEach((row) => {
+                    const rawName = String(row?.name || "").trim();
+                    if (!rawName || rawName === "?") return;
+                    const key = rawName.toLowerCase();
+                    if (!byName.has(key)) {
+                        byName.set(key, {
+                            id: row.id,
+                            name: rawName,
+                            user_id: row.user_id || null
+                        });
+                        return;
+                    }
+                    const existing = byName.get(key);
+                    // Bevorzuge Datensätze mit user_id, falls Duplikate existieren.
+                    if (!existing.user_id && row.user_id) {
+                        byName.set(key, {
+                            id: row.id,
+                            name: rawName,
+                            user_id: row.user_id
+                        });
+                    }
+                });
+                availablePlayers = Array.from(byName.values())
+                    .sort((a, b) => a.name.localeCompare(b.name, "de"));
 
                 const p1 = document.getElementById('player1');
                 const p2 = document.getElementById('player2');
@@ -477,16 +504,17 @@
                 t1.innerHTML = "";
                 t2.innerHTML = "";
 
-                players.forEach(p => {
-                    p1.add(new Option(p.name, p.name));
-                    p2.add(new Option(p.name, p.name));
+                availablePlayers.forEach(p => {
+                    const playerId = String(p.id);
+                    p1.add(new Option(p.name, playerId));
+                    p2.add(new Option(p.name, playerId));
 
                     const b1 = document.createElement("div");
                     b1.className = "touch-player-btn";
                     b1.innerText = p.name;
                     b1.onclick = () => {
-                        if (p2.value === p.name) return;
-                        p1.value = p.name;
+                        if (p2.value === playerId) return;
+                        p1.value = playerId;
                         t1.querySelectorAll(".touch-player-btn").forEach(x => x.classList.remove("active"));
                         b1.classList.add("active");
                     };
@@ -496,8 +524,8 @@
                     b2.className = "touch-player-btn";
                     b2.innerText = p.name;
                     b2.onclick = () => {
-                        if (p1.value === p.name) return;
-                        p2.value = p.name;
+                        if (p1.value === playerId) return;
+                        p2.value = playerId;
                         t2.querySelectorAll(".touch-player-btn").forEach(x => x.classList.remove("active"));
                         b2.classList.add("active");
                     };
@@ -543,8 +571,8 @@
 
             async function startMatch() {
 
-                const p1 = document.getElementById('player1').value;
-                const p2 = document.getElementById('player2').value;
+                const p1SelectValue = document.getElementById('player1').value;
+                const p2SelectValue = document.getElementById('player2').value;
                 const d1 = document.getElementById('discipline1').value;
                 const d2 = document.getElementById('discipline2').value;
                 const d1Selected = !!document.querySelector('#touchDiscipline1 .touch-select-btn.active');
@@ -553,8 +581,17 @@
                 const target2 = parseInt(document.getElementById('target2').value, 10);
                 const maxInnings = parseInt(document.getElementById('maxInnings').value, 10);
 
-                if (!p1 || !p2 || p1 === p2) {
+                if (!p1SelectValue || !p2SelectValue || p1SelectValue === p2SelectValue) {
                     alert("Bitte zwei unterschiedliche Spieler wählen");
+                    return;
+                }
+
+                const p1Row = availablePlayers.find((x) => String(x.id) === String(p1SelectValue));
+                const p2Row = availablePlayers.find((x) => String(x.id) === String(p2SelectValue));
+                const p1 = p1Row?.name || "";
+                const p2 = p2Row?.name || "";
+                if (!p1 || !p2) {
+                    alert("Spieler konnten nicht eindeutig geladen werden. Bitte Auswahl neu treffen.");
                     return;
                 }
 
@@ -601,17 +638,9 @@
 
                 let player1Id = null;
                 let player2Id = null;
-                const { data: playerRows } = await supabaseClient
-                    .from("players")
-                    .select("id,name,user_id")
-                    .in("name", [p1, p2]);
-                if (Array.isArray(playerRows)) {
-                    const p1Row = playerRows.find((x) => x.name === p1);
-                    const p2Row = playerRows.find((x) => x.name === p2);
-                    // matches.player*_id sind UUIDs (auth.users.id), daher user_id nutzen.
-                    player1Id = p1Row?.user_id || null;
-                    player2Id = p2Row?.user_id || null;
-                }
+                // matches.player*_id sind UUIDs (auth.users.id), daher user_id nutzen.
+                player1Id = p1Row?.user_id || null;
+                player2Id = p2Row?.user_id || null;
 
                 const extendedPayload = {
                     ...basePayload,
@@ -687,7 +716,7 @@
                     alert("Dein Benutzer ist noch keinem Spieler zugeordnet. Bitte in der Spielerverwaltung anlegen.");
                 }
 
-                loadPlayers();
+                await loadPlayers();
 
                 buildTouchDiscipline("discipline1", "touchDiscipline1");
                 buildTouchDiscipline("discipline2", "touchDiscipline2");

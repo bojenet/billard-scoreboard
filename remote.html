@@ -70,13 +70,11 @@
         <div id="miniP2" style="font-size:22px;"></div>
 
         <div style="margin-top:15px; font-size:18px; opacity:.8;">
-            <span id="activeInfo"></span> |
-            <span id="seriesInfo"></span>
+            <span id="miniActiveInfo"></span> |
+            <span id="miniSeriesInfo"></span>
         </div>
 
     </div>
-    <h2 id="activeInfo"></h2>
-    <h3 id="seriesInfo"></h3>
     <div class="button-grid">
         <button onclick="add(1)">+1</button>
         <button onclick="add(5)">+5</button>
@@ -101,12 +99,19 @@ const matchId = new URLSearchParams(window.location.search).get("match");
 let matchData = null;
 let currentUserId = "";
 let ownedPlayerNames = [];
+let remoteChannel = null;
+let pollId = null;
 
 // ===============================
 // LOAD MATCH
 // ===============================
 
 async function loadMatch() {
+    if (!matchId) {
+        document.body.innerHTML = "Kein Match ausgewählt.";
+        return;
+    }
+
     const user = await requireAuth();
     if (!user) return;
     currentUserId = user.id;
@@ -141,7 +146,7 @@ function subscribeToMatch() {
 
     if (!matchId) return;
 
-    supabaseClient
+    remoteChannel = supabaseClient
         .channel('remote-match-' + matchId)
         .on(
             'postgres_changes',
@@ -178,14 +183,14 @@ function updateDisplay() {
             ? matchData.player1 + " ist dran"
             : matchData.player2 + " ist dran";
 
-    document.getElementById("activeInfo").innerText = activeText;
+    document.getElementById("miniActiveInfo").innerText = activeText;
 
     const currentSeries =
         matchData.activePlayer === 1
             ? matchData.series1
             : matchData.series2;
 
-    document.getElementById("seriesInfo").innerText =
+    document.getElementById("miniSeriesInfo").innerText =
         "Serie: " + (currentSeries > 0 ? "+" + currentSeries : "0");
 }
 
@@ -201,6 +206,22 @@ async function updateMatch(updateObj) {
         .eq("id", matchId);
 
     if (error) console.error(error);
+    if (!error && matchData) {
+        matchData = { ...matchData, ...updateObj };
+        updateDisplay();
+    }
+}
+
+async function pollMatch() {
+    if (!matchId) return;
+    const { data, error } = await supabaseClient
+        .from("matches")
+        .select("*")
+        .eq("id", matchId)
+        .single();
+    if (error || !data) return;
+    matchData = data;
+    updateDisplay();
 }
 
 // ===============================
@@ -307,6 +328,16 @@ async function finish() {
 // INIT
 loadMatch();
 subscribeToMatch();
+pollId = setInterval(pollMatch, 1200);
+
+window.addEventListener("beforeunload", () => {
+    if (pollId) clearInterval(pollId);
+    if (remoteChannel) supabaseClient.removeChannel(remoteChannel);
+});
+
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) pollMatch();
+});
 
 </script>
 
