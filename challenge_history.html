@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Challenge Historie</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(180deg, #0f1c3f, #0a122b);
+      color: white;
+    }
+
+    .page {
+      width: min(1180px, 95%);
+      margin: 26px auto 34px;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 42px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      background: #1c3380;
+      border: 1px solid #3458b8;
+      color: white;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn.active {
+      background: #ffd84a;
+      color: #101420;
+      border-color: #ffe27a;
+    }
+
+    .card {
+      background: linear-gradient(180deg, #162b66, #0f1c3f);
+      border: 1px solid #2d488f;
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      border-bottom: 1px solid #27417f;
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    th {
+      font-size: 13px;
+      opacity: 0.88;
+      background: #12255a;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .right {
+      text-align: right;
+    }
+
+    .empty {
+      padding: 18px;
+      opacity: 0.75;
+      font-size: 14px;
+    }
+
+    @media (max-width: 900px) {
+      h1 { font-size: 32px; }
+      .desktop-only { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <h1>Challenge Historie</h1>
+      <div class="actions">
+        <button class="btn" id="scopeMineBtn" onclick="setScope('mine')">Meine</button>
+        <button class="btn" id="scopeAllBtn" style="display:none;" onclick="setScope('all')">Alle</button>
+        <button class="btn" onclick="window.location.href='training_countdown_hs.html'">Zurück</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <table id="historyTable">
+        <tr>
+          <th>Datum</th>
+          <th class="desktop-only">Owner</th>
+          <th>Modus</th>
+          <th>Disziplin</th>
+          <th>Gegner</th>
+          <th class="right">Punkte</th>
+          <th class="right">Aufn.</th>
+          <th class="right">HS</th>
+          <th class="right">DS</th>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/user_menu.js"></script>
+  <script>
+    let currentUser = null;
+    let isAdmin = false;
+    let currentScope = 'mine';
+
+    function formatDate(value) {
+      if (!value) return '-';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return '-';
+      return d.toLocaleString();
+    }
+
+    function setScope(scope) {
+      currentScope = scope === 'all' ? 'all' : 'mine';
+      document.getElementById('scopeMineBtn').classList.toggle('active', currentScope === 'mine');
+      const allBtn = document.getElementById('scopeAllBtn');
+      if (allBtn) {
+        allBtn.classList.toggle('active', currentScope === 'all');
+      }
+      loadHistory();
+    }
+
+    async function loadHistory() {
+      if (!currentUser) return;
+
+      let query = supabaseClient
+        .from('training_challenge_results')
+        .select('source_key,mode,owner_user_id,owner_name,opponent_name,discipline,duration_minutes,score,innings,high_series,avg,created_at')
+        .order('created_at', { ascending: false })
+        .limit(300);
+
+      if (!isAdmin || currentScope === 'mine') {
+        query = query.eq('owner_user_id', currentUser.id);
+      }
+
+      const { data, error } = await query;
+      const table = document.getElementById('historyTable');
+      table.innerHTML = `
+        <tr>
+          <th>Datum</th>
+          <th class="desktop-only">Owner</th>
+          <th>Modus</th>
+          <th>Disziplin</th>
+          <th>Gegner</th>
+          <th class="right">Punkte</th>
+          <th class="right">Aufn.</th>
+          <th class="right">HS</th>
+          <th class="right">DS</th>
+        </tr>
+      `;
+
+      if (error) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="9" class="empty">Fehler beim Laden: ${error.message}</td>`;
+        table.appendChild(row);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="9" class="empty">Keine Challenge-Ergebnisse gefunden.</td>';
+        table.appendChild(row);
+        return;
+      }
+
+      data.forEach((item) => {
+        const row = document.createElement('tr');
+        const modeLabel = item.mode === 'duel' ? '2P' : 'Solo';
+        row.innerHTML = `
+          <td>${formatDate(item.created_at)}</td>
+          <td class="desktop-only">${item.owner_name || '-'}</td>
+          <td>${modeLabel}</td>
+          <td>${item.discipline || '-'}</td>
+          <td>${item.opponent_name || '-'}</td>
+          <td class="right">${item.score ?? 0}</td>
+          <td class="right">${item.innings ?? 0}</td>
+          <td class="right">${item.high_series ?? 0}</td>
+          <td class="right">${Number(item.avg || 0).toFixed(3)}</td>
+        `;
+        table.appendChild(row);
+      });
+    }
+
+    async function init() {
+      currentUser = await requireAuth();
+      if (!currentUser) return;
+      isAdmin = await hasAdminAccess(currentUser);
+      if (isAdmin) {
+        document.getElementById('scopeAllBtn').style.display = 'inline-block';
+      }
+      setScope('mine');
+    }
+
+    init();
+  </script>
+</body>
+</html>

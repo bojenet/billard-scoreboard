@@ -480,6 +480,8 @@
         let sessionPollId = null;
         let chatPollId = null;
         let chatMessages = [];
+        let resultSaved = false;
+        let soloStartedAtIso = null;
 
         let soloState = {
             p1Name: "Du",
@@ -559,6 +561,80 @@
             list.scrollTop = list.scrollHeight;
         }
 
+        async function persistCurrentChallengeResult(reason) {
+            if (resultSaved || !currentUser) return;
+
+            if (!isDuelMode) {
+                if (!soloState.p1Disc || ![30, 45, 60].includes(soloMinutes)) return;
+                const sourceKey = "challenge:solo:" + currentUser.id + ":" + String(soloStartedAtIso || "");
+                const score = Number(soloState.p1Score || 0);
+                const innings = Number(soloState.p1Innings || 0);
+                const high = Number(soloState.p1High || 0);
+                const avgValue = innings > 0 ? (score / innings) : 0;
+
+                const { error } = await supabaseClient
+                    .from("training_challenge_results")
+                    .upsert([{
+                        source_key: sourceKey,
+                        mode: "solo",
+                        session_id: null,
+                        owner_user_id: currentUser.id,
+                        owner_name: getDisplayName(currentUser),
+                        opponent_name: null,
+                        discipline: soloState.p1Disc,
+                        duration_minutes: soloMinutes,
+                        score,
+                        innings,
+                        high_series: high,
+                        avg: Number(avgValue.toFixed(3))
+                    }], { onConflict: "source_key" });
+
+                if (!error) {
+                    resultSaved = true;
+                } else {
+                    console.warn("Challenge-Ergebnis (Solo) konnte nicht gespeichert werden:", reason, error);
+                }
+                return;
+            }
+
+            if (!sessionData?.id) return;
+            const isMineHost = String(sessionData.host_user_id || "") === String(currentUser.id);
+            const isMineGuest = String(sessionData.guest_user_id || "") === String(currentUser.id);
+            if (!isMineHost && !isMineGuest) return;
+
+            const score = Number(isMineHost ? sessionData.host_score : sessionData.guest_score) || 0;
+            const innings = Number(isMineHost ? sessionData.host_innings : sessionData.guest_innings) || 0;
+            const high = Number(isMineHost ? sessionData.host_high : sessionData.guest_high) || 0;
+            const avgValue = innings > 0 ? (score / innings) : 0;
+            const myName = isMineHost ? (sessionData.host_name || getDisplayName(currentUser)) : (sessionData.guest_name || getDisplayName(currentUser));
+            const oppName = isMineHost ? (sessionData.guest_name || "Spieler 2") : (sessionData.host_name || "Spieler 1");
+            const disc = isMineHost ? sessionData.host_discipline : sessionData.guest_discipline;
+            const sourceKey = "challenge:duel:" + sessionData.id + ":" + currentUser.id;
+
+            const { error } = await supabaseClient
+                .from("training_challenge_results")
+                .upsert([{
+                    source_key: sourceKey,
+                    mode: "duel",
+                    session_id: sessionData.id,
+                    owner_user_id: currentUser.id,
+                    owner_name: myName,
+                    opponent_name: oppName,
+                    discipline: disc || null,
+                    duration_minutes: Number(sessionData.duration_minutes || 30),
+                    score,
+                    innings,
+                    high_series: high,
+                    avg: Number(avgValue.toFixed(3))
+                }], { onConflict: "source_key" });
+
+            if (!error) {
+                resultSaved = true;
+            } else {
+                console.warn("Challenge-Ergebnis (2P) konnte nicht gespeichert werden:", reason, error);
+            }
+        }
+
         async function loadChatMessages() {
             if (!isDuelMode || !sessionData?.id) return;
             const { data, error } = await supabaseClient
@@ -606,6 +682,9 @@
                 setText("timerValue", formatTime(Number(sessionData.duration_minutes || 0) * 60));
             }
             renderDualFromSession(sessionData);
+            if (sessionData.status === "finished") {
+                persistCurrentChallengeResult("session_update_finished");
+            }
         }
 
         function renderDualFromSession(data) {
@@ -699,6 +778,7 @@
                     if (isDuelMode && sessionData?.status !== "finished") {
                         await markSessionFinished();
                     }
+                    await persistCurrentChallengeResult("timer_expired");
                 }
             }, 350);
         }
@@ -865,7 +945,9 @@
 
             if (error) {
                 alert("Session konnte nicht beendet werden: " + error.message);
+                return;
             }
+            await persistCurrentChallengeResult("host_end_session");
         }
 
         async function startCountdownNow() {
@@ -961,6 +1043,9 @@
             }
             renderDualFromSession(sessionData);
             document.getElementById("endSessionBtn").style.display = isHost ? "inline-block" : "none";
+            if (sessionData.status === "finished") {
+                await persistCurrentChallengeResult("load_finished_session");
+            }
             return true;
         }
 
@@ -1035,6 +1120,7 @@
             isDuelMode = false;
             setText("modeValue", "Challenge (Solo)");
             soloState.p1Disc = soloDiscipline;
+            soloStartedAtIso = new Date().toISOString();
             countdownEndMs = Date.now() + soloMinutes * 60000;
             renderSolo();
             startVisualTimer();

@@ -174,3 +174,64 @@ create policy "countdown_hs_messages_delete_sender_or_admin"
     public.is_admin(auth.uid())
     or sender_user_id = auth.uid()
   );
+
+create table if not exists public.training_challenge_results (
+  source_key text primary key,
+  mode text not null check (mode in ('solo', 'duel')),
+  session_id uuid references public.training_countdown_hs_sessions(id) on delete set null,
+  owner_user_id uuid not null references auth.users(id) on delete cascade,
+  owner_name text,
+  opponent_name text,
+  discipline text,
+  duration_minutes int not null check (duration_minutes in (30,45,60)),
+  score int not null default 0,
+  innings int not null default 0,
+  high_series int not null default 0,
+  avg numeric(10,3) not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_training_challenge_owner on public.training_challenge_results(owner_user_id, created_at desc);
+create index if not exists idx_training_challenge_session on public.training_challenge_results(session_id);
+
+alter table public.training_challenge_results enable row level security;
+
+drop policy if exists "training_challenge_results_select_own_or_admin" on public.training_challenge_results;
+create policy "training_challenge_results_select_own_or_admin"
+  on public.training_challenge_results
+  for select
+  using (
+    public.is_admin(auth.uid())
+    or owner_user_id = auth.uid()
+  );
+
+drop policy if exists "training_challenge_results_insert_own_or_admin" on public.training_challenge_results;
+create policy "training_challenge_results_insert_own_or_admin"
+  on public.training_challenge_results
+  for insert
+  with check (
+    public.is_admin(auth.uid())
+    or owner_user_id = auth.uid()
+  );
+
+drop policy if exists "training_challenge_results_update_own_or_admin" on public.training_challenge_results;
+create policy "training_challenge_results_update_own_or_admin"
+  on public.training_challenge_results
+  for update
+  using (
+    public.is_admin(auth.uid())
+    or owner_user_id = auth.uid()
+  )
+  with check (
+    public.is_admin(auth.uid())
+    or owner_user_id = auth.uid()
+  );
+
+drop policy if exists "training_challenge_results_delete_own_or_admin" on public.training_challenge_results;
+create policy "training_challenge_results_delete_own_or_admin"
+  on public.training_challenge_results
+  for delete
+  using (
+    public.is_admin(auth.uid())
+    or owner_user_id = auth.uid()
+  );
