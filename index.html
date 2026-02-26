@@ -105,6 +105,11 @@
             animation: pulse 1.8s infinite;
         }
 
+        .tile.invite {
+            border: 2px solid #4da3ff;
+            animation: pulseInvite 1.8s infinite;
+        }
+
         @keyframes pulse {
             0% {
                 box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.6);
@@ -116,6 +121,20 @@
 
             100% {
                 box-shadow: 0 0 0 0 rgba(255, 77, 77, 0);
+            }
+        }
+
+        @keyframes pulseInvite {
+            0% {
+                box-shadow: 0 0 0 0 rgba(77, 163, 255, 0.6);
+            }
+
+            70% {
+                box-shadow: 0 0 0 15px rgba(77, 163, 255, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(77, 163, 255, 0);
             }
         }
 
@@ -197,6 +216,46 @@
 
     <!-- LOAD LIVE MATCHES -->
     <script>
+        async function loadCountdownInvites(user) {
+            if (!user?.email) return;
+            const guestEmail = String(user.email).trim().toLowerCase();
+            if (!guestEmail) return;
+
+            const { data, error } = await supabaseClient
+                .from("training_countdown_hs_sessions")
+                .select("id,host_name,host_discipline,guest_discipline,duration_minutes,status")
+                .eq("guest_email", guestEmail)
+                .eq("status", "active")
+                .order("created_at", { ascending: false })
+                .limit(3);
+
+            if (error) {
+                console.warn("Countdown-Einladungen konnten nicht geladen werden:", error);
+                return;
+            }
+
+            const invites = data || [];
+            if (invites.length === 0) return;
+
+            const grid = document.getElementById("mainGrid");
+            invites.reverse().forEach((invite) => {
+                const tile = document.createElement("div");
+                tile.className = "tile invite";
+                tile.onclick = () => {
+                    window.location.href = "training_countdown_hs_run.html?session=" + invite.id;
+                };
+
+                tile.innerHTML = `
+  <div class="tile-title">🔵 Countdown Einladung</div>
+  <div class="tile-sub">${invite.host_name || "Spieler 1"} · ${invite.duration_minutes || 0} min</div>
+  <div class="tile-sub" style="margin-top:8px;font-size:16px;opacity:0.9;">
+    ${invite.host_discipline || "-"} vs ${invite.guest_discipline || "-"}
+  </div>
+`;
+                grid.prepend(tile);
+            });
+        }
+
         async function loadLiveMatches() {
             const user = await requireAuth();
             if (!user) return;
@@ -210,6 +269,8 @@
             if (usersTile && !isAdmin) {
                 usersTile.style.display = "none";
             }
+
+            await loadCountdownInvites(user);
             const ownedNames = await getOwnedPlayerNames(user.id);
 
             const { data, error } = await supabaseClient
