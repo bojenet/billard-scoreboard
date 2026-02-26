@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>HS Challenge Training</title>
+    <title>Challenge Training</title>
     <style>
         body {
             margin: 0;
@@ -377,7 +377,7 @@
             <div class="meta">
                 <div class="meta-item">
                     <div class="meta-label">Modus</div>
-                    <div class="meta-value" id="modeValue">HS Challenge</div>
+                    <div class="meta-value" id="modeValue">Challenge</div>
                 </div>
                 <div class="meta-item">
                     <div class="meta-label">Session</div>
@@ -953,7 +953,7 @@
             }
 
             isHost = String(sessionData.host_user_id || "") === String(currentUser.id);
-            setText("modeValue", "HS Challenge (2P)");
+            setText("modeValue", "Challenge (2P)");
             if (sessionData.countdown_started_at) {
                 countdownEndMs = new Date(sessionData.ends_at).getTime();
             } else {
@@ -1033,7 +1033,7 @@
                 return;
             }
             isDuelMode = false;
-            setText("modeValue", "HS Challenge (Solo)");
+            setText("modeValue", "Challenge (Solo)");
             soloState.p1Disc = soloDiscipline;
             countdownEndMs = Date.now() + soloMinutes * 60000;
             renderSolo();
