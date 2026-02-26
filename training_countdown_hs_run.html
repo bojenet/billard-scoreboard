@@ -48,6 +48,13 @@
             filter: brightness(1.06);
         }
 
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            filter: none;
+        }
+
         .btn.danger {
             background: #9f3434;
             border-color: #be5757;
@@ -409,6 +416,7 @@
         function renderDualFromSession(data) {
             const p1Series = parseSeries(data.host_series);
             const p2Series = parseSeries(data.guest_series);
+            const guestReady = !!data.guest_user_id;
 
             setText("sessionValue", data.id ? data.id.slice(0, 8) : "-");
             const started = !!data.countdown_started_at;
@@ -433,9 +441,15 @@
             setText("p2History", p2Series.length ? p2Series.join(", ") : "-");
 
             if (!started) {
-                setText("readonlyInfo", isHost
-                    ? "Countdown ist noch nicht gestartet. Starte erst, wenn beide eingeloggt sind."
-                    : "Warte auf den Start durch Spieler 1.");
+                if (!guestReady) {
+                    setText("readonlyInfo", isHost
+                        ? "Warte auf Spieler 2. Countdown kann erst starten, wenn beide eingeloggt sind."
+                        : "Du bist beigetreten. Warte auf den Start durch Spieler 1.");
+                } else {
+                    setText("readonlyInfo", isHost
+                        ? "Beide sind bereit. Du kannst den Countdown starten."
+                        : "Warte auf den Start durch Spieler 1.");
+                }
             } else {
                 setText("readonlyInfo", isHost
                     ? "Du bearbeitest Spieler 1. Spieler 2 bearbeitet seine eigene Seite."
@@ -444,7 +458,12 @@
 
             const startBtn = document.getElementById("startCountdownBtn");
             if (startBtn) {
-                startBtn.style.display = isHost && data.status !== "finished" && !started ? "inline-block" : "none";
+                const canShow = isHost && data.status !== "finished" && !started;
+                startBtn.style.display = canShow ? "inline-block" : "none";
+                if (canShow) {
+                    startBtn.disabled = !guestReady;
+                    startBtn.innerText = guestReady ? "Countdown starten" : "Warte auf Spieler 2";
+                }
             }
         }
 
@@ -655,6 +674,10 @@
         async function startCountdownNow() {
             if (!isDuelMode || !isHost || !sessionData?.id) return;
             if (sessionData.countdown_started_at) return;
+            if (!sessionData.guest_user_id) {
+                alert("Countdown kann erst gestartet werden, wenn Spieler 2 beigetreten ist.");
+                return;
+            }
 
             const now = new Date();
             const endsAt = new Date(now.getTime() + Number(sessionData.duration_minutes || 0) * 60000);
