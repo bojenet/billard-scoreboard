@@ -198,7 +198,8 @@ function updateDisplay() {
             : matchData.series2;
 
     if (Number(matchData.finished || 0) === 1) {
-        document.getElementById("miniSeriesInfo").innerText = "Partie beendet";
+        document.getElementById("miniActiveInfo").innerText = "Partie beendet";
+        document.getElementById("miniSeriesInfo").innerText = "Am Hauptscreen speichern oder verwerfen";
         setControlsEnabled(false);
     } else {
         document.getElementById("miniSeriesInfo").innerText =

@@ -761,6 +761,7 @@
             updateUI();
             startTimer(d.started_at);
             subscribeToMatch();
+            showEndIfFinished();
 
             applyControlMode();
             showQRTemporarily();
@@ -1041,6 +1042,19 @@
                 else if (percent2 > percent1) showEnd(2);
                 else showEnd(0);
             }
+        }
+
+        function getWinnerFromCurrentState() {
+            if (score1 > score2) return 1;
+            if (score2 > score1) return 2;
+            return 0;
+        }
+
+        function showEndIfFinished() {
+            if (!finished) return;
+            const endScreen = document.getElementById("endScreen");
+            if (!endScreen || endScreen.style.display === "flex") return;
+            showEnd(getWinnerFromCurrentState());
         }
 
 
@@ -1432,6 +1446,7 @@
                         high2 = d.high2 || 0;
 
                         updateUI();
+                        showEndIfFinished();
                     }
                 )
                 .subscribe();
