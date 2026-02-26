@@ -7,11 +7,28 @@ async function getCurrentUser() {
   return data?.user || null;
 }
 
+function isAdminUser(user) {
+  if (!user) return false;
+  const appRole = user.app_metadata?.role;
+  const userRole = user.user_metadata?.role;
+  return appRole === "admin" || userRole === "admin";
+}
+
 async function requireAuth() {
   const user = await getCurrentUser();
   if (!user) {
     const next = encodeURIComponent(window.location.pathname + window.location.search);
     window.location.href = "/login.html?next=" + next;
+    return null;
+  }
+  return user;
+}
+
+async function requireAdmin() {
+  const user = await requireAuth();
+  if (!user) return null;
+  if (!isAdminUser(user)) {
+    document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Admin-Zugriff.</div>";
     return null;
   }
   return user;

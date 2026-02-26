@@ -145,6 +145,7 @@ tr.data-row:hover {
 async function loadArchive() {
     const user = await requireAuth();
     if (!user) return;
+    const isAdmin = isAdminUser(user);
     const ownedNames = await getOwnedPlayerNames(user.id);
 
     const { data, error } = await supabaseClient
@@ -200,7 +201,7 @@ async function loadArchive() {
             <td>${disciplineText}</td>
             <td>${match.score1 ?? 0} : ${match.score2 ?? 0}</td>
             <td>${match.totalInnings ?? "-"}</td>
-            <td><button class="delete-btn" onclick="deleteArchivedMatch(event, '${match.id}')">Löschen</button></td>
+            <td>${isAdmin ? `<button class="delete-btn" onclick="deleteArchivedMatch(event, '${match.id}')">Löschen</button>` : ""}</td>
         `;
 
         row.onclick = () => {
@@ -212,7 +213,7 @@ async function loadArchive() {
 }
 
 async function deleteArchivedMatch(event, matchId) {
-    const user = await requireAuth();
+    const user = await requireAdmin();
     if (!user) return;
 
     event.stopPropagation();

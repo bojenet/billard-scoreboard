@@ -55,12 +55,6 @@
             cursor: pointer;
         }
 
-        .btn-google {
-            margin-top: 10px;
-            background: #ffffff;
-            color: #1a1d2c;
-        }
-
         .error {
             min-height: 20px;
             margin: 10px 0 0;
@@ -76,7 +70,6 @@
         <input id="email" type="email" placeholder="E-Mail" autocomplete="username" />
         <input id="password" type="password" placeholder="Passwort" autocomplete="current-password" />
         <button onclick="login()">Anmelden</button>
-        <button class="btn-google" onclick="loginWithGoogle()">Mit Google anmelden</button>
         <div id="errorText" class="error"></div>
     </div>
 
@@ -123,26 +116,6 @@
             }
 
             window.location.href = resolveNextPath();
-        }
-
-        async function loginWithGoogle() {
-            const errorText = document.getElementById("errorText");
-            errorText.innerText = "";
-
-            const next = resolveNextPath();
-            localStorage.setItem("login_next", next);
-
-            const redirectTo = window.location.origin + "/login.html";
-            const { error } = await supabaseClient.auth.signInWithOAuth({
-                provider: "google",
-                options: {
-                    redirectTo
-                }
-            });
-
-            if (error) {
-                errorText.innerText = "Google-Login fehlgeschlagen: " + error.message;
-            }
         }
 
         redirectIfSessionExists();

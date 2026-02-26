@@ -137,7 +137,7 @@
             <div class="tile-sub">Übungen & Serienmodus</div>
         </div>
 
-        <div class="tile" onclick="window.location.href='players.html'">
+        <div id="playersTile" class="tile" onclick="window.location.href='players.html'">
             <div class="tile-title">Spielerverwaltung</div>
             <div class="tile-sub">Spieler hinzufügen & löschen</div>
         </div>
@@ -180,6 +180,10 @@
         async function loadLiveMatches() {
             const user = await requireAuth();
             if (!user) return;
+            const playersTile = document.getElementById("playersTile");
+            if (playersTile && !isAdminUser(user)) {
+                playersTile.style.display = "none";
+            }
             const ownedNames = await getOwnedPlayerNames(user.id);
 
             const { data, error } = await supabaseClient
