@@ -438,7 +438,7 @@
 
         <div class="top-center">
             <div class="game-label">GAME TIME</div>
-            <div class="game-time" id="gameTime">00:00</div>
+            <div class="game-time" id="gameTime">00:00:00</div>
             <div class="discipline-info" id="disciplineInfo"></div>
         </div>
 
@@ -572,7 +572,7 @@
                     <h2 id="endName1"></h2>
                     <div class="end-discipline" id="endDisc1"></div>
                     <div>Punkte: <span id="endScore1"></span></div>
-                    <div>Aufnahmen: <span id="endInnings"></span></div>
+                    <div>Aufnahmen: <span id="endInnings1"></span></div>
                     <div>DS: <span id="endAvg1"></span></div>
                     <div>HR: <span id="endHs1"></span></div>
                     <div>Prozent: <span id="endPercent1"></span></div>
@@ -582,7 +582,7 @@
                     <h2 id="endName2"></h2>
                     <div class="end-discipline" id="endDisc2"></div>
                     <div>Punkte: <span id="endScore2"></span></div>
-                    <div>Aufnahmen: <span id="endInnings"></span></div>
+                    <div>Aufnahmen: <span id="endInnings2"></span></div>
                     <div>DS: <span id="endAvg2"></span></div>
                     <div>HR: <span id="endHs2"></span></div>
                     <div>Prozent: <span id="endPercent2"></span></div>
@@ -684,11 +684,14 @@
                 const now = Date.now();
 
                 const diff = Math.floor((now - startTime) / 1000);
+                seconds = diff;
 
-                let m = Math.floor(diff / 60);
-                let s = diff % 60;
+                const h = Math.floor(diff / 3600);
+                const m = Math.floor((diff % 3600) / 60);
+                const s = diff % 60;
 
                 document.getElementById("gameTime").innerText =
+                    String(h).padStart(2, "0") + ":" +
                     String(m).padStart(2, "0") + ":" +
                     String(s).padStart(2, "0");
 
@@ -1085,9 +1088,11 @@
             let percent1 = target1 > 0 ? ((score1 / target1) * 100).toFixed(1) : "0.0";
             let percent2 = target2 > 0 ? ((score2 / target2) * 100).toFixed(1) : "0.0";
 
-            let durationMin = Math.floor(seconds / 60);
+            let durationH = Math.floor(seconds / 3600);
+            let durationMin = Math.floor((seconds % 3600) / 60);
             let durationSec = seconds % 60;
             let durationStr =
+                String(durationH).padStart(2, "0") + ":" +
                 String(durationMin).padStart(2, "0") + ":" +
                 String(durationSec).padStart(2, "0");
 
@@ -1119,7 +1124,8 @@
             document.getElementById("endPercent1").innerText = percent1 + " %";
             document.getElementById("endPercent2").innerText = percent2 + " %";
 
-            document.getElementById("endInnings").innerText = totalInnings;
+            document.getElementById("endInnings1").innerText = inn1;
+            document.getElementById("endInnings2").innerText = inn2;
             document.getElementById("endDuration").innerText = durationStr;
 
             document.getElementById("endScreen").style.display = "flex";
@@ -1454,4 +1460,3 @@
 </body>
 
 </html>
-1
