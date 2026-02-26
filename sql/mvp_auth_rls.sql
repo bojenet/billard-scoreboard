@@ -28,34 +28,69 @@ alter table public.players enable row level security;
 alter table public.matches enable row level security;
 alter table public.archive enable row level security;
 
+-- Optional helper (safe fallback): returns false until user_roles exists/populated.
+create or replace function public.is_admin(uid uuid)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  result boolean := false;
+begin
+  if to_regclass('public.user_roles') is null then
+    return false;
+  end if;
+
+  execute
+    'select exists (
+       select 1
+       from public.user_roles
+       where user_id = $1
+         and role = ''admin''
+     )'
+  into result
+  using uid;
+
+  return coalesce(result, false);
+exception
+  when others then
+    return false;
+end;
+$$;
+
+grant execute on function public.is_admin(uuid) to authenticated;
+
 -- 5) Players policies
 drop policy if exists "players_select_own" on public.players;
 create policy "players_select_own"
   on public.players for select
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id or public.is_admin(auth.uid()));
 
 drop policy if exists "players_insert_own" on public.players;
 create policy "players_insert_own"
   on public.players for insert
-  with check (auth.uid() = user_id);
+  with check (auth.uid() = user_id or public.is_admin(auth.uid()));
 
 drop policy if exists "players_update_own" on public.players;
 create policy "players_update_own"
   on public.players for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  using (auth.uid() = user_id or public.is_admin(auth.uid()))
+  with check (auth.uid() = user_id or public.is_admin(auth.uid()));
 
 drop policy if exists "players_delete_own" on public.players;
 create policy "players_delete_own"
   on public.players for delete
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id or public.is_admin(auth.uid()));
 
 -- 6) Matches policies
 drop policy if exists "matches_select_own" on public.matches;
 create policy "matches_select_own"
   on public.matches for select
   using (
-    auth.uid() = created_by
+    public.is_admin(auth.uid())
+    or auth.uid() = created_by
     or auth.uid() = player1_id
     or auth.uid() = player2_id
   );
@@ -64,7 +99,8 @@ drop policy if exists "matches_insert_own" on public.matches;
 create policy "matches_insert_own"
   on public.matches for insert
   with check (
-    auth.uid() = created_by
+    public.is_admin(auth.uid())
+    or auth.uid() = created_by
     or auth.uid() = player1_id
     or auth.uid() = player2_id
   );
@@ -73,12 +109,14 @@ drop policy if exists "matches_update_own" on public.matches;
 create policy "matches_update_own"
   on public.matches for update
   using (
-    auth.uid() = created_by
+    public.is_admin(auth.uid())
+    or auth.uid() = created_by
     or auth.uid() = player1_id
     or auth.uid() = player2_id
   )
   with check (
-    auth.uid() = created_by
+    public.is_admin(auth.uid())
+    or auth.uid() = created_by
     or auth.uid() = player1_id
     or auth.uid() = player2_id
   );
@@ -87,7 +125,8 @@ drop policy if exists "matches_delete_own" on public.matches;
 create policy "matches_delete_own"
   on public.matches for delete
   using (
-    auth.uid() = created_by
+    public.is_admin(auth.uid())
+    or auth.uid() = created_by
     or auth.uid() = player1_id
     or auth.uid() = player2_id
   );
@@ -97,7 +136,8 @@ drop policy if exists "archive_select_own" on public.archive;
 create policy "archive_select_own"
   on public.archive for select
   using (
-    auth.uid() = created_by
+    public.is_admin(auth.uid())
+    or auth.uid() = created_by
     or exists (
       select 1
       from public.matches m
@@ -113,15 +153,15 @@ create policy "archive_select_own"
 drop policy if exists "archive_insert_own" on public.archive;
 create policy "archive_insert_own"
   on public.archive for insert
-  with check (auth.uid() = created_by);
+  with check (auth.uid() = created_by or public.is_admin(auth.uid()));
 
 drop policy if exists "archive_update_own" on public.archive;
 create policy "archive_update_own"
   on public.archive for update
-  using (auth.uid() = created_by)
-  with check (auth.uid() = created_by);
+  using (auth.uid() = created_by or public.is_admin(auth.uid()))
+  with check (auth.uid() = created_by or public.is_admin(auth.uid()));
 
 drop policy if exists "archive_delete_own" on public.archive;
 create policy "archive_delete_own"
   on public.archive for delete
-  using (auth.uid() = created_by);
+  using (auth.uid() = created_by or public.is_admin(auth.uid()));

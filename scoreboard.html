@@ -701,6 +701,7 @@
             const user = await requireAuth();
             if (!user) return;
             currentUserId = user.id;
+            const isAdmin = await hasAdminAccess(user);
             ownedPlayerNames = await getOwnedPlayerNames(currentUserId);
 
             const { data: d, error } = await supabaseClient
@@ -714,7 +715,7 @@
                 return;
             }
 
-            if (!isOwnedMatch(d, currentUserId, ownedPlayerNames)) {
+            if (!isAdmin && !isOwnedMatch(d, currentUserId, ownedPlayerNames)) {
                 document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf diese Partie.</div>";
                 return;
             }

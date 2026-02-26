@@ -58,6 +58,7 @@ button {
 async function loadLiveMatches() {
     const user = await requireAuth();
     if (!user) return;
+    const isAdmin = await hasAdminAccess(user);
     const ownedNames = await getOwnedPlayerNames(user.id);
 
     const { data, error } = await supabaseClient
@@ -74,7 +75,7 @@ async function loadLiveMatches() {
     const table = document.getElementById("matchTable");
 
     (data || [])
-    .filter((match) => isOwnedMatch(match, user.id, ownedNames))
+    .filter((match) => isAdmin || isOwnedMatch(match, user.id, ownedNames))
     .forEach(match => {
 
         const row = document.createElement("tr");
