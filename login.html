@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(180deg, #0f1c3f, #0a122b);
+            color: white;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+        }
+
+        .card {
+            width: min(520px, 92%);
+            background: linear-gradient(180deg, #162b66, #0f1c3f);
+            border: 1px solid #2d488f;
+            border-radius: 22px;
+            padding: 28px 24px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 40px;
+        }
+
+        .sub {
+            margin: 0 0 18px;
+            opacity: 0.78;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        button {
+            width: 100%;
+            border: none;
+            border-radius: 12px;
+            padding: 13px 14px;
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(180deg, #2f4fe0, #1c3380);
+            cursor: pointer;
+        }
+
+        .error {
+            min-height: 20px;
+            margin: 10px 0 0;
+            color: #ffb6b6;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Login</h1>
+        <p class="sub">Mit deinem Konto anmelden</p>
+        <input id="email" type="email" placeholder="E-Mail" autocomplete="username" />
+        <input id="password" type="password" placeholder="Passwort" autocomplete="current-password" />
+        <button onclick="login()">Anmelden</button>
+        <div id="errorText" class="error"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script>
+        async function login() {
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value;
+            const errorText = document.getElementById("errorText");
+            errorText.innerText = "";
+
+            if (!email || !password) {
+                errorText.innerText = "Bitte E-Mail und Passwort eingeben.";
+                return;
+            }
+
+            const { error } = await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
+
+            if (error) {
+                errorText.innerText = "Login fehlgeschlagen: " + error.message;
+                return;
+            }
+
+            const next = new URLSearchParams(window.location.search).get("next");
+            window.location.href = next || "/index.html";
+        }
+    </script>
+</body>
+</html>

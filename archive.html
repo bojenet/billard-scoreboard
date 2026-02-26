@@ -139,9 +139,14 @@ tr.data-row:hover {
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
 
 <script>
 async function loadArchive() {
+    const user = await requireAuth();
+    if (!user) return;
+    const ownedNames = await getOwnedPlayerNames(user.id);
+
     const { data, error } = await supabaseClient
         .from("matches")
         .select("*")
@@ -166,14 +171,18 @@ async function loadArchive() {
         </tr>
     `;
 
-    if (!data || data.length === 0) {
+    const filtered = (data || []).filter((match) =>
+        isOwnedMatch(match, user.id, ownedNames)
+    );
+
+    if (!filtered || filtered.length === 0) {
         const row = document.createElement("tr");
         row.innerHTML = `<td class="empty" colspan="6">Keine Partien gefunden</td>`;
         table.appendChild(row);
         return;
     }
 
-    data.forEach((match) => {
+    filtered.forEach((match) => {
         const row = document.createElement("tr");
         row.className = "data-row";
 
@@ -203,6 +212,9 @@ async function loadArchive() {
 }
 
 async function deleteArchivedMatch(event, matchId) {
+    const user = await requireAuth();
+    if (!user) return;
+
     event.stopPropagation();
 
     if (!confirm("Partie wirklich löschen?")) {

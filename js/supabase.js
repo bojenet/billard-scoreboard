@@ -5,15 +5,3 @@ window.supabaseClient = supabase.createClient(
   supabaseUrl,
   supabaseKey
 );
-
-console.log("Supabase initialisiert");
-
-async function testDB() {
-  const { data, error } = await supabaseClient
-    .from("players")
-    .select("*");
-
-  console.log("DB Test:", data, error);
-}
-
-testDB();

@@ -118,17 +118,41 @@ Zurück
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
 
 
 
 <script>
+let currentUserId = "";
 
-async function loadPlayers(){
-
-    const { data, error } = await supabaseClient
+async function loadScopedPlayers() {
+    let result = await supabaseClient
         .from("players")
         .select("*")
+        .eq("user_id", currentUserId)
         .order("name", { ascending: true });
+
+    if (!result.error) {
+        return result;
+    }
+
+    // Fallback für altes Schema ohne user_id.
+    if (String(result.error.message || "").toLowerCase().includes("user_id")) {
+        console.warn("players.user_id fehlt, nutze unscoped fallback.");
+        result = await supabaseClient
+            .from("players")
+            .select("*")
+            .order("name", { ascending: true });
+    }
+    return result;
+}
+
+async function loadPlayers(){
+    const user = await requireAuth();
+    if (!user) return;
+    currentUserId = user.id;
+
+    const { data, error } = await loadScopedPlayers();
 
     if(error){
         console.error(error);
@@ -160,13 +184,24 @@ async function loadPlayers(){
 }
 
 async function addPlayer(){
+    const user = await requireAuth();
+    if (!user) return;
+    currentUserId = user.id;
 
     const name = document.getElementById("newPlayer").value.trim();
     if(!name) return;
 
-    const { error } = await supabaseClient
+    let { error } = await supabaseClient
         .from("players")
-        .insert([{ name }]);
+        .insert([{ name, user_id: currentUserId }]);
+
+    // Fallback für altes Schema ohne user_id.
+    if (error && String(error.message || "").toLowerCase().includes("user_id")) {
+        const fallback = await supabaseClient
+            .from("players")
+            .insert([{ name }]);
+        error = fallback.error;
+    }
 
     if(error){
         console.error(error);
@@ -178,13 +213,26 @@ async function addPlayer(){
 }
 
 async function deletePlayer(id){
+    const user = await requireAuth();
+    if (!user) return;
+    currentUserId = user.id;
 
     if(!confirm("Spieler wirklich löschen?")) return;
 
-    const { error } = await supabaseClient
+    let { error } = await supabaseClient
         .from("players")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", currentUserId);
+
+    // Fallback für altes Schema ohne user_id.
+    if (error && String(error.message || "").toLowerCase().includes("user_id")) {
+        const fallback = await supabaseClient
+            .from("players")
+            .delete()
+            .eq("id", id);
+        error = fallback.error;
+    }
 
     if(error){
         console.error(error);

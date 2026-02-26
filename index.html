@@ -28,6 +28,22 @@
             padding: 60px 0 20px 0;
             font-size: 48px;
             font-weight: 600;
+            position: relative;
+        }
+
+        .logout-btn {
+            position: absolute;
+            right: 34px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            border-radius: 10px;
+            padding: 10px 16px;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            background: #1c3380;
+            cursor: pointer;
         }
 
         /* GRID */
@@ -104,6 +120,7 @@
 
     <div class="header">
         Billard System
+        <button class="logout-btn" onclick="signOutAndRedirect()">Logout</button>
     </div>
 
     <div class="grid" id="mainGrid">
@@ -155,20 +172,15 @@
 
     <!-- SUPABASE -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <script>
-        const supabaseUrl = "https://kstqhcaazuuxchqtnyfc.supabase.co";
-        const supabaseKey = "sb_publishable_0C-Hj42NxQ1UCHMkadC-Pw_KWDg6o2r";
-
-        const supabaseClient = supabase.createClient(
-            supabaseUrl,
-            supabaseKey
-        );
-    </script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
 
     <!-- LOAD LIVE MATCHES -->
     <script>
         async function loadLiveMatches() {
+            const user = await requireAuth();
+            if (!user) return;
+            const ownedNames = await getOwnedPlayerNames(user.id);
 
             const { data, error } = await supabaseClient
                 .from("matches")
@@ -182,11 +194,15 @@
                 return;
             }
 
-            if (!data || data.length === 0) return;
+            const filtered = (data || []).filter((match) =>
+                isOwnedMatch(match, user.id, ownedNames)
+            );
+
+            if (!filtered || filtered.length === 0) return;
 
             const grid = document.getElementById("mainGrid");
 
-            data.forEach(match => {
+            filtered.forEach(match => {
 
                 const tile = document.createElement("div");
                 tile.className = "tile live";

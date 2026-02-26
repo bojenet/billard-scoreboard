@@ -51,10 +51,14 @@ button {
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
 
 <script>
 
 async function loadLiveMatches() {
+    const user = await requireAuth();
+    if (!user) return;
+    const ownedNames = await getOwnedPlayerNames(user.id);
 
     const { data, error } = await supabaseClient
         .from("matches")
@@ -69,7 +73,9 @@ async function loadLiveMatches() {
 
     const table = document.getElementById("matchTable");
 
-    data.forEach(match => {
+    (data || [])
+    .filter((match) => isOwnedMatch(match, user.id, ownedNames))
+    .forEach(match => {
 
         const row = document.createElement("tr");
 

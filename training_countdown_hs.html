@@ -6,8 +6,8 @@
     <style>
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: linear-gradient(180deg, #1e1f29, #14151c);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(180deg, #0f1c3f, #0a122b);
             color: white;
         }
 
@@ -23,22 +23,23 @@
 
         .header h1 {
             margin: 0;
-            font-size: 46px;
+            font-size: 54px;
             font-weight: 700;
+            letter-spacing: 0.4px;
         }
 
         .header p {
             margin: 10px 0 0;
-            opacity: 0.8;
+            opacity: 0.75;
             font-size: 18px;
         }
 
         .card {
-            background: linear-gradient(180deg, #2b2e40, #24283a);
-            border: 1px solid #3a4060;
-            border-radius: 20px;
-            padding: 24px 22px;
-            box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
+            background: linear-gradient(180deg, #162b66, #0f1c3f);
+            border: 1px solid #2d488f;
+            border-radius: 28px;
+            padding: 28px 26px;
+            box-shadow: 0 28px 60px rgba(0, 0, 0, 0.5);
         }
 
         .section {
@@ -47,7 +48,7 @@
 
         .section-title {
             margin: 0;
-            font-size: 24px;
+            font-size: 30px;
             font-weight: 700;
         }
 
@@ -64,25 +65,28 @@
         }
 
         .chip {
-            padding: 11px 16px;
+            padding: 12px 18px;
             border: none;
-            border-radius: 10px;
-            background: #454b62;
+            border-radius: 12px;
+            background: #1c3380;
             color: white;
-            font-size: 17px;
+            font-size: 18px;
             font-weight: 700;
             cursor: pointer;
-            border: 1px solid #575f7c;
-            transition: background .15s ease, border-color .15s ease, transform .15s ease;
+            border: 1px solid #2f4ea0;
+            transition: background .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease;
         }
 
         .chip:hover {
             transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
         }
 
         .chip.active {
-            background: #4054b9;
-            border-color: #7587e6;
+            background: #ffd84a;
+            color: #101420;
+            border-color: #ffe27a;
+            box-shadow: 0 8px 24px rgba(255, 216, 74, 0.28);
         }
 
         .actions {
@@ -92,21 +96,27 @@
         }
 
         .btn {
-            padding: 14px 16px;
+            padding: 16px 16px;
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             color: white;
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 700;
             cursor: pointer;
+            transition: transform .16s ease, filter .16s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.06);
         }
 
         .btn-start {
-            background: linear-gradient(180deg, #4d64db, #344ac0);
+            background: linear-gradient(180deg, #2f4fe0, #1c3380);
         }
 
         .btn-back {
-            background: #465396;
+            background: #233a8f;
         }
 
         @media (max-width: 760px) {
@@ -151,7 +161,12 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
     <script>
+        requireAuth();
+
         const disciplines = [
             "Freie Partie",
             "Cadre 35/2",

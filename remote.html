@@ -91,18 +91,25 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
 
     <script>
 
 const matchId = new URLSearchParams(window.location.search).get("match");
 
 let matchData = null;
+let currentUserId = "";
+let ownedPlayerNames = [];
 
 // ===============================
 // LOAD MATCH
 // ===============================
 
 async function loadMatch() {
+    const user = await requireAuth();
+    if (!user) return;
+    currentUserId = user.id;
+    ownedPlayerNames = await getOwnedPlayerNames(currentUserId);
 
     const { data, error } = await supabaseClient
         .from("matches")
@@ -112,6 +119,11 @@ async function loadMatch() {
 
     if (error) {
         console.error(error);
+        return;
+    }
+
+    if (!isOwnedMatch(data, currentUserId, ownedPlayerNames)) {
+        document.body.innerHTML = "Kein Zugriff auf diese Partie.";
         return;
     }
 

@@ -266,6 +266,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
 
     <script>
         const id = new URLSearchParams(window.location.search).get("id");
@@ -352,6 +353,10 @@
         }
 
         async function loadDetail() {
+            const user = await requireAuth();
+            if (!user) return;
+            const ownedNames = await getOwnedPlayerNames(user.id);
+
             const { data: match, error } = await supabaseClient
                 .from("matches")
                 .select("*")
@@ -362,6 +367,11 @@
             if (error || !match) {
                 document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Partie nicht gefunden.</div>";
                 console.error("Partie laden fehlgeschlagen:", error);
+                return;
+            }
+
+            if (!isOwnedMatch(match, user.id, ownedNames)) {
+                document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf diese Partie.</div>";
                 return;
             }
 

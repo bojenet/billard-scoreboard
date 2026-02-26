@@ -431,11 +431,14 @@
 
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         <script src="js/supabase.js"></script>
+        <script src="js/auth.js"></script>
 
 
         <script>
 
             let selectedMode = "local";
+            let currentUserId = "";
+            let ownedPlayerNames = [];
 
 
             function selectMode(mode) {
@@ -554,6 +557,11 @@
                     return;
                 }
 
+                if (!ownedPlayerNames.includes(p1) && !ownedPlayerNames.includes(p2)) {
+                    alert("Du kannst nur Matches starten, an denen dein eigener Spieler beteiligt ist.");
+                    return;
+                }
+
                 if (!d1 || !d2 || !d1Selected || !d2Selected) {
                     alert("Bitte für beide Spieler eine Disziplin wählen");
                     return;
@@ -570,28 +578,63 @@
                     return;
                 }
 
-                const { data, error } = await supabaseClient
+                const basePayload = {
+                    player1: p1,
+                    player2: p2,
+                    discipline1: d1,
+                    discipline2: d2,
+                    target1,
+                    target2,
+                    maxInnings,
+                    score1: 0,
+                    score2: 0,
+                    inn1: 0,
+                    inn2: 0,
+                    totalInnings: 1,
+                    activePlayer: 1,
+                    started_at: new Date().toISOString(),
+                    status: 1,
+                    finished: false,
+                    controlMode: selectedMode
+                };
+
+                let player1Id = null;
+                let player2Id = null;
+                const { data: playerRows } = await supabaseClient
+                    .from("players")
+                    .select("id,name")
+                    .in("name", [p1, p2]);
+                if (Array.isArray(playerRows)) {
+                    const p1Row = playerRows.find((x) => x.name === p1);
+                    const p2Row = playerRows.find((x) => x.name === p2);
+                    player1Id = p1Row?.id || null;
+                    player2Id = p2Row?.id || null;
+                }
+
+                const extendedPayload = {
+                    ...basePayload,
+                    created_by: currentUserId,
+                    player1_id: player1Id,
+                    player2_id: player2Id
+                };
+
+                let data = null;
+                let error = null;
+                let insertResult = await supabaseClient
                     .from("matches")
-                    .insert([{
-                        player1: p1,
-                        player2: p2,
-                        discipline1: d1,
-                        discipline2: d2,
-                        target1,
-                        target2,
-                        maxInnings,
-                        score1: 0,
-                        score2: 0,
-                        inn1: 0,
-                        inn2: 0,
-                        totalInnings: 1,
-                        activePlayer: 1,
-                        started_at: new Date().toISOString(),
-                        status: 1,
-                        finished: false,
-                        controlMode: selectedMode   // 🔥 hier wird es gespeichert
-                    }])
+                    .insert([extendedPayload])
                     .select();
+                data = insertResult.data;
+                error = insertResult.error;
+
+                if (error && String(error.message || "").toLowerCase().includes("column")) {
+                    insertResult = await supabaseClient
+                        .from("matches")
+                        .insert([basePayload])
+                        .select();
+                    data = insertResult.data;
+                    error = insertResult.error;
+                }
 
                 if (error) {
                     console.error(error);
@@ -633,7 +676,14 @@
                 // Max Aufnahmen
                 document.getElementById('maxInnings').value = 15;
             }
-            window.addEventListener("DOMContentLoaded", () => {
+            window.addEventListener("DOMContentLoaded", async () => {
+                const user = await requireAuth();
+                if (!user) return;
+                currentUserId = user.id;
+                ownedPlayerNames = await getOwnedPlayerNames(currentUserId);
+                if (!ownedPlayerNames.length) {
+                    alert("Dein Benutzer ist noch keinem Spieler zugeordnet. Bitte in der Spielerverwaltung anlegen.");
+                }
 
                 loadPlayers();
 

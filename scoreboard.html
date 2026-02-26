@@ -646,6 +646,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
 
 
     <script>
@@ -669,6 +670,8 @@
         let maxInnings = 0;
         let timerInterval;
         let channel;
+        let currentUserId = "";
+        let ownedPlayerNames = [];
 
         /* ================= TIMER ================= */
 
@@ -695,6 +698,10 @@
         /* ================= LOAD MATCH ================= */
 
         async function loadMatch() {
+            const user = await requireAuth();
+            if (!user) return;
+            currentUserId = user.id;
+            ownedPlayerNames = await getOwnedPlayerNames(currentUserId);
 
             const { data: d, error } = await supabaseClient
                 .from("matches")
@@ -704,6 +711,11 @@
 
             if (error) {
                 console.error(error);
+                return;
+            }
+
+            if (!isOwnedMatch(d, currentUserId, ownedPlayerNames)) {
+                document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf diese Partie.</div>";
                 return;
             }
 
@@ -1182,6 +1194,7 @@
 
             const archiveData = {
                 matchId,
+                created_by: currentUserId,
                 player1: player1Name.innerText,
                 player2: player2Name.innerText,
                 score1,

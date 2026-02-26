@@ -6,8 +6,8 @@
     <style>
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: linear-gradient(180deg, #1e1f29, #14151c);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(180deg, #0f1c3f, #0a122b);
             color: white;
         }
 
@@ -21,41 +21,54 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 18px;
+            background: linear-gradient(180deg, #162b66, #0f1c3f);
+            border: 1px solid #2c4688;
+            border-radius: 20px;
+            padding: 12px 14px;
+            box-shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
         }
 
         .btn {
             border: none;
-            border-radius: 10px;
-            padding: 10px 16px;
+            border-radius: 12px;
+            padding: 11px 17px;
             font-size: 16px;
             font-weight: 700;
             color: white;
-            background: #4a58a6;
+            background: #1c3380;
             cursor: pointer;
+            border: 1px solid #3458b8;
+            transition: transform .15s ease, filter .15s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.06);
         }
 
         .btn.danger {
-            background: #b04545;
+            background: #9f3434;
+            border-color: #be5757;
         }
 
         .board {
-            background: linear-gradient(180deg, #2a2d3f, #232638);
-            border: 1px solid #3a4060;
-            border-radius: 20px;
+            background: linear-gradient(180deg, #162b66, #0f1c3f);
+            border: 1px solid #2d488f;
+            border-radius: 30px;
             overflow: hidden;
-            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38);
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5);
         }
 
         .meta {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 0;
-            border-bottom: 1px solid #3a4060;
+            border-bottom: 1px solid #27417f;
         }
 
         .meta-item {
-            padding: 14px 16px;
-            border-right: 1px solid #3a4060;
+            padding: 16px 18px;
+            border-right: 1px solid #27417f;
         }
 
         .meta-item:nth-child(2n) {
@@ -66,17 +79,19 @@
             font-size: 13px;
             opacity: 0.72;
             margin-bottom: 4px;
+            letter-spacing: 1px;
         }
 
         .meta-value {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: 700;
         }
 
         .timer-wrap {
             text-align: center;
-            padding: 18px 14px 8px;
-            border-bottom: 1px solid #3a4060;
+            padding: 26px 14px 16px;
+            border-bottom: 1px solid #27417f;
+            background: radial-gradient(circle at 50% 0%, rgba(255, 216, 74, 0.1), transparent 58%);
         }
 
         .timer-label {
@@ -86,23 +101,24 @@
         }
 
         .timer {
-            font-size: 92px;
+            font-size: 124px;
             font-weight: 800;
             letter-spacing: 1px;
             line-height: 1;
-            color: #d9e2ff;
+            color: #ffd84a;
+            text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
         }
 
         .stats {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            border-bottom: 1px solid #3a4060;
+            border-bottom: 1px solid #27417f;
         }
 
         .stat {
-            padding: 12px;
+            padding: 14px 12px;
             text-align: center;
-            border-right: 1px solid #3a4060;
+            border-right: 1px solid #27417f;
         }
 
         .stat:last-child {
@@ -116,13 +132,13 @@
         }
 
         .stat-value {
-            font-size: 30px;
+            font-size: 36px;
             font-weight: 800;
         }
 
         .input-section {
-            padding: 16px;
-            border-bottom: 1px solid #3a4060;
+            padding: 18px;
+            border-bottom: 1px solid #27417f;
             display: grid;
             grid-template-columns: 160px 1fr;
             gap: 12px;
@@ -135,10 +151,11 @@
             font-size: 30px;
             font-weight: 700;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 12px 14px;
-            background: #eff3ff;
+            background: #f4f7ff;
             color: #1a1d2c;
+            box-shadow: inset 0 0 0 2px #dce6ff;
         }
 
         .controls {
@@ -149,21 +166,29 @@
 
         .action-btn {
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 10px 14px;
             font-size: 15px;
             font-weight: 700;
             color: white;
-            background: #4a58a6;
+            background: #1c3380;
             cursor: pointer;
+            border: 1px solid #3458b8;
+            transition: transform .15s ease, filter .15s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.06);
         }
 
         .action-btn.primary {
-            background: #2f9b56;
+            background: #2f4fe0;
+            border-color: #5572f0;
         }
 
         .history {
-            padding: 14px 16px 18px;
+            padding: 16px 18px 20px;
         }
 
         .history-title {
@@ -183,7 +208,7 @@
 
         @media (max-width: 900px) {
             .timer {
-                font-size: 68px;
+                font-size: 82px;
             }
 
             .stats {
@@ -257,7 +282,12 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
     <script>
+        requireAuth();
+
         const params = new URLSearchParams(window.location.search);
         const discipline = params.get("discipline") || "";
         const minutes = Number(params.get("minutes") || 0);
