@@ -55,6 +55,12 @@
             cursor: pointer;
         }
 
+        .btn-google {
+            margin-top: 10px;
+            background: #ffffff;
+            color: #1a1d2c;
+        }
+
         .error {
             min-height: 20px;
             margin: 10px 0 0;
@@ -70,12 +76,31 @@
         <input id="email" type="email" placeholder="E-Mail" autocomplete="username" />
         <input id="password" type="password" placeholder="Passwort" autocomplete="current-password" />
         <button onclick="login()">Anmelden</button>
+        <button class="btn-google" onclick="loginWithGoogle()">Mit Google anmelden</button>
         <div id="errorText" class="error"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script>
+        function resolveNextPath() {
+            const next = new URLSearchParams(window.location.search).get("next");
+            return next || "/index.html";
+        }
+
+        async function redirectIfSessionExists() {
+            const { data, error } = await supabaseClient.auth.getSession();
+            if (error) {
+                console.error("Session-Check fehlgeschlagen:", error);
+                return;
+            }
+            if (data?.session) {
+                const pendingNext = localStorage.getItem("login_next");
+                localStorage.removeItem("login_next");
+                window.location.href = pendingNext || resolveNextPath();
+            }
+        }
+
         async function login() {
             const email = document.getElementById("email").value.trim();
             const password = document.getElementById("password").value;
@@ -97,9 +122,30 @@
                 return;
             }
 
-            const next = new URLSearchParams(window.location.search).get("next");
-            window.location.href = next || "/index.html";
+            window.location.href = resolveNextPath();
         }
+
+        async function loginWithGoogle() {
+            const errorText = document.getElementById("errorText");
+            errorText.innerText = "";
+
+            const next = resolveNextPath();
+            localStorage.setItem("login_next", next);
+
+            const redirectTo = window.location.origin + "/login.html";
+            const { error } = await supabaseClient.auth.signInWithOAuth({
+                provider: "google",
+                options: {
+                    redirectTo
+                }
+            });
+
+            if (error) {
+                errorText.innerText = "Google-Login fehlgeschlagen: " + error.message;
+            }
+        }
+
+        redirectIfSessionExists();
     </script>
 </body>
 </html>
