@@ -143,12 +143,6 @@
             letter-spacing: 0.4px;
         }
 
-        .mini-innings {
-            font-size: 30px;
-            font-weight: 900;
-            line-height: 1;
-            letter-spacing: 0.4px;
-        }
     </style>
 </head>
 
@@ -181,7 +175,6 @@
 
         <div class="mini-status">
             <span id="miniSeriesInfo" class="mini-series"></span>
-            <span class="mini-innings">A: <span id="miniTotalInnings">1</span></span>
         </div>
     </div>
     <div class="button-grid">
@@ -301,8 +294,6 @@ function updateDisplay() {
     document.getElementById("miniAvg2").innerText = avg2;
     document.getElementById("miniHs1").innerText = matchData.high1 || 0;
     document.getElementById("miniHs2").innerText = matchData.high2 || 0;
-    document.getElementById("miniTotalInnings").innerText = matchData.totalInnings || 1;
-
     const card1 = document.getElementById("miniCard1");
     const card2 = document.getElementById("miniCard2");
     const seriesInfo = document.getElementById("miniSeriesInfo");
