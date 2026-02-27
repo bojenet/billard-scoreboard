@@ -45,41 +45,6 @@
             flex-direction: column;
         }
 
-        .acc-head {
-            width: 100%;
-            border: none;
-            background: transparent;
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0;
-            margin: 0 0 10px 0;
-            cursor: pointer;
-            text-align: left;
-        }
-
-        .acc-title {
-            font-size: 28px;
-            font-weight: 700;
-            letter-spacing: 0.2px;
-        }
-
-        .acc-summary {
-            font-size: 14px;
-            opacity: 0.78;
-            margin-left: 12px;
-            text-align: right;
-            line-height: 1.35;
-        }
-
-        .acc-body {
-            overflow: hidden;
-            max-height: 2200px;
-            opacity: 1;
-            transition: max-height .24s ease, opacity .2s ease;
-        }
-
         .section {
             background: linear-gradient(180deg, #2a2d3d, #232635);
             padding: 22px 20px 18px;
@@ -306,22 +271,6 @@
             box-sizing: border-box;
         }
 
-        body.accordion-enabled .player-column {
-            padding-top: 16px;
-            padding-bottom: 16px;
-        }
-
-        body.accordion-enabled .player-column.collapsed .acc-body {
-            max-height: 0;
-            opacity: 0;
-            pointer-events: none;
-            margin-top: 0;
-        }
-
-        body.accordion-enabled .player-column.collapsed .acc-title {
-            opacity: 0.9;
-        }
-
         @media (max-width: 1180px) {
             .header {
                 font-size: 42px;
@@ -355,112 +304,108 @@
         <div class="players-row">
 
             <!-- ================= SPIELER 1 ================= -->
-            <div class="section player-column" id="playerColumn1">
-                <button class="acc-head" type="button" onclick="togglePlayerAccordion(1)">
-                    <span class="acc-title">Spieler 1</span>
-                    <span class="acc-summary" id="summary1">- · - · -</span>
-                </button>
-                <div class="acc-body" id="playerBody1">
-                    <!-- PLAYER -->
-                    <select id="player1" style="display:none;"></select>
-                    <div id="touchPlayer1" class="touch-player-select"></div>
+            <div class="section player-column">
 
-                    <!-- DISCIPLINE -->
-                    <select id="discipline1" style="display:none;">
-                        <option value="Freie Partie">Freie Partie</option>
-                        <option value="Cadre 35/2">Cadre 35/2</option>
-                        <option value="Cadre 52/2">Cadre 52/2</option>
-                        <option value="Cadre 47/2">Cadre 47/2</option>
-                        <option value="Cadre 47/1">Cadre 47/1</option>
-                        <option value="Cadre 71/2">Cadre 71/2</option>
-                        <option value="Einband">Einband</option>
-                        <option value="Dreiband">Dreiband</option>
-                    </select>
+                <h3>Spieler 1</h3>
 
-                    <div style="margin-top:20px;">
-                        <div class="field-title">Disziplin</div>
-                        <div id="touchDiscipline1" class="touch-select"></div>
-                    </div>
+                <!-- PLAYER -->
+                <select id="player1" style="display:none;"></select>
+                <div id="touchPlayer1" class="touch-player-select"></div>
 
-                    <!-- POINTS -->
-                    <div class="points-box" style="margin-top:25px;">
+                <!-- DISCIPLINE -->
+                <select id="discipline1" style="display:none;">
+                    <option value="Freie Partie">Freie Partie</option>
+                    <option value="Cadre 35/2">Cadre 35/2</option>
+                    <option value="Cadre 52/2">Cadre 52/2</option>
+                    <option value="Cadre 47/2">Cadre 47/2</option>
+                    <option value="Cadre 47/1">Cadre 47/1</option>
+                    <option value="Cadre 71/2">Cadre 71/2</option>
+                    <option value="Einband">Einband</option>
+                    <option value="Dreiband">Dreiband</option>
+                </select>
 
-                        <div class="field-title">Zielpunkte</div>
-
-                        <input type="number" id="target1" value="">
-
-                        <div class="quick-defaults">
-                            <button type="button" onclick="setTarget('target1',50)">50</button>
-                            <button type="button" onclick="setTarget('target1',100)">100</button>
-                            <button type="button" onclick="setTarget('target1',150)">150</button>
-                            <button type="button" onclick="setTarget('target1',200)">200</button>
-                            <button type="button" onclick="setTarget('target1',300)">300</button>
-                        </div>
-
-                        <div class="adjust">
-                            <button type="button" onclick="adjustTarget('target1', -10)">-10</button>
-                            <button type="button" onclick="adjustTarget('target1', -1)">-1</button>
-                            <button type="button" onclick="adjustTarget('target1', 1)">+1</button>
-                            <button type="button" onclick="adjustTarget('target1', 10)">+10</button>
-                        </div>
-
-                    </div>
+                <div style="margin-top:20px;">
+                    <div class="field-title">Disziplin</div>
+                    <div id="touchDiscipline1" class="touch-select"></div>
                 </div>
+
+                <!-- POINTS -->
+                <div class="points-box" style="margin-top:25px;">
+
+                    <div class="field-title">Zielpunkte</div>
+
+                    <input type="number" id="target1" value="">
+
+                    <div class="quick-defaults">
+                        <button type="button" onclick="setTarget('target1',50)">50</button>
+                        <button type="button" onclick="setTarget('target1',100)">100</button>
+                        <button type="button" onclick="setTarget('target1',150)">150</button>
+                        <button type="button" onclick="setTarget('target1',200)">200</button>
+                        <button type="button" onclick="setTarget('target1',300)">300</button>
+                    </div>
+
+                    <div class="adjust">
+                        <button type="button" onclick="adjustTarget('target1', -10)">-10</button>
+                        <button type="button" onclick="adjustTarget('target1', -1)">-1</button>
+                        <button type="button" onclick="adjustTarget('target1', 1)">+1</button>
+                        <button type="button" onclick="adjustTarget('target1', 10)">+10</button>
+                    </div>
+
+                </div>
+
             </div>
 
 
             <!-- ================= SPIELER 2 ================= -->
-            <div class="section player-column" id="playerColumn2">
-                <button class="acc-head" type="button" onclick="togglePlayerAccordion(2)">
-                    <span class="acc-title">Spieler 2</span>
-                    <span class="acc-summary" id="summary2">- · - · -</span>
-                </button>
-                <div class="acc-body" id="playerBody2">
-                    <!-- PLAYER -->
-                    <select id="player2" style="display:none;"></select>
-                    <div id="touchPlayer2" class="touch-player-select"></div>
+            <div class="section player-column">
 
-                    <!-- DISCIPLINE -->
-                    <select id="discipline2" style="display:none;">
-                        <option value="Freie Partie">Freie Partie</option>
-                        <option value="Cadre 35/2">Cadre 35/2</option>
-                        <option value="Cadre 52/2">Cadre 52/2</option>
-                        <option value="Cadre 47/2">Cadre 47/2</option>
-                        <option value="Cadre 47/1">Cadre 47/1</option>
-                        <option value="Cadre 71/2">Cadre 71/2</option>
-                        <option value="Einband">Einband</option>
-                        <option value="Dreiband">Dreiband</option>
-                    </select>
+                <h3>Spieler 2</h3>
 
-                    <div style="margin-top:20px;">
-                        <div class="field-title">Disziplin</div>
-                        <div id="touchDiscipline2" class="touch-select"></div>
-                    </div>
+                <!-- PLAYER -->
+                <select id="player2" style="display:none;"></select>
+                <div id="touchPlayer2" class="touch-player-select"></div>
 
-                    <!-- POINTS -->
-                    <div class="points-box" style="margin-top:25px;">
+                <!-- DISCIPLINE -->
+                <select id="discipline2" style="display:none;">
+                    <option value="Freie Partie">Freie Partie</option>
+                    <option value="Cadre 35/2">Cadre 35/2</option>
+                    <option value="Cadre 52/2">Cadre 52/2</option>
+                    <option value="Cadre 47/2">Cadre 47/2</option>
+                    <option value="Cadre 47/1">Cadre 47/1</option>
+                    <option value="Cadre 71/2">Cadre 71/2</option>
+                    <option value="Einband">Einband</option>
+                    <option value="Dreiband">Dreiband</option>
+                </select>
 
-                        <div class="field-title">Zielpunkte</div>
-
-                        <input type="number" id="target2" value="">
-
-                        <div class="quick-defaults">
-                            <button type="button" onclick="setTarget('target2',50)">50</button>
-                            <button type="button" onclick="setTarget('target2',100)">100</button>
-                            <button type="button" onclick="setTarget('target2',150)">150</button>
-                            <button type="button" onclick="setTarget('target2',200)">200</button>
-                            <button type="button" onclick="setTarget('target2',300)">300</button>
-                        </div>
-
-                        <div class="adjust">
-                            <button type="button" onclick="adjustTarget('target2', -10)">-10</button>
-                            <button type="button" onclick="adjustTarget('target2', -1)">-1</button>
-                            <button type="button" onclick="adjustTarget('target2', 1)">+1</button>
-                            <button type="button" onclick="adjustTarget('target2', 10)">+10</button>
-                        </div>
-
-                    </div>
+                <div style="margin-top:20px;">
+                    <div class="field-title">Disziplin</div>
+                    <div id="touchDiscipline2" class="touch-select"></div>
                 </div>
+
+                <!-- POINTS -->
+                <div class="points-box" style="margin-top:25px;">
+
+                    <div class="field-title">Zielpunkte</div>
+
+                    <input type="number" id="target2" value="">
+
+                    <div class="quick-defaults">
+                        <button type="button" onclick="setTarget('target2',50)">50</button>
+                        <button type="button" onclick="setTarget('target2',100)">100</button>
+                        <button type="button" onclick="setTarget('target2',150)">150</button>
+                        <button type="button" onclick="setTarget('target2',200)">200</button>
+                        <button type="button" onclick="setTarget('target2',300)">300</button>
+                    </div>
+
+                    <div class="adjust">
+                        <button type="button" onclick="adjustTarget('target2', -10)">-10</button>
+                        <button type="button" onclick="adjustTarget('target2', -1)">-1</button>
+                        <button type="button" onclick="adjustTarget('target2', 1)">+1</button>
+                        <button type="button" onclick="adjustTarget('target2', 10)">+10</button>
+                    </div>
+
+                </div>
+
             </div>
 
         </div>
@@ -509,60 +454,10 @@
 
         <script>
 
-            // Schnell rückgängig: auf false setzen.
-            const USE_ACCORDION = true;
             let selectedMode = "local";
             let currentUserId = "";
             let ownedPlayerNames = [];
             let availablePlayers = [];
-            let accordionOpenPlayer = 1;
-
-            function getPlayerNameById(id) {
-                const row = availablePlayers.find((x) => String(x.id) === String(id));
-                return row ? row.name : "-";
-            }
-
-            function updatePlayerSummary(playerNo) {
-                const selectId = playerNo === 1 ? "player1" : "player2";
-                const disciplineId = playerNo === 1 ? "discipline1" : "discipline2";
-                const targetId = playerNo === 1 ? "target1" : "target2";
-                const summaryId = playerNo === 1 ? "summary1" : "summary2";
-
-                const playerId = document.getElementById(selectId).value;
-                const playerName = playerId ? getPlayerNameById(playerId) : "-";
-                const discipline = document.getElementById(disciplineId).value || "-";
-                const targetRaw = String(document.getElementById(targetId).value || "").trim();
-                const target = targetRaw ? targetRaw : "-";
-
-                const summaryEl = document.getElementById(summaryId);
-                if (summaryEl) {
-                    summaryEl.innerText = playerName + " · " + discipline + " · " + target;
-                }
-            }
-
-            function applyAccordionState() {
-                const body = document.body;
-                const c1 = document.getElementById("playerColumn1");
-                const c2 = document.getElementById("playerColumn2");
-                if (!c1 || !c2) return;
-
-                if (!USE_ACCORDION) {
-                    body.classList.remove("accordion-enabled");
-                    c1.classList.remove("collapsed");
-                    c2.classList.remove("collapsed");
-                    return;
-                }
-
-                body.classList.add("accordion-enabled");
-                c1.classList.toggle("collapsed", accordionOpenPlayer !== 1);
-                c2.classList.toggle("collapsed", accordionOpenPlayer !== 2);
-            }
-
-            function togglePlayerAccordion(playerNo) {
-                if (!USE_ACCORDION) return;
-                accordionOpenPlayer = playerNo;
-                applyAccordionState();
-            }
 
 
             function selectMode(mode) {
@@ -648,7 +543,6 @@
                         p1.value = playerId;
                         t1.querySelectorAll(".touch-player-btn").forEach(x => x.classList.remove("active"));
                         b1.classList.add("active");
-                        updatePlayerSummary(1);
                     };
                     t1.appendChild(b1);
 
@@ -660,7 +554,6 @@
                         p2.value = playerId;
                         t2.querySelectorAll(".touch-player-btn").forEach(x => x.classList.remove("active"));
                         b2.classList.add("active");
-                        updatePlayerSummary(2);
                     };
                     t2.appendChild(b2);
                 });
@@ -669,8 +562,6 @@
                 p2.value = "";
                 p1.selectedIndex = -1;
                 p2.selectedIndex = -1;
-                updatePlayerSummary(1);
-                updatePlayerSummary(2);
             }
 
             /* DISCIPLINE TOUCH */
@@ -687,7 +578,6 @@
                         select.value = option.value;
                         container.querySelectorAll(".touch-select-btn").forEach(x => x.classList.remove("active"));
                         btn.classList.add("active");
-                        updatePlayerSummary(selectId === "discipline1" ? 1 : 2);
                     };
                     container.appendChild(btn);
                 }
@@ -695,7 +585,6 @@
 
             function setTarget(id, value) {
                 document.getElementById(id).value = value;
-                updatePlayerSummary(id === "target1" ? 1 : 2);
             }
 
             function adjustTarget(id, value) {
@@ -704,7 +593,6 @@
                 current += value;
                 if (current < 1) current = 1;
                 input.value = current;
-                updatePlayerSummary(id === "target1" ? 1 : 2);
             }
 
             async function startMatch() {
@@ -869,8 +757,6 @@
 
                 // Max Aufnahmen
                 document.getElementById('maxInnings').value = 15;
-                updatePlayerSummary(1);
-                updatePlayerSummary(2);
             }
             window.addEventListener("DOMContentLoaded", async () => {
                 const user = await requireAuth();
@@ -886,11 +772,6 @@
                 buildTouchDiscipline("discipline1", "touchDiscipline1");
                 buildTouchDiscipline("discipline2", "touchDiscipline2");
                 resetAll();
-                applyAccordionState();
-                updatePlayerSummary(1);
-                updatePlayerSummary(2);
-                document.getElementById("target1").addEventListener("input", () => updatePlayerSummary(1));
-                document.getElementById("target2").addEventListener("input", () => updatePlayerSummary(2));
 
             });
 
