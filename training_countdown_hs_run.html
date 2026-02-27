@@ -124,6 +124,14 @@
             border-bottom: 1px solid #27417f;
         }
 
+        body.solo-mode .duel {
+            grid-template-columns: 1fr;
+        }
+
+        body.solo-mode #p2Col {
+            display: none;
+        }
+
         .player-col {
             border-right: 1px solid #27417f;
         }
@@ -400,7 +408,7 @@
             </div>
 
             <div class="duel">
-                <div class="player-col">
+                <div class="player-col" id="p2Col">
                     <div class="player-head">
                         <div class="player-name" id="p1Name">Spieler 1</div>
                         <div class="player-disc" id="p1Disc">-</div>
@@ -521,6 +529,10 @@
         function setText(id, value) {
             const el = document.getElementById(id);
             if (el) el.innerText = value;
+        }
+
+        function applyModeLayout() {
+            document.body.classList.toggle("solo-mode", !isDuelMode);
         }
 
         function escapeHtml(value) {
@@ -1283,6 +1295,7 @@
                 return;
             }
             isDuelMode = false;
+            applyModeLayout();
             setText("modeValue", "Challenge (Solo)");
             soloState.p1Disc = soloDiscipline;
             soloStartedAtIso = new Date().toISOString();
@@ -1296,6 +1309,7 @@
 
         async function initDual() {
             isDuelMode = true;
+            applyModeLayout();
             const ok = await loadDualSession();
             if (!ok) return;
             const chatSection = document.getElementById("chatSection");
