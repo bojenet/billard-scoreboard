@@ -82,11 +82,21 @@
             border: 1px solid #2b4588;
             border-radius: 12px;
             padding: 10px;
+            color: #ffffff;
         }
 
-        .mini-player.active {
+        .mini-player.active-white {
+            background: #ffffff;
+            color: #111111;
+            border-color: #ffffff;
+            box-shadow: 0 10px 28px rgba(255, 255, 255, 0.2);
+        }
+
+        .mini-player.active-yellow {
+            background: #ffd84a;
+            color: #111111;
             border-color: #ffd84a;
-            box-shadow: inset 0 0 0 1px #ffd84a;
+            box-shadow: 0 10px 28px rgba(255, 216, 74, 0.25);
         }
 
         .mini-name {
@@ -280,8 +290,15 @@ function updateDisplay() {
     document.getElementById("miniHs2").innerText = matchData.high2 || 0;
     document.getElementById("miniTotalInnings").innerText = matchData.totalInnings || 1;
 
-    document.getElementById("miniCard1").classList.toggle("active", Number(matchData.activePlayer) === 1);
-    document.getElementById("miniCard2").classList.toggle("active", Number(matchData.activePlayer) === 2);
+    const card1 = document.getElementById("miniCard1");
+    const card2 = document.getElementById("miniCard2");
+    card1.classList.remove("active-white", "active-yellow");
+    card2.classList.remove("active-white", "active-yellow");
+    if (Number(matchData.activePlayer) === 1) {
+        card1.classList.add("active-white");
+    } else {
+        card2.classList.add("active-yellow");
+    }
 
     const activeText =
         matchData.activePlayer === 1
