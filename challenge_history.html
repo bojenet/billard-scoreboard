@@ -95,6 +95,17 @@
       font-size: 14px;
     }
 
+    .warn {
+      margin-bottom: 10px;
+      border: 1px solid #8d6b1d;
+      background: rgba(141, 107, 29, 0.2);
+      color: #ffe39a;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      display: none;
+    }
+
     .innings-btn {
       border: 1px solid #3f61c7;
       background: #1a337d;
@@ -159,6 +170,7 @@
         <button class="btn" onclick="window.location.href='training_countdown_hs.html'">Zurück</button>
       </div>
     </div>
+    <div id="seriesWarning" class="warn"></div>
 
     <div class="card">
       <table id="historyTable">
@@ -262,6 +274,11 @@
       let { data, error } = await query;
       const errText = String((error && error.message) || '').toLowerCase();
       if (error && errText.includes('series')) {
+        const warning = document.getElementById('seriesWarning');
+        if (warning) {
+          warning.style.display = 'block';
+          warning.innerText = "DB-Migration fehlt: Aufnahmen-Verlauf (series) wird noch nicht gespeichert.";
+        }
         let fallbackQuery = supabaseClient
           .from('training_challenge_results')
           .select('source_key,mode,owner_user_id,owner_name,opponent_name,discipline,duration_minutes,score,innings,high_series,avg,created_at')
@@ -273,6 +290,9 @@
         const fallback = await fallbackQuery;
         data = (fallback.data || []).map((x) => ({ ...x, series: [] }));
         error = fallback.error;
+      } else {
+        const warning = document.getElementById('seriesWarning');
+        if (warning) warning.style.display = 'none';
       }
       const table = document.getElementById('historyTable');
       table.innerHTML = `

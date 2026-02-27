@@ -484,8 +484,12 @@
         let chatMessages = [];
         let resultSaved = false;
         let resultSaveInProgress = false;
+        let seriesDbUnsupportedNotified = false;
         let soloStartedAtIso = null;
         let localChallengeEnded = false;
+        let timerExpired = false;
+        let lastInningWindowOpen = false;
+        let lastInningUsed = false;
 
         let soloState = {
             p1Name: "Du",
@@ -617,6 +621,10 @@
                                 avg: Number(avgValue.toFixed(3))
                             }], { onConflict: "source_key" });
                         error = retry.error;
+                        if (!seriesDbUnsupportedNotified) {
+                            seriesDbUnsupportedNotified = true;
+                            alert("Ergebnis gespeichert, aber Aufnahmen-Verlauf nicht. Bitte DB-Migration für 'series' ausführen.");
+                        }
                     }
 
                     if (!error) {
@@ -681,6 +689,10 @@
                             avg: Number(avgValue.toFixed(3))
                         }], { onConflict: "source_key" });
                     error = retry.error;
+                    if (!seriesDbUnsupportedNotified) {
+                        seriesDbUnsupportedNotified = true;
+                        alert("Ergebnis gespeichert, aber Aufnahmen-Verlauf nicht. Bitte DB-Migration für 'series' ausführen.");
+                    }
                 }
 
                 if (!error) {
@@ -806,6 +818,14 @@
             if (localChallengeEnded && data.status !== "finished") {
                 setText("readonlyInfo", "Deine Challenge ist beendet und gespeichert.");
             }
+
+            if (timerExpired && !localChallengeEnded && data.status !== "finished") {
+                if (lastInningUsed) {
+                    setText("readonlyInfo", "Zeit abgelaufen. Letzte Aufnahme erfasst. Bitte jetzt beenden & speichern.");
+                } else {
+                    setText("readonlyInfo", "Zeit abgelaufen. Du kannst noch genau eine letzte Aufnahme erfassen.");
+                }
+            }
         }
 
         function renderSolo() {
@@ -832,6 +852,13 @@
             setText("readonlyInfo", localChallengeEnded
                 ? "Challenge beendet und gespeichert."
                 : "Solo-Modus: nur dein Ergebnis wird geführt.");
+            if (timerExpired && !localChallengeEnded) {
+                if (lastInningUsed) {
+                    setText("readonlyInfo", "Zeit abgelaufen. Letzte Aufnahme erfasst. Bitte jetzt beenden & speichern.");
+                } else {
+                    setText("readonlyInfo", "Zeit abgelaufen. Du kannst noch genau eine letzte Aufnahme erfassen.");
+                }
+            }
             const chatSection = document.getElementById("chatSection");
             if (chatSection) chatSection.style.display = "none";
         }
@@ -844,26 +871,17 @@
                 if (remaining <= 0) {
                     clearInterval(timerId);
                     timerId = null;
-                    if (isDuelMode && sessionData?.status !== "finished") {
-                        await markSessionFinished();
+                    timerExpired = true;
+                    if (!localChallengeEnded) {
+                        lastInningWindowOpen = true;
                     }
-                    await persistCurrentChallengeResult("timer_expired");
+                    if (!isDuelMode) {
+                        renderSolo();
+                    } else {
+                        renderDualFromSession(sessionData || {});
+                    }
                 }
             }, 350);
-        }
-
-        async function markSessionFinished() {
-            if (!sessionData?.id) return;
-            const { data } = await supabaseClient
-                .from("training_countdown_hs_sessions")
-                .select("status")
-                .eq("id", sessionData.id)
-                .single();
-            if (data?.status === "finished") return;
-            await supabaseClient
-                .from("training_countdown_hs_sessions")
-                .update({ status: "finished" })
-                .eq("id", sessionData.id);
         }
 
         function adjustSeries(delta) {
@@ -885,7 +903,17 @@
                 return;
             }
             const remaining = Math.max(0, Math.floor((countdownEndMs - Date.now()) / 1000));
-            if (remaining <= 0) return;
+            const expiredNow = timerExpired || remaining <= 0;
+            if (expiredNow) {
+                timerExpired = true;
+                if (!lastInningWindowOpen && !lastInningUsed) {
+                    lastInningWindowOpen = true;
+                }
+                if (!lastInningWindowOpen || lastInningUsed) {
+                    alert("Zeit ist abgelaufen. Die letzte Aufnahme wurde bereits erfasst.");
+                    return;
+                }
+            }
 
             const input = document.getElementById("seriesInput");
             const series = Number(input.value || 0);
@@ -899,6 +927,10 @@
                 soloState.p1Innings += 1;
                 soloState.p1Score += series;
                 if (series > soloState.p1High) soloState.p1High = series;
+                if (expiredNow) {
+                    lastInningUsed = true;
+                    lastInningWindowOpen = false;
+                }
                 input.value = 0;
                 renderSolo();
                 return;
@@ -958,6 +990,11 @@
                 sessionData.guest_score = nextScore;
                 sessionData.guest_innings = nextInnings;
                 sessionData.guest_high = nextHigh;
+            }
+
+            if (expiredNow) {
+                lastInningUsed = true;
+                lastInningWindowOpen = false;
             }
 
             input.value = 0;
@@ -1106,6 +1143,9 @@
             sessionData = data;
             countdownEndMs = new Date(sessionData.ends_at).getTime();
             countdownStarted = true;
+            timerExpired = false;
+            lastInningWindowOpen = false;
+            lastInningUsed = false;
             renderDualFromSession(sessionData);
             startVisualTimer();
         }
@@ -1247,6 +1287,9 @@
             soloState.p1Disc = soloDiscipline;
             soloStartedAtIso = new Date().toISOString();
             countdownEndMs = Date.now() + soloMinutes * 60000;
+            timerExpired = false;
+            lastInningWindowOpen = false;
+            lastInningUsed = false;
             renderSolo();
             startVisualTimer();
         }
