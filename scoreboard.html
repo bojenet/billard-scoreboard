@@ -24,19 +24,21 @@
         /* ================= TOPBAR ================= */
 
         .topbar {
-            height: 140px;
+            min-height: 96px;
             background: linear-gradient(180deg, #162b66, #0f1c3f);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 80px;
+            padding: 10px clamp(14px, 4vw, 80px);
+            gap: clamp(8px, 2vw, 20px);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
 
         .player-name {
-            font-size: 70px;
+            font-size: clamp(26px, 4.8vw, 70px);
             font-weight: 600;
             letter-spacing: 1px;
+            line-height: 1.05;
         }
 
         .player-name.yellow {
@@ -44,9 +46,9 @@
         }
 
         .player-sub {
-            font-size: 18px;
+            font-size: clamp(12px, 1.4vw, 18px);
             opacity: .7;
-            margin-top: 6px;
+            margin-top: 4px;
         }
 
         .top-center {
@@ -54,19 +56,19 @@
         }
 
         .game-label {
-            font-size: 13px;
-            letter-spacing: 3px;
+            font-size: clamp(10px, 1vw, 13px);
+            letter-spacing: clamp(1px, 0.3vw, 3px);
             opacity: .5;
         }
 
         .game-time {
-            font-size: 30px;
+            font-size: clamp(18px, 2.2vw, 30px);
             font-weight: 700;
             margin-top: 5px;
         }
 
         .discipline-info {
-            font-size: 18px;
+            font-size: clamp(12px, 1.3vw, 18px);
             margin-top: 6px;
             opacity: .6;
         }
@@ -75,22 +77,23 @@
 
         .main {
             flex: 1;
-            /* nimmt automatisch verfügbaren Platz */
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 80px;
-            padding: 20px 40px;
+            gap: clamp(10px, 3vw, 80px);
+            padding: clamp(8px, 1.5vw, 20px) clamp(8px, 2.5vw, 40px);
+            min-height: 0;
         }
 
         .player {
-            width: 650px;
-            border-radius: 30px;
-            padding: 40px 20px;
+            width: min(41vw, 650px);
+            border-radius: clamp(14px, 2.2vw, 30px);
+            padding: clamp(12px, 2.2vw, 40px) clamp(8px, 1.6vw, 20px);
             display: flex;
             flex-direction: column;
             align-items: center;
             transition: .25s ease;
+            min-width: 0;
         }
 
         /* Aktiv Weiß */
@@ -116,15 +119,15 @@
         /* SCORE */
 
         .score {
-            font-size: 360px;
+            font-size: clamp(88px, 21vw, 360px);
             font-weight: 800;
             line-height: 1;
         }
 
         .discipline-big {
-            font-size: 30px;
+            font-size: clamp(14px, 2vw, 30px);
             font-weight: 700;
-            margin-bottom: 25px;
+            margin-bottom: clamp(8px, 1.6vw, 25px);
             text-align: center;
             letter-spacing: 1px;
         }
@@ -135,8 +138,8 @@
 
         .stats-flat {
             display: flex;
-            gap: 80px;
-            margin-top: 40px;
+            gap: clamp(12px, 4.2vw, 80px);
+            margin-top: clamp(8px, 2vw, 40px);
             align-items: center;
         }
 
@@ -148,14 +151,14 @@
         }
 
         .stat-title {
-            font-size: 20px;
-            letter-spacing: 2px;
+            font-size: clamp(11px, 1.2vw, 20px);
+            letter-spacing: clamp(0px, 0.2vw, 2px);
             opacity: .6;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
         .stat-flat span:last-child {
-            font-size: 48px;
+            font-size: clamp(22px, 3vw, 48px);
         }
 
         /* ================= CENTER ================= */
@@ -164,17 +167,17 @@
 
         .center-wrapper {
             position: relative;
-            width: 240px;
-            height: 340px;
+            width: clamp(84px, 15vw, 240px);
+            height: clamp(126px, 22vw, 340px);
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
         .center-box {
-            width: 240px;
-            height: 240px;
-            border-radius: 30px;
+            width: clamp(84px, 15vw, 240px);
+            height: clamp(84px, 15vw, 240px);
+            border-radius: clamp(12px, 2vw, 30px);
             background: linear-gradient(145deg, #1c3380, #162b66);
             display: flex;
             align-items: center;
@@ -183,18 +186,16 @@
 
         .series-display {
             position: absolute;
-            top: 320px;
-            /* exakt unter der Box */
+            top: clamp(108px, 20.5vw, 320px);
             width: 100%;
             text-align: center;
-            font-size: 130px;
+            font-size: clamp(44px, 8vw, 130px);
             font-weight: 900;
             font-variant-numeric: tabular-nums;
         }
 
         #totalInnings {
-            font-size: 150px;
-            /* gewünschte Größe */
+            font-size: clamp(44px, 9vw, 150px);
             font-weight: 700;
         }
 
@@ -203,26 +204,29 @@
         .controls {
             display: flex;
             justify-content: center;
-            /* horizontal zentrieren */
             align-items: center;
-            padding: 20px 0 40px 0;
+            padding: clamp(8px, 1.6vw, 20px) clamp(8px, 1.2vw, 16px) clamp(10px, 2.4vw, 40px) clamp(8px, 1.2vw, 16px);
         }
 
         .button-row button {
             background: #1c3380;
             color: white;
             border: none;
-            padding: 28px 48px;
-            /* deutlich größer */
-            font-size: 28px;
-            /* größere Schrift */
+            padding: clamp(10px, 1.8vw, 28px) clamp(12px, 2.4vw, 48px);
+            font-size: clamp(16px, 1.8vw, 28px);
             font-weight: 600;
-            border-radius: 22px;
+            border-radius: clamp(12px, 1.6vw, 22px);
             cursor: pointer;
             transition: .2s ease;
             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5);
-            min-width: 120px;
-            /* gleiche Breite */
+            min-width: clamp(72px, 10vw, 120px);
+        }
+
+        .button-row {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: clamp(6px, 1vw, 14px);
+            width: min(1100px, 96vw);
         }
 
         .button-row button:hover {
@@ -422,6 +426,88 @@
 
         .flash {
             animation: flash .35s ease;
+        }
+
+        @media (max-width: 1200px) {
+            .topbar {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            .player {
+                width: min(44vw, 520px);
+            }
+        }
+
+        @media (max-width: 900px) {
+            html,
+            body {
+                overflow: auto;
+                height: auto;
+                min-height: 100%;
+            }
+
+            .topbar {
+                flex-wrap: wrap;
+                justify-content: center;
+                text-align: center;
+            }
+
+            .main {
+                align-items: stretch;
+            }
+
+            .player {
+                width: min(46vw, 380px);
+                padding-left: 6px;
+                padding-right: 6px;
+            }
+
+            .button-row {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .end-box {
+                width: 94%;
+                padding: 24px 18px;
+                border-radius: 20px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .main {
+                gap: 6px;
+                padding-left: 4px;
+                padding-right: 4px;
+            }
+
+            .player {
+                width: calc(50vw - 8px);
+                border-radius: 10px;
+            }
+
+            .stats-flat {
+                gap: 8px;
+            }
+
+            .series-display {
+                font-size: clamp(28px, 7vw, 52px);
+            }
+
+            .button-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                width: 98vw;
+            }
+
+            .end-stats {
+                flex-direction: column;
+                gap: 18px;
+            }
+
+            .end-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
         }
     </style>
 </head>
