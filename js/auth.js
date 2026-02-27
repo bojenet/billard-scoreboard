@@ -4,13 +4,13 @@ async function getCurrentUser() {
     console.error("Auth getUser fehlgeschlagen:", error);
     return null;
   }
-  return data?.user || null;
+  return (data && data.user) || null;
 }
 
 function isAdminUser(user) {
   if (!user) return false;
-  const appRole = user.app_metadata?.role;
-  const userRole = user.user_metadata?.role;
+  const appRole = user.app_metadata && user.app_metadata.role;
+  const userRole = user.user_metadata && user.user_metadata.role;
   return appRole === "admin" || userRole === "admin";
 }
 
@@ -26,7 +26,7 @@ async function getUserRole(userId) {
     console.warn("Konnte user role nicht laden:", error);
     return null;
   }
-  return data?.role || null;
+  return (data && data.role) || null;
 }
 
 async function hasAdminAccess(user) {
@@ -110,9 +110,10 @@ function isOwnedMatch(match, userId, ownedNames) {
 
 function getDisplayName(user) {
   if (!user) return "";
+  const userMeta = user.user_metadata || {};
   return (
-    user.user_metadata?.display_name ||
-    user.user_metadata?.full_name ||
+    userMeta.display_name ||
+    userMeta.full_name ||
     user.email ||
     user.id
   );

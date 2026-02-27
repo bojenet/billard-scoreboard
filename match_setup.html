@@ -470,7 +470,7 @@
 
                 const byName = new Map();
                 (players || []).forEach((row) => {
-                    const rawName = String(row?.name || "").trim();
+                    const rawName = String((row && row.name) || "").trim();
                     if (!rawName || rawName === "?") return;
                     const key = rawName.toLowerCase();
                     if (!byName.has(key)) {
@@ -570,112 +570,122 @@
             }
 
             async function startMatch() {
+                try {
 
-                const p1SelectValue = document.getElementById('player1').value;
-                const p2SelectValue = document.getElementById('player2').value;
-                const d1 = document.getElementById('discipline1').value;
-                const d2 = document.getElementById('discipline2').value;
-                const d1Selected = !!document.querySelector('#touchDiscipline1 .touch-select-btn.active');
-                const d2Selected = !!document.querySelector('#touchDiscipline2 .touch-select-btn.active');
-                const target1 = parseInt(document.getElementById('target1').value, 10);
-                const target2 = parseInt(document.getElementById('target2').value, 10);
-                const maxInnings = parseInt(document.getElementById('maxInnings').value, 10);
+                    const p1SelectValue = document.getElementById('player1').value;
+                    const p2SelectValue = document.getElementById('player2').value;
+                    const d1 = document.getElementById('discipline1').value;
+                    const d2 = document.getElementById('discipline2').value;
+                    const d1Selected = !!document.querySelector('#touchDiscipline1 .touch-select-btn.active');
+                    const d2Selected = !!document.querySelector('#touchDiscipline2 .touch-select-btn.active');
+                    const target1 = parseInt(document.getElementById('target1').value, 10);
+                    const target2 = parseInt(document.getElementById('target2').value, 10);
+                    const maxInnings = parseInt(document.getElementById('maxInnings').value, 10);
 
-                if (!p1SelectValue || !p2SelectValue || p1SelectValue === p2SelectValue) {
-                    alert("Bitte zwei unterschiedliche Spieler wählen");
-                    return;
-                }
+                    if (!p1SelectValue || !p2SelectValue || p1SelectValue === p2SelectValue) {
+                        alert("Bitte zwei unterschiedliche Spieler wählen");
+                        return;
+                    }
 
-                const p1Row = availablePlayers.find((x) => String(x.id) === String(p1SelectValue));
-                const p2Row = availablePlayers.find((x) => String(x.id) === String(p2SelectValue));
-                const p1 = p1Row?.name || "";
-                const p2 = p2Row?.name || "";
-                if (!p1 || !p2) {
-                    alert("Spieler konnten nicht eindeutig geladen werden. Bitte Auswahl neu treffen.");
-                    return;
-                }
+                    const p1Row = availablePlayers.find((x) => String(x.id) === String(p1SelectValue));
+                    const p2Row = availablePlayers.find((x) => String(x.id) === String(p2SelectValue));
+                    const p1 = (p1Row && p1Row.name) || "";
+                    const p2 = (p2Row && p2Row.name) || "";
+                    if (!p1 || !p2) {
+                        alert("Spieler konnten nicht eindeutig geladen werden. Bitte Auswahl neu treffen.");
+                        return;
+                    }
 
-                if (!ownedPlayerNames.includes(p1) && !ownedPlayerNames.includes(p2)) {
-                    alert("Du kannst nur Matches starten, an denen dein eigener Spieler beteiligt ist.");
-                    return;
-                }
+                    if (!ownedPlayerNames.includes(p1) && !ownedPlayerNames.includes(p2)) {
+                        alert("Du kannst nur Matches starten, an denen dein eigener Spieler beteiligt ist.");
+                        return;
+                    }
 
-                if (!d1 || !d2 || !d1Selected || !d2Selected) {
-                    alert("Bitte für beide Spieler eine Disziplin wählen");
-                    return;
-                }
+                    if (!d1 || !d2 || !d1Selected || !d2Selected) {
+                        alert("Bitte für beide Spieler eine Disziplin wählen");
+                        return;
+                    }
 
-                if (!Number.isInteger(target1) || target1 < 1 ||
-                    !Number.isInteger(target2) || target2 < 1) {
-                    alert("Bitte für beide Spieler gültige Zielpunkte eingeben (mindestens 1)");
-                    return;
-                }
+                    if (!Number.isInteger(target1) || target1 < 1 ||
+                        !Number.isInteger(target2) || target2 < 1) {
+                        alert("Bitte für beide Spieler gültige Zielpunkte eingeben (mindestens 1)");
+                        return;
+                    }
 
-                if (!Number.isInteger(maxInnings) || maxInnings < 1) {
-                    alert("Bitte gültige maximale Aufnahmen eingeben (mindestens 1)");
-                    return;
-                }
+                    if (!Number.isInteger(maxInnings) || maxInnings < 1) {
+                        alert("Bitte gültige maximale Aufnahmen eingeben (mindestens 1)");
+                        return;
+                    }
 
-                const basePayload = {
-                    player1: p1,
-                    player2: p2,
-                    discipline1: d1,
-                    discipline2: d2,
-                    target1,
-                    target2,
-                    maxInnings,
-                    score1: 0,
-                    score2: 0,
-                    inn1: 0,
-                    inn2: 0,
-                    totalInnings: 1,
-                    activePlayer: 1,
-                    started_at: new Date().toISOString(),
-                    status: 1,
-                    finished: false,
-                    controlMode: selectedMode
-                };
+                    const basePayload = {
+                        player1: p1,
+                        player2: p2,
+                        discipline1: d1,
+                        discipline2: d2,
+                        target1,
+                        target2,
+                        maxInnings,
+                        score1: 0,
+                        score2: 0,
+                        inn1: 0,
+                        inn2: 0,
+                        totalInnings: 1,
+                        activePlayer: 1,
+                        started_at: new Date().toISOString(),
+                        status: 1,
+                        finished: false,
+                        controlMode: selectedMode
+                    };
 
-                let player1Id = null;
-                let player2Id = null;
-                // matches.player*_id sind UUIDs (auth.users.id), daher user_id nutzen.
-                player1Id = p1Row?.user_id || null;
-                player2Id = p2Row?.user_id || null;
+                    let player1Id = null;
+                    let player2Id = null;
+                    // matches.player*_id sind UUIDs (auth.users.id), daher user_id nutzen.
+                    player1Id = (p1Row && p1Row.user_id) || null;
+                    player2Id = (p2Row && p2Row.user_id) || null;
 
-                const extendedPayload = {
-                    ...basePayload,
-                    created_by: currentUserId,
-                    player1_id: player1Id,
-                    player2_id: player2Id
-                };
+                    const extendedPayload = {
+                        ...basePayload,
+                        created_by: currentUserId,
+                        player1_id: player1Id,
+                        player2_id: player2Id
+                    };
 
-                let data = null;
-                let error = null;
-                let insertResult = await supabaseClient
-                    .from("matches")
-                    .insert([extendedPayload])
-                    .select();
-                data = insertResult.data;
-                error = insertResult.error;
-
-                if (error && String(error.message || "").toLowerCase().includes("column")) {
-                    insertResult = await supabaseClient
+                    let data = null;
+                    let error = null;
+                    let insertResult = await supabaseClient
                         .from("matches")
-                        .insert([basePayload])
+                        .insert([extendedPayload])
                         .select();
                     data = insertResult.data;
                     error = insertResult.error;
+
+                    if (error && String(error.message || "").toLowerCase().includes("column")) {
+                        insertResult = await supabaseClient
+                            .from("matches")
+                            .insert([basePayload])
+                            .select();
+                        data = insertResult.data;
+                        error = insertResult.error;
+                    }
+
+                    if (error) {
+                        console.error(error);
+                        alert("Fehler beim Starten des Matches");
+                        return;
+                    }
+
+                    if (!Array.isArray(data) || data.length === 0 || !(data[0] && data[0].id)) {
+                        console.error("Unerwartete Insert-Antwort:", data);
+                        alert("Match konnte nicht gestartet werden. Bitte Seite neu laden.");
+                        return;
+                    }
+
+                    const matchId = data[0].id;
+                    window.location.href = "/scoreboard.html?match=" + matchId;
+                } catch (e) {
+                    console.error("startMatch Ausnahme:", e);
+                    alert("Match-Start fehlgeschlagen: " + ((e && e.message) || "Unbekannter Fehler"));
                 }
-
-                if (error) {
-                    console.error(error);
-                    alert("Fehler beim Starten des Matches");
-                    return;
-                }
-
-                const matchId = data[0].id;
-
-                window.location.href = "/scoreboard.html?match=" + matchId;
             }
 
             function resetAll() {
