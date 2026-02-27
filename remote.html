@@ -373,6 +373,19 @@ function detectWinner(state) {
     const totalInnings = Number(state.totalInnings || 0);
     const maxInnings = Number(state.maxInnings || 0);
 
+    // Wenn maximale Aufnahmen gesetzt sind, darf erst nach
+    // gleicher Aufnahmezahl und Erreichen der Max-Aufnahmen beendet werden.
+    if (maxInnings > 0) {
+        if (inn1 === inn2 && totalInnings >= maxInnings) {
+            const percent1 = target1 > 0 ? score1 / target1 : 0;
+            const percent2 = target2 > 0 ? score2 / target2 : 0;
+            if (percent1 > percent2) return 1;
+            if (percent2 > percent1) return 2;
+            return 0;
+        }
+        return null;
+    }
+
     if (inn1 === inn2) {
         if (target1 > 0 && score1 >= target1 && score2 < target2) return 1;
         if (target2 > 0 && score2 >= target2 && score1 < target1) return 2;
@@ -381,14 +394,6 @@ function detectWinner(state) {
             if (score2 > score1) return 2;
             return 0;
         }
-    }
-
-    if (maxInnings > 0 && totalInnings >= maxInnings && inn1 === inn2) {
-        const percent1 = target1 > 0 ? score1 / target1 : 0;
-        const percent2 = target2 > 0 ? score2 / target2 : 0;
-        if (percent1 > percent2) return 1;
-        if (percent2 > percent1) return 2;
-        return 0;
     }
 
     return null;
