@@ -60,6 +60,10 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
         }
 
+        .admin-only {
+            display: none;
+        }
+
         .tile:hover {
             background: #3f4fa3;
             transform: translateY(-6px);
@@ -150,7 +154,7 @@
             <div class="tile-sub">Spieler hinzufügen & löschen</div>
         </div>
 
-        <div id="usersTile" class="tile" onclick="window.location.href='users.html'">
+        <div id="usersTile" class="tile admin-only" onclick="window.location.href='users.html'">
             <div class="tile-title">Userverwaltung</div>
             <div class="tile-sub">Rollen & Rechte verwalten</div>
         </div>
@@ -237,8 +241,8 @@
             document.body.classList.add("auth-ready");
             const isAdmin = await hasAdminAccess(user);
             const usersTile = document.getElementById("usersTile");
-            if (usersTile && !isAdmin) {
-                usersTile.style.display = "none";
+            if (usersTile) {
+                usersTile.style.display = isAdmin ? "flex" : "none";
             }
 
             await loadCountdownInvites(user);
