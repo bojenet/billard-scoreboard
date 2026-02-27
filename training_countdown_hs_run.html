@@ -928,9 +928,7 @@
         }
 
         function startVisualTimer() {
-            if (timerId) clearInterval(timerId);
-            timerId = setInterval(async () => {
-                const remaining = Math.max(0, Math.floor((countdownEndMs - Date.now()) / 1000));
+            const applyTimerVisual = async (remaining) => {
                 setText("timerValue", formatTime(remaining));
                 const timerEl = document.getElementById("timerValue");
                 if (timerEl) timerEl.classList.toggle("warning", remaining <= 60);
@@ -938,6 +936,12 @@
                     oneMinuteWarned = true;
                     await playOneMinuteAlert();
                 }
+            };
+
+            if (timerId) clearInterval(timerId);
+            timerId = setInterval(async () => {
+                const remaining = Math.max(0, Math.floor((countdownEndMs - Date.now()) / 1000));
+                await applyTimerVisual(remaining);
                 if (remaining <= 0) {
                     clearInterval(timerId);
                     timerId = null;
@@ -952,6 +956,16 @@
                     }
                 }
             }, 350);
+
+            // Expose debug helpers for quick browser-console checks.
+            window.debugTimerWarning = async function () {
+                oneMinuteWarned = false;
+                await applyTimerVisual(59);
+            };
+            window.debugTimerResetColor = function () {
+                const timerEl = document.getElementById("timerValue");
+                if (timerEl) timerEl.classList.remove("warning");
+            };
         }
 
         function adjustSeries(delta) {
