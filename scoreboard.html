@@ -1118,8 +1118,10 @@
                 }
             }
 
-            // Max-Aufnahmen-Regel bleibt
-            if (maxInnings > 0 && totalInnings >= maxInnings && inn1 === inn2) {
+            // Max-Aufnahmen-Regel:
+            // totalInnings zeigt im UI die "laufende" Aufnahme (startet bei 1),
+            // deshalb auf tatsächlich gespielte Aufnahmen je Spieler prüfen.
+            if (maxInnings > 0 && inn1 === inn2 && inn1 >= maxInnings) {
 
                 let percent1 = target1 > 0 ? score1 / target1 : 0;
                 let percent2 = target2 > 0 ? score2 / target2 : 0;
