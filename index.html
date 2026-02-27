@@ -11,6 +11,11 @@
             font-family: Arial;
             background: linear-gradient(180deg, #1e1f29, #14151c);
             color: white;
+            visibility: hidden;
+        }
+
+        body.auth-ready {
+            visibility: visible;
         }
 
         #exitZone {
@@ -229,6 +234,7 @@
         async function loadLiveMatches() {
             const user = await requireAuth();
             if (!user) return;
+            document.body.classList.add("auth-ready");
             const isAdmin = await hasAdminAccess(user);
             const usersTile = document.getElementById("usersTile");
             if (usersTile && !isAdmin) {
