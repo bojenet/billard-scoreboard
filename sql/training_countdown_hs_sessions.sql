@@ -186,10 +186,14 @@ create table if not exists public.training_challenge_results (
   duration_minutes int not null check (duration_minutes in (30,45,60)),
   score int not null default 0,
   innings int not null default 0,
+  series jsonb not null default '[]'::jsonb,
   high_series int not null default 0,
   avg numeric(10,3) not null default 0,
   created_at timestamptz not null default now()
 );
+
+alter table public.training_challenge_results
+  add column if not exists series jsonb not null default '[]'::jsonb;
 
 create index if not exists idx_training_challenge_owner on public.training_challenge_results(owner_user_id, created_at desc);
 create index if not exists idx_training_challenge_session on public.training_challenge_results(session_id);

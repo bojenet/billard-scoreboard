@@ -95,6 +95,54 @@
       font-size: 14px;
     }
 
+    .innings-btn {
+      border: 1px solid #3f61c7;
+      background: #1a337d;
+      color: white;
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .innings-row td {
+      background: rgba(10, 24, 62, 0.55);
+      padding: 10px 12px 12px;
+    }
+
+    .innings-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #2f4d97;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .innings-table th,
+    .innings-table td {
+      border-bottom: 1px solid #27417f;
+      border-right: 1px solid #27417f;
+      padding: 7px 8px;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .innings-table th:last-child,
+    .innings-table td:last-child {
+      border-right: none;
+    }
+
+    .innings-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .innings-empty {
+      opacity: 0.75;
+      font-size: 13px;
+      padding: 8px 4px;
+    }
+
     @media (max-width: 900px) {
       h1 { font-size: 32px; }
       .desktop-only { display: none; }
@@ -124,6 +172,7 @@
           <th class="right">Aufn.</th>
           <th class="right">HS</th>
           <th class="right">DS</th>
+          <th class="right">Aufnahmen</th>
         </tr>
       </table>
     </div>
@@ -155,12 +204,54 @@
       loadHistory();
     }
 
+    function toSeriesList(value) {
+      if (Array.isArray(value)) {
+        return value
+          .map((x) => Number(x))
+          .filter((x) => Number.isFinite(x) && x >= 0);
+      }
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) return toSeriesList(parsed);
+        } catch (_) {
+          return [];
+        }
+      }
+      return [];
+    }
+
+    function buildInningsTable(seriesRaw) {
+      const series = toSeriesList(seriesRaw);
+      if (!series.length) {
+        return '<div class="innings-empty">Keine Aufnahmen gespeichert.</div>';
+      }
+      let total = 0;
+      const rows = series.map((val, idx) => {
+        total += val;
+        const seriesText = val === 0 ? '-' : String(val);
+        return `<tr><td>${idx + 1}</td><td>${seriesText}</td><td>${total}</td></tr>`;
+      }).join('');
+      return `
+        <table class="innings-table">
+          <tr><th>Aufn.</th><th>Serie</th><th>Gesamt</th></tr>
+          ${rows}
+        </table>
+      `;
+    }
+
+    function toggleInnings(sourceKey) {
+      const row = document.getElementById('innings-' + sourceKey);
+      if (!row) return;
+      row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row';
+    }
+
     async function loadHistory() {
       if (!currentUser) return;
 
       let query = supabaseClient
         .from('training_challenge_results')
-        .select('source_key,mode,owner_user_id,owner_name,opponent_name,discipline,duration_minutes,score,innings,high_series,avg,created_at')
+        .select('source_key,mode,owner_user_id,owner_name,opponent_name,discipline,duration_minutes,score,innings,series,high_series,avg,created_at')
         .order('created_at', { ascending: false })
         .limit(300);
 
@@ -168,7 +259,21 @@
         query = query.eq('owner_user_id', currentUser.id);
       }
 
-      const { data, error } = await query;
+      let { data, error } = await query;
+      const errText = String((error && error.message) || '').toLowerCase();
+      if (error && errText.includes('series')) {
+        let fallbackQuery = supabaseClient
+          .from('training_challenge_results')
+          .select('source_key,mode,owner_user_id,owner_name,opponent_name,discipline,duration_minutes,score,innings,high_series,avg,created_at')
+          .order('created_at', { ascending: false })
+          .limit(300);
+        if (!isAdmin || currentScope === 'mine') {
+          fallbackQuery = fallbackQuery.eq('owner_user_id', currentUser.id);
+        }
+        const fallback = await fallbackQuery;
+        data = (fallback.data || []).map((x) => ({ ...x, series: [] }));
+        error = fallback.error;
+      }
       const table = document.getElementById('historyTable');
       table.innerHTML = `
         <tr>
@@ -181,25 +286,27 @@
           <th class="right">Aufn.</th>
           <th class="right">HS</th>
           <th class="right">DS</th>
+          <th class="right">Aufnahmen</th>
         </tr>
       `;
 
       if (error) {
         const row = document.createElement('tr');
-        row.innerHTML = `<td colspan="9" class="empty">Fehler beim Laden: ${error.message}</td>`;
+        row.innerHTML = `<td colspan="10" class="empty">Fehler beim Laden: ${error.message}</td>`;
         table.appendChild(row);
         return;
       }
 
       if (!data || data.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = '<td colspan="9" class="empty">Keine Challenge-Ergebnisse gefunden.</td>';
+        row.innerHTML = '<td colspan="10" class="empty">Keine Challenge-Ergebnisse gefunden.</td>';
         table.appendChild(row);
         return;
       }
 
       data.forEach((item) => {
         const row = document.createElement('tr');
+        const rowKey = String(item.source_key || '').replace(/[^a-zA-Z0-9_-]/g, '_');
         const modeLabel = item.mode === 'duel' ? '2P' : 'Solo';
         row.innerHTML = `
           <td>${formatDate(item.created_at)}</td>
@@ -211,8 +318,16 @@
           <td class="right">${item.innings ?? 0}</td>
           <td class="right">${item.high_series ?? 0}</td>
           <td class="right">${Number(item.avg || 0).toFixed(3)}</td>
+          <td class="right"><button class="innings-btn" type="button" onclick="toggleInnings('${rowKey}')">Aufn.</button></td>
         `;
         table.appendChild(row);
+
+        const detailRow = document.createElement('tr');
+        detailRow.className = 'innings-row';
+        detailRow.id = 'innings-' + rowKey;
+        detailRow.style.display = 'none';
+        detailRow.innerHTML = `<td colspan="10">${buildInningsTable(item.series)}</td>`;
+        table.appendChild(detailRow);
       });
     }
 

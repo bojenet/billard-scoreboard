@@ -577,9 +577,10 @@
                     const score = Number(soloState.p1Score || 0);
                     const innings = Number(soloState.p1Innings || 0);
                     const high = Number(soloState.p1High || 0);
+                    const ownSeries = parseSeries(soloState.p1Series);
                     const avgValue = innings > 0 ? (score / innings) : 0;
 
-                    const { error } = await supabaseClient
+                    let { error } = await supabaseClient
                         .from("training_challenge_results")
                         .upsert([{
                             source_key: sourceKey,
@@ -592,9 +593,31 @@
                             duration_minutes: soloMinutes,
                             score,
                             innings,
+                            series: ownSeries,
                             high_series: high,
                             avg: Number(avgValue.toFixed(3))
                         }], { onConflict: "source_key" });
+
+                    const soloErrorText = String((error && error.message) || "").toLowerCase();
+                    if (error && soloErrorText.includes("series")) {
+                        const retry = await supabaseClient
+                            .from("training_challenge_results")
+                            .upsert([{
+                                source_key: sourceKey,
+                                mode: "solo",
+                                session_id: null,
+                                owner_user_id: currentUser.id,
+                                owner_name: getDisplayName(currentUser),
+                                opponent_name: null,
+                                discipline: soloState.p1Disc,
+                                duration_minutes: soloMinutes,
+                                score,
+                                innings,
+                                high_series: high,
+                                avg: Number(avgValue.toFixed(3))
+                            }], { onConflict: "source_key" });
+                        error = retry.error;
+                    }
 
                     if (!error) {
                         resultSaved = true;
@@ -612,13 +635,16 @@
                 const score = Number(isMineHost ? sessionData.host_score : sessionData.guest_score) || 0;
                 const innings = Number(isMineHost ? sessionData.host_innings : sessionData.guest_innings) || 0;
                 const high = Number(isMineHost ? sessionData.host_high : sessionData.guest_high) || 0;
+                const ownSeries = isMineHost
+                    ? parseSeries(sessionData.host_series)
+                    : parseSeries(sessionData.guest_series);
                 const avgValue = innings > 0 ? (score / innings) : 0;
                 const myName = isMineHost ? (sessionData.host_name || getDisplayName(currentUser)) : (sessionData.guest_name || getDisplayName(currentUser));
                 const oppName = isMineHost ? (sessionData.guest_name || "Spieler 2") : (sessionData.host_name || "Spieler 1");
                 const disc = isMineHost ? sessionData.host_discipline : sessionData.guest_discipline;
                 const sourceKey = "challenge:duel:" + sessionData.id + ":" + currentUser.id;
 
-                const { error } = await supabaseClient
+                let { error } = await supabaseClient
                     .from("training_challenge_results")
                     .upsert([{
                         source_key: sourceKey,
@@ -631,9 +657,31 @@
                         duration_minutes: Number(sessionData.duration_minutes || 30),
                         score,
                         innings,
+                        series: ownSeries,
                         high_series: high,
                         avg: Number(avgValue.toFixed(3))
                     }], { onConflict: "source_key" });
+
+                const duelErrorText = String((error && error.message) || "").toLowerCase();
+                if (error && duelErrorText.includes("series")) {
+                    const retry = await supabaseClient
+                        .from("training_challenge_results")
+                        .upsert([{
+                            source_key: sourceKey,
+                            mode: "duel",
+                            session_id: sessionData.id,
+                            owner_user_id: currentUser.id,
+                            owner_name: myName,
+                            opponent_name: oppName,
+                            discipline: disc || null,
+                            duration_minutes: Number(sessionData.duration_minutes || 30),
+                            score,
+                            innings,
+                            high_series: high,
+                            avg: Number(avgValue.toFixed(3))
+                        }], { onConflict: "source_key" });
+                    error = retry.error;
+                }
 
                 if (!error) {
                     resultSaved = true;
