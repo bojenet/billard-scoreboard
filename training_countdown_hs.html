@@ -320,6 +320,13 @@
         let selectedGuestDiscipline = "";
         let selectedMinutes = 0;
 
+        function createRunId() {
+            if (window.crypto && typeof window.crypto.randomUUID === "function") {
+                return window.crypto.randomUUID();
+            }
+            return "run-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
+        }
+
         function buildDisciplineButtons(containerId, onSelect) {
             const container = document.getElementById(containerId);
             container.innerHTML = "";
@@ -417,7 +424,8 @@
             if (selectedMode === "solo") {
                 const params = new URLSearchParams({
                     discipline: selectedHostDiscipline,
-                    minutes: String(selectedMinutes)
+                    minutes: String(selectedMinutes),
+                    runId: createRunId()
                 });
                 window.location.href = "training_countdown_hs_run.html?" + params.toString();
                 return;
