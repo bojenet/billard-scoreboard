@@ -458,10 +458,19 @@
 
             async function loadPlayers() {
 
-                const { data: players, error } = await supabaseClient
+                let { data: players, error } = await supabaseClient
                     .from("players")
                     .select("id,name,user_id")
                     .order("name", { ascending: true });
+
+                if (error && String(error.message || "").toLowerCase().includes("user_id")) {
+                    const fallback = await supabaseClient
+                        .from("players")
+                        .select("id,name")
+                        .order("name", { ascending: true });
+                    players = fallback.data;
+                    error = fallback.error;
+                }
 
                 if (error) {
                     console.error(error);
@@ -571,6 +580,11 @@
 
             async function startMatch() {
                 try {
+                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+                    const normalizeUserUuid = (value) => {
+                        const raw = String(value || "").trim();
+                        return uuidRegex.test(raw) ? raw : null;
+                    };
 
                     const p1SelectValue = document.getElementById('player1').value;
                     const p2SelectValue = document.getElementById('player2').value;
@@ -640,8 +654,8 @@
                     let player1Id = null;
                     let player2Id = null;
                     // matches.player*_id sind UUIDs (auth.users.id), daher user_id nutzen.
-                    player1Id = (p1Row && p1Row.user_id) || null;
-                    player2Id = (p2Row && p2Row.user_id) || null;
+                    player1Id = normalizeUserUuid(p1Row && p1Row.user_id);
+                    player2Id = normalizeUserUuid(p2Row && p2Row.user_id);
 
                     const extendedPayload = {
                         ...basePayload,
@@ -659,7 +673,8 @@
                     data = insertResult.data;
                     error = insertResult.error;
 
-                    if (error && String(error.message || "").toLowerCase().includes("column")) {
+                    const errorMsg = String((error && error.message) || "").toLowerCase();
+                    if (error && (errorMsg.includes("column") || errorMsg.includes("uuid"))) {
                         insertResult = await supabaseClient
                             .from("matches")
                             .insert([basePayload])
