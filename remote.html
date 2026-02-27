@@ -131,9 +131,23 @@
             font-size: 16px;
             opacity: 0.9;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             gap: 10px;
             flex-wrap: wrap;
+        }
+
+        .mini-series {
+            font-size: 34px;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: 0.4px;
+        }
+
+        .mini-innings {
+            font-size: 30px;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: 0.4px;
         }
     </style>
 </head>
@@ -166,9 +180,8 @@
         </div>
 
         <div class="mini-status">
-            <span id="miniActiveInfo"></span>
-            <span id="miniSeriesInfo"></span>
-            <span>A.: <span id="miniTotalInnings">1</span></span>
+            <span id="miniSeriesInfo" class="mini-series"></span>
+            <span class="mini-innings">A: <span id="miniTotalInnings">1</span></span>
         </div>
     </div>
     <div class="button-grid">
@@ -292,20 +305,16 @@ function updateDisplay() {
 
     const card1 = document.getElementById("miniCard1");
     const card2 = document.getElementById("miniCard2");
+    const seriesInfo = document.getElementById("miniSeriesInfo");
     card1.classList.remove("active-white", "active-yellow");
     card2.classList.remove("active-white", "active-yellow");
     if (Number(matchData.activePlayer) === 1) {
         card1.classList.add("active-white");
+        seriesInfo.style.color = "#ffffff";
     } else {
         card2.classList.add("active-yellow");
+        seriesInfo.style.color = "#ffd84a";
     }
-
-    const activeText =
-        matchData.activePlayer === 1
-            ? matchData.player1 + " ist dran"
-            : matchData.player2 + " ist dran";
-
-    document.getElementById("miniActiveInfo").innerText = activeText;
 
     const currentSeries =
         matchData.activePlayer === 1
@@ -313,11 +322,11 @@ function updateDisplay() {
             : matchData.series2;
 
     if (Number(matchData.finished || 0) === 1) {
-        document.getElementById("miniActiveInfo").innerText = "Partie beendet";
-        document.getElementById("miniSeriesInfo").innerText = "Am Hauptscreen speichern oder verwerfen";
+        seriesInfo.innerText = "Partie beendet - am Hauptscreen speichern oder verwerfen";
+        seriesInfo.style.color = "#ffd84a";
         setControlsEnabled(false);
     } else {
-        document.getElementById("miniSeriesInfo").innerText =
+        seriesInfo.innerText =
             "Serie: " + (currentSeries > 0 ? "+" + currentSeries : "0");
         setControlsEnabled(true);
     }
