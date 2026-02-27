@@ -370,13 +370,12 @@ function detectWinner(state) {
     const inn2 = Number(state.inn2 || 0);
     const target1 = Number(state.target1 || 0);
     const target2 = Number(state.target2 || 0);
-    const totalInnings = Number(state.totalInnings || 0);
     const maxInnings = Number(state.maxInnings || 0);
 
     // Wenn maximale Aufnahmen gesetzt sind, darf erst nach
     // gleicher Aufnahmezahl und Erreichen der Max-Aufnahmen beendet werden.
     if (maxInnings > 0) {
-        if (inn1 === inn2 && totalInnings >= maxInnings) {
+        if (inn1 === inn2 && inn1 >= maxInnings && inn2 >= maxInnings) {
             const percent1 = target1 > 0 ? score1 / target1 : 0;
             const percent2 = target2 > 0 ? score2 / target2 : 0;
             if (percent1 > percent2) return 1;
