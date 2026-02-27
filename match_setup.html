@@ -196,6 +196,22 @@
             margin-bottom: 16px;
         }
 
+        .form-message {
+            min-height: 22px;
+            font-size: 16px;
+            text-align: center;
+            opacity: .92;
+            margin-bottom: 8px;
+        }
+
+        .form-message.error {
+            color: #ffb3b3;
+        }
+
+        .form-message.ok {
+            color: #b7f7c7;
+        }
+
         .control-mode-wrapper {
             display: flex;
             gap: 20px;
@@ -428,6 +444,7 @@
                 Reset
             </button>
         </div>
+        <div id="formMessage" class="form-message"></div>
 
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         <script src="js/supabase.js"></script>
@@ -580,6 +597,7 @@
 
             async function startMatch() {
                 try {
+                    setFormMessage("", "");
                     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
                     const normalizeUserUuid = (value) => {
                         const raw = String(value || "").trim();
@@ -597,7 +615,7 @@
                     const maxInnings = parseInt(document.getElementById('maxInnings').value, 10);
 
                     if (!p1SelectValue || !p2SelectValue || p1SelectValue === p2SelectValue) {
-                        alert("Bitte zwei unterschiedliche Spieler wählen");
+                        setFormMessage("Bitte zwei unterschiedliche Spieler wählen.", "error");
                         return;
                     }
 
@@ -606,28 +624,28 @@
                     const p1 = (p1Row && p1Row.name) || "";
                     const p2 = (p2Row && p2Row.name) || "";
                     if (!p1 || !p2) {
-                        alert("Spieler konnten nicht eindeutig geladen werden. Bitte Auswahl neu treffen.");
+                        setFormMessage("Spieler konnten nicht eindeutig geladen werden. Bitte Auswahl neu treffen.", "error");
                         return;
                     }
 
                     if (!ownedPlayerNames.includes(p1) && !ownedPlayerNames.includes(p2)) {
-                        alert("Du kannst nur Matches starten, an denen dein eigener Spieler beteiligt ist.");
+                        setFormMessage("Du kannst nur Matches starten, an denen dein eigener Spieler beteiligt ist.", "error");
                         return;
                     }
 
                     if (!d1 || !d2 || !d1Selected || !d2Selected) {
-                        alert("Bitte für beide Spieler eine Disziplin wählen");
+                        setFormMessage("Bitte für beide Spieler eine Disziplin wählen.", "error");
                         return;
                     }
 
                     if (!Number.isInteger(target1) || target1 < 1 ||
                         !Number.isInteger(target2) || target2 < 1) {
-                        alert("Bitte für beide Spieler gültige Zielpunkte eingeben (mindestens 1)");
+                        setFormMessage("Bitte für beide Spieler gültige Zielpunkte eingeben (mindestens 1).", "error");
                         return;
                     }
 
                     if (!Number.isInteger(maxInnings) || maxInnings < 1) {
-                        alert("Bitte gültige maximale Aufnahmen eingeben (mindestens 1)");
+                        setFormMessage("Bitte gültige maximale Aufnahmen eingeben (mindestens 1).", "error");
                         return;
                     }
 
@@ -685,22 +703,30 @@
 
                     if (error) {
                         console.error(error);
-                        alert("Fehler beim Starten des Matches");
+                        setFormMessage("Fehler beim Starten des Matches.", "error");
                         return;
                     }
 
                     if (!Array.isArray(data) || data.length === 0 || !(data[0] && data[0].id)) {
                         console.error("Unerwartete Insert-Antwort:", data);
-                        alert("Match konnte nicht gestartet werden. Bitte Seite neu laden.");
+                        setFormMessage("Match konnte nicht gestartet werden. Bitte Seite neu laden.", "error");
                         return;
                     }
 
                     const matchId = data[0].id;
+                    setFormMessage("Match wird gestartet...", "ok");
                     window.location.href = "/scoreboard.html?match=" + matchId;
                 } catch (e) {
                     console.error("startMatch Ausnahme:", e);
-                    alert("Match-Start fehlgeschlagen: " + ((e && e.message) || "Unbekannter Fehler"));
+                    setFormMessage("Match-Start fehlgeschlagen: " + ((e && e.message) || "Unbekannter Fehler"), "error");
                 }
+            }
+
+            function setFormMessage(text, type) {
+                const el = document.getElementById("formMessage");
+                if (!el) return;
+                el.className = "form-message " + (type || "");
+                el.innerText = text || "";
             }
 
             function resetAll() {
