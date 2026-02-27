@@ -962,15 +962,20 @@
             }
             let nachstoss = document.getElementById("nachstossLabel");
 
-            if (target1 > 0 && score1 >= target1 && inn1 > inn2) {
-                nachstoss.style.display = "block";
-            }
-            else if (target2 > 0 && score2 >= target2 && inn2 > inn1) {
-                nachstoss.style.display = "block";
-            }
-            else {
-                nachstoss.style.display = "none";
-            }
+            const showNachstossByTargetP1 =
+                target1 > 0 &&
+                score1 >= target1 &&
+                inn1 > inn2;
+
+            const showNachstossByMaxForP2 =
+                maxInnings > 0 &&
+                inn2 >= maxInnings &&
+                inn1 < inn2;
+
+            nachstoss.style.display =
+                (showNachstossByTargetP1 || showNachstossByMaxForP2)
+                    ? "block"
+                    : "none";
 
         }
 
