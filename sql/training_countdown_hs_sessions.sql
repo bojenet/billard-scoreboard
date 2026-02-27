@@ -30,6 +30,12 @@ create table if not exists public.training_countdown_hs_sessions (
 alter table public.training_countdown_hs_sessions
   add column if not exists countdown_started_at timestamptz;
 
+alter table public.training_countdown_hs_sessions
+  drop constraint if exists training_countdown_hs_sessions_duration_minutes_check;
+alter table public.training_countdown_hs_sessions
+  add constraint training_countdown_hs_sessions_duration_minutes_check
+  check (duration_minutes in (30,45,60));
+
 create index if not exists idx_countdown_hs_host on public.training_countdown_hs_sessions(host_user_id);
 create index if not exists idx_countdown_hs_guest_user on public.training_countdown_hs_sessions(guest_user_id);
 create index if not exists idx_countdown_hs_guest_email on public.training_countdown_hs_sessions(lower(guest_email));
@@ -194,6 +200,12 @@ create table if not exists public.training_challenge_results (
 
 alter table public.training_challenge_results
   add column if not exists series jsonb not null default '[]'::jsonb;
+
+alter table public.training_challenge_results
+  drop constraint if exists training_challenge_results_duration_minutes_check;
+alter table public.training_challenge_results
+  add constraint training_challenge_results_duration_minutes_check
+  check (duration_minutes in (30,45,60));
 
 create index if not exists idx_training_challenge_owner on public.training_challenge_results(owner_user_id, created_at desc);
 create index if not exists idx_training_challenge_session on public.training_challenge_results(session_id);

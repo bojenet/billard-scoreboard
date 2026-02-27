@@ -118,6 +118,11 @@
             text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
         }
 
+        .timer.warning {
+            color: #ff5b5b;
+            text-shadow: 0 8px 24px rgba(180, 20, 20, 0.42);
+        }
+
         .duel {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -498,6 +503,9 @@
         let timerExpired = false;
         let lastInningWindowOpen = false;
         let lastInningUsed = false;
+        let oneMinuteWarned = false;
+        let audioCtx = null;
+        let audioPrimed = false;
 
         let soloState = {
             p1Name: "Du",
@@ -529,6 +537,50 @@
         function setText(id, value) {
             const el = document.getElementById(id);
             if (el) el.innerText = value;
+        }
+
+        function ensureAudioContext() {
+            if (!audioCtx) {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return null;
+                audioCtx = new Ctx();
+            }
+            return audioCtx;
+        }
+
+        async function primeAudio() {
+            const ctx = ensureAudioContext();
+            if (!ctx || audioPrimed) return;
+            try {
+                await ctx.resume();
+                audioPrimed = true;
+            } catch (_) {
+                // Ignorieren: Browser kann Audio bis zur nächsten User-Interaktion blockieren.
+            }
+        }
+
+        async function playOneMinuteAlert() {
+            const ctx = ensureAudioContext();
+            if (!ctx) return;
+            try {
+                await ctx.resume();
+                const now = ctx.currentTime;
+                const freqs = [880, 1175];
+                freqs.forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.0001, now + i * 0.22);
+                    gain.gain.exponentialRampToValueAtTime(0.12, now + i * 0.22 + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.22 + 0.18);
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start(now + i * 0.22);
+                    osc.stop(now + i * 0.22 + 0.2);
+                });
+            } catch (_) {
+                // Audio evtl. blockiert - kein harter Fehler.
+            }
         }
 
         function applyModeLayout() {
@@ -880,6 +932,12 @@
             timerId = setInterval(async () => {
                 const remaining = Math.max(0, Math.floor((countdownEndMs - Date.now()) / 1000));
                 setText("timerValue", formatTime(remaining));
+                const timerEl = document.getElementById("timerValue");
+                if (timerEl) timerEl.classList.toggle("warning", remaining <= 60);
+                if (remaining <= 60 && !oneMinuteWarned) {
+                    oneMinuteWarned = true;
+                    await playOneMinuteAlert();
+                }
                 if (remaining <= 0) {
                     clearInterval(timerId);
                     timerId = null;
@@ -1158,6 +1216,7 @@
             timerExpired = false;
             lastInningWindowOpen = false;
             lastInningUsed = false;
+            oneMinuteWarned = false;
             renderDualFromSession(sessionData);
             startVisualTimer();
         }
@@ -1303,6 +1362,7 @@
             timerExpired = false;
             lastInningWindowOpen = false;
             lastInningUsed = false;
+            oneMinuteWarned = false;
             renderSolo();
             startVisualTimer();
         }
@@ -1328,6 +1388,7 @@
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
+            document.addEventListener("pointerdown", primeAudio, { once: true });
 
             if (sessionId) {
                 await initDual();
