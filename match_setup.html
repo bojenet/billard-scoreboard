@@ -45,6 +45,41 @@
             flex-direction: column;
         }
 
+        .acc-head {
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0;
+            margin: 0 0 10px 0;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .acc-title {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+
+        .acc-summary {
+            font-size: 14px;
+            opacity: 0.78;
+            margin-left: 12px;
+            text-align: right;
+            line-height: 1.35;
+        }
+
+        .acc-body {
+            overflow: hidden;
+            max-height: 2200px;
+            opacity: 1;
+            transition: max-height .24s ease, opacity .2s ease;
+        }
+
         .section {
             background: linear-gradient(180deg, #2a2d3d, #232635);
             padding: 22px 20px 18px;
@@ -269,6 +304,22 @@
         .max-innings-wrapper input {
             width: 100%;
             box-sizing: border-box;
+        }
+
+        body.accordion-enabled .player-column {
+            padding-top: 16px;
+            padding-bottom: 16px;
+        }
+
+        body.accordion-enabled .player-column.collapsed .acc-body {
+            max-height: 0;
+            opacity: 0;
+            pointer-events: none;
+            margin-top: 0;
+        }
+
+        body.accordion-enabled .player-column.collapsed .acc-title {
+            opacity: 0.9;
         }
 
         @media (max-width: 1180px) {
