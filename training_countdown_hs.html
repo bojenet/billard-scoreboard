@@ -13,50 +13,50 @@
 
         .page {
             width: min(1080px, 94%);
-            margin: 44px auto;
+            margin: 18px auto;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
 
         .header h1 {
             margin: 0;
-            font-size: 54px;
+            font-size: 42px;
             font-weight: 700;
             letter-spacing: 0.4px;
         }
 
         .header p {
-            margin: 10px 0 0;
+            margin: 6px 0 0;
             opacity: 0.75;
-            font-size: 18px;
+            font-size: 16px;
         }
 
         .card {
             background: linear-gradient(180deg, #162b66, #0f1c3f);
             border: 1px solid #2d488f;
             border-radius: 28px;
-            padding: 28px 26px;
+            padding: 18px 18px;
             box-shadow: 0 28px 60px rgba(0, 0, 0, 0.5);
             overflow: hidden;
         }
 
         .section {
-            margin-bottom: 24px;
+            margin-bottom: 16px;
         }
 
         .section-title {
             margin: 0;
-            font-size: 30px;
+            font-size: 22px;
             font-weight: 700;
         }
 
         .section-sub {
-            margin: 8px 0 14px;
+            margin: 4px 0 10px;
             opacity: 0.74;
-            font-size: 15px;
+            font-size: 14px;
         }
 
         .grid-2 {
@@ -68,16 +68,16 @@
         .panel {
             border: 1px solid #2f4ea0;
             border-radius: 14px;
-            padding: 14px;
+            padding: 12px;
             background: rgba(8, 20, 54, 0.42);
             min-width: 0;
             overflow: hidden;
         }
 
         .panel-title {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 700;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             opacity: 0.92;
         }
 
@@ -93,12 +93,12 @@
         }
 
         .chip {
-            padding: 12px 18px;
+            padding: 10px 14px;
             border: none;
             border-radius: 12px;
             background: #1c3380;
             color: white;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
             cursor: pointer;
             border: 1px solid #2f4ea0;
@@ -118,7 +118,7 @@
         }
 
         .field {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .field label {
@@ -133,8 +133,8 @@
             box-sizing: border-box;
             border: 1px solid #3959ab;
             border-radius: 10px;
-            padding: 11px 12px;
-            font-size: 16px;
+            padding: 10px 12px;
+            font-size: 15px;
             color: #fff;
             background: #112659;
         }
@@ -145,7 +145,7 @@
         }
 
         .invite-wrap {
-            margin-top: 8px;
+            margin-top: 4px;
         }
 
         .invite-list {
@@ -159,7 +159,7 @@
             grid-template-columns: 1fr auto;
             gap: 10px;
             align-items: center;
-            padding: 10px 12px;
+            padding: 8px 10px;
             border-bottom: 1px solid #27417f;
             background: rgba(10, 18, 46, 0.45);
         }
@@ -199,16 +199,16 @@
         .actions {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 14px;
-            margin-top: 16px;
+            gap: 12px;
+            margin-top: 10px;
         }
 
         .btn {
-            padding: 16px 16px;
+            padding: 14px 14px;
             border: none;
             border-radius: 14px;
             color: white;
-            font-size: 24px;
+            font-size: 18px;
             font-weight: 700;
             cursor: pointer;
             transition: transform .16s ease, filter .16s ease;
@@ -386,6 +386,7 @@
         async function loadIncomingInvites() {
             if (!currentUser?.email) return;
             const email = normalizeEmail(currentUser.email);
+            const section = document.getElementById("invitesSection");
 
             const { data, error } = await supabaseClient
                 .from("training_countdown_hs_sessions")
@@ -397,15 +398,18 @@
 
             const wrap = document.getElementById("invitesList");
             if (error) {
+                if (section) section.style.display = "block";
                 wrap.innerHTML = `<div class="empty">Einladungen konnten nicht geladen werden (${error.message}).</div>`;
                 return;
             }
 
             if (!data || data.length === 0) {
-                wrap.innerHTML = '<div class="empty">Keine aktiven Einladungen.</div>';
+                if (section) section.style.display = "none";
+                wrap.innerHTML = "";
                 return;
             }
 
+            if (section) section.style.display = "block";
             wrap.innerHTML = "";
             data.forEach((session) => {
                 const row = document.createElement("div");
