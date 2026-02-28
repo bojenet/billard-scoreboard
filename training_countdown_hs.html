@@ -259,6 +259,19 @@
             </div>
 
             <div class="section">
+                <div class="panel" id="guestInvitePanel" style="display:none; margin-bottom:14px;">
+                    <div class="panel-title">Spieler 2 einladen</div>
+                    <div class="field">
+                        <label for="guestName">Spielername</label>
+                        <input id="guestName" type="text" placeholder="z.B. Max" />
+                    </div>
+                    <div class="field">
+                        <label for="guestEmail">User-E-Mail (für Einladung)</label>
+                        <input id="guestEmail" type="email" placeholder="name@domain.de" />
+                    </div>
+                    <div class="hint">Der eingeladene User sieht die Session unter Challenge und auf dem gemeinsamen Screen.</div>
+                </div>
+
                 <h2 class="section-title">Disziplinen</h2>
                 <div class="section-sub">Jeder Spieler kann eine eigene Disziplin haben</div>
                 <div class="grid-2">
@@ -268,16 +281,7 @@
                     </div>
                     <div class="panel" id="guestPanel" style="display:none;">
                         <div class="panel-title">Spieler 2</div>
-                        <div class="field">
-                            <label for="guestName">Spielername</label>
-                            <input id="guestName" type="text" placeholder="z.B. Max" />
-                        </div>
-                        <div class="field">
-                            <label for="guestEmail">User-E-Mail (für Einladung)</label>
-                            <input id="guestEmail" type="email" placeholder="name@domain.de" />
-                        </div>
                         <div id="disciplineButtonsGuest" class="btn-group discipline-row"></div>
-                        <div class="hint">Der eingeladene User sieht die Session unter Challenge und auf dem gemeinsamen Screen.</div>
                     </div>
                 </div>
             </div>
@@ -359,6 +363,7 @@
                     buttons.forEach((x) => x.classList.remove("active"));
                     btn.classList.add("active");
                     document.getElementById("guestPanel").style.display = selectedMode === "duel" ? "block" : "none";
+                    document.getElementById("guestInvitePanel").style.display = selectedMode === "duel" ? "block" : "none";
                 };
             });
         }
