@@ -40,6 +40,7 @@
             border-radius: 28px;
             padding: 28px 26px;
             box-shadow: 0 28px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
         }
 
         .section {
@@ -60,7 +61,7 @@
 
         .grid-2 {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
             gap: 14px;
         }
 
@@ -69,6 +70,8 @@
             border-radius: 14px;
             padding: 14px;
             background: rgba(8, 20, 54, 0.42);
+            min-width: 0;
+            overflow: hidden;
         }
 
         .panel-title {
@@ -90,6 +93,7 @@
             overflow-y: hidden;
             padding-bottom: 6px;
             scrollbar-width: thin;
+            max-width: 100%;
         }
 
         .discipline-row::-webkit-scrollbar {
