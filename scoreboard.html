@@ -94,6 +94,8 @@
             align-items: center;
             transition: .25s ease;
             min-width: 0;
+            background: transparent;
+            box-shadow: none;
         }
 
         /* Aktiv Weiß */
@@ -111,9 +113,16 @@
         }
 
         /* Inaktiv */
-        .player.inactive {
-            background: #18295e;
-            opacity: .4;
+        .player.inactive-white {
+            background: transparent;
+            color: #ffffff;
+            box-shadow: none;
+        }
+
+        .player.inactive-yellow {
+            background: transparent;
+            color: #ffd84a;
+            box-shadow: none;
         }
 
         /* SCORE */
@@ -937,8 +946,8 @@
             document.getElementById("list1").innerText = innings1.join(",");
             document.getElementById("list2").innerText = innings2.join(",");
 
-            p1.className = activePlayer === 1 ? "player active-white" : "player inactive";
-            p2.className = activePlayer === 2 ? "player active-yellow" : "player inactive";
+            p1.className = activePlayer === 1 ? "player active-white" : "player inactive-white";
+            p2.className = activePlayer === 2 ? "player active-yellow" : "player inactive-yellow";
             // Scores
             document.getElementById("score1").innerText = score1;
             document.getElementById("score2").innerText = score2;
