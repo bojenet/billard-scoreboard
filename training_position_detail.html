@@ -170,8 +170,10 @@
         }
 
         .field textarea {
-            min-height: 120px;
+            min-height: 420px;
             resize: vertical;
+            font-size: 16px;
+            line-height: 1.5;
         }
 
         .hint {
@@ -235,20 +237,11 @@
                             <div class="stat-label">QUOTE</div>
                             <div class="stat-value" id="rateValue">0 %</div>
                         </div>
-                        <div class="stat">
-                            <div class="stat-label">BESTE SERIE</div>
-                            <div class="stat-value" id="seriesValue">0</div>
-                        </div>
                     </div>
 
                     <div class="stack">
                         <button class="btn good" onclick="recordAttempt(true)">Treffer erfassen</button>
                         <button class="btn bad" onclick="recordAttempt(false)">Fehler erfassen</button>
-
-                        <div class="field">
-                            <label for="bestSeriesInput">Beste Serie</label>
-                            <input id="bestSeriesInput" type="number" min="0" value="0" />
-                        </div>
 
                         <div class="field">
                             <label for="notesInput">Notizen</label>
@@ -302,7 +295,6 @@
                 progress[currentPosition.id] = {
                     hits: 0,
                     misses: 0,
-                    bestSeries: 0,
                     notes: "",
                     lastTrained: ""
                 };
@@ -326,8 +318,6 @@
             document.getElementById("hitsValue").innerText = entry.hits || 0;
             document.getElementById("missesValue").innerText = entry.misses || 0;
             document.getElementById("rateValue").innerText = rate + " %";
-            document.getElementById("seriesValue").innerText = entry.bestSeries || 0;
-            document.getElementById("bestSeriesInput").value = entry.bestSeries || 0;
             document.getElementById("notesInput").value = entry.notes || getDefaultNotes();
         }
 
@@ -336,11 +326,6 @@
             if (!entry) return;
             if (success) entry.hits = Number(entry.hits || 0) + 1;
             else entry.misses = Number(entry.misses || 0) + 1;
-
-            const bestSeriesInput = Number(document.getElementById("bestSeriesInput").value || 0);
-            if (bestSeriesInput > Number(entry.bestSeries || 0)) {
-                entry.bestSeries = bestSeriesInput;
-            }
             entry.lastTrained = new Date().toISOString();
             saveProgress();
             renderStats();
@@ -350,7 +335,6 @@
             const entry = getEntry();
             if (!entry) return;
             entry.notes = document.getElementById("notesInput").value || "";
-            entry.bestSeries = Number(document.getElementById("bestSeriesInput").value || 0);
             entry.lastTrained = new Date().toISOString();
             saveProgress();
             renderStats();
