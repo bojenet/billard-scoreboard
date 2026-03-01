@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Trainingsposition</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(180deg, #0f1c3f, #0a122b);
+            color: white;
+        }
+
+        .page {
+            width: min(1380px, 95%);
+            margin: 20px auto 28px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .left h1 {
+            margin: 0;
+            font-size: 46px;
+        }
+
+        .sub {
+            margin-top: 8px;
+            opacity: 0.76;
+            font-size: 17px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 12px;
+            padding: 12px 16px;
+            background: #1c3380;
+            border: 1px solid #3659bb;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn.primary {
+            background: #2f4fe0;
+        }
+
+        .btn.good {
+            background: #198754;
+            border-color: #30a96e;
+        }
+
+        .btn.bad {
+            background: #b03c3c;
+            border-color: #cc6767;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(320px, 0.95fr);
+            gap: 18px;
+        }
+
+        .card {
+            background: linear-gradient(180deg, #162b66, #0f1c3f);
+            border: 1px solid #2d488f;
+            border-radius: 22px;
+            box-shadow: 0 24px 56px rgba(0, 0, 0, 0.45);
+            overflow: hidden;
+        }
+
+        .viewer-head {
+            padding: 14px 16px;
+            border-bottom: 1px solid #27417f;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .viewer-title {
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .viewer-sub {
+            font-size: 14px;
+            opacity: 0.76;
+            margin-top: 4px;
+        }
+
+        .viewer {
+            height: 76vh;
+            min-height: 680px;
+            background: #08122f;
+        }
+
+        .viewer iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        .side {
+            padding: 16px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .stat {
+            border: 1px solid #2f4ea0;
+            border-radius: 14px;
+            padding: 12px;
+            background: rgba(8, 20, 54, 0.44);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.72;
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .stack {
+            display: grid;
+            gap: 10px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 13px;
+            opacity: 0.8;
+            margin-bottom: 6px;
+        }
+
+        .field textarea,
+        .field input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #3959ab;
+            border-radius: 12px;
+            padding: 11px 12px;
+            font-size: 15px;
+            color: white;
+            background: #112659;
+        }
+
+        .field textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .hint {
+            font-size: 13px;
+            opacity: 0.74;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 1000px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .viewer {
+                height: 66vh;
+                min-height: 520px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="topbar">
+            <div class="left">
+                <h1 id="pageTitle">Position</h1>
+                <div class="sub">PDF-basierte Trainingsansicht als Grundgerüst</div>
+            </div>
+            <div class="actions">
+                <button class="btn" onclick="goPrev()">Vorherige</button>
+                <button class="btn" onclick="goNext()">Nächste</button>
+                <button class="btn" onclick="window.location.href='training_positions.html'">Übersicht</button>
+            </div>
+        </div>
+
+        <div class="layout">
+            <div class="card">
+                <div class="viewer-head">
+                    <div>
+                        <div class="viewer-title" id="viewerTitle">Roger Conti</div>
+                        <div class="viewer-sub" id="viewerSub">PDF-Seite</div>
+                    </div>
+                    <button class="btn primary" id="openPdfBtn" type="button">PDF separat öffnen</button>
+                </div>
+                <div class="viewer">
+                    <iframe id="pdfFrame" title="Trainingsposition PDF"></iframe>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="side">
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-label">TREFFER</div>
+                            <div class="stat-value" id="hitsValue">0</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">FEHLER</div>
+                            <div class="stat-value" id="missesValue">0</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">QUOTE</div>
+                            <div class="stat-value" id="rateValue">0 %</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">BESTE SERIE</div>
+                            <div class="stat-value" id="seriesValue">0</div>
+                        </div>
+                    </div>
+
+                    <div class="stack">
+                        <button class="btn good" onclick="recordAttempt(true)">Treffer erfassen</button>
+                        <button class="btn bad" onclick="recordAttempt(false)">Fehler erfassen</button>
+
+                        <div class="field">
+                            <label for="bestSeriesInput">Beste Serie</label>
+                            <input id="bestSeriesInput" type="number" min="0" value="0" />
+                        </div>
+
+                        <div class="field">
+                            <label for="notesInput">Notizen</label>
+                            <textarea id="notesInput" placeholder="z.B. Effet, Tempo, Schwierigkeit, typische Fehler"></textarea>
+                        </div>
+
+                        <button class="btn primary" onclick="saveNotes()">Notizen speichern</button>
+
+                        <div class="hint">
+                            Das ist die Grundstruktur. Aktuell wird der Fortschritt lokal im Browser gespeichert.
+                            Später kann das direkt in Supabase pro User abgelegt werden.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/user_menu.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const positionId = params.get("id") || "";
+        const pdfPath = "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_1_62.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfMV82Mi5wZGYiLCJpYXQiOjE3NzIzNDg3NTUsImV4cCI6MTgwMzg4NDc1NX0.cmqqXoE50h-86B5iIqEF4LSuB4B0E7Uqc6hNzRXBukg";
+        let currentUser = null;
+        let positions = [];
+        let currentPosition = null;
+        let progress = {};
+
+        function storageKey() {
+            return "position_training_progress_" + String(currentUser?.id || "guest");
+        }
+
+        function loadProgress() {
+            try {
+                progress = JSON.parse(localStorage.getItem(storageKey()) || "{}");
+            } catch (_) {
+                progress = {};
+            }
+        }
+
+        function saveProgress() {
+            localStorage.setItem(storageKey(), JSON.stringify(progress));
+        }
+
+        function getEntry() {
+            if (!currentPosition) return null;
+            if (!progress[currentPosition.id]) {
+                progress[currentPosition.id] = {
+                    hits: 0,
+                    misses: 0,
+                    bestSeries: 0,
+                    notes: "",
+                    lastTrained: ""
+                };
+            }
+            return progress[currentPosition.id];
+        }
+
+        function renderStats() {
+            const entry = getEntry();
+            if (!entry) return;
+            const total = Number(entry.hits || 0) + Number(entry.misses || 0);
+            const rate = total > 0 ? Math.round((Number(entry.hits || 0) / total) * 100) : 0;
+
+            document.getElementById("hitsValue").innerText = entry.hits || 0;
+            document.getElementById("missesValue").innerText = entry.misses || 0;
+            document.getElementById("rateValue").innerText = rate + " %";
+            document.getElementById("seriesValue").innerText = entry.bestSeries || 0;
+            document.getElementById("bestSeriesInput").value = entry.bestSeries || 0;
+            document.getElementById("notesInput").value = entry.notes || "";
+        }
+
+        function recordAttempt(success) {
+            const entry = getEntry();
+            if (!entry) return;
+            if (success) entry.hits = Number(entry.hits || 0) + 1;
+            else entry.misses = Number(entry.misses || 0) + 1;
+
+            const bestSeriesInput = Number(document.getElementById("bestSeriesInput").value || 0);
+            if (bestSeriesInput > Number(entry.bestSeries || 0)) {
+                entry.bestSeries = bestSeriesInput;
+            }
+            entry.lastTrained = new Date().toISOString();
+            saveProgress();
+            renderStats();
+        }
+
+        function saveNotes() {
+            const entry = getEntry();
+            if (!entry) return;
+            entry.notes = document.getElementById("notesInput").value || "";
+            entry.bestSeries = Number(document.getElementById("bestSeriesInput").value || 0);
+            entry.lastTrained = new Date().toISOString();
+            saveProgress();
+            renderStats();
+        }
+
+        function goToPosition(index) {
+            if (index < 0 || index >= positions.length) return;
+            window.location.href = "training_position_detail.html?id=" + encodeURIComponent(positions[index].id);
+        }
+
+        function goPrev() {
+            if (!currentPosition) return;
+            const index = positions.findIndex((x) => x.id === currentPosition.id);
+            goToPosition(index - 1);
+        }
+
+        function goNext() {
+            if (!currentPosition) return;
+            const index = positions.findIndex((x) => x.id === currentPosition.id);
+            goToPosition(index + 1);
+        }
+
+        async function init() {
+            currentUser = await requireAuth();
+            if (!currentUser) return;
+            loadProgress();
+
+            const res = await fetch("data/roger_conti_positions.json", { cache: "no-store" });
+            positions = await res.json();
+            currentPosition = positions.find((x) => x.id === positionId) || positions[0];
+            if (!currentPosition) return;
+
+            document.getElementById("pageTitle").innerText = "Position " + currentPosition.number;
+            document.getElementById("viewerTitle").innerText = "Roger Conti - Fiche " + currentPosition.number;
+            document.getElementById("viewerSub").innerText = "PDF-Seite " + currentPosition.pdfPage;
+
+            const pdfUrl = pdfPath + "#page=" + currentPosition.pdfPage + "&zoom=page-width";
+            document.getElementById("pdfFrame").src = pdfUrl;
+            document.getElementById("openPdfBtn").onclick = () => window.open(pdfUrl, "_blank");
+
+            renderStats();
+        }
+
+        init();
+    </script>
+</body>
+</html>
