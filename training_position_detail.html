@@ -180,6 +180,38 @@
             line-height: 1.5;
         }
 
+        .comment-box {
+            margin-top: 16px;
+            border-top: 1px solid #27417f;
+            padding-top: 16px;
+        }
+
+        .comment-title {
+            font-size: 15px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            letter-spacing: 0.4px;
+        }
+
+        .comment-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .comment-item {
+            border: 1px solid #2f4ea0;
+            border-radius: 12px;
+            padding: 10px 12px;
+            background: rgba(8, 20, 54, 0.44);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .comment-empty {
+            font-size: 14px;
+            opacity: 0.72;
+        }
+
         @media (max-width: 1000px) {
             .layout {
                 grid-template-columns: 1fr;
@@ -261,6 +293,11 @@
                             Das ist die Grundstruktur. Aktuell wird der Fortschritt lokal im Browser gespeichert.
                             Später kann das direkt in Supabase pro User abgelegt werden.
                         </div>
+
+                        <div class="comment-box">
+                            <div class="comment-title">Kommentare / Übersetzung aus dem PDF</div>
+                            <div id="commentsWrap" class="comment-list"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -324,6 +361,19 @@
             document.getElementById("notesInput").value = entry.notes || "";
         }
 
+        function renderComments() {
+            const wrap = document.getElementById("commentsWrap");
+            if (!wrap || !currentPosition) return;
+            const comments = Array.isArray(currentPosition.comments) ? currentPosition.comments : [];
+            if (!comments.length) {
+                wrap.innerHTML = '<div class="comment-empty">Für diese Position wurden noch keine PDF-Kommentare übernommen.</div>';
+                return;
+            }
+            wrap.innerHTML = comments.map((text) => {
+                return `<div class="comment-item">${String(text || "")}</div>`;
+            }).join("");
+        }
+
         function recordAttempt(success) {
             const entry = getEntry();
             if (!entry) return;
@@ -385,6 +435,7 @@
             document.getElementById("openPdfBtn").onclick = () => window.open(pdfUrl, "_blank");
 
             renderStats();
+            renderComments();
         }
 
         init();
