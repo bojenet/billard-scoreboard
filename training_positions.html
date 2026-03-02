@@ -243,6 +243,7 @@
                 <div class="sub">DB-basierter Katalog mit OCR-Anfragen pro Position</div>
             </div>
             <div class="actions">
+                <button class="btn" id="workerBtn" onclick="window.location.href='training_position_worker.html'" style="display:none;">OCR Worker</button>
                 <button class="btn" onclick="window.location.href='training.html'">Zurück</button>
             </div>
         </div>
@@ -534,6 +535,9 @@
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
+            if (await hasAdminAccess(currentUser)) {
+                document.getElementById('workerBtn').style.display = 'inline-flex';
+            }
             await loadCollection();
             render();
         }
