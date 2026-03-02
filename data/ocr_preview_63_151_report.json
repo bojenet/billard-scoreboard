@@ -1,0 +1,25 @@
+{
+  "ocr_file": "/Users/phju/Documents/web/billard-scoreboard/data/ocr_preview_63_151_pages.json",
+  "positions_file": "/Users/phju/Documents/web/billard-scoreboard/data/roger_conti_positions_63_150.json",
+  "kept_count": 0,
+  "skipped_count": 1,
+  "kept": [],
+  "skipped": [
+    {
+      "number": 73,
+      "reason": "quality_below_threshold",
+      "chars": 534,
+      "letters": 420,
+      "digits": 2,
+      "lines": 19,
+      "words": 86,
+      "alpha_ratio": 0.7865168539325843,
+      "keyword_hits": [
+        "bande",
+        "bille",
+        "gauche"
+      ],
+      "keep": false
+    }
+  ]
+}

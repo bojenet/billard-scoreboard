@@ -179,7 +179,7 @@
         <div class="topbar">
             <div>
                 <h1>OCR Worker</h1>
-                <div class="sub">Admin-Queue für OCR-/Übersetzungsanfragen aus dem Positionstraining</div>
+                <div class="sub">Admin-Queue für OCR-Anfragen aus dem Positionstraining</div>
             </div>
             <div class="actions">
                 <button class="btn" onclick="window.location.href='training_positions.html'">Zurück zur Übersicht</button>
@@ -209,7 +209,7 @@
                         <div class="viewer"><iframe id="pdfFrame"></iframe></div>
                         <div class="ocr-preview">
                             <div class="toolbar">
-                                <button class="btn warn" id="autoOcrBtn" onclick="runAutoOcr()">AI OCR + Übersetzung</button>
+                                <button class="btn warn" id="autoOcrBtn" onclick="runAutoOcr()">OCR automatisch starten</button>
                             </div>
                             <div class="ocr-status" id="ocrStatusBox">Noch kein OCR-Lauf gestartet.</div>
                             <div class="ocr-canvas-wrap">
@@ -239,7 +239,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.3.136/build/pdf.min.mjs" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/user_menu.js"></script>
@@ -308,32 +308,25 @@
                 setOcrStatus('PDF-Seite wird gerendert ...');
                 await markRunning(true);
                 const canvas = await renderPdfPageToCanvas(currentItem);
-                setOcrStatus('AI OCR + Übersetzung läuft ...');
-                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.92);
-                const response = await fetch('/api/ocr-translate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        imageDataUrl,
-                        positionNumber: currentItem.number,
-                        setKey: currentItem.set_key,
-                        pdfPage: currentItem.pdf_page
-                    })
+                setOcrStatus('OCR läuft ...');
+                const result = await Tesseract.recognize(canvas, 'fra+deu+eng', {
+                    logger: (message) => {
+                        if (message && message.status) {
+                            const pct = typeof message.progress === 'number' ? ' ' + Math.round(message.progress * 100) + '%' : '';
+                            setOcrStatus(message.status + pct);
+                        }
+                    }
                 });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || 'AI OCR request failed');
-                }
-                document.getElementById('sourceText').value = data.source_text || '';
-                document.getElementById('translatedText').value = data.translated_text || '';
-                setOcrStatus((data.source_text || data.translated_text) ? 'AI OCR fertig. Quelltext und Übersetzung wurden eingefüllt.' : 'AI OCR fertig, aber ohne nutzbares Ergebnis.');
-                setNotice('AI hat OCR und eine erste deutsche Fassung erzeugt. Jetzt kurz prüfen und dann fertig speichern.');
-                await updateRequestOnly({ status: 'running', source_text: data.source_text || '', translated_text: data.translated_text || '' });
+                const text = (result && result.data && result.data.text ? result.data.text : '').trim();
+                document.getElementById('sourceText').value = text;
+                setOcrStatus(text ? 'OCR fertig. Quelltext wurde eingefüllt.' : 'OCR fertig, aber kein Text erkannt.');
+                setNotice('Automatisches OCR ist durchgelaufen. Jetzt Text prüfen, bereinigen und die deutsche Fassung manuell ergänzen.');
+                await updateRequestOnly({ status: 'running', source_text: text, translated_text: document.getElementById('translatedText').value || '' });
                 await loadQueue();
             } catch (error) {
                 console.error(error);
-                setOcrStatus('AI OCR fehlgeschlagen: ' + error.message);
-                setNotice('AI OCR ist fehlgeschlagen. Prüfe OPENAI_API_KEY, Vercel-Deployment und ob das PDF serverseitig erreichbar ist.');
+                setOcrStatus('OCR fehlgeschlagen: ' + error.message);
+                setNotice('Automatisches OCR ist fehlgeschlagen. Häufige Ursachen: CORS am PDF, sehr schlechte Scanqualität oder Browser-Speichergrenze.');
             } finally {
                 ocrRunning = false;
                 document.getElementById('autoOcrBtn').disabled = false;
@@ -388,7 +381,7 @@
                 return;
             }
             frame.src = getPdfUrl(currentItem);
-            setNotice('Anfrage geladen. Optional AI OCR + Übersetzung, dann Text prüfen und Ergebnis speichern.');
+            setNotice('Anfrage geladen. Optional OCR automatisch starten, dann Text prüfen und Ergebnis speichern.');
             setOcrStatus('Bereit für automatisches OCR.');
         }
 

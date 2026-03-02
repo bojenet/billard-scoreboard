@@ -577,7 +577,7 @@
                 if (error) throw error;
                 latestOcr = { status: "pending", translated_text: "" };
                 renderOcrState();
-                setNotice("OCR-/Übersetzungsanfrage gespeichert. Der eigentliche OCR-Worker ist im MVP noch nicht angeschlossen.");
+                setNotice("OCR-Anfrage gespeichert. Im Worker kann jetzt lokales Browser-OCR gestartet werden.");
             } catch (error) {
                 console.error(error);
                 alert("OCR-Anfrage konnte nicht gespeichert werden.");
