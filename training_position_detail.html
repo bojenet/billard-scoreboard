@@ -68,6 +68,11 @@
             border-color: #cc6767;
         }
 
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
         .layout {
             display: grid;
             grid-template-columns: minmax(0, 2fr) minmax(320px, 0.95fr);
@@ -107,6 +112,9 @@
             height: 76vh;
             min-height: 680px;
             background: #08122f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .viewer iframe {
@@ -114,6 +122,40 @@
             height: 100%;
             border: none;
             background: white;
+        }
+
+        .viewer-placeholder {
+            padding: 34px;
+            max-width: 720px;
+            line-height: 1.6;
+            text-align: left;
+        }
+
+        .viewer-placeholder h2 {
+            margin: 0 0 14px;
+            font-size: 30px;
+        }
+
+        .pill-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 18px 0;
+        }
+
+        .pill {
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+        }
+
+        .pill.warn {
+            background: rgba(255, 216, 74, 0.14);
+            border-color: rgba(255, 216, 74, 0.4);
+            color: #ffe27a;
         }
 
         .side {
@@ -199,7 +241,7 @@
         <div class="topbar">
             <div class="left">
                 <h1 id="pageTitle">Position</h1>
-                <div class="sub">PDF-basierte Trainingsansicht als Grundgerüst</div>
+                <div class="sub" id="pageSub">PDF-basierte Trainingsansicht als Grundgerüst</div>
             </div>
             <div class="actions">
                 <button class="btn" onclick="goPrev()">Vorherige</button>
@@ -217,8 +259,22 @@
                     </div>
                     <button class="btn primary" id="openPdfBtn" type="button">PDF separat öffnen</button>
                 </div>
-                <div class="viewer">
+                <div class="viewer" id="viewerRoot">
                     <iframe id="pdfFrame" title="Trainingsposition PDF"></iframe>
+                    <div class="viewer-placeholder" id="viewerPlaceholder" style="display:none;">
+                        <h2>Scan gesammelt, OCR steht noch aus</h2>
+                        <div>
+                            Diese Sammlung ist bereits in die Plattform eingebunden, aber die Quelle ist nur in schwacher Scan-Qualität vorhanden.
+                            Deshalb gibt es aktuell noch keine eingebettete Seitenansicht und meist keine vorgefüllten Notizen.
+                        </div>
+                        <div class="pill-row">
+                            <div class="pill warn" id="ocrPill">OCR ausstehend</div>
+                            <div class="pill" id="qualityPill">Qualität: schwacher Scan</div>
+                        </div>
+                        <div>
+                            Sinnvoller Hybrid-Workflow: zuerst manuell trainieren und eigene Notizen erfassen, danach gute Seiten oder Einzelbilder selektiv per OCR nachpflegen.
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -250,7 +306,7 @@
 
                         <button class="btn primary" onclick="saveNotes()">Notizen speichern</button>
 
-                        <div class="hint">
+                        <div class="hint" id="hintText">
                             Das ist die Grundstruktur. Aktuell wird der Fortschritt lokal im Browser gespeichert.
                             Später kann das direkt in Supabase pro User abgelegt werden.
                         </div>
@@ -267,10 +323,26 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const positionId = params.get("id") || "";
-        const pdfPath = "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_1_62.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfMV82Mi5wZGYiLCJpYXQiOjE3NzIzNDg3NTUsImV4cCI6MTgwMzg4NDc1NX0.cmqqXoE50h-86B5iIqEF4LSuB4B0E7Uqc6hNzRXBukg";
+        const COLLECTIONS = {
+            "roger-conti": {
+                file: "data/roger_conti_positions.json",
+                label: "Roger Conti 1-62",
+                pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_1_62.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfMV82Mi5wZGYiLCJpYXQiOjE3NzIzNDg3NTUsImV4cCI6MTgwMzg4NDc1NX0.cmqqXoE50h-86B5iIqEF4LSuB4B0E7Uqc6hNzRXBukg",
+                pageOffset: 0,
+                hint: "Kommentare aus dem PDF werden als editierbare Standard-Notizen genutzt."
+            },
+            "roger-conti-63-151": {
+                file: "data/roger_conti_positions_63_150.json",
+                label: "Roger Conti 63-151",
+                pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_63_151.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfNjNfMTUxLnBkZiIsImlhdCI6MTc3MjQzOTI1MiwiZXhwIjoxODAzOTc1MjUyfQ.MHNv3hvXKuM5q5Ic087HFVA3jKS79JoXuo6clhQxARE",
+                pageOffset: 0,
+                hint: "Hybrid-Modell: Training schon möglich, OCR und PDF-Aufbereitung folgen selektiv."
+            }
+        };
         let currentUser = null;
         let positions = [];
         let currentPosition = null;
+        let currentCollection = null;
         let progress = {};
 
         function storageKey() {
@@ -303,10 +375,14 @@
         }
 
         function getDefaultNotes() {
-            if (!currentPosition || !Array.isArray(currentPosition.comments) || !currentPosition.comments.length) {
-                return "";
+            if (!currentPosition) return "";
+            if (Array.isArray(currentPosition.comments) && currentPosition.comments.length) {
+                return currentPosition.comments.join("\n\n");
             }
-            return currentPosition.comments.join("\n\n");
+            if (currentPosition.ocrStatus === "pending") {
+                return "OCR/Übersetzung für diese Position noch offen. Hier eigene Trainingsnotizen erfassen.";
+            }
+            return "";
         }
 
         function renderStats() {
@@ -357,24 +433,61 @@
             goToPosition(index + 1);
         }
 
+        function applyViewer() {
+            const config = COLLECTIONS[currentCollection];
+            const pdfFrame = document.getElementById("pdfFrame");
+            const placeholder = document.getElementById("viewerPlaceholder");
+            const openBtn = document.getElementById("openPdfBtn");
+            document.getElementById("hintText").innerText = config.hint;
+
+            if (config.pdfPath && currentPosition.pdfPage) {
+                const pdfUrl = config.pdfPath + "#page=" + currentPosition.pdfPage + "&zoom=page-width";
+                pdfFrame.style.display = "block";
+                placeholder.style.display = "none";
+                pdfFrame.src = pdfUrl;
+                openBtn.disabled = false;
+                openBtn.onclick = () => window.open(pdfUrl, "_blank");
+            } else {
+                pdfFrame.removeAttribute("src");
+                pdfFrame.style.display = "none";
+                placeholder.style.display = "block";
+                openBtn.disabled = true;
+                openBtn.onclick = null;
+            }
+        }
+
+        async function loadPositions() {
+            for (const [key, cfg] of Object.entries(COLLECTIONS)) {
+                const res = await fetch(cfg.file, { cache: "no-store" });
+                const items = await res.json();
+                const match = items.find((x) => x.id === positionId);
+                if (match) {
+                    positions = items;
+                    currentPosition = match;
+                    currentCollection = key;
+                    return;
+                }
+            }
+
+            const res = await fetch(COLLECTIONS["roger-conti"].file, { cache: "no-store" });
+            positions = await res.json();
+            currentPosition = positions[0] || null;
+            currentCollection = "roger-conti";
+        }
+
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
             loadProgress();
-
-            const res = await fetch("data/roger_conti_positions.json", { cache: "no-store" });
-            positions = await res.json();
-            currentPosition = positions.find((x) => x.id === positionId) || positions[0];
+            await loadPositions();
             if (!currentPosition) return;
 
             document.getElementById("pageTitle").innerText = "Position " + currentPosition.number;
-            document.getElementById("viewerTitle").innerText = "Roger Conti - Fiche " + currentPosition.number;
-            document.getElementById("viewerSub").innerText = "PDF-Seite " + currentPosition.pdfPage;
+            document.getElementById("pageSub").innerText = COLLECTIONS[currentCollection].label;
+            document.getElementById("viewerTitle").innerText = COLLECTIONS[currentCollection].label + " - Fiche " + currentPosition.number;
+            document.getElementById("viewerSub").innerText = currentPosition.pdfPage ? ("PDF-Seite " + currentPosition.pdfPage) : "Noch keine direkt eingebundene PDF-Seite";
 
-            const pdfUrl = pdfPath + "#page=" + currentPosition.pdfPage + "&zoom=page-width";
-            document.getElementById("pdfFrame").src = pdfUrl;
-            document.getElementById("openPdfBtn").onclick = () => window.open(pdfUrl, "_blank");
-
+            applyViewer();
             renderStats();
         }
 

@@ -105,7 +105,8 @@
             flex-wrap: wrap;
         }
 
-        .filter-group {
+        .filter-group,
+        .collection-group {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
@@ -114,6 +115,13 @@
         .collection {
             font-size: 15px;
             opacity: 0.82;
+            display: grid;
+            gap: 8px;
+        }
+
+        .collection-meta {
+            font-size: 13px;
+            opacity: 0.72;
         }
 
         .grid {
@@ -148,6 +156,10 @@
         .tile.weak {
             border-color: #ff7b7b;
             box-shadow: inset 0 0 0 1px rgba(255, 123, 123, 0.35);
+        }
+
+        .tile.pending {
+            border-color: #d3a93c;
         }
 
         .tile-top {
@@ -213,7 +225,7 @@
         <div class="topbar">
             <div>
                 <h1>Positionstraining</h1>
-                <div class="sub">Roger Conti 1-62 als Trainingssammlung</div>
+                <div class="sub">Roger Conti als Trainingssammlung, mit Hybrid-Modell für schwache Scans</div>
             </div>
             <div class="actions">
                 <button class="btn" onclick="window.location.href='training.html'">Zurück</button>
@@ -241,7 +253,14 @@
 
         <div class="card">
             <div class="toolbar">
-                <div class="collection">Sammlung: <strong>Roger Conti</strong></div>
+                <div class="collection">
+                    <div>Sammlung: <strong id="collectionLabel">Roger Conti 1-62</strong></div>
+                    <div class="collection-group">
+                        <button class="btn active" id="collection1" onclick="setCollection('roger-conti')">1-62</button>
+                        <button class="btn" id="collection2" onclick="setCollection('roger-conti-63-151')">63-151</button>
+                    </div>
+                    <div class="collection-meta" id="collectionMeta">Mit extrahierten und ergänzten Notizen aus dem PDF.</div>
+                </div>
                 <div class="filter-group">
                     <button class="btn active" id="filterAll" onclick="setFilter('all')">Alle</button>
                     <button class="btn" id="filterOpen" onclick="setFilter('open')">Offen</button>
@@ -259,8 +278,22 @@
     <script src="js/auth.js"></script>
     <script src="js/user_menu.js"></script>
     <script>
+        const COLLECTIONS = {
+            "roger-conti": {
+                label: "Roger Conti 1-62",
+                file: "data/roger_conti_positions.json",
+                meta: "Mit extrahierten und ergänzten Notizen aus dem PDF."
+            },
+            "roger-conti-63-151": {
+                label: "Roger Conti 63-151",
+                file: "data/roger_conti_positions_63_150.json",
+                meta: "Schwacher Scan: aktuell als Bild/OCR-Kandidat vorbereitet, Notizen vorerst meist leer."
+            }
+        };
+
         let currentUser = null;
         let currentFilter = "all";
+        let currentCollection = "roger-conti";
         let positions = [];
         let progress = {};
 
@@ -280,7 +313,6 @@
             return progress[id] || {
                 hits: 0,
                 misses: 0,
-                bestSeries: 0,
                 notes: "",
                 lastTrained: ""
             };
@@ -300,6 +332,17 @@
                 const el = document.getElementById("filter" + key.charAt(0).toUpperCase() + key.slice(1));
                 if (el) el.classList.toggle("active", key === filter);
             });
+            render();
+        }
+
+        async function setCollection(key) {
+            if (!COLLECTIONS[key]) return;
+            currentCollection = key;
+            ["roger-conti", "roger-conti-63-151"].forEach((id, index) => {
+                const btn = document.getElementById("collection" + (index + 1));
+                if (btn) btn.classList.toggle("active", id === key);
+            });
+            await loadCollection();
             render();
         }
 
@@ -332,6 +375,10 @@
         }
 
         function render() {
+            const currentConfig = COLLECTIONS[currentCollection];
+            document.getElementById("collectionLabel").innerText = currentConfig.label;
+            document.getElementById("collectionMeta").innerText = currentConfig.meta;
+
             renderStats();
             const grid = document.getElementById("positionsGrid");
             const empty = document.getElementById("emptyState");
@@ -350,18 +397,20 @@
                 tile.className = "tile";
                 if (stats.trained) tile.classList.add("done");
                 if (stats.trained && stats.rate < 0.6) tile.classList.add("weak");
+                if (item.ocrStatus === "pending") tile.classList.add("pending");
                 const attempts = stats.total;
                 const rateText = attempts > 0 ? Math.round(stats.rate * 100) + " %" : "offen";
+                const statusText = item.ocrStatus === "pending" ? "OCR ausstehend" : (stats.data.lastTrained ? "Zuletzt: " + new Date(stats.data.lastTrained).toLocaleDateString() : "Noch nicht trainiert");
                 tile.innerHTML = `
                     <div>
                         <div class="tile-top">
                             <div class="tile-no">${item.number}</div>
-                            <div class="badge">${attempts > 0 ? attempts + " Vers." : "neu"}</div>
+                            <div class="badge">${attempts > 0 ? attempts + " Vers." : (item.ocrStatus === "pending" ? "Scan" : "neu")}</div>
                         </div>
                         <div class="tile-title">${item.title}</div>
                         <div class="tile-sub">Trefferquote: ${rateText}</div>
                     </div>
-                    <div class="tile-sub">${stats.data.lastTrained ? "Zuletzt: " + new Date(stats.data.lastTrained).toLocaleDateString() : "Noch nicht trainiert"}</div>
+                    <div class="tile-sub">${statusText}</div>
                 `;
                 tile.onclick = () => {
                     window.location.href = "training_position_detail.html?id=" + encodeURIComponent(item.id);
@@ -370,12 +419,16 @@
             });
         }
 
+        async function loadCollection() {
+            const res = await fetch(COLLECTIONS[currentCollection].file, { cache: "no-store" });
+            positions = await res.json();
+        }
+
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
             loadProgress();
-            const res = await fetch("data/roger_conti_positions.json", { cache: "no-store" });
-            positions = await res.json();
+            await loadCollection();
             render();
         }
 
