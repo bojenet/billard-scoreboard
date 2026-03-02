@@ -95,7 +95,7 @@
         const positionId = params.get("id") || "";
         const COLLECTIONS = {
             "roger-conti": { file: "data/roger_conti_positions.json", label: "Roger Conti 1-62", pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_1_62.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfMV82Mi5wZGYiLCJpYXQiOjE3NzIzNDg3NTUsImV4cCI6MTgwMzg4NDc1NX0.cmqqXoE50h-86B5iIqEF4LSuB4B0E7Uqc6hNzRXBukg" },
-            "roger-conti-63-151": { file: "data/roger_conti_positions_63_150.json", label: "Roger Conti 63-151", pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_63_151.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfNjNfMTUxLnBkZiIsImlhdCI6MTc3MjQ1NzMzNywiZXhwIjoxODAzOTkzMzM3fQ.XpRNxk_-u2iv2d45bf5FqykR4ILazEN7gEWucWjT9IM" }
+            "roger-conti-63-151": { file: "data/roger_conti_positions_63_150.json", label: "Roger Conti 63-151", pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_63-151.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfNjMtMTUxLnBkZiIsImlhdCI6MTc3MjQ1Nzk0MywiZXhwIjoxODAzOTkzOTQzfQ.3c2paRxUB3ifN6kZSkeAJ81YWjv_-AxmuDqv5PNJAXQ" }
         };
         let currentUser = null, positions = [], currentPosition = null, currentCollection = null, entry = null;
         function setNotice(text) { const el = document.getElementById("noticeBox"); el.style.display = text ? "block" : "none"; el.innerText = text || ""; }
