@@ -68,6 +68,11 @@
             border-color: #cc6767;
         }
 
+        .btn.warn {
+            background: #6d5613;
+            border-color: #a98b35;
+        }
+
         .btn:disabled {
             opacity: 0.45;
             cursor: default;
@@ -112,9 +117,6 @@
             height: 76vh;
             min-height: 680px;
             background: #08122f;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
         .viewer iframe {
@@ -124,42 +126,19 @@
             background: white;
         }
 
-        .viewer-placeholder {
-            padding: 34px;
-            max-width: 720px;
-            line-height: 1.6;
-            text-align: left;
-        }
-
-        .viewer-placeholder h2 {
-            margin: 0 0 14px;
-            font-size: 30px;
-        }
-
-        .pill-row {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin: 18px 0;
-        }
-
-        .pill {
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 13px;
-            font-weight: 700;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-        }
-
-        .pill.warn {
-            background: rgba(255, 216, 74, 0.14);
-            border-color: rgba(255, 216, 74, 0.4);
-            color: #ffe27a;
-        }
-
         .side {
             padding: 16px;
+        }
+
+        .notice {
+            margin-bottom: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid #556db2;
+            background: rgba(20, 38, 89, 0.78);
+            font-size: 14px;
+            line-height: 1.5;
+            opacity: 0.92;
         }
 
         .stats {
@@ -199,19 +178,14 @@
             margin-bottom: 6px;
         }
 
-        .field textarea,
-        .field input {
+        .field textarea {
             width: 100%;
             box-sizing: border-box;
             border: 1px solid #3959ab;
             border-radius: 12px;
             padding: 11px 12px;
-            font-size: 15px;
             color: white;
             background: #112659;
-        }
-
-        .field textarea {
             min-height: 420px;
             resize: vertical;
             font-size: 16px;
@@ -223,6 +197,27 @@
             opacity: 0.74;
             line-height: 1.5;
         }
+
+        .pill-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 0 0 10px;
+        }
+
+        .pill {
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+        }
+
+        .pill.pending { border-color: rgba(255, 216, 74, 0.45); color: #ffe27a; }
+        .pill.running { border-color: rgba(120, 184, 255, 0.45); color: #9fcbff; }
+        .pill.done { border-color: rgba(89, 219, 167, 0.45); color: #7df4bf; }
+        .pill.failed { border-color: rgba(255, 123, 123, 0.45); color: #ff9f9f; }
 
         @media (max-width: 1000px) {
             .layout {
@@ -241,7 +236,7 @@
         <div class="topbar">
             <div class="left">
                 <h1 id="pageTitle">Position</h1>
-                <div class="sub" id="pageSub">PDF-basierte Trainingsansicht als Grundgerüst</div>
+                <div class="sub" id="pageSub">Trainingsposition</div>
             </div>
             <div class="actions">
                 <button class="btn" onclick="goPrev()">Vorherige</button>
@@ -259,27 +254,15 @@
                     </div>
                     <button class="btn primary" id="openPdfBtn" type="button">PDF separat öffnen</button>
                 </div>
-                <div class="viewer" id="viewerRoot">
+                <div class="viewer">
                     <iframe id="pdfFrame" title="Trainingsposition PDF"></iframe>
-                    <div class="viewer-placeholder" id="viewerPlaceholder" style="display:none;">
-                        <h2>Scan gesammelt, OCR steht noch aus</h2>
-                        <div>
-                            Diese Sammlung ist bereits in die Plattform eingebunden, aber die Quelle ist nur in schwacher Scan-Qualität vorhanden.
-                            Deshalb gibt es aktuell noch keine eingebettete Seitenansicht und meist keine vorgefüllten Notizen.
-                        </div>
-                        <div class="pill-row">
-                            <div class="pill warn" id="ocrPill">OCR ausstehend</div>
-                            <div class="pill" id="qualityPill">Qualität: schwacher Scan</div>
-                        </div>
-                        <div>
-                            Sinnvoller Hybrid-Workflow: zuerst manuell trainieren und eigene Notizen erfassen, danach gute Seiten oder Einzelbilder selektiv per OCR nachpflegen.
-                        </div>
-                    </div>
                 </div>
             </div>
 
             <div class="card">
                 <div class="side">
+                    <div class="notice" id="noticeBox" style="display:none;"></div>
+
                     <div class="stats">
                         <div class="stat">
                             <div class="stat-label">TREFFER</div>
@@ -295,7 +278,13 @@
                         </div>
                     </div>
 
+                    <div class="pill-row">
+                        <div class="pill" id="qualityPill">Quelle</div>
+                        <div class="pill" id="ocrPill">OCR</div>
+                    </div>
+
                     <div class="stack">
+                        <button class="btn warn" id="ocrBtn" type="button" onclick="requestOcr()">OCR / Übersetzung anfragen</button>
                         <button class="btn good" onclick="recordAttempt(true)">Treffer erfassen</button>
                         <button class="btn bad" onclick="recordAttempt(false)">Fehler erfassen</button>
 
@@ -307,8 +296,7 @@
                         <button class="btn primary" onclick="saveNotes()">Notizen speichern</button>
 
                         <div class="hint" id="hintText">
-                            Das ist die Grundstruktur. Aktuell wird der Fortschritt lokal im Browser gespeichert.
-                            Später kann das direkt in Supabase pro User abgelegt werden.
+                            Fortschritt und OCR-Anfragen werden über Supabase gespeichert. Falls die Tabellen noch fehlen, greift ein lokaler Fallback.
                         </div>
                     </div>
                 </div>
@@ -327,93 +315,273 @@
             "roger-conti": {
                 file: "data/roger_conti_positions.json",
                 label: "Roger Conti 1-62",
-                pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_1_62.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfMV82Mi5wZGYiLCJpYXQiOjE3NzIzNDg3NTUsImV4cCI6MTgwMzg4NDc1NX0.cmqqXoE50h-86B5iIqEF4LSuB4B0E7Uqc6hNzRXBukg",
-                pageOffset: 0,
-                hint: "Kommentare aus dem PDF werden als editierbare Standard-Notizen genutzt."
+                pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_1_62.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfMV82Mi5wZGYiLCJpYXQiOjE3NzIzNDg3NTUsImV4cCI6MTgwMzg4NDc1NX0.cmqqXoE50h-86B5iIqEF4LSuB4B0E7Uqc6hNzRXBukg"
             },
             "roger-conti-63-151": {
                 file: "data/roger_conti_positions_63_150.json",
                 label: "Roger Conti 63-151",
-                pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_63_151.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfNjNfMTUxLnBkZiIsImlhdCI6MTc3MjQzOTI1MiwiZXhwIjoxODAzOTc1MjUyfQ.MHNv3hvXKuM5q5Ic087HFVA3jKS79JoXuo6clhQxARE",
-                pageOffset: 0,
-                hint: "Hybrid-Modell: Training schon möglich, OCR und PDF-Aufbereitung folgen selektiv."
+                pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_63_151.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfNjNfMTUxLnBkZiIsImlhdCI6MTc3MjQzOTI1MiwiZXhwIjoxODAzOTc1MjUyfQ.MHNv3hvXKuM5q5Ic087HFVA3jKS79JoXuo6clhQxARE"
             }
         };
+
         let currentUser = null;
         let positions = [];
         let currentPosition = null;
         let currentCollection = null;
-        let progress = {};
+        let entry = null;
+        let latestOcr = null;
+        let usingDb = false;
 
-        function storageKey() {
+        function setNotice(text) {
+            const el = document.getElementById("noticeBox");
+            if (!text) {
+                el.style.display = "none";
+                el.innerText = "";
+                return;
+            }
+            el.style.display = "block";
+            el.innerText = text;
+        }
+
+        function localStorageKey() {
             return "position_training_progress_" + String(currentUser?.id || "guest");
         }
 
-        function loadProgress() {
+        function loadLocalProgressMap() {
             try {
-                progress = JSON.parse(localStorage.getItem(storageKey()) || "{}");
+                return JSON.parse(localStorage.getItem(localStorageKey()) || "{}");
             } catch (_) {
-                progress = {};
+                return {};
             }
         }
 
-        function saveProgress() {
-            localStorage.setItem(storageKey(), JSON.stringify(progress));
-        }
-
-        function getEntry() {
-            if (!currentPosition) return null;
-            if (!progress[currentPosition.id]) {
-                progress[currentPosition.id] = {
-                    hits: 0,
-                    misses: 0,
-                    notes: "",
-                    lastTrained: ""
-                };
-            }
-            return progress[currentPosition.id];
+        function saveLocalProgressMap(map) {
+            localStorage.setItem(localStorageKey(), JSON.stringify(map));
         }
 
         function getDefaultNotes() {
-            if (!currentPosition) return "";
-            if (Array.isArray(currentPosition.comments) && currentPosition.comments.length) {
+            if (entry && entry.notes) return entry.notes;
+            if (currentPosition && Array.isArray(currentPosition.comments) && currentPosition.comments.length) {
                 return currentPosition.comments.join("\n\n");
             }
-            if (currentPosition.ocrStatus === "pending") {
+            if (latestOcr && latestOcr.translated_text) {
+                return latestOcr.translated_text;
+            }
+            if (currentCollection === "roger-conti-63-151") {
                 return "OCR/Übersetzung für diese Position noch offen. Hier eigene Trainingsnotizen erfassen.";
             }
             return "";
         }
 
         function renderStats() {
-            const entry = getEntry();
-            if (!entry) return;
-            const total = Number(entry.hits || 0) + Number(entry.misses || 0);
-            const rate = total > 0 ? Math.round((Number(entry.hits || 0) / total) * 100) : 0;
-
-            document.getElementById("hitsValue").innerText = entry.hits || 0;
-            document.getElementById("missesValue").innerText = entry.misses || 0;
+            const hits = Number(entry?.hits || 0);
+            const misses = Number(entry?.misses || 0);
+            const total = hits + misses;
+            const rate = total > 0 ? Math.round((hits / total) * 100) : 0;
+            document.getElementById("hitsValue").innerText = hits;
+            document.getElementById("missesValue").innerText = misses;
             document.getElementById("rateValue").innerText = rate + " %";
-            document.getElementById("notesInput").value = entry.notes || getDefaultNotes();
+            document.getElementById("notesInput").value = getDefaultNotes();
         }
 
-        function recordAttempt(success) {
-            const entry = getEntry();
-            if (!entry) return;
-            if (success) entry.hits = Number(entry.hits || 0) + 1;
-            else entry.misses = Number(entry.misses || 0) + 1;
-            entry.lastTrained = new Date().toISOString();
-            saveProgress();
-            renderStats();
+        function getOcrStatus() {
+            return (latestOcr && latestOcr.status) || currentPosition?.ocr_status || currentPosition?.ocrStatus || "idle";
         }
 
-        function saveNotes() {
-            const entry = getEntry();
-            if (!entry) return;
-            entry.notes = document.getElementById("notesInput").value || "";
-            entry.lastTrained = new Date().toISOString();
-            saveProgress();
-            renderStats();
+        function renderOcrState() {
+            const status = getOcrStatus();
+            const btn = document.getElementById("ocrBtn");
+            const pill = document.getElementById("ocrPill");
+            pill.className = "pill " + (status === "pending" || status === "running" || status === "done" || status === "failed" ? status : "");
+            if (status === "pending") {
+                pill.innerText = "OCR angefragt";
+                btn.innerText = "OCR angefragt";
+                btn.disabled = true;
+            } else if (status === "running") {
+                pill.innerText = "OCR läuft";
+                btn.innerText = "OCR läuft";
+                btn.disabled = true;
+            } else if (status === "done") {
+                pill.innerText = "OCR fertig";
+                btn.innerText = "OCR erneut anfragen";
+                btn.disabled = false;
+            } else if (status === "failed") {
+                pill.innerText = "OCR fehlgeschlagen";
+                btn.innerText = "OCR erneut anfragen";
+                btn.disabled = false;
+            } else {
+                pill.innerText = "OCR offen";
+                btn.innerText = "OCR / Übersetzung anfragen";
+                btn.disabled = false;
+            }
+        }
+
+        function renderMeta() {
+            document.getElementById("pageTitle").innerText = "Position " + currentPosition.number;
+            document.getElementById("pageSub").innerText = COLLECTIONS[currentCollection].label;
+            document.getElementById("viewerTitle").innerText = COLLECTIONS[currentCollection].label + " - Fiche " + currentPosition.number;
+            document.getElementById("viewerSub").innerText = currentPosition.pdfPage ? ("PDF-Seite " + currentPosition.pdfPage) : "PDF-Seite nicht gesetzt";
+            document.getElementById("qualityPill").innerText = currentPosition.sourceQuality === "poor-scan" ? "Quelle: schwacher Scan" : "Quelle: PDF mit Text";
+            document.getElementById("hintText").innerText = usingDb
+                ? "Fortschritt und OCR-Anfragen werden über Supabase gespeichert."
+                : "Fallback aktiv: Fortschritt lokal im Browser, OCR-Anfrage noch nicht in der DB.";
+        }
+
+        function renderViewer() {
+            const pdfUrl = COLLECTIONS[currentCollection].pdfPath + "#page=" + currentPosition.pdfPage + "&zoom=page-width";
+            document.getElementById("pdfFrame").src = pdfUrl;
+            document.getElementById("openPdfBtn").onclick = () => window.open(pdfUrl, "_blank");
+        }
+
+        async function loadPositionAndCollectionFromDb() {
+            const { data: pos, error: posError } = await supabaseClient
+                .from("training_positions_catalog")
+                .select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality,ocr_status")
+                .eq("id", positionId)
+                .maybeSingle();
+            if (posError || !pos) throw posError || new Error("Position nicht gefunden");
+            currentPosition = {
+                ...pos,
+                pdfPage: pos.pdf_page,
+                sourceQuality: pos.source_quality,
+                ocrStatus: pos.ocr_status
+            };
+            currentCollection = pos.set_key;
+            const { data: list, error: listError } = await supabaseClient
+                .from("training_positions_catalog")
+                .select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality,ocr_status")
+                .eq("set_key", currentCollection)
+                .order("number", { ascending: true });
+            if (listError) throw listError;
+            positions = (list || []).map((item) => ({
+                ...item,
+                pdfPage: item.pdf_page,
+                sourceQuality: item.source_quality,
+                ocrStatus: item.ocr_status
+            }));
+            const { data: progressRow, error: progressError } = await supabaseClient
+                .from("training_position_progress")
+                .select("position_id,hits,misses,notes,last_trained")
+                .eq("user_id", currentUser.id)
+                .eq("position_id", currentPosition.id)
+                .maybeSingle();
+            if (progressError) throw progressError;
+            entry = progressRow || { position_id: currentPosition.id, hits: 0, misses: 0, notes: "", last_trained: "" };
+            const { data: ocrRows, error: ocrError } = await supabaseClient
+                .from("training_position_ocr_requests")
+                .select("id,position_id,status,translated_text,created_at")
+                .eq("position_id", currentPosition.id)
+                .order("created_at", { ascending: false })
+                .limit(1);
+            if (ocrError) throw ocrError;
+            latestOcr = (ocrRows && ocrRows[0]) || null;
+        }
+
+        async function loadFallback() {
+            for (const [key, cfg] of Object.entries(COLLECTIONS)) {
+                const res = await fetch(cfg.file, { cache: "no-store" });
+                const items = await res.json();
+                const found = items.find((x) => x.id === positionId) || null;
+                if (found) {
+                    currentCollection = key;
+                    positions = items;
+                    currentPosition = found;
+                    break;
+                }
+            }
+            if (!currentPosition) {
+                const res = await fetch(COLLECTIONS["roger-conti"].file, { cache: "no-store" });
+                positions = await res.json();
+                currentCollection = "roger-conti";
+                currentPosition = positions[0] || null;
+            }
+            const map = loadLocalProgressMap();
+            const raw = map[currentPosition.id] || {};
+            entry = {
+                position_id: currentPosition.id,
+                hits: Number(raw.hits || 0),
+                misses: Number(raw.misses || 0),
+                notes: raw.notes || "",
+                last_trained: raw.lastTrained || ""
+            };
+            latestOcr = null;
+        }
+
+        async function saveProgress() {
+            if (usingDb) {
+                const payload = {
+                    position_id: currentPosition.id,
+                    user_id: currentUser.id,
+                    hits: Number(entry.hits || 0),
+                    misses: Number(entry.misses || 0),
+                    notes: entry.notes || "",
+                    last_trained: entry.last_trained || null
+                };
+                const { error } = await supabaseClient
+                    .from("training_position_progress")
+                    .upsert(payload, { onConflict: "position_id,user_id" });
+                if (error) throw error;
+                return;
+            }
+            const map = loadLocalProgressMap();
+            map[currentPosition.id] = {
+                hits: Number(entry.hits || 0),
+                misses: Number(entry.misses || 0),
+                notes: entry.notes || "",
+                lastTrained: entry.last_trained || ""
+            };
+            saveLocalProgressMap(map);
+        }
+
+        async function recordAttempt(success) {
+            try {
+                if (success) entry.hits = Number(entry.hits || 0) + 1;
+                else entry.misses = Number(entry.misses || 0) + 1;
+                entry.last_trained = new Date().toISOString();
+                await saveProgress();
+                renderStats();
+            } catch (error) {
+                console.error(error);
+                alert("Fortschritt konnte nicht gespeichert werden.");
+            }
+        }
+
+        async function saveNotes() {
+            try {
+                entry.notes = document.getElementById("notesInput").value || "";
+                entry.last_trained = new Date().toISOString();
+                await saveProgress();
+                renderStats();
+            } catch (error) {
+                console.error(error);
+                alert("Notizen konnten nicht gespeichert werden.");
+            }
+        }
+
+        async function requestOcr() {
+            if (!currentPosition) return;
+            if (!usingDb) {
+                alert("OCR-Anfragen brauchen die Datenbanktabellen aus sql/training_positions.sql.");
+                return;
+            }
+            try {
+                const status = getOcrStatus();
+                if (status === "pending" || status === "running") return;
+                const { error } = await supabaseClient
+                    .from("training_position_ocr_requests")
+                    .insert({
+                        position_id: currentPosition.id,
+                        requested_by: currentUser.id,
+                        status: "pending"
+                    });
+                if (error) throw error;
+                latestOcr = { status: "pending", translated_text: "" };
+                renderOcrState();
+                setNotice("OCR-/Übersetzungsanfrage gespeichert. Der eigentliche OCR-Worker ist im MVP noch nicht angeschlossen.");
+            } catch (error) {
+                console.error(error);
+                alert("OCR-Anfrage konnte nicht gespeichert werden.");
+            }
         }
 
         function goToPosition(index) {
@@ -422,73 +590,32 @@
         }
 
         function goPrev() {
-            if (!currentPosition) return;
             const index = positions.findIndex((x) => x.id === currentPosition.id);
             goToPosition(index - 1);
         }
 
         function goNext() {
-            if (!currentPosition) return;
             const index = positions.findIndex((x) => x.id === currentPosition.id);
             goToPosition(index + 1);
-        }
-
-        function applyViewer() {
-            const config = COLLECTIONS[currentCollection];
-            const pdfFrame = document.getElementById("pdfFrame");
-            const placeholder = document.getElementById("viewerPlaceholder");
-            const openBtn = document.getElementById("openPdfBtn");
-            document.getElementById("hintText").innerText = config.hint;
-
-            if (config.pdfPath && currentPosition.pdfPage) {
-                const pdfUrl = config.pdfPath + "#page=" + currentPosition.pdfPage + "&zoom=page-width";
-                pdfFrame.style.display = "block";
-                placeholder.style.display = "none";
-                pdfFrame.src = pdfUrl;
-                openBtn.disabled = false;
-                openBtn.onclick = () => window.open(pdfUrl, "_blank");
-            } else {
-                pdfFrame.removeAttribute("src");
-                pdfFrame.style.display = "none";
-                placeholder.style.display = "block";
-                openBtn.disabled = true;
-                openBtn.onclick = null;
-            }
-        }
-
-        async function loadPositions() {
-            for (const [key, cfg] of Object.entries(COLLECTIONS)) {
-                const res = await fetch(cfg.file, { cache: "no-store" });
-                const items = await res.json();
-                const match = items.find((x) => x.id === positionId);
-                if (match) {
-                    positions = items;
-                    currentPosition = match;
-                    currentCollection = key;
-                    return;
-                }
-            }
-
-            const res = await fetch(COLLECTIONS["roger-conti"].file, { cache: "no-store" });
-            positions = await res.json();
-            currentPosition = positions[0] || null;
-            currentCollection = "roger-conti";
         }
 
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
-            loadProgress();
-            await loadPositions();
+            try {
+                await loadPositionAndCollectionFromDb();
+                usingDb = true;
+            } catch (error) {
+                console.warn("Positionstraining DB-Fallback aktiv:", error);
+                usingDb = false;
+                setNotice("Datenbanktabellen für Positionstraining noch nicht aktiv. JSON/localStorage-Fallback läuft. SQL aus sql/training_positions.sql in Supabase ausführen.");
+                await loadFallback();
+            }
             if (!currentPosition) return;
-
-            document.getElementById("pageTitle").innerText = "Position " + currentPosition.number;
-            document.getElementById("pageSub").innerText = COLLECTIONS[currentCollection].label;
-            document.getElementById("viewerTitle").innerText = COLLECTIONS[currentCollection].label + " - Fiche " + currentPosition.number;
-            document.getElementById("viewerSub").innerText = currentPosition.pdfPage ? ("PDF-Seite " + currentPosition.pdfPage) : "Noch keine direkt eingebundene PDF-Seite";
-
-            applyViewer();
+            renderMeta();
+            renderViewer();
             renderStats();
+            renderOcrState();
         }
 
         init();
