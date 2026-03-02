@@ -124,7 +124,7 @@
             document.getElementById("qualityPill").innerText = currentPosition.sourceQuality === "poor-scan" ? "Quelle: schwacher Scan" : "Quelle: PDF mit Text";
         }
         function renderViewer() {
-            const pdfUrl = COLLECTIONS[currentCollection].pdfPath + "#page=" + currentPosition.pdfPage + "&zoom=page-width";
+            const pdfUrl = COLLECTIONS[currentCollection].pdfPath + "#page=" + currentPosition.pdfPage + "&view=FitH";
             document.getElementById("pdfFrame").src = pdfUrl;
             document.getElementById("openPdfBtn").onclick = () => window.open(pdfUrl, "_blank");
         }
