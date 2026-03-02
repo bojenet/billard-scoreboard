@@ -51,6 +51,7 @@
         .btn.good { background: #198754; border-color: #30a96e; }
         .btn.bad { background: #a53b3b; border-color: #c86262; }
         .btn.warn { background: #6d5613; border-color: #a98b35; }
+        .btn:disabled { opacity: 0.45; cursor: default; }
         .layout {
             display: grid;
             grid-template-columns: 380px minmax(0, 1fr);
@@ -100,6 +101,12 @@
         }
         .meta-label { font-size: 12px; opacity: 0.72; margin-bottom: 6px; }
         .meta-value { font-size: 18px; font-weight: 800; }
+        .viewer-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+            gap: 12px;
+            align-items: start;
+        }
         .viewer {
             height: 48vh;
             min-height: 420px;
@@ -109,6 +116,33 @@
             background: #08122f;
         }
         .viewer iframe { width: 100%; height: 100%; border: none; background: white; }
+        .ocr-preview {
+            border: 1px solid #2f4ea0;
+            border-radius: 14px;
+            padding: 10px;
+            background: rgba(8, 20, 54, 0.44);
+            display: grid;
+            gap: 10px;
+        }
+        .ocr-status {
+            font-size: 13px;
+            opacity: 0.84;
+            line-height: 1.5;
+            min-height: 40px;
+        }
+        .ocr-canvas-wrap {
+            border-radius: 10px;
+            overflow: auto;
+            background: #0b1537;
+            border: 1px solid #3659bb;
+            max-height: 340px;
+        }
+        #ocrCanvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: white;
+        }
         .field label { display:block; font-size:13px; opacity:0.82; margin-bottom:6px; }
         .field textarea {
             width: 100%;
@@ -136,6 +170,7 @@
             .layout { grid-template-columns: 1fr; }
             .queue-list { max-height: none; }
             .meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .viewer-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -170,7 +205,18 @@
                         <div class="meta"><div class="meta-label">ANGEFRAGT AM</div><div class="meta-value" id="metaCreated">-</div></div>
                     </div>
 
-                    <div class="viewer"><iframe id="pdfFrame"></iframe></div>
+                    <div class="viewer-grid">
+                        <div class="viewer"><iframe id="pdfFrame"></iframe></div>
+                        <div class="ocr-preview">
+                            <div class="toolbar">
+                                <button class="btn warn" id="autoOcrBtn" onclick="runAutoOcr()">OCR automatisch starten</button>
+                            </div>
+                            <div class="ocr-status" id="ocrStatusBox">Noch kein OCR-Lauf gestartet.</div>
+                            <div class="ocr-canvas-wrap">
+                                <canvas id="ocrCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="field">
                         <label for="sourceText">OCR / Quelltext</label>
@@ -193,9 +239,16 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.3.136/build/pdf.min.mjs" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/user_menu.js"></script>
+    <script type="module">
+        import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.3.136/build/pdf.min.mjs';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.3.136/build/pdf.worker.min.mjs';
+        window.__pdfjsLib = pdfjsLib;
+    </script>
     <script>
         const PDFS = {
             "roger-conti": "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_1_62.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfMV82Mi5wZGYiLCJpYXQiOjE3NzIzNDg3NTUsImV4cCI6MTgwMzg4NDc1NX0.cmqqXoE50h-86B5iIqEF4LSuB4B0E7Uqc6hNzRXBukg",
@@ -205,9 +258,14 @@
         let currentUser = null;
         let queue = [];
         let currentItem = null;
+        let ocrRunning = false;
 
         function setNotice(text) {
             document.getElementById('noticeBox').innerText = text;
+        }
+
+        function setOcrStatus(text) {
+            document.getElementById('ocrStatusBox').innerText = text;
         }
 
         function splitComments(text) {
@@ -215,6 +273,65 @@
                 .split(/\n\s*\n/)
                 .map((part) => part.trim())
                 .filter(Boolean);
+        }
+
+        function getPdfUrl(item) {
+            const base = PDFS[item.set_key] || '';
+            return base ? (base + '#page=' + item.pdf_page + '&zoom=page-width') : '';
+        }
+
+        async function renderPdfPageToCanvas(item) {
+            const pdfjsLib = window.__pdfjsLib;
+            if (!pdfjsLib) {
+                throw new Error('pdf.js noch nicht geladen');
+            }
+            const baseUrl = PDFS[item.set_key];
+            if (!baseUrl) {
+                throw new Error('Keine PDF-URL für diese Sammlung hinterlegt');
+            }
+            const loadingTask = pdfjsLib.getDocument({ url: baseUrl });
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(item.pdf_page);
+            const viewport = page.getViewport({ scale: 2.2 });
+            const canvas = document.getElementById('ocrCanvas');
+            const context = canvas.getContext('2d', { alpha: false });
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            await page.render({ canvasContext: context, viewport }).promise;
+            return canvas;
+        }
+
+        async function runAutoOcr() {
+            if (!currentItem || ocrRunning) return;
+            ocrRunning = true;
+            document.getElementById('autoOcrBtn').disabled = true;
+            try {
+                setOcrStatus('PDF-Seite wird gerendert ...');
+                await markRunning(true);
+                const canvas = await renderPdfPageToCanvas(currentItem);
+                setOcrStatus('OCR läuft ...');
+                const result = await Tesseract.recognize(canvas, 'fra+deu+eng', {
+                    logger: (message) => {
+                        if (message && message.status) {
+                            const pct = typeof message.progress === 'number' ? ' ' + Math.round(message.progress * 100) + '%' : '';
+                            setOcrStatus(message.status + pct);
+                        }
+                    }
+                });
+                const text = (result && result.data && result.data.text ? result.data.text : '').trim();
+                document.getElementById('sourceText').value = text;
+                setOcrStatus(text ? 'OCR fertig. Quelltext wurde eingefüllt.' : 'OCR fertig, aber kein Text erkannt.');
+                setNotice('Automatisches OCR ist durchgelaufen. Jetzt Text prüfen, ggf. bereinigen und Übersetzung speichern.');
+                await updateRequestOnly({ status: 'running', source_text: text, translated_text: document.getElementById('translatedText').value || '' });
+                await loadQueue();
+            } catch (error) {
+                console.error(error);
+                setOcrStatus('OCR fehlgeschlagen: ' + error.message);
+                setNotice('Automatisches OCR ist fehlgeschlagen. Häufige Ursachen: CORS am PDF, sehr schlechte Scanqualität oder Browser-Speichergrenze.');
+            } finally {
+                ocrRunning = false;
+                document.getElementById('autoOcrBtn').disabled = false;
+            }
         }
 
         function renderQueue() {
@@ -255,15 +372,18 @@
             document.getElementById('claimBtn').disabled = disabled;
             document.getElementById('doneBtn').disabled = disabled;
             document.getElementById('failBtn').disabled = disabled;
+            document.getElementById('autoOcrBtn').disabled = disabled || ocrRunning;
 
             const frame = document.getElementById('pdfFrame');
             if (!currentItem) {
                 frame.removeAttribute('src');
+                document.getElementById('ocrCanvas').getContext('2d').clearRect(0, 0, document.getElementById('ocrCanvas').width || 0, document.getElementById('ocrCanvas').height || 0);
+                setOcrStatus('Noch kein OCR-Lauf gestartet.');
                 return;
             }
-            const pdfBase = PDFS[currentItem.set_key] || '';
-            frame.src = pdfBase ? (pdfBase + '#page=' + currentItem.pdf_page + '&zoom=page-width') : '';
-            setNotice('Anfrage geladen. Quelltext und Übersetzung prüfen, dann Status setzen.');
+            frame.src = getPdfUrl(currentItem);
+            setNotice('Anfrage geladen. Optional OCR automatisch starten, dann Text prüfen und Ergebnis speichern.');
+            setOcrStatus('Bereit für automatisches OCR.');
         }
 
         async function loadQueue() {
@@ -281,7 +401,7 @@
                 request_id: row.id,
                 position_id: row.position_id,
                 requested_by: row.requested_by,
-                                request_status: row.status,
+                request_status: row.status,
                 source_text: row.source_text || '',
                 translated_text: row.translated_text || '',
                 request_created_at: row.created_at,
@@ -300,21 +420,25 @@
             renderCurrent();
         }
 
-        async function updateRequest(status) {
-            if (!currentItem) return;
-            const sourceText = document.getElementById('sourceText').value || '';
-            const translatedText = document.getElementById('translatedText').value || '';
+        async function updateRequestOnly(payload) {
             const { error } = await supabaseClient
                 .from('training_position_ocr_requests')
                 .update({
-                    status,
-                    source_text: sourceText,
-                    translated_text: translatedText,
+                    ...payload,
                     updated_at: new Date().toISOString(),
-                    error_message: status === 'failed' ? (translatedText || 'Manuell als fehlgeschlagen markiert.') : ''
+                    error_message: payload.status === 'failed' ? ((payload.translated_text || '').trim() || 'Manuell als fehlgeschlagen markiert.') : ''
                 })
                 .eq('id', currentItem.request_id);
             if (error) throw error;
+        }
+
+        async function updateRequest(status) {
+            if (!currentItem) return;
+            await updateRequestOnly({
+                status,
+                source_text: document.getElementById('sourceText').value || '',
+                translated_text: document.getElementById('translatedText').value || ''
+            });
         }
 
         async function updateCatalog(status) {
@@ -331,14 +455,16 @@
             if (error) throw error;
         }
 
-        async function markRunning() {
+        async function markRunning(silent = false) {
             try {
                 await updateRequest('running');
                 await updateCatalog('running');
                 await loadQueue();
+                if (!silent) setNotice('Anfrage auf laufend gesetzt.');
             } catch (error) {
                 console.error(error);
-                setNotice('Status konnte nicht auf running gesetzt werden.');
+                if (!silent) setNotice('Status konnte nicht auf running gesetzt werden.');
+                throw error;
             }
         }
 
