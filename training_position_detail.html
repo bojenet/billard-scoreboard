@@ -4,231 +4,36 @@
     <meta charset="UTF-8">
     <title>Trainingsposition</title>
     <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: linear-gradient(180deg, #0f1c3f, #0a122b);
-            color: white;
-        }
-
-        .page {
-            width: min(1380px, 95%);
-            margin: 20px auto 28px;
-        }
-
-        .topbar {
-            display: flex;
-            justify-content: space-between;
-            gap: 14px;
-            align-items: center;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-        }
-
-        .left h1 {
-            margin: 0;
-            font-size: 46px;
-        }
-
-        .sub {
-            margin-top: 8px;
-            opacity: 0.76;
-            font-size: 17px;
-        }
-
-        .actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            border: none;
-            border-radius: 12px;
-            padding: 12px 16px;
-            background: #1c3380;
-            border: 1px solid #3659bb;
-            color: white;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .btn.primary {
-            background: #2f4fe0;
-        }
-
-        .btn.good {
-            background: #198754;
-            border-color: #30a96e;
-        }
-
-        .btn.bad {
-            background: #b03c3c;
-            border-color: #cc6767;
-        }
-
-        .btn.warn {
-            background: #6d5613;
-            border-color: #a98b35;
-        }
-
-        .btn:disabled {
-            opacity: 0.45;
-            cursor: default;
-        }
-
-        .layout {
-            display: grid;
-            grid-template-columns: minmax(0, 2fr) minmax(320px, 0.95fr);
-            gap: 18px;
-        }
-
-        .card {
-            background: linear-gradient(180deg, #162b66, #0f1c3f);
-            border: 1px solid #2d488f;
-            border-radius: 22px;
-            box-shadow: 0 24px 56px rgba(0, 0, 0, 0.45);
-            overflow: hidden;
-        }
-
-        .viewer-head {
-            padding: 14px 16px;
-            border-bottom: 1px solid #27417f;
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .viewer-title {
-            font-size: 22px;
-            font-weight: 800;
-        }
-
-        .viewer-sub {
-            font-size: 14px;
-            opacity: 0.76;
-            margin-top: 4px;
-        }
-
-        .viewer {
-            height: 76vh;
-            min-height: 680px;
-            background: #08122f;
-        }
-
-        .viewer iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: white;
-        }
-
-        .side {
-            padding: 16px;
-        }
-
-        .notice {
-            margin-bottom: 12px;
-            padding: 12px 14px;
-            border-radius: 14px;
-            border: 1px solid #556db2;
-            background: rgba(20, 38, 89, 0.78);
-            font-size: 14px;
-            line-height: 1.5;
-            opacity: 0.92;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
-        .stat {
-            border: 1px solid #2f4ea0;
-            border-radius: 14px;
-            padding: 12px;
-            background: rgba(8, 20, 54, 0.44);
-        }
-
-        .stat-label {
-            font-size: 12px;
-            opacity: 0.72;
-            margin-bottom: 6px;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: 800;
-        }
-
-        .stack {
-            display: grid;
-            gap: 10px;
-        }
-
-        .field label {
-            display: block;
-            font-size: 13px;
-            opacity: 0.8;
-            margin-bottom: 6px;
-        }
-
-        .field textarea {
-            width: 100%;
-            box-sizing: border-box;
-            border: 1px solid #3959ab;
-            border-radius: 12px;
-            padding: 11px 12px;
-            color: white;
-            background: #112659;
-            min-height: 420px;
-            resize: vertical;
-            font-size: 16px;
-            line-height: 1.5;
-        }
-
-        .hint {
-            font-size: 13px;
-            opacity: 0.74;
-            line-height: 1.5;
-        }
-
-        .pill-row {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin: 0 0 10px;
-        }
-
-        .pill {
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 700;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-        }
-
-        .pill.pending { border-color: rgba(255, 216, 74, 0.45); color: #ffe27a; }
-        .pill.running { border-color: rgba(120, 184, 255, 0.45); color: #9fcbff; }
-        .pill.done { border-color: rgba(89, 219, 167, 0.45); color: #7df4bf; }
-        .pill.failed { border-color: rgba(255, 123, 123, 0.45); color: #ff9f9f; }
-
-        @media (max-width: 1000px) {
-            .layout {
-                grid-template-columns: 1fr;
-            }
-
-            .viewer {
-                height: 66vh;
-                min-height: 520px;
-            }
-        }
+        body { margin:0; font-family:Arial,sans-serif; background:linear-gradient(180deg,#0f1c3f,#0a122b); color:white; }
+        .page { width:min(1380px,95%); margin:20px auto 28px; }
+        .topbar { display:flex; justify-content:space-between; gap:14px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+        .left h1 { margin:0; font-size:46px; }
+        .sub { margin-top:8px; opacity:.76; font-size:17px; }
+        .actions { display:flex; gap:10px; flex-wrap:wrap; }
+        .btn { border:none; border-radius:12px; padding:12px 16px; background:#1c3380; border:1px solid #3659bb; color:white; font-size:16px; font-weight:700; cursor:pointer; }
+        .btn.primary { background:#2f4fe0; }
+        .btn.good { background:#198754; border-color:#30a96e; }
+        .btn.bad { background:#b03c3c; border-color:#cc6767; }
+        .layout { display:grid; grid-template-columns:minmax(0,2fr) minmax(320px,.95fr); gap:18px; }
+        .card { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:22px; box-shadow:0 24px 56px rgba(0,0,0,.45); overflow:hidden; }
+        .viewer-head { padding:14px 16px; border-bottom:1px solid #27417f; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
+        .viewer-title { font-size:22px; font-weight:800; }
+        .viewer-sub { font-size:14px; opacity:.76; margin-top:4px; }
+        .viewer { height:76vh; min-height:680px; background:#08122f; }
+        .viewer iframe { width:100%; height:100%; border:none; background:white; }
+        .side { padding:16px; }
+        .notice { margin-bottom:12px; padding:12px 14px; border-radius:14px; border:1px solid #556db2; background:rgba(20,38,89,.78); font-size:14px; line-height:1.5; opacity:.92; }
+        .stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+        .stat { border:1px solid #2f4ea0; border-radius:14px; padding:12px; background:rgba(8,20,54,.44); }
+        .stat-label { font-size:12px; opacity:.72; margin-bottom:6px; }
+        .stat-value { font-size:24px; font-weight:800; }
+        .stack { display:grid; gap:10px; }
+        .field label { display:block; font-size:13px; opacity:.8; margin-bottom:6px; }
+        .field textarea { width:100%; box-sizing:border-box; border:1px solid #3959ab; border-radius:12px; padding:11px 12px; color:white; background:#112659; min-height:420px; resize:vertical; font-size:16px; line-height:1.5; }
+        .pill-row { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 10px; }
+        .pill { padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); }
+        .hint { font-size:13px; opacity:.74; line-height:1.5; }
+        @media (max-width:1000px) { .layout { grid-template-columns:1fr; } .viewer { height:66vh; min-height:520px; } }
     </style>
 </head>
 <body>
@@ -254,50 +59,27 @@
                     </div>
                     <button class="btn primary" id="openPdfBtn" type="button">PDF separat öffnen</button>
                 </div>
-                <div class="viewer">
-                    <iframe id="pdfFrame" title="Trainingsposition PDF"></iframe>
-                </div>
+                <div class="viewer"><iframe id="pdfFrame" title="Trainingsposition PDF"></iframe></div>
             </div>
 
             <div class="card">
                 <div class="side">
                     <div class="notice" id="noticeBox" style="display:none;"></div>
-
                     <div class="stats">
-                        <div class="stat">
-                            <div class="stat-label">TREFFER</div>
-                            <div class="stat-value" id="hitsValue">0</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-label">FEHLER</div>
-                            <div class="stat-value" id="missesValue">0</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-label">QUOTE</div>
-                            <div class="stat-value" id="rateValue">0 %</div>
-                        </div>
+                        <div class="stat"><div class="stat-label">TREFFER</div><div class="stat-value" id="hitsValue">0</div></div>
+                        <div class="stat"><div class="stat-label">FEHLER</div><div class="stat-value" id="missesValue">0</div></div>
+                        <div class="stat"><div class="stat-label">QUOTE</div><div class="stat-value" id="rateValue">0 %</div></div>
                     </div>
-
-                    <div class="pill-row">
-                        <div class="pill" id="qualityPill">Quelle</div>
-                        <div class="pill" id="ocrPill">OCR</div>
-                    </div>
-
+                    <div class="pill-row"><div class="pill" id="qualityPill">Quelle</div></div>
                     <div class="stack">
-                        <button class="btn warn" id="ocrBtn" type="button" onclick="requestOcr()">OCR / Übersetzung anfragen</button>
                         <button class="btn good" onclick="recordAttempt(true)">Treffer erfassen</button>
                         <button class="btn bad" onclick="recordAttempt(false)">Fehler erfassen</button>
-
                         <div class="field">
                             <label for="notesInput">Notizen</label>
                             <textarea id="notesInput" placeholder="z.B. Effet, Tempo, Schwierigkeit, typische Fehler"></textarea>
                         </div>
-
                         <button class="btn primary" onclick="saveNotes()">Notizen speichern</button>
-
-                        <div class="hint" id="hintText">
-                            Fortschritt und OCR-Anfragen werden über Supabase gespeichert. Falls die Tabellen noch fehlen, greift ein lokaler Fallback.
-                        </div>
+                        <div class="hint" id="hintText">Texte werden lokal offline vorbereitet und dann in den Katalog übernommen. Hier bearbeitest du nur fertige Inhalte oder eigene Notizen.</div>
                     </div>
                 </div>
             </div>
@@ -312,312 +94,88 @@
         const params = new URLSearchParams(window.location.search);
         const positionId = params.get("id") || "";
         const COLLECTIONS = {
-            "roger-conti": {
-                file: "data/roger_conti_positions.json",
-                label: "Roger Conti 1-62",
-                pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_1_62.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfMV82Mi5wZGYiLCJpYXQiOjE3NzIzNDg3NTUsImV4cCI6MTgwMzg4NDc1NX0.cmqqXoE50h-86B5iIqEF4LSuB4B0E7Uqc6hNzRXBukg"
-            },
-            "roger-conti-63-151": {
-                file: "data/roger_conti_positions_63_150.json",
-                label: "Roger Conti 63-151",
-                pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_63_151.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfNjNfMTUxLnBkZiIsImlhdCI6MTc3MjQzOTI1MiwiZXhwIjoxODAzOTc1MjUyfQ.MHNv3hvXKuM5q5Ic087HFVA3jKS79JoXuo6clhQxARE"
-            }
+            "roger-conti": { file: "data/roger_conti_positions.json", label: "Roger Conti 1-62", pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_1_62.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfMV82Mi5wZGYiLCJpYXQiOjE3NzIzNDg3NTUsImV4cCI6MTgwMzg4NDc1NX0.cmqqXoE50h-86B5iIqEF4LSuB4B0E7Uqc6hNzRXBukg" },
+            "roger-conti-63-151": { file: "data/roger_conti_positions_63_150.json", label: "Roger Conti 63-151", pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_63_151.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfNjNfMTUxLnBkZiIsImlhdCI6MTc3MjQzOTI1MiwiZXhwIjoxODAzOTc1MjUyfQ.MHNv3hvXKuM5q5Ic087HFVA3jKS79JoXuo6clhQxARE" }
         };
-
-        let currentUser = null;
-        let positions = [];
-        let currentPosition = null;
-        let currentCollection = null;
-        let entry = null;
-        let latestOcr = null;
-        let usingDb = false;
-
-        function setNotice(text) {
-            const el = document.getElementById("noticeBox");
-            if (!text) {
-                el.style.display = "none";
-                el.innerText = "";
-                return;
-            }
-            el.style.display = "block";
-            el.innerText = text;
-        }
-
-        function localStorageKey() {
-            return "position_training_progress_" + String(currentUser?.id || "guest");
-        }
-
-        function loadLocalProgressMap() {
-            try {
-                return JSON.parse(localStorage.getItem(localStorageKey()) || "{}");
-            } catch (_) {
-                return {};
-            }
-        }
-
-        function saveLocalProgressMap(map) {
-            localStorage.setItem(localStorageKey(), JSON.stringify(map));
-        }
-
+        let currentUser = null, positions = [], currentPosition = null, currentCollection = null, entry = null;
+        function setNotice(text) { const el = document.getElementById("noticeBox"); el.style.display = text ? "block" : "none"; el.innerText = text || ""; }
+        function localStorageKey() { return "position_training_progress_" + String(currentUser?.id || "guest"); }
+        function loadLocalProgressMap() { try { return JSON.parse(localStorage.getItem(localStorageKey()) || "{}"); } catch (_) { return {}; } }
+        function saveLocalProgressMap(map) { localStorage.setItem(localStorageKey(), JSON.stringify(map)); }
         function getDefaultNotes() {
             if (entry && entry.notes) return entry.notes;
-            if (currentPosition && Array.isArray(currentPosition.comments) && currentPosition.comments.length) {
-                return currentPosition.comments.join("\n\n");
-            }
-            if (latestOcr && latestOcr.translated_text) {
-                return latestOcr.translated_text;
-            }
-            if (currentCollection === "roger-conti-63-151") {
-                return "OCR/Übersetzung für diese Position noch offen. Hier eigene Trainingsnotizen erfassen.";
-            }
+            if (currentPosition && Array.isArray(currentPosition.comments) && currentPosition.comments.length) return currentPosition.comments.join("\n\n");
+            if (currentCollection === "roger-conti-63-151") return "Für diese Position liegt noch kein importierter Text vor. Notizen hier manuell ergänzen oder lokal OCRen und später importieren.";
             return "";
         }
-
         function renderStats() {
-            const hits = Number(entry?.hits || 0);
-            const misses = Number(entry?.misses || 0);
-            const total = hits + misses;
-            const rate = total > 0 ? Math.round((hits / total) * 100) : 0;
+            const hits = Number(entry?.hits || 0), misses = Number(entry?.misses || 0), total = hits + misses, rate = total > 0 ? Math.round((hits / total) * 100) : 0;
             document.getElementById("hitsValue").innerText = hits;
             document.getElementById("missesValue").innerText = misses;
             document.getElementById("rateValue").innerText = rate + " %";
             document.getElementById("notesInput").value = getDefaultNotes();
         }
-
-        function getOcrStatus() {
-            return (latestOcr && latestOcr.status) || currentPosition?.ocr_status || currentPosition?.ocrStatus || "idle";
-        }
-
-        function renderOcrState() {
-            const status = getOcrStatus();
-            const btn = document.getElementById("ocrBtn");
-            const pill = document.getElementById("ocrPill");
-            pill.className = "pill " + (status === "pending" || status === "running" || status === "done" || status === "failed" ? status : "");
-            if (status === "pending") {
-                pill.innerText = "OCR angefragt";
-                btn.innerText = "OCR angefragt";
-                btn.disabled = true;
-            } else if (status === "running") {
-                pill.innerText = "OCR läuft";
-                btn.innerText = "OCR läuft";
-                btn.disabled = true;
-            } else if (status === "done") {
-                pill.innerText = "OCR fertig";
-                btn.innerText = "OCR erneut anfragen";
-                btn.disabled = false;
-            } else if (status === "failed") {
-                pill.innerText = "OCR fehlgeschlagen";
-                btn.innerText = "OCR erneut anfragen";
-                btn.disabled = false;
-            } else {
-                pill.innerText = "OCR offen";
-                btn.innerText = "OCR / Übersetzung anfragen";
-                btn.disabled = false;
-            }
-        }
-
         function renderMeta() {
             document.getElementById("pageTitle").innerText = "Position " + currentPosition.number;
             document.getElementById("pageSub").innerText = COLLECTIONS[currentCollection].label;
             document.getElementById("viewerTitle").innerText = COLLECTIONS[currentCollection].label + " - Fiche " + currentPosition.number;
             document.getElementById("viewerSub").innerText = currentPosition.pdfPage ? ("PDF-Seite " + currentPosition.pdfPage) : "PDF-Seite nicht gesetzt";
             document.getElementById("qualityPill").innerText = currentPosition.sourceQuality === "poor-scan" ? "Quelle: schwacher Scan" : "Quelle: PDF mit Text";
-            document.getElementById("hintText").innerText = usingDb
-                ? "Fortschritt und OCR-Anfragen werden über Supabase gespeichert."
-                : "Fallback aktiv: Fortschritt lokal im Browser, OCR-Anfrage noch nicht in der DB.";
         }
-
         function renderViewer() {
             const pdfUrl = COLLECTIONS[currentCollection].pdfPath + "#page=" + currentPosition.pdfPage + "&zoom=page-width";
             document.getElementById("pdfFrame").src = pdfUrl;
             document.getElementById("openPdfBtn").onclick = () => window.open(pdfUrl, "_blank");
         }
-
         async function loadPositionAndCollectionFromDb() {
-            const { data: pos, error: posError } = await supabaseClient
-                .from("training_positions_catalog")
-                .select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality,ocr_status")
-                .eq("id", positionId)
-                .maybeSingle();
+            const { data: pos, error: posError } = await supabaseClient.from("training_positions_catalog").select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality").eq("id", positionId).maybeSingle();
             if (posError || !pos) throw posError || new Error("Position nicht gefunden");
-            currentPosition = {
-                ...pos,
-                pdfPage: pos.pdf_page,
-                sourceQuality: pos.source_quality,
-                ocrStatus: pos.ocr_status
-            };
+            currentPosition = { ...pos, pdfPage: pos.pdf_page, sourceQuality: pos.source_quality };
             currentCollection = pos.set_key;
-            const { data: list, error: listError } = await supabaseClient
-                .from("training_positions_catalog")
-                .select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality,ocr_status")
-                .eq("set_key", currentCollection)
-                .order("number", { ascending: true });
+            const { data: list, error: listError } = await supabaseClient.from("training_positions_catalog").select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality").eq("set_key", currentCollection).order("number", { ascending: true });
             if (listError) throw listError;
-            positions = (list || []).map((item) => ({
-                ...item,
-                pdfPage: item.pdf_page,
-                sourceQuality: item.source_quality,
-                ocrStatus: item.ocr_status
-            }));
-            const { data: progressRow, error: progressError } = await supabaseClient
-                .from("training_position_progress")
-                .select("position_id,hits,misses,notes,last_trained")
-                .eq("user_id", currentUser.id)
-                .eq("position_id", currentPosition.id)
-                .maybeSingle();
+            positions = (list || []).map((item) => ({ ...item, pdfPage: item.pdf_page, sourceQuality: item.source_quality }));
+            const { data: progressRow, error: progressError } = await supabaseClient.from("training_position_progress").select("position_id,hits,misses,notes,last_trained").eq("user_id", currentUser.id).eq("position_id", currentPosition.id).maybeSingle();
             if (progressError) throw progressError;
             entry = progressRow || { position_id: currentPosition.id, hits: 0, misses: 0, notes: "", last_trained: "" };
-            const { data: ocrRows, error: ocrError } = await supabaseClient
-                .from("training_position_ocr_requests")
-                .select("id,position_id,status,translated_text,created_at")
-                .eq("position_id", currentPosition.id)
-                .order("created_at", { ascending: false })
-                .limit(1);
-            if (ocrError) throw ocrError;
-            latestOcr = (ocrRows && ocrRows[0]) || null;
         }
-
         async function loadFallback() {
             for (const [key, cfg] of Object.entries(COLLECTIONS)) {
                 const res = await fetch(cfg.file, { cache: "no-store" });
                 const items = await res.json();
                 const found = items.find((x) => x.id === positionId) || null;
-                if (found) {
-                    currentCollection = key;
-                    positions = items;
-                    currentPosition = found;
-                    break;
-                }
+                if (found) { currentCollection = key; positions = items; currentPosition = found; break; }
             }
             if (!currentPosition) {
                 const res = await fetch(COLLECTIONS["roger-conti"].file, { cache: "no-store" });
-                positions = await res.json();
-                currentCollection = "roger-conti";
-                currentPosition = positions[0] || null;
+                positions = await res.json(); currentCollection = "roger-conti"; currentPosition = positions[0] || null;
             }
             const map = loadLocalProgressMap();
             const raw = map[currentPosition.id] || {};
-            entry = {
-                position_id: currentPosition.id,
-                hits: Number(raw.hits || 0),
-                misses: Number(raw.misses || 0),
-                notes: raw.notes || "",
-                last_trained: raw.lastTrained || ""
-            };
-            latestOcr = null;
+            entry = { position_id: currentPosition.id, hits: Number(raw.hits || 0), misses: Number(raw.misses || 0), notes: raw.notes || "", last_trained: raw.lastTrained || "" };
         }
-
         async function saveProgress() {
-            if (usingDb) {
-                const payload = {
-                    position_id: currentPosition.id,
-                    user_id: currentUser.id,
-                    hits: Number(entry.hits || 0),
-                    misses: Number(entry.misses || 0),
-                    notes: entry.notes || "",
-                    last_trained: entry.last_trained || null
-                };
-                const { error } = await supabaseClient
-                    .from("training_position_progress")
-                    .upsert(payload, { onConflict: "position_id,user_id" });
+            try {
+                const payload = { position_id: currentPosition.id, user_id: currentUser.id, hits: Number(entry.hits || 0), misses: Number(entry.misses || 0), notes: entry.notes || "", last_trained: entry.last_trained || null };
+                const { error } = await supabaseClient.from("training_position_progress").upsert(payload, { onConflict: "position_id,user_id" });
                 if (error) throw error;
-                return;
-            }
-            const map = loadLocalProgressMap();
-            map[currentPosition.id] = {
-                hits: Number(entry.hits || 0),
-                misses: Number(entry.misses || 0),
-                notes: entry.notes || "",
-                lastTrained: entry.last_trained || ""
-            };
-            saveLocalProgressMap(map);
-        }
-
-        async function recordAttempt(success) {
-            try {
-                if (success) entry.hits = Number(entry.hits || 0) + 1;
-                else entry.misses = Number(entry.misses || 0) + 1;
-                entry.last_trained = new Date().toISOString();
-                await saveProgress();
-                renderStats();
-            } catch (error) {
-                console.error(error);
-                alert("Fortschritt konnte nicht gespeichert werden.");
+            } catch (_) {
+                const map = loadLocalProgressMap();
+                map[currentPosition.id] = { hits: Number(entry.hits || 0), misses: Number(entry.misses || 0), notes: entry.notes || "", lastTrained: entry.last_trained || "" };
+                saveLocalProgressMap(map);
             }
         }
-
-        async function saveNotes() {
-            try {
-                entry.notes = document.getElementById("notesInput").value || "";
-                entry.last_trained = new Date().toISOString();
-                await saveProgress();
-                renderStats();
-            } catch (error) {
-                console.error(error);
-                alert("Notizen konnten nicht gespeichert werden.");
-            }
-        }
-
-        async function requestOcr() {
-            if (!currentPosition) return;
-            if (!usingDb) {
-                alert("OCR-Anfragen brauchen die Datenbanktabellen aus sql/training_positions.sql.");
-                return;
-            }
-            try {
-                const status = getOcrStatus();
-                if (status === "pending" || status === "running") return;
-                const { error } = await supabaseClient
-                    .from("training_position_ocr_requests")
-                    .insert({
-                        position_id: currentPosition.id,
-                        requested_by: currentUser.id,
-                        status: "pending"
-                    });
-                if (error) throw error;
-                latestOcr = { status: "pending", translated_text: "" };
-                renderOcrState();
-                setNotice("OCR-Anfrage gespeichert. Im Worker kann jetzt lokales Browser-OCR gestartet werden.");
-            } catch (error) {
-                console.error(error);
-                alert("OCR-Anfrage konnte nicht gespeichert werden.");
-            }
-        }
-
-        function goToPosition(index) {
-            if (index < 0 || index >= positions.length) return;
-            window.location.href = "training_position_detail.html?id=" + encodeURIComponent(positions[index].id);
-        }
-
-        function goPrev() {
-            const index = positions.findIndex((x) => x.id === currentPosition.id);
-            goToPosition(index - 1);
-        }
-
-        function goNext() {
-            const index = positions.findIndex((x) => x.id === currentPosition.id);
-            goToPosition(index + 1);
-        }
-
+        async function recordAttempt(success) { try { if (success) entry.hits = Number(entry.hits || 0) + 1; else entry.misses = Number(entry.misses || 0) + 1; entry.last_trained = new Date().toISOString(); await saveProgress(); renderStats(); } catch (error) { console.error(error); alert("Fortschritt konnte nicht gespeichert werden."); } }
+        async function saveNotes() { try { entry.notes = document.getElementById("notesInput").value || ""; entry.last_trained = new Date().toISOString(); await saveProgress(); renderStats(); } catch (error) { console.error(error); alert("Notizen konnten nicht gespeichert werden."); } }
+        function goToPosition(index) { if (index < 0 || index >= positions.length) return; window.location.href = "training_position_detail.html?id=" + encodeURIComponent(positions[index].id); }
+        function goPrev() { const index = positions.findIndex((x) => x.id === currentPosition.id); goToPosition(index - 1); }
+        function goNext() { const index = positions.findIndex((x) => x.id === currentPosition.id); goToPosition(index + 1); }
         async function init() {
-            currentUser = await requireAuth();
-            if (!currentUser) return;
-            try {
-                await loadPositionAndCollectionFromDb();
-                usingDb = true;
-            } catch (error) {
-                console.warn("Positionstraining DB-Fallback aktiv:", error);
-                usingDb = false;
-                setNotice("Datenbanktabellen für Positionstraining noch nicht aktiv. JSON/localStorage-Fallback läuft. SQL aus sql/training_positions.sql in Supabase ausführen.");
-                await loadFallback();
-            }
+            currentUser = await requireAuth(); if (!currentUser) return;
+            try { await loadPositionAndCollectionFromDb(); } catch (error) { console.warn("Positionstraining DB-Fallback aktiv:", error); setNotice("Datenbanktabellen für Positionstraining noch nicht aktiv. JSON/localStorage-Fallback läuft. SQL aus sql/training_positions.sql in Supabase ausführen."); await loadFallback(); }
             if (!currentPosition) return;
-            renderMeta();
-            renderViewer();
-            renderStats();
-            renderOcrState();
+            renderMeta(); renderViewer(); renderStats();
         }
-
         init();
     </script>
 </body>
