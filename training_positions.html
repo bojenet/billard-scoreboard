@@ -167,7 +167,7 @@
             empty.style.display = "none";
             visible.forEach((item) => {
                 const stats = computeStats(item);
-                const hasImportedText = Array.isArray(item.comments) && item.comments.length > 0;
+                const hasImportedText = (Array.isArray(item.comments) && item.comments.length > 0) || Boolean(item.sourceText || item.source_text);
                 const tile = document.createElement("div");
                 tile.className = "tile";
                 if (stats.trained) tile.classList.add("done");
@@ -192,9 +192,9 @@
             });
         }
         async function loadCatalogFromDb() {
-            const { data, error } = await supabaseClient.from("training_positions_catalog").select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality").eq("set_key", currentCollection).order("number", { ascending: true });
+            const { data, error } = await supabaseClient.from("training_positions_catalog").select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality,source_text").eq("set_key", currentCollection).order("number", { ascending: true });
             if (error) throw error;
-            return (data || []).map((item) => ({ ...item, pdfPage: item.pdf_page, sourceQuality: item.source_quality }));
+            return (data || []).map((item) => ({ ...item, pdfPage: item.pdf_page, sourceQuality: item.source_quality, sourceText: item.source_text || item.sourceText || "" }));
         }
         async function loadCatalogFallback() {
             const res = await fetch(COLLECTIONS[currentCollection].file, { cache: "no-store" });

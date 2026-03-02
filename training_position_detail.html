@@ -95,7 +95,7 @@
         const positionId = params.get("id") || "";
         const COLLECTIONS = {
             "roger-conti": { file: "data/roger_conti_positions.json", label: "Roger Conti 1-62", pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_1_62.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfMV82Mi5wZGYiLCJpYXQiOjE3NzIzNDg3NTUsImV4cCI6MTgwMzg4NDc1NX0.cmqqXoE50h-86B5iIqEF4LSuB4B0E7Uqc6hNzRXBukg" },
-            "roger-conti-63-151": { file: "data/roger_conti_positions_63_150.json", label: "Roger Conti 63-151", pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_63_151.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfNjNfMTUxLnBkZiIsImlhdCI6MTc3MjQzOTI1MiwiZXhwIjoxODAzOTc1MjUyfQ.MHNv3hvXKuM5q5Ic087HFVA3jKS79JoXuo6clhQxARE" }
+            "roger-conti-63-151": { file: "data/roger_conti_positions_63_150.json", label: "Roger Conti 63-151", pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_63_151.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfNjNfMTUxLnBkZiIsImlhdCI6MTc3MjQ1NzMzNywiZXhwIjoxODAzOTkzMzM3fQ.XpRNxk_-u2iv2d45bf5FqykR4ILazEN7gEWucWjT9IM" }
         };
         let currentUser = null, positions = [], currentPosition = null, currentCollection = null, entry = null;
         function setNotice(text) { const el = document.getElementById("noticeBox"); el.style.display = text ? "block" : "none"; el.innerText = text || ""; }
@@ -105,6 +105,7 @@
         function getDefaultNotes() {
             if (entry && entry.notes) return entry.notes;
             if (currentPosition && Array.isArray(currentPosition.comments) && currentPosition.comments.length) return currentPosition.comments.join("\n\n");
+            if (currentPosition && currentPosition.sourceText) return currentPosition.sourceText;
             if (currentCollection === "roger-conti-63-151") return "Für diese Position liegt noch kein importierter Text vor. Notizen hier manuell ergänzen oder lokal OCRen und später importieren.";
             return "";
         }
@@ -128,13 +129,13 @@
             document.getElementById("openPdfBtn").onclick = () => window.open(pdfUrl, "_blank");
         }
         async function loadPositionAndCollectionFromDb() {
-            const { data: pos, error: posError } = await supabaseClient.from("training_positions_catalog").select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality").eq("id", positionId).maybeSingle();
+            const { data: pos, error: posError } = await supabaseClient.from("training_positions_catalog").select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality,source_text").eq("id", positionId).maybeSingle();
             if (posError || !pos) throw posError || new Error("Position nicht gefunden");
-            currentPosition = { ...pos, pdfPage: pos.pdf_page, sourceQuality: pos.source_quality };
+            currentPosition = { ...pos, pdfPage: pos.pdf_page, sourceQuality: pos.source_quality, sourceText: pos.source_text || pos.sourceText || "" };
             currentCollection = pos.set_key;
-            const { data: list, error: listError } = await supabaseClient.from("training_positions_catalog").select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality").eq("set_key", currentCollection).order("number", { ascending: true });
+            const { data: list, error: listError } = await supabaseClient.from("training_positions_catalog").select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality,source_text").eq("set_key", currentCollection).order("number", { ascending: true });
             if (listError) throw listError;
-            positions = (list || []).map((item) => ({ ...item, pdfPage: item.pdf_page, sourceQuality: item.source_quality }));
+            positions = (list || []).map((item) => ({ ...item, pdfPage: item.pdf_page, sourceQuality: item.source_quality, sourceText: item.source_text || item.sourceText || "" }));
             const { data: progressRow, error: progressError } = await supabaseClient.from("training_position_progress").select("position_id,hits,misses,notes,last_trained").eq("user_id", currentUser.id).eq("position_id", currentPosition.id).maybeSingle();
             if (progressError) throw progressError;
             entry = progressRow || { position_id: currentPosition.id, hits: 0, misses: 0, notes: "", last_trained: "" };

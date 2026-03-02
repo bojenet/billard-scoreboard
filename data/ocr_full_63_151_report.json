@@ -1,0 +1,1290 @@
+{
+  "ocr_file": "/Users/phju/Documents/web/billard-scoreboard/data/ocr_full_63_151.json",
+  "positions_file": "/Users/phju/Documents/web/billard-scoreboard/data/roger_conti_positions_63_150.json",
+  "kept_count": 7,
+  "skipped_count": 85,
+  "kept": [
+    {
+      "number": 94,
+      "chars": 473,
+      "letters": 362,
+      "digits": 13,
+      "lines": 22,
+      "words": 77,
+      "alpha_ratio": 0.7653276955602537,
+      "keyword_hits": [
+        "bandes",
+        "bille",
+        "gauche",
+        "position"
+      ],
+      "keep": true
+    },
+    {
+      "number": 95,
+      "chars": 713,
+      "letters": 530,
+      "digits": 18,
+      "lines": 21,
+      "words": 123,
+      "alpha_ratio": 0.7433380084151473,
+      "keyword_hits": [
+        "bande",
+        "bille",
+        "jouer",
+        "position",
+        "rouge",
+        "toucher"
+      ],
+      "keep": true
+    },
+    {
+      "number": 96,
+      "chars": 920,
+      "letters": 686,
+      "digits": 26,
+      "lines": 36,
+      "words": 158,
+      "alpha_ratio": 0.7456521739130435,
+      "keyword_hits": [
+        "bande",
+        "gauche",
+        "point",
+        "rouge",
+        "toucher"
+      ],
+      "keep": true
+    },
+    {
+      "number": 103,
+      "chars": 629,
+      "letters": 478,
+      "digits": 13,
+      "lines": 27,
+      "words": 108,
+      "alpha_ratio": 0.7599364069952306,
+      "keyword_hits": [
+        "bande",
+        "droite",
+        "jouer",
+        "rouge"
+      ],
+      "keep": true
+    },
+    {
+      "number": 114,
+      "chars": 825,
+      "letters": 631,
+      "digits": 10,
+      "lines": 28,
+      "words": 146,
+      "alpha_ratio": 0.7648484848484849,
+      "keyword_hits": [
+        "bille",
+        "gauche",
+        "jouer",
+        "rouge"
+      ],
+      "keep": true
+    },
+    {
+      "number": 130,
+      "chars": 636,
+      "letters": 471,
+      "digits": 18,
+      "lines": 26,
+      "words": 108,
+      "alpha_ratio": 0.7405660377358491,
+      "keyword_hits": [
+        "bande",
+        "bandes",
+        "bille",
+        "droite",
+        "gauche",
+        "toucher"
+      ],
+      "keep": true
+    },
+    {
+      "number": 148,
+      "chars": 568,
+      "letters": 429,
+      "digits": 11,
+      "lines": 23,
+      "words": 86,
+      "alpha_ratio": 0.7552816901408451,
+      "keyword_hits": [
+        "attention",
+        "bande",
+        "billes",
+        "droite",
+        "gauche",
+        "jouer"
+      ],
+      "keep": true
+    }
+  ],
+  "skipped": [
+    {
+      "number": 63,
+      "reason": "quality_below_threshold",
+      "chars": 156,
+      "letters": 112,
+      "digits": 13,
+      "lines": 6,
+      "words": 21,
+      "alpha_ratio": 0.717948717948718,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 64,
+      "reason": "quality_below_threshold",
+      "chars": 276,
+      "letters": 207,
+      "digits": 11,
+      "lines": 18,
+      "words": 45,
+      "alpha_ratio": 0.75,
+      "keyword_hits": [
+        "direct"
+      ],
+      "keep": false
+    },
+    {
+      "number": 65,
+      "reason": "quality_below_threshold",
+      "chars": 183,
+      "letters": 138,
+      "digits": 5,
+      "lines": 10,
+      "words": 30,
+      "alpha_ratio": 0.7540983606557377,
+      "keyword_hits": [
+        "direct"
+      ],
+      "keep": false
+    },
+    {
+      "number": 66,
+      "reason": "quality_below_threshold",
+      "chars": 114,
+      "letters": 77,
+      "digits": 8,
+      "lines": 14,
+      "words": 18,
+      "alpha_ratio": 0.6754385964912281,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 67,
+      "reason": "quality_below_threshold",
+      "chars": 204,
+      "letters": 156,
+      "digits": 4,
+      "lines": 13,
+      "words": 38,
+      "alpha_ratio": 0.7647058823529411,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 68,
+      "reason": "quality_below_threshold",
+      "chars": 323,
+      "letters": 246,
+      "digits": 10,
+      "lines": 15,
+      "words": 49,
+      "alpha_ratio": 0.7616099071207431,
+      "keyword_hits": [
+        "position"
+      ],
+      "keep": false
+    },
+    {
+      "number": 69,
+      "reason": "quality_below_threshold",
+      "chars": 335,
+      "letters": 261,
+      "digits": 6,
+      "lines": 14,
+      "words": 55,
+      "alpha_ratio": 0.7791044776119403,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 70,
+      "reason": "quality_below_threshold",
+      "chars": 229,
+      "letters": 173,
+      "digits": 5,
+      "lines": 10,
+      "words": 37,
+      "alpha_ratio": 0.7554585152838428,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 71,
+      "reason": "quality_below_threshold",
+      "chars": 197,
+      "letters": 145,
+      "digits": 9,
+      "lines": 7,
+      "words": 30,
+      "alpha_ratio": 0.7360406091370558,
+      "keyword_hits": [
+        "bille"
+      ],
+      "keep": false
+    },
+    {
+      "number": 72,
+      "reason": "quality_below_threshold",
+      "chars": 271,
+      "letters": 208,
+      "digits": 8,
+      "lines": 18,
+      "words": 46,
+      "alpha_ratio": 0.7675276752767528,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 73,
+      "reason": "quality_below_threshold",
+      "chars": 633,
+      "letters": 472,
+      "digits": 17,
+      "lines": 24,
+      "words": 104,
+      "alpha_ratio": 0.7456556082148499,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 74,
+      "reason": "quality_below_threshold",
+      "chars": 534,
+      "letters": 420,
+      "digits": 2,
+      "lines": 19,
+      "words": 86,
+      "alpha_ratio": 0.7865168539325843,
+      "keyword_hits": [
+        "bande",
+        "bille",
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 75,
+      "reason": "quality_below_threshold",
+      "chars": 491,
+      "letters": 368,
+      "digits": 15,
+      "lines": 19,
+      "words": 77,
+      "alpha_ratio": 0.7494908350305499,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 76,
+      "reason": "quality_below_threshold",
+      "chars": 131,
+      "letters": 103,
+      "digits": 0,
+      "lines": 10,
+      "words": 25,
+      "alpha_ratio": 0.7862595419847328,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 77,
+      "reason": "quality_below_threshold",
+      "chars": 452,
+      "letters": 337,
+      "digits": 6,
+      "lines": 16,
+      "words": 82,
+      "alpha_ratio": 0.745575221238938,
+      "keyword_hits": [
+        "bille",
+        "jouer"
+      ],
+      "keep": false
+    },
+    {
+      "number": 78,
+      "reason": "quality_below_threshold",
+      "chars": 231,
+      "letters": 167,
+      "digits": 11,
+      "lines": 13,
+      "words": 37,
+      "alpha_ratio": 0.7229437229437229,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 79,
+      "reason": "quality_below_threshold",
+      "chars": 448,
+      "letters": 321,
+      "digits": 22,
+      "lines": 19,
+      "words": 78,
+      "alpha_ratio": 0.7165178571428571,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 80,
+      "reason": "quality_below_threshold",
+      "chars": 184,
+      "letters": 140,
+      "digits": 7,
+      "lines": 16,
+      "words": 31,
+      "alpha_ratio": 0.7608695652173914,
+      "keyword_hits": [
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 81,
+      "reason": "quality_below_threshold",
+      "chars": 71,
+      "letters": 55,
+      "digits": 1,
+      "lines": 8,
+      "words": 11,
+      "alpha_ratio": 0.7746478873239436,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 82,
+      "reason": "quality_below_threshold",
+      "chars": 230,
+      "letters": 159,
+      "digits": 18,
+      "lines": 26,
+      "words": 31,
+      "alpha_ratio": 0.691304347826087,
+      "keyword_hits": [
+        "billes"
+      ],
+      "keep": false
+    },
+    {
+      "number": 83,
+      "reason": "quality_below_threshold",
+      "chars": 245,
+      "letters": 165,
+      "digits": 21,
+      "lines": 23,
+      "words": 38,
+      "alpha_ratio": 0.673469387755102,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 84,
+      "reason": "quality_below_threshold",
+      "chars": 532,
+      "letters": 392,
+      "digits": 13,
+      "lines": 26,
+      "words": 87,
+      "alpha_ratio": 0.7368421052631579,
+      "keyword_hits": [
+        "bande",
+        "bille"
+      ],
+      "keep": false
+    },
+    {
+      "number": 85,
+      "reason": "quality_below_threshold",
+      "chars": 424,
+      "letters": 321,
+      "digits": 10,
+      "lines": 18,
+      "words": 65,
+      "alpha_ratio": 0.7570754716981132,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 86,
+      "reason": "quality_below_threshold",
+      "chars": 282,
+      "letters": 219,
+      "digits": 3,
+      "lines": 17,
+      "words": 51,
+      "alpha_ratio": 0.776595744680851,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 87,
+      "reason": "quality_below_threshold",
+      "chars": 599,
+      "letters": 448,
+      "digits": 13,
+      "lines": 19,
+      "words": 99,
+      "alpha_ratio": 0.7479131886477463,
+      "keyword_hits": [
+        "effet"
+      ],
+      "keep": false
+    },
+    {
+      "number": 88,
+      "reason": "quality_below_threshold",
+      "chars": 627,
+      "letters": 479,
+      "digits": 13,
+      "lines": 27,
+      "words": 107,
+      "alpha_ratio": 0.7639553429027113,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 89,
+      "reason": "quality_below_threshold",
+      "chars": 415,
+      "letters": 311,
+      "digits": 6,
+      "lines": 15,
+      "words": 74,
+      "alpha_ratio": 0.7493975903614458,
+      "keyword_hits": [
+        "bille",
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 90,
+      "reason": "quality_below_threshold",
+      "chars": 323,
+      "letters": 253,
+      "digits": 6,
+      "lines": 18,
+      "words": 53,
+      "alpha_ratio": 0.7832817337461301,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 91,
+      "reason": "quality_below_threshold",
+      "chars": 534,
+      "letters": 388,
+      "digits": 20,
+      "lines": 36,
+      "words": 92,
+      "alpha_ratio": 0.7265917602996255,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 92,
+      "reason": "quality_below_threshold",
+      "chars": 283,
+      "letters": 224,
+      "digits": 1,
+      "lines": 14,
+      "words": 44,
+      "alpha_ratio": 0.7915194346289752,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 93,
+      "reason": "quality_below_threshold",
+      "chars": 641,
+      "letters": 502,
+      "digits": 6,
+      "lines": 23,
+      "words": 106,
+      "alpha_ratio": 0.7831513260530422,
+      "keyword_hits": [
+        "bille"
+      ],
+      "keep": false
+    },
+    {
+      "number": 97,
+      "reason": "quality_below_threshold",
+      "chars": 458,
+      "letters": 352,
+      "digits": 12,
+      "lines": 15,
+      "words": 72,
+      "alpha_ratio": 0.7685589519650655,
+      "keyword_hits": [
+        "bille",
+        "rouge"
+      ],
+      "keep": false
+    },
+    {
+      "number": 98,
+      "reason": "quality_below_threshold",
+      "chars": 222,
+      "letters": 156,
+      "digits": 20,
+      "lines": 21,
+      "words": 32,
+      "alpha_ratio": 0.7027027027027027,
+      "keyword_hits": [
+        "bille"
+      ],
+      "keep": false
+    },
+    {
+      "number": 99,
+      "reason": "quality_below_threshold",
+      "chars": 834,
+      "letters": 655,
+      "digits": 7,
+      "lines": 25,
+      "words": 139,
+      "alpha_ratio": 0.7853717026378897,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 100,
+      "reason": "quality_below_threshold",
+      "chars": 675,
+      "letters": 514,
+      "digits": 17,
+      "lines": 25,
+      "words": 110,
+      "alpha_ratio": 0.7614814814814815,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 101,
+      "reason": "quality_below_threshold",
+      "chars": 565,
+      "letters": 444,
+      "digits": 4,
+      "lines": 27,
+      "words": 97,
+      "alpha_ratio": 0.7858407079646018,
+      "keyword_hits": [
+        "bande"
+      ],
+      "keep": false
+    },
+    {
+      "number": 102,
+      "reason": "quality_below_threshold",
+      "chars": 565,
+      "letters": 444,
+      "digits": 4,
+      "lines": 27,
+      "words": 97,
+      "alpha_ratio": 0.7858407079646018,
+      "keyword_hits": [
+        "bande"
+      ],
+      "keep": false
+    },
+    {
+      "number": 104,
+      "reason": "quality_below_threshold",
+      "chars": 444,
+      "letters": 342,
+      "digits": 6,
+      "lines": 21,
+      "words": 75,
+      "alpha_ratio": 0.7702702702702703,
+      "keyword_hits": [
+        "finesse",
+        "position"
+      ],
+      "keep": false
+    },
+    {
+      "number": 105,
+      "reason": "quality_below_threshold",
+      "chars": 572,
+      "letters": 430,
+      "digits": 5,
+      "lines": 27,
+      "words": 100,
+      "alpha_ratio": 0.7517482517482518,
+      "keyword_hits": [
+        "bande",
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 106,
+      "reason": "quality_below_threshold",
+      "chars": 558,
+      "letters": 407,
+      "digits": 13,
+      "lines": 22,
+      "words": 100,
+      "alpha_ratio": 0.7293906810035843,
+      "keyword_hits": [
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 107,
+      "reason": "quality_below_threshold",
+      "chars": 384,
+      "letters": 306,
+      "digits": 1,
+      "lines": 24,
+      "words": 60,
+      "alpha_ratio": 0.796875,
+      "keyword_hits": [
+        "bille",
+        "position"
+      ],
+      "keep": false
+    },
+    {
+      "number": 108,
+      "reason": "quality_below_threshold",
+      "chars": 617,
+      "letters": 471,
+      "digits": 8,
+      "lines": 29,
+      "words": 104,
+      "alpha_ratio": 0.7633711507293355,
+      "keyword_hits": [
+        "bande",
+        "gauche",
+        "rouge"
+      ],
+      "keep": false
+    },
+    {
+      "number": 109,
+      "reason": "quality_below_threshold",
+      "chars": 509,
+      "letters": 380,
+      "digits": 10,
+      "lines": 25,
+      "words": 96,
+      "alpha_ratio": 0.7465618860510805,
+      "keyword_hits": [
+        "bande",
+        "bille",
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 110,
+      "reason": "quality_below_threshold",
+      "chars": 576,
+      "letters": 426,
+      "digits": 16,
+      "lines": 24,
+      "words": 98,
+      "alpha_ratio": 0.7395833333333334,
+      "keyword_hits": [
+        "bande",
+        "rouge",
+        "toucher"
+      ],
+      "keep": false
+    },
+    {
+      "number": 111,
+      "reason": "quality_below_threshold",
+      "chars": 596,
+      "letters": 452,
+      "digits": 13,
+      "lines": 29,
+      "words": 99,
+      "alpha_ratio": 0.7583892617449665,
+      "keyword_hits": [
+        "bille",
+        "droite"
+      ],
+      "keep": false
+    },
+    {
+      "number": 112,
+      "reason": "quality_below_threshold",
+      "chars": 608,
+      "letters": 462,
+      "digits": 9,
+      "lines": 28,
+      "words": 105,
+      "alpha_ratio": 0.7598684210526315,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 113,
+      "reason": "quality_below_threshold",
+      "chars": 569,
+      "letters": 451,
+      "digits": 7,
+      "lines": 32,
+      "words": 90,
+      "alpha_ratio": 0.7926186291739895,
+      "keyword_hits": [
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 115,
+      "reason": "quality_below_threshold",
+      "chars": 368,
+      "letters": 272,
+      "digits": 15,
+      "lines": 22,
+      "words": 58,
+      "alpha_ratio": 0.7391304347826086,
+      "keyword_hits": [
+        "bille"
+      ],
+      "keep": false
+    },
+    {
+      "number": 116,
+      "reason": "quality_below_threshold",
+      "chars": 473,
+      "letters": 353,
+      "digits": 14,
+      "lines": 19,
+      "words": 78,
+      "alpha_ratio": 0.7463002114164905,
+      "keyword_hits": [
+        "bande",
+        "bille"
+      ],
+      "keep": false
+    },
+    {
+      "number": 117,
+      "reason": "quality_below_threshold",
+      "chars": 426,
+      "letters": 326,
+      "digits": 9,
+      "lines": 18,
+      "words": 70,
+      "alpha_ratio": 0.7652582159624414,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 118,
+      "reason": "quality_below_threshold",
+      "chars": 171,
+      "letters": 135,
+      "digits": 3,
+      "lines": 14,
+      "words": 29,
+      "alpha_ratio": 0.7894736842105263,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 119,
+      "reason": "quality_below_threshold",
+      "chars": 301,
+      "letters": 221,
+      "digits": 18,
+      "lines": 25,
+      "words": 46,
+      "alpha_ratio": 0.7342192691029901,
+      "keyword_hits": [
+        "jouer"
+      ],
+      "keep": false
+    },
+    {
+      "number": 120,
+      "reason": "quality_below_threshold",
+      "chars": 689,
+      "letters": 526,
+      "digits": 15,
+      "lines": 32,
+      "words": 117,
+      "alpha_ratio": 0.7634252539912917,
+      "keyword_hits": [
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 121,
+      "reason": "quality_below_threshold",
+      "chars": 276,
+      "letters": 209,
+      "digits": 3,
+      "lines": 16,
+      "words": 48,
+      "alpha_ratio": 0.7572463768115942,
+      "keyword_hits": [
+        "bille",
+        "droite"
+      ],
+      "keep": false
+    },
+    {
+      "number": 122,
+      "reason": "quality_below_threshold",
+      "chars": 424,
+      "letters": 332,
+      "digits": 3,
+      "lines": 16,
+      "words": 76,
+      "alpha_ratio": 0.7830188679245284,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 123,
+      "reason": "quality_below_threshold",
+      "chars": 895,
+      "letters": 689,
+      "digits": 9,
+      "lines": 28,
+      "words": 156,
+      "alpha_ratio": 0.7698324022346369,
+      "keyword_hits": [
+        "bande",
+        "gauche",
+        "rouge"
+      ],
+      "keep": false
+    },
+    {
+      "number": 124,
+      "reason": "quality_below_threshold",
+      "chars": 41,
+      "letters": 23,
+      "digits": 7,
+      "lines": 5,
+      "words": 6,
+      "alpha_ratio": 0.5609756097560976,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 125,
+      "reason": "quality_below_threshold",
+      "chars": 703,
+      "letters": 550,
+      "digits": 7,
+      "lines": 20,
+      "words": 119,
+      "alpha_ratio": 0.7823613086770982,
+      "keyword_hits": [
+        "bande"
+      ],
+      "keep": false
+    },
+    {
+      "number": 126,
+      "reason": "quality_below_threshold",
+      "chars": 674,
+      "letters": 530,
+      "digits": 5,
+      "lines": 32,
+      "words": 116,
+      "alpha_ratio": 0.7863501483679525,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 127,
+      "reason": "quality_below_threshold",
+      "chars": 393,
+      "letters": 293,
+      "digits": 12,
+      "lines": 16,
+      "words": 72,
+      "alpha_ratio": 0.7455470737913485,
+      "keyword_hits": [
+        "rouge"
+      ],
+      "keep": false
+    },
+    {
+      "number": 128,
+      "reason": "quality_below_threshold",
+      "chars": 279,
+      "letters": 218,
+      "digits": 5,
+      "lines": 15,
+      "words": 48,
+      "alpha_ratio": 0.7813620071684588,
+      "keyword_hits": [
+        "finesse",
+        "rouge",
+        "toucher"
+      ],
+      "keep": false
+    },
+    {
+      "number": 129,
+      "reason": "quality_below_threshold",
+      "chars": 360,
+      "letters": 278,
+      "digits": 5,
+      "lines": 19,
+      "words": 59,
+      "alpha_ratio": 0.7722222222222223,
+      "keyword_hits": [
+        "bille"
+      ],
+      "keep": false
+    },
+    {
+      "number": 131,
+      "reason": "quality_below_threshold",
+      "chars": 543,
+      "letters": 404,
+      "digits": 17,
+      "lines": 26,
+      "words": 91,
+      "alpha_ratio": 0.7440147329650092,
+      "keyword_hits": [
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 132,
+      "reason": "quality_below_threshold",
+      "chars": 389,
+      "letters": 295,
+      "digits": 8,
+      "lines": 11,
+      "words": 61,
+      "alpha_ratio": 0.7583547557840618,
+      "keyword_hits": [
+        "direct",
+        "effet",
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 133,
+      "reason": "quality_below_threshold",
+      "chars": 208,
+      "letters": 152,
+      "digits": 8,
+      "lines": 7,
+      "words": 35,
+      "alpha_ratio": 0.7307692307692307,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 134,
+      "reason": "quality_below_threshold",
+      "chars": 615,
+      "letters": 473,
+      "digits": 11,
+      "lines": 20,
+      "words": 107,
+      "alpha_ratio": 0.7691056910569106,
+      "keyword_hits": [
+        "bille"
+      ],
+      "keep": false
+    },
+    {
+      "number": 135,
+      "reason": "quality_below_threshold",
+      "chars": 551,
+      "letters": 423,
+      "digits": 10,
+      "lines": 18,
+      "words": 94,
+      "alpha_ratio": 0.7676950998185118,
+      "keyword_hits": [
+        "bande",
+        "gauche",
+        "rouge"
+      ],
+      "keep": false
+    },
+    {
+      "number": 136,
+      "reason": "quality_below_threshold",
+      "chars": 535,
+      "letters": 401,
+      "digits": 16,
+      "lines": 19,
+      "words": 89,
+      "alpha_ratio": 0.7495327102803738,
+      "keyword_hits": [
+        "bille",
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 137,
+      "reason": "quality_below_threshold",
+      "chars": 403,
+      "letters": 299,
+      "digits": 9,
+      "lines": 21,
+      "words": 68,
+      "alpha_ratio": 0.7419354838709677,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 138,
+      "reason": "quality_below_threshold",
+      "chars": 669,
+      "letters": 508,
+      "digits": 14,
+      "lines": 29,
+      "words": 111,
+      "alpha_ratio": 0.7593423019431988,
+      "keyword_hits": [
+        "gauche",
+        "rouge"
+      ],
+      "keep": false
+    },
+    {
+      "number": 139,
+      "reason": "quality_below_threshold",
+      "chars": 325,
+      "letters": 250,
+      "digits": 6,
+      "lines": 17,
+      "words": 55,
+      "alpha_ratio": 0.7692307692307693,
+      "keyword_hits": [
+        "gauche",
+        "rouge"
+      ],
+      "keep": false
+    },
+    {
+      "number": 140,
+      "reason": "quality_below_threshold",
+      "chars": 503,
+      "letters": 379,
+      "digits": 11,
+      "lines": 20,
+      "words": 81,
+      "alpha_ratio": 0.7534791252485089,
+      "keyword_hits": [
+        "bande",
+        "bille",
+        "rouge"
+      ],
+      "keep": false
+    },
+    {
+      "number": 141,
+      "reason": "quality_below_threshold",
+      "chars": 503,
+      "letters": 379,
+      "digits": 11,
+      "lines": 20,
+      "words": 81,
+      "alpha_ratio": 0.7534791252485089,
+      "keyword_hits": [
+        "bande",
+        "bille",
+        "rouge"
+      ],
+      "keep": false
+    },
+    {
+      "number": 142,
+      "reason": "quality_below_threshold",
+      "chars": 518,
+      "letters": 396,
+      "digits": 10,
+      "lines": 24,
+      "words": 89,
+      "alpha_ratio": 0.7644787644787645,
+      "keyword_hits": [
+        "bande",
+        "bille",
+        "rouge"
+      ],
+      "keep": false
+    },
+    {
+      "number": 143,
+      "reason": "quality_below_threshold",
+      "chars": 564,
+      "letters": 424,
+      "digits": 12,
+      "lines": 18,
+      "words": 102,
+      "alpha_ratio": 0.75177304964539,
+      "keyword_hits": [
+        "direct"
+      ],
+      "keep": false
+    },
+    {
+      "number": 144,
+      "reason": "quality_below_threshold",
+      "chars": 352,
+      "letters": 274,
+      "digits": 0,
+      "lines": 14,
+      "words": 67,
+      "alpha_ratio": 0.7784090909090909,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 145,
+      "reason": "quality_below_threshold",
+      "chars": 475,
+      "letters": 352,
+      "digits": 10,
+      "lines": 17,
+      "words": 85,
+      "alpha_ratio": 0.7410526315789474,
+      "keyword_hits": [
+        "rouge"
+      ],
+      "keep": false
+    },
+    {
+      "number": 146,
+      "reason": "quality_below_threshold",
+      "chars": 626,
+      "letters": 480,
+      "digits": 8,
+      "lines": 25,
+      "words": 106,
+      "alpha_ratio": 0.7667731629392971,
+      "keyword_hits": [
+        "bille",
+        "effet"
+      ],
+      "keep": false
+    },
+    {
+      "number": 147,
+      "reason": "quality_below_threshold",
+      "chars": 372,
+      "letters": 272,
+      "digits": 12,
+      "lines": 19,
+      "words": 64,
+      "alpha_ratio": 0.7311827956989247,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 149,
+      "reason": "quality_below_threshold",
+      "chars": 628,
+      "letters": 481,
+      "digits": 6,
+      "lines": 21,
+      "words": 110,
+      "alpha_ratio": 0.7659235668789809,
+      "keyword_hits": [
+        "gauche",
+        "jouer"
+      ],
+      "keep": false
+    },
+    {
+      "number": 150,
+      "reason": "quality_below_threshold",
+      "chars": 136,
+      "letters": 97,
+      "digits": 10,
+      "lines": 14,
+      "words": 20,
+      "alpha_ratio": 0.7132352941176471,
+      "keyword_hits": [
+        "bille",
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 151,
+      "reason": "quality_below_threshold",
+      "chars": 89,
+      "letters": 59,
+      "digits": 7,
+      "lines": 6,
+      "words": 13,
+      "alpha_ratio": 0.6629213483146067,
+      "keyword_hits": [
+        "bille",
+        "gauche"
+      ],
+      "keep": false
+    },
+    {
+      "number": 152,
+      "reason": "position_missing",
+      "chars": 0,
+      "letters": 0,
+      "digits": 0,
+      "lines": 0,
+      "words": 0,
+      "alpha_ratio": 0.0,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 153,
+      "reason": "position_missing",
+      "chars": 0,
+      "letters": 0,
+      "digits": 0,
+      "lines": 0,
+      "words": 0,
+      "alpha_ratio": 0.0,
+      "keyword_hits": [],
+      "keep": false
+    },
+    {
+      "number": 154,
+      "reason": "position_missing",
+      "chars": 0,
+      "letters": 0,
+      "digits": 0,
+      "lines": 0,
+      "words": 0,
+      "alpha_ratio": 0.0,
+      "keyword_hits": [],
+      "keep": false
+    }
+  ]
+}

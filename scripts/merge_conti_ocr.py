@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 
-def score_text(text: str):
+def score_text(text: str, mode: str):
     raw = (text or '').strip()
     chars = len(raw)
     letters = sum(ch.isalpha() for ch in raw)
@@ -19,6 +19,21 @@ def score_text(text: str):
         'position', 'finesse', 'direct', 'jouer', 'toucher', 'point', 'attention', 'execution', 'exécution'
     }
     keyword_hits = sorted(normalized & keywords)
+
+    thresholds = {
+        'strict': {'chars': 260, 'lines': 8, 'words': 45, 'alpha_ratio': 0.55, 'keywords': 4},
+        'medium': {'chars': 180, 'lines': 7, 'words': 30, 'alpha_ratio': 0.50, 'keywords': 3},
+        'loose':  {'chars': 120, 'lines': 5, 'words': 20, 'alpha_ratio': 0.45, 'keywords': 2},
+    }
+    cfg = thresholds.get(mode, thresholds['strict'])
+    keep = (
+        chars >= cfg['chars'] and
+        len(lines) >= cfg['lines'] and
+        len(words) >= cfg['words'] and
+        alpha_ratio >= cfg['alpha_ratio'] and
+        len(keyword_hits) >= cfg['keywords']
+    )
+
     return {
         'chars': chars,
         'letters': letters,
@@ -27,7 +42,8 @@ def score_text(text: str):
         'words': len(words),
         'alpha_ratio': alpha_ratio,
         'keyword_hits': keyword_hits,
-        'keep': chars >= 260 and len(lines) >= 8 and len(words) >= 45 and alpha_ratio >= 0.55 and len(keyword_hits) >= 4,
+        'mode': mode,
+        'keep': keep,
     }
 
 
@@ -37,6 +53,7 @@ def main():
     parser.add_argument('--ocr', required=True)
     parser.add_argument('--report', required=True)
     parser.add_argument('--write-source', action='store_true')
+    parser.add_argument('--mode', choices=['strict', 'medium', 'loose'], default='strict')
     args = parser.parse_args()
 
     positions_path = Path(args.positions)
@@ -54,7 +71,7 @@ def main():
     for page in pages:
         number = page.get('number')
         text = page.get('sourceText', '')
-        metrics = score_text(text)
+        metrics = score_text(text, args.mode)
         item = by_number.get(number)
         if not item:
             skipped.append({'number': number, 'reason': 'position_missing', **metrics})

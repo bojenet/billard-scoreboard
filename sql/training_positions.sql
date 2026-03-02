@@ -8,6 +8,7 @@ create table if not exists public.training_positions_catalog (
   difficulty text not null default '',
   description text not null default '',
   comments jsonb not null default '[]'::jsonb,
+  source_text text not null default '',
   source_quality text not null default '',
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
@@ -27,158 +28,1997 @@ create table if not exists public.training_position_progress (
   constraint training_position_progress_unique unique (position_id, user_id)
 );
 
+create index if not exists idx_training_positions_catalog_set_number on public.training_positions_catalog(set_key, number);
+create index if not exists idx_training_position_progress_user on public.training_position_progress(user_id, position_id);
+
 drop table if exists public.training_position_ocr_requests;
 
-insert into public.training_positions_catalog (id, set_key, number, title, pdf_page, discipline, difficulty, description, comments, source_quality) values
-  ('roger-conti-001', 'roger-conti', 1, 'Fiche 1', 1, '', '', '', '["Die rote als Ball 2 nehmen und versuchen, sich die Position 1a) (siehe unten auf der Seite) zu verschaffen. Mit tiefem Stoß angreifen. Eine leichte Schräge anstreben. Ohne das Effet oder mit dem Effet stoßen, falls es hilft, die gewünschte Schräge zu erzielen (rechts oder links, je nach genauer Position).", "Dasselbe tun, indem man die Weiße als Ball 2 nimmt. Versuchen, sich die Position 1a) zu verschaffen.", "Hinweis: Bei allen Platzierungen im Serienspiel an der Linie immer als Ball 2 den Ball wählen, der der Bande am nächsten liegt, von der im nächsten Stoß die 2 per Rückläufer zurückgeholt wird. Auf diese Weise positioniert man sich sicherer und treibt den Ball, der beim geplanten Rückläufer Ball 3 sein wird, weniger weit weg. Beim Stoß Nr. 1 oben also Ball 2 nehmen und nur auf die Weiße spielen, wenn es nicht anders möglich ist, wie bei Stoß 1 bis (zweite Variante). Ergebnis der Stöße 1 und 1 bis (zweite Variante).", "Um die Ungenauigkeit oder den Fehler in der Einschätzung und den Maskeneffekt zu vermeiden, versuchen, die Rote auf Ball 3 zu spielen und das Effet sowie den Treffpunkt auf Ball 2 entsprechend zu berechnen."]'::jsonb, ''),
-  ('roger-conti-002', 'roger-conti', 2, 'Fiche 2', 2, '', '', '', '["Wenn nur wenig Schräge zwischen Ball 1 und Ball 2 vorhanden ist, dicker auf Ball 2 spielen. Wenn Ball 1 weiter links liegt, mit tiefem Stoß spielen.", "Ein einfacher und einfallsreicher Ausweg Einbänder Ball 1 tief ohne Effet spielen, Ball 2 zu ¾ treffen. Gedämpft auf Ball 3 links von diesem bleiben und ihn dabei kaum bewegen. Ball 2 läuft über zwei Banden und spielt Ball 3 frei. Ball 2 umso voller treffen, je geringer die Schräge ist. Liegt Ball 1 weiter links an der mit einem Bleistiftkreis markierten Stelle, ist der Stoß nicht mehr möglich und man muss mit einem direkten tiefen Stoß spielen.", "Hinweis: Wenn die Schräge deutlich ist, wird die Ausführung schwierig, da Ball 2 dünner getroffen, Ball 1 tiefer mit rechtem Effet gespielt werden muss und die Gefahr besteht, den Stoß nicht ausreichend zu dämpfen und Ball 3 zu verschieben. In einem solchen Fall sieht R. Conti vor, Ball 3 bewusst zu verschieben und die Rote nicht dahin zu spielen, wo Ball 3 zu Beginn steht, sondern dorthin, wo sie nach der Karambolage sein wird. Ich glaube, das können wir uns nicht leisten!", "Ball 1 oben und weit rechts stoßen. Ball 2 fast dünn treffen, etwa 1/8 Ball. Hinweis: Es gibt hier keinen Konter, da Ball 2, der sehr nah an Ball 1 liegt und dünn getroffen wird, sich verhält wie Ball 2, der weiter von Ball 1 entfernt ist und voller getroffen wird. „Das ist das Geheimnis der nah beieinander liegenden Bälle“, sagte mir R. Conti.", "Resultat aus obiger Position"]'::jsonb, ''),
-  ('roger-conti-003', 'roger-conti', 3, 'Fiche 3', 3, '', '', '', '["Steht Ball 3 auf Position A, Ball 2 weniger dünn treffen. Steht Ball 3 auf Position B, etwas weniger tief stoßen. Steht Ball 3 auf Position C, etwas tiefer stoßen.", "Steht Ball 2 auf Position 2’.", "Der Stoß wird sehr schwierig und fast unmöglich, da Ball 2 weiterhin sehr dünn getroffen werden muss, was einen extrem tiefen Stoß erfordert und das Risiko eines Kicks birgt. Der direkte Stoß ist hier vorzuziehen, da in dieser Position die Rückläuferkarambolage direkt möglich ist, wenn Ball 2 nicht zu voll getroffen wird, gegebenenfalls mit Effet.", "Ein schöner Einbänder, einfach und spektakulär. Die Bälle 1 und 2 liegen im gleichen Abstand zur kurzen Bande, also keine Schräge. Ball 1 sehr tief ohne Effet stoßen, Ball 2 etwa 1/8 Ball, fast dünn treffen, mit Versammlung in der Nähe von Ball 3 bleiben. Liegt Ball 2 einen Hauch näher an der Bande als Ball 1, etwas weniger tief stoßen und maximales Effet nach links geben. Liegt Ball 1 einen Hauch näher an Ball 2, Ball 2 dünner treffen und oft mit etwas Effet nach links spielen, da das Annähern der beiden Bälle trotz gleichem Treffpunkt an Ball 2 einer volleren Attacke entspricht (siehe Hinweis auf Seite 2 bei Stoß 3 – „Geheimnis der nah beieinander liegenden Bälle“)."]'::jsonb, ''),
-  ('roger-conti-004', 'roger-conti', 4, 'Fiche 4', 4, '', '', '', '["Sehr wichtig (Erläuterung des Prinzips aus der Anmerkung auf Seite 1): Immer die Rote als Ball 2 nehmen, um die Position auf diesem Ball zu erleichtern und Ball 3 möglichst wenig zu verschieben. Ball 1 tief mit starkem Effet nach rechts stoßen, um Ball 2 geradezurichten. Ball 2 fast voll rechts treffen.", "Man erhält das nebenstehende Ergebnis. Es ist zu beachten, dass die erzielte Position es ermöglicht, den Rückläufer mit nach außen laufendem Ball zu spielen und – dank der Schräge – die Rote auf Ball 3 zu schicken, bei minimaler Schwierigkeit.", "Hier hingegen das Ergebnis, das man erhalten hätte, wenn man die Weiße als Ball 2 genommen hätte.", "Hinweis: Wenn die Position dazu zwingt, als Ball 2 den Ball zu nehmen, der am weitesten von der Bande entfernt ist, muss dieser Ball sehr dünn getroffen werden, damit er buchstäblich an Ort und Stelle bleibt."]'::jsonb, ''),
-  ('roger-conti-005', 'roger-conti', 5, 'Fiche 5', 5, '', '', '', '["Stoß von entscheidender Bedeutung, der sich in vielen anderen Stellungen wiederfindet. Den Spielball B1, oben und mit linkem Effet stoßen. Ball 2 etwa zu ¾. Die Treffmenge sorgfältig wählen, um die Begegnung der vollen Roten mit Ball 1 in A zu erreichen.", "Befindet sich Ball 2 in 2’, etwas tiefer oder sogar mittig anspielen, immer mit linkem Effet. (Die Treffmenge leicht anpassen – mehr oder weniger –, je nachdem, ob der Winkel weniger oder stärker ausgeprägt ist.)", "Variante des Stoßes Nr. 6 in der Längsrichtung des Billards. Der Stoß ist absolut selbstverständlich für denjenigen, der Stoß Nr. 6 in- und auswendig kennt. Man erhält die Dämpfung durch das linke Effet und eine enge Versammlung nahe bei Ball 3. Die Höhe des Anspielens je nach genauer Position von Ball 3 bestimmen. Ein Tipp für den 6 bis: Sich vorstellen, dass Ball 3 in 3’ liegt und man Ball auf Ball spielt. Es ist unmöglich, mit dem linken Effet durch die Lücke zu gehen. Begegnung problematisch."]'::jsonb, ''),
-  ('roger-conti-006', 'roger-conti', 6, 'Fiche 6', 6, '', '', '', '["Interessant: Ein Stoß, der kindlich einfach aussieht und den dennoch nur wenige Spieler richtig ausführen. Es ist ein Fehler, die Weiße sehr dünn zu spielen. Warum? Weil in diesem Fall das Dosieren des Effets nötig wird, das man zu stark oder zu schwach ausführen kann. Was tun? Den Spielball B1 mittig nehmen und mit maximalem rechten Effet stoßen, Ball 2 so voll wie möglich treffen – selbstverständlich nur, sofern der Punkt dadurch weiterhin möglich bleibt. Das tiefe Nehmen erlaubt es, das maximale Effet zu geben, kann jedoch nicht angewandt werden, wenn B1 nahe bei Ball 2 liegt. B1 mittig, verlängerter Stoß.", "Fassen wir zusammen: Diese Vorgehensweise erlaubt es, Fehlerquellen auszuschalten. Der Spieler muss nicht mehr denken: „Achtung, nicht zu viel Effet, ich treffe Ball 2 dünn.“ Man muss also so viel Treffmenge und Effet geben, wie möglich. Mittig nehmen, sehr verlängerter Stoß. Weitere Vorteile: Anstelle des in der Skizze gestrichelten Laufwegs erhält man den durchgezogenen Laufweg und damit eine größere Chance, auf der richtigen Seite zu karambolieren. Schließlich schickt die volle Treffmenge Ball 2 in Position 2’ anstatt ihn in 2’’ zu lassen.", "Hinweis: Mit der Conti-Interpretation kann der folgende, mit blauem Stift markierte Punkt nicht verfehlt werden. Allenfalls läuft man in Position 1’, wenn man Ball 3 zu dünn trifft (siehe Zeichnung mit Bleistift)."]'::jsonb, ''),
-  ('roger-conti-007', 'roger-conti', 7, 'Fiche 7', 7, '', '', '', '["Diesen Stoß niemals über die Bande spielen, da die Rote nahezu an ihre ursprüngliche Position zurückkehren würde und sich B1 in der Mitte befände, was beim folgenden Stoß zu einem Piquet zwingen würde. Ebenso nicht versuchen, beim Karambolieren über die Bande nach hinten herauszukommen, indem man Ball 3 sehr dünn links trifft. Man würde sich eine Brillenstellung hinterlassen, bei der die Tendenz besteht, die Bälle in Richtung Mitte des zentralen Cadre-Feldes an der kurzen Bande zu schieben.", "Was tun? Ball auf Ball spielen mit maximalem linkem Effet. Auf diese Weise läuft Ball 2 über zwei Banden und geht in Position 2’ oder 2’’ (und nicht in 1). Spielball B1 tief und sehr weit links nehmen. Ball 2 etwa zu ½ oder ⅔ treffen. Zu beachten ist, dass das linke Effet dasjenige ist, welches Ball 2 in Position 2’ bringt – unabhängig davon, ob Ball 2 zuerst die kurze oder die lange Bande trifft."]'::jsonb, ''),
-  ('roger-conti-008', 'roger-conti', 8, 'Fiche 8', 8, '', '', '', '["Schwieriger Stoß über 1 Bande Der schwierige direkte Stoß ist deutlich weniger einfach und bringt keine guten Ergebnisse. Spielball B1 sehr hoch nehmen mit rechtem Effet. Ball 2 voll rechts treffen. Die Treffmenge variiert selbstverständlich je nach Winkel.", "Wäre B1 ein klein wenig weiter nach rechts, müsste Ball 2 voller getroffen werden. Wäre B1 ein klein wenig weiter nach links, müsste Ball 2 etwas dünner getroffen werden. Hinweis: Beim Spielen dieses Stoßes nicht vergessen, dass man an der kurzen Bande sehr nah an Ball 2 ankommen muss, da man reichlich Effet gegeben hat, was den Reflexionswinkel von B1 vergrößert. Weniger stark stoßen, wenn Ball 2 press an der Bande liegt. Etwas stärker stoßen (oder etwas weniger hoch nehmen), wenn Ball 2 etwas weiter von der Bande entfernt liegt.", "Ergebnis des Stoßes Nr. 9: Stellt man sich auf Ball 3, hat man die Möglichkeit, einen kleinen Zwei-Banden-Stoß über die Ecke zu spielen, da sich die Rote – dank des Effets – etwa um zwei Ballbreiten von der Ecke entfernt hat. Liegt B1 in Position 1’, spielt man den kleinen Zwei-Banden-Stoß über die volle Treffmenge von Ball 2, um den Punkt zu machen und gleichzeitig herauszukommen."]'::jsonb, ''),
-  ('roger-conti-009', 'roger-conti', 9, 'Fiche 9', 9, '', '', '', '["Einbänder mit perfektem Amorti. Rücklauf von Ball 2 über 3 Banden. Sehr einfach, auch wenn er heikel wirkt. Sehr spektakulär. Spielball B1 knapp oberhalb der Mitte (sehr wenig), ohne seitliches Effet. Ball 2 sehr voll treffen, fast komplett (ca. 8/10). Ball 3 darf nur um 4 bis 5 cm verschoben werden. Unter Wettkampfbedingungen etwas tiefer nehmen und etwas weniger voll treffen – Ball 3 verschiebt sich dann um 15 bis 20 cm. Liegt Ball 2 etwas weiter entfernt, etwas tiefer nehmen. Liegt Ball 2 nicht press, gleiche Höhe nehmen, wenn der Winkel die Karambolage über die volle Treffmenge erlaubt. Ist der Winkel ein klein wenig stärker, dieselbe Treffmenge nehmen – Ball 2 wird den in der Skizze mit Bleistift eingezeichneten Laufweg nehmen. Der Stoß ist nur mit absolut voller Treffmenge einfach."]'::jsonb, ''),
-  ('roger-conti-010', 'roger-conti', 10, 'Fiche 10', 10, '', '', '', '["Vorbereitung der Passage Es ist ein schwerer Fehler, die Rote als Ball 2 zu nehmen, da man vorsichtshalber immer damit rechnen muss, dass eine Ungenauigkeit oder ein Fehler in der Einschätzung möglich ist. Man sollte als Ball 2 denjenigen nehmen, der dem Spieler eine Sicherung bietet – das heißt die Möglichkeit, im Fall einer misslungenen Passage die Situation schnell durch einen einfachen Rückläufer von Ball 2 wiederherzustellen.", "a. Betrachten wir zunächst den Fall einer korrekt gespielten Vorbereitung der Passage. Spielball B1 tief ohne Effet. Ball 2 etwa zu 4/5, fast voll treffen. Es ist unbedingt erforderlich, etwa 2 mm von Ball 3 entfernt zu bleiben. Daher Ball 2 sehr voll nehmen und sehr tief stoßen.", "Man muss das nebenstehende Ergebnis erzielen.", "Hinweis: Es ist bekannt, dass man in einer Passage grundsätzlich als Ball 2 denjenigen nehmen sollte, auf den man sich positionieren möchte – in diesem Fall also die Rote spielen.", "Man hat als Ergebnis der Passage die Position 1’, 2, 3.", "Maximales linkes Effet, um durchzukommen. Mittig stoßen, da Ball 2 sehr nah liegt. Ball 2 um 2 oder 3 mm mitnehmen."]'::jsonb, ''),
-  ('roger-conti-011', 'roger-conti', 11, 'Fiche 11', 11, '', '', '', '["Fortsetzung des Stoßes Nr. 11 b. Betrachten wir den Fall einer misslungenen Vorbereitung der Passage. Spielt man zu sanft, erhält man die nebenstehende Position:", "Da der Passageweg zu eng ist, muss man entweder über Massé spielen oder (wenn möglich) die Weiße als Ball 2 nehmen und 1 mm von Ball 3 entfernt liegen bleiben, um die nebenstehende Position zu erreichen.", "Man spielt dann den Rückläufer, nach außen laufend, und bemüht sich, mit der entsprechenden Treffmenge und dem passenden Effet Ball 2 auf Ball 3 zu schicken, um so einen möglichen Mangel an Genauigkeit bei diesem kleinen, breiten Rückläufer auszugleichen. Denn wenn Ball 2 zu stark zurückkommt, wird er von der Roten aufgehalten und man vermeidet die Brillenstellung. Dieses Bestreben, Ball 2 auf Ball 3 zu schicken, macht deutlich, wie wichtig es ist, beim Stoß 11 bis die Treffmenge von Ball 2 sorgfältig zu wählen, um sich den gewünschten Winkel zu lassen. Kurz gesagt: Um die Brillenstellung zu vermeiden, muss man nicht den Stoß, den man gerade ausführt, besonders gut spielen, sondern den davor. Selbst wenn Stoß 11 bis misslingt und B1 Ball 2 nicht dominiert, ist nichts verloren: Es genügt, den nach außen laufenden Rückläufer maßvoll zu spielen, wobei Ball 2 nicht auf Ball 3 gehen kann.", "Wenn man Stoß Nr. 11 zu stark gespielt hat, erhält man sofort Stoß Nr. 11 ter.", "HINWEIS: Ich habe gesagt, dass man für die Vorbereitung der Passage den Spielball B1 grundsätzlich tief ohne Effet stoßen sollte – das stimmt. Aber Effet (rechts oder links) ist erforderlich, wenn man Ball 2 nach links oder rechts schicken möchte, falls die Treffmenge allein nicht ausreicht, um dies zu erreichen (siehe Seite 12)."]'::jsonb, ''),
-  ('roger-conti-012', 'roger-conti', 12, 'Fiche 12', 12, '', '', '', '["Fortsetzung des Stoßes Nr. 11 Zwei Varianten des ursprünglichen Stoßes 11", "Winkel geringer als bei Stoß Nr. 11, daher maximales rechtes Effet.", "Winkel ausgeprägter, daher maximales linkes Effet nehmen, um Ball 2 geradezuziehen.", "Der gebogene Pfeil zeigt, wie das linke Effet Ball 2 geradezieht.", "In beiden obigen Fällen nahezu eine absolute volle Treffmenge von Ball 2 nehmen. Die mit Bleistift eingezeichnete Queue-Position zeigt die Treffmenge von Ball 2, die man nehmen muss. Nun betrachten wir, was passiert, wenn man – aus Mangel an Technik – Stoß Nr. 11 so ausführt, dass man die Rote als Ball 2 nimmt.", "Zwei Fälle: a) ideales Maß. Dann dominiert entweder nur die Weiße, oder man stößt stärker, um auch die Rote zu dominieren.", "Was ist das Ergebnis einer stark gespielten Passage? Man liegt 20 cm von der Roten entfernt und nicht 10 cm wie beim Ergebnis 11 a auf Seite 10.", "Selbst wenn B1 10 oder 15 cm von der Roten entfernt bleibt, wird Ball 3 mindestens 10 cm von B1 entfernt sein, während bei Stoß 11 a B1 nur 2 oder 3 mm von Ball 3 liegt, was das Stellungsspiel für den folgenden Stoß erleichtert."]'::jsonb, ''),
-  ('roger-conti-013', 'roger-conti', 13, 'Fiche 13', 13, '', '', '', '["Fortsetzung des Stoßes Nr. 13 b. Vorbereitung der Passage zu stark gespielt – dann ist es die Katastrophe oder fast! Man hat nicht mehr, wie beim Ergebnis von Stoß 11 bis (siehe 11 ter), die Sicherung über Ball 2. Man muss dann den langen Rückläufer spielen oder die Weiße über 3 Banden zurückholen, vorausgesetzt, der Winkel erlaubt die Karambolage dieser Bälle.", "Schlussfolgerung zu Stoß Nr. 11 Man kann ohne Übertreibung sagen, dass derjenige, der bei Stoß Nr. 11 die Rote als Ball 2 nimmt, nur ein rudimentäres Verständnis der kleinen Serie hat. Es erscheint mir interessant, darauf hinzuweisen, dass für die Vorbereitung der Passage bei Stoß Nr. 11 die Auslegung von Derbier, Grange und Conti identisch ist – also keinerlei Diskussion möglich."]'::jsonb, ''),
-  ('roger-conti-014', 'roger-conti', 14, 'Fiche 14', 14, '', '', '', '["Verlust der Dominante in der Serienpartie an der Linie: a. Wenn der Ausgang der Dominante keinen allzu ausgeprägten negativen Laufwinkel (Biais) ergibt, muss die Dominante mit einem Piquet-Stoß zurückgewonnen werden. b. Wenn es unberechenbar ist, muss man sich von A nach B so zur roten Ball stellen, dass man sie mit zwei Banden aus der Ecke zurückholen kann. Die scheinbar natürliche Stellung ist sehr heikel, da es unendlich viele Stoßvarianten gibt: das Effet und der Treffpunkt auf Ball 2 variieren bei jeder Position. Manchmal muss Ball 3 in Richtung B vorgezogen werden. Nichts ersetzt in diesem Zusammenhang die mündlichen Hinweise am grünen Tuch. Schriftlich bräuchte ich dafür mehrere Seiten wie beim Stoß Nr. 11, um alle Angriffsvarianten für jede einzelne Position zu beschreiben.", "Für den Stoß Nr. 12: Ball 1: Mit maximalem Effet nach rechts stoßen, um Ball 3 geradezurichten. Ball 2: Etwa ein Viertel treffen, um ihn nach 3′ zu schicken (würde er durch einen ultradünnen Stoß am Platz bleiben, könnte Ball 2 nicht zurücklaufen).", "Ergebnis von Stoß Nr. 12: Ball 2 nicht nur zur Hälfte, sondern mindestens zu 2/3 treffen, damit Ball 2 zuerst die kurze Bande berührt."]'::jsonb, ''),
-  ('roger-conti-015', 'roger-conti', 15, 'Fiche 15', 15, '', '', '', '["Dominante verloren im Serienspiel an der Linie (Position von Stoß Nr. 12 in einem anderen Bereich des Billards) Es muss eine Vorbereitung für die Passage gespielt werden, um sofort zum nächsten Stoß übergehen zu können. Achtung: Hier ist eine Ausnahme von der bekannten Grundregel zu machen – anstatt Ball 2 vorzuschieben und auf Ball 3 zu bleiben, muss Ball 2 extradünn getroffen werden, um ihn buchstäblich an Ort und Stelle zu lassen und voll auf Ball 3 zu kommen. Tiefer Stoß ohne Effet (tief, um 1 bis 2 mm an der Roten zu bleiben). Man erhält das nebenstehende Ergebnis: \t•\tIst die Passage zu eng: fast mit Massé spielen. \t•\tIst die Passage zu weit: den Rückläufer mit nach außen laufendem Ball spielen (ebenso verfahren, wenn Ball 1 an der Roten anliegt). \t•\tIst die Passage sehr eng und kann man mit Massé spielen: einen kleinen Stoß spielen, um die Weiße vorzuziehen, und einen Rückläufer mit nach außen laufendem Ball vorbereiten.", "Man erhält das nebenstehende Ergebnis: \t•\tIst die Passage zu eng: fast mit Massé spielen. \t•\tIst die Passage zu weit: den Rückläufer mit nach außen laufendem Ball spielen (ebenso verfahren, wenn Ball 1 an der Roten anliegt). \t•\tIst die Passage sehr eng und kann man mit Massé spielen: einen kleinen Stoß spielen, um die Weiße vorzuziehen, und einen Rückläufer mit nach außen laufendem Ball vorbereiten."]'::jsonb, ''),
-  ('roger-conti-016', 'roger-conti', 16, 'Fiche 16', 16, '', '', '', '["Die Rote ohne Linkseffet spielen. Warum? Weil der Stoß mit Rechtseffet leichter ist und weil bei Linkseffet die Gefahr besteht, Ball 2 – falls man zu viel Effet oder zu voll spielt – auf Ball 3 zu schicken.", "Ball 1: tief und stark rechts stoßen. Ball 2: voll rechts treffen.", "Man erhält das nebenstehende Ergebnis: Ball 2 wird von Ball 1 blockiert und trifft diesen nicht voll, sondern zu etwa 2/3 Ball, was von Vorteil ist.", "Wäre der Austausch durch den vollen Treffer von Ball 2 auf Ball 1 erfolgt, stünde Ball 1 auf Position 1’ und man würde 1 Punkt verlieren. Denn: Man müsste anschließend sofort die Rote zurückholen und könnte die nebenstehende Vorbereitungsposition nicht spielen.", "Hinweis: Die Ausführung von Stoß Nr. 14 ist unbedingt zu wählen, wenn Ball 3 nicht zu weit von der kurzen Bande entfernt liegt. Sie kann nicht mehr angewendet werden, wenn die Lücke zwischen Ball 3 und Bande zu groß ist und Ball 2 entweichen kann. Achtung: Ball 1 muss bei dem Austausch auf gleicher Höhe mit Ball 3 liegen.", "Trotz der Entfernung von Ball 2 nicht mit tiefem Stoß spielen. Stoß wie Stoß Nr. 14 ausführen, aber kräftig genug. Es besteht keinerlei Grund zur Sorge – die Blockierung ist sicher."]'::jsonb, ''),
-  ('roger-conti-017', 'roger-conti', 17, 'Fiche 17', 17, '', '', '', '["Eine wenig bekannte und sehr interessante Begegnung. Sie ist sehr einfach, wenn die Schräge ausgeprägter ist. Sie ist etwas heikler, aber immer noch leicht, mit der sehr geringen Schräge bei Stoß Nr. 15. Den Spielball B1, oben und mit linkem Effet stoßen. Ball 2 etwa zu 2/3, eher etwas voller, treffen. Die Rote läuft über zwei Banden, und Ball 1 gesellt sich zu ihr auf Position A. Trifft man zu voll, verfehlt man den als Bleistiftspur markierten nächsten Punkt. Trifft man nicht voll genug, verfehlt man den in Blau markierten nächsten Punkt", "Variante von Stoß Nr. 15. Die Schräge bleibt gering, ist jedoch etwas ausgeprägter. Ball 2 läuft nur über eine Bande, die Begegnung findet bei B statt. Gleiche Stoßführung wie zuvor. Die Treffmenge („Voll“) entsprechend Schräge und genauer Position berechnen."]'::jsonb, ''),
-  ('roger-conti-018', 'roger-conti', 18, 'Fiche 18', 18, '', '', '', '["Was man nicht tun sollte: Die Positionierung auf die Weiße durch das dünne Treffen der Roten ergibt das untenstehende Ergebnis, das …", "…was einen Rückläufer ergibt, der die Bälle an dem Ort versammelt, an dem sie sich zu Beginn befanden.", "Was man tun sollte:", "Man muss sich auf die Weiße stellen, indem man die Rote ziemlich voll trifft, um sie nach A in die Nähe der Linie zu schicken.", "Man erhält dann das nebenstehende Ergebnis, das es mit einem kleinen Rückläufer ermöglicht, die Bälle rittlings zu versammeln.", "Hinweis: Es gibt 10 identische Fälle, die ich nicht alle aufzählen kann. Daher stets an das Prinzip von Stoß Nr. 16 denken, wann immer es anwendbar ist."]'::jsonb, ''),
-  ('roger-conti-019', 'roger-conti', 19, 'Fiche 19', 19, '', '', '', '["Zwei Platzierungen, die besonders sorgfältig ausgeführt werden müssen Die beiden Stöße 17 und 17 a’ sind wesentlich heikler, als sie scheinen. Wichtig ist dabei: \t1\tBall 3 so wenig wie möglich zu verschieben. \t2\tEine Schräge zu belassen, die es beim folgenden Rückläufer mit Außenstellung ermöglicht, die Rote auf Ball 3 zu spielen. (Das Blockieren der Roten durch Ball 3 verhindert den Maskeneffekt bei der Einschätzung.)", "Wenn eine Vorbereitung der Passage möglich ist, vorzugsweise diese Lösung wählen.", "Nicht vergessen, die Rote weit genug vorzuschieben.", "Man muss die beiden nebenstehenden Ergebnisse erzielen. Hinweis: Nie vergessen, dass man im Rückläufer mit Außenstellung – grundsätzlich und außer in Ausnahmefällen – Ball 2 so voll wie möglich treffen sollte, um zu dämpfen und Ball 1 nahe bei Ball 3 zu lassen (auch wenn man dafür etwas weniger tief stoßen muss).", "Wäre die Schräge einen Hauch zu ausgeprägt, müsste man Linkseffet geben und weniger voll stoßen; wäre sie weniger ausgeprägt, müsste man sehr fein dosieren – dann könnte Ball 2 jedoch nicht mehr auf Ball 3 gespielt werden."]'::jsonb, ''),
-  ('roger-conti-020', 'roger-conti', 20, 'Fiche 20', 20, '', '', '', '["Massé mit extrem dünnem Treffen von Ball 2. R. Conti meint, dass es für einen Spieler einer gewissen Spielstärke unverzeihlich ist, sich bei einem einfachen Massé falsch zu stellen. Er unterteilt die Massés in zwei Kategorien: A) Massés aus relativ kurzer Distanz, bei denen die Bälle nicht vollständig verdeckt sind. Er nennt sie Halb-Massés und empfiehlt, sie mit niedrigem Bock zu spielen, wobei der Handballen bzw. die Fingerknöchel auf dem Tuch aufliegen (nicht die Fingerspitzen). B) Massés aus mittlerer Distanz (egal ob die Bälle vollständig verdeckt sind oder nicht) sowie kurze Massés, bei denen die Bälle völlig in einer Linie liegen – also absolut verdeckt (Maskierung). Diese Massés der Kategorie B werden mit dem üblichen Bock gespielt. Der Massé aus Stoß 18 gehört zur Kategorie A). Man muss sich auf Ball 3 in Dominante stellen, ohne Ball 2 ins Cadre-Eckfeld zu bringen.", "Ball 1 links, tiefer Stoß, Queue nicht komplett senkrecht halten. Ball 2 ultradünn treffen. Zielen, als wolle man den Kontakt verfehlen – die Rote bewegt sich nur um 2–3 %. Schneller Stoß, wie ein Nadelstich."]'::jsonb, ''),
-  ('roger-conti-021', 'roger-conti', 21, 'Fiche 21', 21, '', '', '', '["Einbänder über das hintere Ende von Ball 2. Ball 1 sehr tief ohne Effet stoßen. Ball 2 seh dünn treffen.", "Accepted festgelegt von philippjuede", "None festgelegt von philippjuede", "Steht Ball 1 einen Hauch weiter von Ball 2 entfernt, Ball 2 etwas weniger dünn treffen. Steht Ball 3 auf Position 3’, weniger tief stoßen und Linkseffet geben.", "Stoß 19 bis ist derselbe wie Stoß 19, jedoch weiter von der kurzen Bande entfernt. Gleiche Stoßführung wie bei Stoß 19. Steht Ball 3 auf Position 3’, maximales Linkseffet geben und etwas weniger tief stoßen. Hinweis: Wenn beim Stoß 19 die Schräge (die kaum wahrnehmbar ist) gleich null ist, den Rückläufer mit Außenstellung spielen. Hält man Ball 2 für nicht nah genug, ohne Außenstellung spielen, indem man eine ½ Ball-Karambolage auf Ball 3, links von diesem, ausführt. Dieselben Anmerkungen gelten für Stoß 19 bis. Der Rückläufer auf Ball 2 über 3 Banden darf nur gespielt werden, wenn es keine bessere Möglichkeit gibt. Für die Stöße 19, 19 bis, 20 und 21 gilt: Je näher Ball 2 an Ball 1 liegt, desto dünner treffen – und umgekehrt."]'::jsonb, ''),
-  ('roger-conti-022', 'roger-conti', 22, 'Fiche 22', 22, '', '', '', '["Einbänder über das hintere Ende von Ball 2 (Fortsetzung). Wie bei den Stößen 19 und 19 bis gilt: Steht Ball 3 auf Position 3’, ist Linkseffet zu nehmen. Zu beachten ist eine identische Stoßführung (weniger tief als bei Stoß 19 für die Positionen 1, 2, 3), wenn Ball 3 auf Position 3 steht und nicht auf 3’, der Treffwinkel jedoch anstelle von kaum wahrnehmbar etwas ausgeprägter ist – ebenfalls stets mit Linkseffet (Stoß Nr. 20).", "Hinweis: Steht Ball 2 einen Hauch weiter links, gleiche Stoßführung, aber das Linkseffet noch stärker ausführen. Steht Ball 2 auf Position 2’, den direkten Rückläufer mit maximalem Rechtseffet spielen. Fazit: Die Stoßführung ist für die Positionen Nr. 20 und Nr. 21 identisch (wobei letzterer Stoß der Position 1.2.3’ von Stoß 19 entspricht).", "Zusammengefasst: Ob Ball 2 ein wenig weiter links steht oder Ball 3 eine Ballbreite weiter rechts – das läuft auf dasselbe hinaus.", "Stoßführung für die Stöße 21 und 20: Ball 1 tief (aber nicht sehr tief) und gelegentlich links stoßen. Ball 2 fast dünn treffen."]'::jsonb, ''),
-  ('roger-conti-023', 'roger-conti', 23, 'Fiche 23', 23, '', '', '', '["Interessant: Die Bälle in zwei Stößen in die günstigste Region des Billards bringen: Erster Stoß (Stoß 22): Die Rote voll vorziehen und auf Position 2’ bringen. Eine Dominante auf Ball 3 nehmen, um anschließend auf diesem entweder einen direkten Nachläufer oder einen Nachläufer über eine Bande zu spielen (manchmal auch direkter Stoß ohne Nachläufer).", "Hinweis: Wenn Ball 1 zu Beginn (Stoß 22) auf Position 1’ liegt, kein Rechtseffet nehmen – manchmal sogar Linkseffet. Wesentlich ist, mit nicht zu viel Kraft auf Ball 3 zu kommen und ihn etwa zu ¼ links zu treffen.", "Ball 2 etwa ½ treffen. Man erhält das nebenstehende Ergebnis. Ob Ball 1 auf Position 1, 1’ oder 1’’ liegt – der Stoß ist stets schön zu spielen und das Endergebnis ausgezeichnet. Zweiter Stoß: Den Nachläufer spielen. Versammlung auf Position A."]'::jsonb, ''),
-  ('roger-conti-024', 'roger-conti', 24, 'Fiche 24', 24, '', '', '', '["Grundlegend. Ein großes Prinzip, auf dem das gesamte moderne Billard beruht: Wann immer es möglich ist, auf Ball 3 dünn karambolieren und dabei rückwärts herauslaufen. Position A: Ball 1 sehr tief ohne Effet stoßen – oder mit Rechts- bzw. Linkseffet je nach Schräge. Ball 2 etwa zu ¾, eher etwas voller, treffen. Sehr dünn auf Ball 3 karambolieren, da Ball 3 sonst nicht rückwärts herauslaufen kann.", "Man erhält das nebenstehende Ergebnis. Wenn es an Gefühl gefehlt hat (denn man muss eher kurz spielen) und Ball 2 auf Position 2’’ steht, wäre das mit Ball 1 auf 1’ verhängnisvoll. Mit Ball 1 auf 1 ist der Nachläufer ein natürlicher Stoß. Position B: Die oben beschriebene Ausführung ist unmöglich, da Ball 2 zu weit entfernt von der Bande liegt. Wenn die Passage nicht möglich ist, muss man die Sperre spielen. Ausnahme: Wenn die Cadre-Linie an der Stelle des blauen Strichs verlaufen würde, müsste man den Rückläufer mit Außenstellung nach der gestrichelten Pfeilrichtung spielen.", "Achtung auf den Treffpunkt von Ball 2: Zu weit rechts – es entsteht eine Maske, zu weit links – die Dominante geht verloren."]'::jsonb, ''),
-  ('roger-conti-025', 'roger-conti', 25, 'Fiche 25', 25, '', '', '', '["Variante von Stoß 23. Es ist ein Fehler, die Sperre zu spielen. Warum? Weil niemand sicher sein kann, den Austausch unter optimalen Bedingungen zu erreichen. Es muss nämlich eine exakte Stoßhöhe gewählt werden, damit man genau neben Ball 3 auf derselben Linie bleibt – weder zu weit vorn noch zu weit hinten. Auch der Stoß mit dem Queue ist schwer auszuführen, da man Ball 2 aus solcher Nähe beim vollen Treffen nicht sauber genug spielen kann.", "Ball 1 sehr tief ohne Effet stoßen. Ball 2 etwa zu 2/3 treffen.", "Also wie bei Stoß 23 ausführen und versuchen, rückwärts herauszukommen, indem man Ball 3 sehr dünn trifft.", "Darauf achten, Ball 2 so wenig voll wie möglich zu treffen. Wenn diese geringe Treffmenge zwingt, Effet für den Eintritt zu nehmen, sollte man nicht zögern, es zu tun. Ist die Schräge zu stark, trotz des dünnen Treffens von Ball 2 Rechtseffet geben.", "@Arnd", "Hinweis: Spielt man den Austausch, ergibt es sich oft, dass man zwei Rückläufer an der Linie hintereinander spielt. Spielt man dagegen rückwärts heraus, erhält man stets eine vorbereitende Stellung vor dem Rückläufer – also einen Gewinn von 1 Punkt.", "Es ist zu beachten, dass die Ausführung von Stoß 24 automatisch die richtige Dosierung ergibt."]'::jsonb, ''),
-  ('roger-conti-026', 'roger-conti', 26, 'Fiche 26', 26, '', '', '', '["Eine einfallsreiche Lösung von R. Conti Die Passage ist unmöglich. Es gibt zu viel Schräge, um sofort zurückzuholen. Um auf die Rote zu kommen und einen Rückläufer vorzubereiten, muss Ball 2 sehr voll getroffen werden – das nebenstehende Ergebnis ergibt sich daraus.", "Schlechtes Ergebnis Natürlich ist der Rückläufer leicht und der Piquer ziemlich natürlich. Aber es gibt Besseres zu spielen – und völlig ohne Risiko. WAS MAN TUN SOLLTE: Sich auf die Rote stellen, indem man sie extrem dünn trifft und mit Rechtseffet spielt, um sie hinten zu belassen.", "WAS MAN NICHT TUN SOLLTE", "Man erhält die Position Nr. 19. Wenn die Schräge zu stark ist, Stoß Nr. 20 spielen oder den direkten Rückläufer, indem man Ball 2 über die Ecke zurückholt, oder auch über eine Bande an der kurzen Bande."]'::jsonb, ''),
-  ('roger-conti-027', 'roger-conti', 27, 'Fiche 27', 27, '', '', '', '["In dieser Region niemals Linkseffet nehmen. Ball 1 tief ohne Effet stoßen. Ball 2 etwa zu ¾ treffen.", "Man muss den Austausch erzielen, als würde man den direkten Rückläufer spielen.", "Stoß 26 bis ist heikler als Stoß 26. Man muss Ball 2 sehr voll treffen, doch genau das nimmt Ball 1 Impuls – umso mehr, als man kein Linkseffet nehmen darf, weil dieses verhindern würde, dass Ball 2 korrekt „hineingeht“. Daher kräftiger spielen, damit Ball 1 genug Lauf hat, um bis zu Ball 3 zu gelangen. Selbstverständlich darf man keinen Fehler in der Treffmenge machen, um den Austausch sicher zu bekommen. Steht Ball 1 auf Position 1’ (Stoß 26 bis), darf man die oben beschriebene Ausführung nicht mehr anwenden. Man muss den Punkt sichern, indem man tief mit Linkseffet spielt und die genaue Rückkehr von Ball 2 zugunsten der Punktsicherheit opfert. Zu beachten: Für alle diese Einbänder mit Effet gilt grundsätzlich: maximalen Effet auf die Kugel und maximalen Seiteneffet nehmen – und so wenig Tiefstoß wie möglich."]'::jsonb, ''),
-  ('roger-conti-028', 'roger-conti', 28, 'Fiche 28', 28, '', '', '', '["Ein natürlicher und sehr spektakulärer Ausstieg. Wie oben den Nachläufer über Bande spielen – mit Massé. Die Queue sehr senkrecht halten. Vorwärtsstoß (oben angespielt). Ein weicher, aber sehr schneller Queue-Stoß mit viel Biss. Wenn die Schräge sehr gering ist, streift die Rote Ball 3 und verschiebt ihn leicht; die Karambolage erfolgt dann als rattrapierte Begegnung, ohne dass man die Stoßführung verändert hätte. Etwas weniger weich spielen, wenn die bestehende Schräge eine solche Begegnung erwarten lässt.", "Zwei Ausstiege, die man kennen muss. Den Nachläufer über Bande auf die Rote spielen, mit einem Massé ausgeführt – genau so, wie man den Nachläufer spielen würde, wenn Ball 1 auf Position 1’ läge. Der Stoß ist heikel, aber zehnmal leichter, als wenn man versuchen würde, der mit Bleistift eingezeichneten Linie zur Karambolage zu folgen. Darum dieselbe Lösung wählen, auch wenn man nicht exakt in der Idealposition steht. Sehr energischer Queue-Stoß. Ball 2 fast voll treffen."]'::jsonb, ''),
-  ('roger-conti-029', 'roger-conti', 29, 'Fiche 29', 29, '', '', '', '["Die Sperre nicht spielen, \t•\tweil man – selbst wenn der Austausch gelingt – eine enge Versammlung nahe bei Ball 3 erhält, \t•\tweil die Gefahr besteht, Ball 2 nicht auf Ball 1, sondern auf Ball 3 zu schicken, \t•\tweil man entlang der kurzen Bande eine Maske riskieren kann, wenn man Ball 2 zu voll trifft und schlecht auf Ball 3 karamboliert.", "Was tun? Ball 1 sehr tief ohne Effet stoßen. Ball 2 nur etwa 1/3, kaum mehr. Man muss den Rückläufer über das dünne Treffen von Ball 2 spielen und dabei sehr dünn rechts auf Ball 3 karambolieren, um rückwärts herauszukommen. Man erhält das nebenstehende Ergebnis: Die Bälle gelangen in zwei Stößen in die günstige Region – und rittlings, wenn die Dosierung stimmt und ein wenig Glück dabei ist. Hinweis: Die Attacke auf Ball 2 bei Stoß 29 besonders sorgfältig ausführen. Lieber zu dünn treffen als nicht dünn genug. Es ist besser, die Rote auf Position B zu haben als auf Position A."]'::jsonb, ''),
-  ('roger-conti-030', 'roger-conti', 30, 'Fiche 30', 30, '', '', '', '["Variante von Stoß Nr. 29. Es ist unmöglich, Ball 2 durch dünnes Treffen und Linkseffet zu halten – die Schräge ist zu stark. Man muss Ball 2 daher über zwei Banden zurückholen. Die Sperre (Ball 2 durch Ball 1 blockieren) darf man nicht spielen: \t•\terstens ist sie viel zu schwierig, \t•\tzweitens würde man eine „Lunette“ (Rahmenstellung mit zwei Bällen nebeneinander) nahe bei Ball 3 erhalten \t•\tund eine Versammlung mitten im Feld, was wenig vorteilhaft ist.", "Man muss karambolieren (über das dünne Treffen von Ball 2), indem man Ball 3 dünn rechts trifft und rückwärts herausläuft. Ball 1 tief und weit rechts stoßen (ohne Effet, falls die Schräge ausgeprägter wäre). Ball 2 etwa ½ treffen. Nach dem Spielen dieser Resultante erhält man die Position 2, 3, 2’ – dabei markiert Ball 2 ungefähr die Stelle, an der sich Ball 1 befindet.", "Ohne das Rechtseffet aus Stoß Nr. 30 wäre die Rote oben in 2'''' und nicht in 3 (ich meine: bevor Stoß 30a gespielt wird)."]'::jsonb, ''),
-  ('roger-conti-031', 'roger-conti', 31, 'Fiche 31', 31, '', '', '', '["Was man nicht tun darf: Man darf nicht die dünne Lösung A spielen, um anschließend Stoß B und schließlich die Resultante C zu erhalten, denn man befindet sich dann auf der Linie in 50 % oder 55 % der Bande.", "Das Annähern der Bälle an die Linie", "Die Rote durch extrem vollen Treffer und mit maximalem Rechtseffet vorziehen. \t•\tAnstreben, sich den leichten Halb-Massé aus Position B zu lassen. \t•\tDadurch erhält man Position C’. Hinweis: Vergleicht man Position C mit Position C’, erkennt man, dass die Rote um etwa eine Ballbreite an die große Bande herangeführt wurde."]'::jsonb, ''),
-  ('roger-conti-032', 'roger-conti', 32, 'Fiche 32', 32, '', '', '', '["Wenn Ball 1 auf Position 1’ läge, erschiene die Begegnung Nr. 32 für jeden als natürlicher Stoß. Aber Ball 1 steht auf 1, und dadurch liegen die drei Bälle nicht mehr auf einer Geraden – die Rote ist „eingesperrt“. Keine Bedeutung: Man erhält die Begegnung auf A und zugleich den Ausstieg. Ball 1 oben und weit links stoßen. Ball 2 etwa ½ treffen. Sehr leicht, sobald man ein Gefühl für die exakte Treffmenge von Ball 2 hat. (Variante von Stoß Nr. 30)", "Cadre und Freie Partie Ein interessanter Cadre-Stoß, der zugleich eine schöne und einfache Amerika-Platzierung ergibt. Ball 1 sehr tief ohne Effet stoßen (oder mit Effet, je nach genauer Position). Ball 2 etwa ⅓, eher etwas weniger, treffen.", "Dünn rechts auf Ball 3 karambolieren und rückwärts herauslaufen. Wenn möglich weit nach hinten herauslaufen. Sehr weich spielen, damit Ball 2 – der voll getroffen werden muss – nicht zu weit läuft. Man erhält das nebenstehende Ergebnis →"]'::jsonb, ''),
-  ('roger-conti-033', 'roger-conti', 33, 'Fiche 33', 33, '', '', '', '["Feiner Stoß mit Maske. Nur spielen, wenn Ball 1 und 2 sowie Ball 3 nicht zu weit voneinander entfernt sind.", "Ball 1 tief ohne Effet spielen und Ball 2 sehr fein treffen. Der Stoß ist unsicher und nur sinnvoll, wenn er viel trainiert wurde.", "Liegt Ball 1 auf der Position 1, nicht den Einband-Rückläufer mit rechtem Effet spielen. Stattdessen den Kontakt-Ausgang mit etwas weniger dünnem Ball 2 und linkem Effet wählen.", "Vitry hält diese Lösung für sehr schwierig; im Spiel nur anwenden, wenn sie wirklich beherrscht wird."]'::jsonb, ''),
-  ('roger-conti-034', 'roger-conti', 34, 'Fiche 34', 34, '', '', '', '["Hier ist der Zugstoß über den Ballwechsel besser als ein kleiner Einband-Ausgang, der Ball 2 zu weit auseinanderzieht.", "Ball 1 fast nur anstreifen, mit maximal linkem Effet und langem, langsamen Stoß spielen, damit Ball 2 nach vorn kommt.", "Wenn Ball 1 auf A liegt, ist dieser Ausgang zwingend. Conti spielt erst das Zwischenbild 35a und kommt danach zu 35b, um aus der Linie zu gelangen."]'::jsonb, ''),
-  ('roger-conti-035', 'roger-conti', 35, 'Fiche 35', 35, '', '', '', '["Das ist das klassische Lochspiel durch Nachläufer. Die Sperre links neben Ball 3 ist nur eine Notlösung, weil sie sehr schwierig und gefährlich ist.", "Ball 1 in der Mitte mit maximal linkem Effet spielen und Ball 2 etwa halbvoll treffen.", "Wichtig ist das richtige Maß, damit Ball 2 ins Loch läuft. Ist das Maß nicht perfekt, blockiert Ball 1 den Ball 2 trotzdem oft noch ausreichend.", "Für die folgende Position 36 muss Ball 1 weit genug hinten auf die Bande kommen, damit Ball 3 nicht zu stark bewegt wird."]'::jsonb, ''),
-  ('roger-conti-036', 'roger-conti', 36, 'Fiche 36', 36, '', '', '', '["Variante ohne vorhandenes Loch. Das Loch muss erzeugt werden, indem Ball 1 kräftig etwa zwei Drittel rechts von Ball 3 ankommt.", "Ball 1 leicht oberhalb der Mitte ohne Effet spielen und Ball 2 etwa drei Viertel, eher etwas weniger, treffen.", "Nicht auf Stellen spielen, sondern Ball 2 eher kurz zurückholen. Ball 3 wird durch den halb amortisierten Kontakt leicht von der Bande gelöst und schafft so das Loch.", "Eine schlecht gespielte Vorposition kann sogar nützlich sein: Bleibt eine Maske stehen, lässt sich die Linie manchmal in einem Stoß herstellen."]'::jsonb, ''),
-  ('roger-conti-037', 'roger-conti', 37, 'Fiche 37', 37, '', '', '', '["Ist der Winkel etwas stärker und Ball 2 etwas weiter links, nicht versuchen, das Loch über einen dünneren Treffer von Ball 3 zu erzeugen.", "Gleiche Ballmenge auf Ball 2 spielen, aber linken Effet verwenden und Ball 1 etwas weniger tief stoßen.", "Liegt dieselbe Stellung in der Mitte eines Cadres, sollte nicht diese Linienlösung gewählt werden, sondern ein Rückzieher, um die Bälle in die günstige Zone zu bringen.", "Wichtig für die nächste Stellung: Ball 2 muss weiter rechts zurückkommen, weil Ball 1 Ball 3 noch leicht nach rechts bewegt."]'::jsonb, ''),
-  ('roger-conti-038', 'roger-conti', 38, 'Fiche 38', 38, '', '', '', '["Diese natürlichen Positionen verlangen genaue Kenntnis der Trefferbilder. Kleine Unterschiede in Effet und Stoßhöhe verändern das Ergebnis stark.", "In Stellung A wird Ball 2 oft zu voll getroffen. Besser ist es, etwas weniger zu nehmen und mit maximal rechtem Effet Luft zwischen die Bälle zu bringen.", "Stellung B wird ohne Effet gespielt, Stellung C mit linkem Effet."]'::jsonb, ''),
-  ('roger-conti-039', 'roger-conti', 39, 'Fiche 39', 39, '', '', '', '["Hier ist linker Effet nötig, damit Ball 1 sich von Ball 3 löst und kein Klemmer entsteht.", "Weil linker Effet Ball 2 ebenfalls wegdrückt, muss Ball 2 entsprechend voller getroffen werden.", "Ball 1 sehr tief links spielen und Ball 2 etwa zu fünf Sechsteln nehmen. Bei klarer Beherrschung kann daraus mehr als nur ein Punkt entstehen.", "Rechter Effet auf der Folgeposition würde Ball 1 eher zu Ball 3 hin statt von ihm weg führen."]'::jsonb, ''),
-  ('roger-conti-040', 'roger-conti', 40, 'Fiche 40', 40, '', '', '', '["Auch wenn ein Einband-Rückholer möglich wäre, ist der direkte Rückzieher hier vorzuziehen.", "Bei allen Sperrstößen ist ein sehr voller Treffer auf Ball 2 vorteilhaft. Hier deshalb mit maximal rechtem Effet spielen, damit Ball 2 links bleibt und Ball 3 zuerst die kurze Bande berührt.", "Eine weitere nützliche Variante ist der Nachläufer über die Bande: Ball 1 im Kopf ohne Effet, Ball 2 extrem voll, nicht zu weich."]'::jsonb, ''),
-  ('roger-conti-041', 'roger-conti', 41, 'Fiche 41', 41, '', '', '', '["Die Bälle liegen innen. Deshalb nicht erst den Ausgang vorbereiten, sondern Ball 3 sofort herausarbeiten.", "Eine kleine Ball-an-Ball-Lösung spielen und dabei amortisieren, damit Ball 1 rechts von Ball 3 auf derselben Linie bleibt.", "Die Menge auf Ball 2 so berechnen, dass Ball 2 auf Ball 3 läuft und ihn aus der Zone schiebt.", "Wer Stoß 43 nicht sicher beherrscht, sollte den Ausgang hier sofort suchen und nicht warten."]'::jsonb, ''),
-  ('roger-conti-042', 'roger-conti', 42, 'Fiche 42', 42, '', '', '', '["Wichtiger Fehler: Keine Lage hinterlassen, in der nach dem Rückzieher auf Ball 3 die Bälle wieder im ungünstigen Ausgangssektor zusammenlaufen.", "Ball 3 muss klar nach vorn gebracht werden, und es soll ein deutlicher Winkel entstehen.", "Dann ergibt sich eine sehr gute Folgeposition, aus der die Bälle mit einem Stoß wieder in die günstige Zone kommen.", "Ball 1 tief ohne Effet spielen und Ball 2 nur ganz fein nehmen. Die angegebene Lösung ist für Rechtshänder beschrieben."]'::jsonb, ''),
-  ('roger-conti-043', 'roger-conti', 43, 'Fiche 43', 43, '', '', '', '["Ball 1 tief ohne Effet, Ball 2 etwa zu vier Fünfteln oder etwas mehr treffen.", "Wenn die Bälle innen liegen, Ball 3 nach vorn bringen und bei Ball 1 bleiben, aber Ball 2 schon im ersten Stoß aus der Zone herausnehmen.", "Der Grund: Der nächste Stoß soll ein Durchgang werden. Das wäre unmöglich, wenn Ball 3 innen liegen bliebe.", "Liegt die Stellung weiter von der Linie weg, muss zunächst ein Winkel aufgebaut werden, um danach den langen Rückholer oder den Durchgang spielen zu können."]'::jsonb, ''),
-  ('roger-conti-044', 'roger-conti', 44, 'Fiche 44', 44, '', '', '', '["Nicht Ball 2 über zwei Banden zurückholen, das ist zu heikel. Drei Banden sind hier die bessere und sicherere Lösung.", "Ball 1 tief ohne Effet spielen und Ball 2 etwa zu drei Vierteln oder etwas mehr treffen.", "Je nach genauer Lage kann links- oder rechtsseitiger Effet nötig sein, wenn der Winkel minimal positiv oder negativ ist.", "Ein leichter, aber spektakulärer Stoß, wenn das richtige Maß getroffen wird."]'::jsonb, ''),
-  ('roger-conti-045', 'roger-conti', 45, 'Fiche 45', 45, '', '', '', '["Hier beginnt die umgekehrte Linienserie in drei Stößen. Es ist ein Fehler, die laufende Linie einfach weiter zur kurzen Bande fortzusetzen.", "Statt eines normalen Rückziehers mit Außenwirkung die Bande benutzen und das Loch suchen.", "Ball 3 nach vorn bringen und Ball 1 ein bis zwei Millimeter bei Ball 3 lassen. So entsteht die Folgeposition 47a.", "Danach den weißen Ball sehr genau auf Rot platzieren, ohne ihn zu nah an die Bande zu bringen, damit das Loch nicht zu klein wird.", "Diese Lösungen sind spielbar, aber technisch anspruchsvoll."]'::jsonb, ''),
-  ('roger-conti-046', 'roger-conti', 46, 'Fiche 46', 46, '', '', '', '["Ball 2 berührt die Bande und legt sich in den gewünschten Abstand. Danach genügt ein kleiner Ball-an-Ball-Stoß, um die nächste gute Lage zu erhalten.", "Dabei Ball 2 so kontrollieren, dass das Loch nicht zu groß wird und der Winkel auf Ball 3 günstig bleibt.", "Das ist auch eine gute Rettung, wenn die Vorposition zu weit nach vorn geraten ist und das Loch zu klein geworden ist."]'::jsonb, ''),
-  ('roger-conti-047', 'roger-conti', 47, 'Fiche 47', 47, '', '', '', '["Lochspiel auf Abstand mit Sperre. Auch in einer weiten Lage lohnt sich das Lochspiel, weil Ball 1 dadurch perfekt amortisiert wird.", "Ball 1 tief ohne Effet oder je nach genauer Lage mit rechtem Effet spielen und Ball 2 etwa zu einem Drittel treffen.", "Wird der Winkel danach zu stark, weil Ball 3 zur Bande gerückt ist, hilft ein extrem dünner Treffer auf Ball 2 mit maximal linkem Effet.", "Ball 2 bewegt sich dann kaum, und die Stellung richtet sich günstig auf."]'::jsonb, ''),
-  ('roger-conti-048', 'roger-conti', 48, 'Fiche 48', 48, '', '', '', '["Wieder das Loch suchen. In dieser Stellung den weißen Ball arbeiten lassen und zwei oder drei kleine Stöße spielen, ohne Ball 3 stark zu bewegen.", "Die Öffnung zwischen Ball 3 und der kurzen Bande darf nicht zerstört werden.", "Ball 1 nach vorn bringen und ein bis zwei Millimeter an Ball 3 bleiben. Dann einen Durchgang spielen, um die Zielstellung zu erzeugen.", "Ist der Durchgang zu breit, lieber einen kleinen Einband spielen. Sehr feines Gefühl und saubere Länge sind hier entscheidend."]'::jsonb, ''),
-  ('roger-conti-049', 'roger-conti', 49, 'Fiche 49', 49, '', '', '', '["Wenn nicht sicher ist, dass Ball 1 eng an der kurzen Bande bleibt, besser auf Rot statt auf Weiß platzieren.", "Ball 1 leicht unterhalb der Mitte ohne oder mit linkem Effet spielen und Ball 2 sehr dünn treffen, je nach Winkel.", "Mit maximal rechtem Effet kann Ball 1 trotz Ball-an-Ball oder Bandenberührung sicher an der kurzen Bande gehalten werden.", "Eine nicht sehr häufige, aber nützliche und verhältnismäßig einfache Lösung."]'::jsonb, ''),
-  ('roger-conti-050', 'roger-conti', 50, 'Fiche 50', 50, '', '', '', '["Diese Stellung hat nichts mit dem klassischen Spring-Piqué-Brunnen zu tun.", "Wenn Ball 1 auf 1'' liegen würde, wäre der Durchgang die natürliche Lösung. Von diesem Prinzip aus kann der Durchgang auch mit Ball 1 auf 1 gespielt werden, indem Ball 1 mit linkem Effet etwas nach vorn geschickt wird.", "Das Queue nicht zu steil führen, Ball 1 leicht hinten links ansetzen und weich, mit dem Gewicht des Queues, spielen.", "Der Erfolg kommt aus der richtigen Ballbehandlung, nicht aus Gewalt.", "Die alternative sehr leichte Piqué-Lösung dient nur der Positionierung auf Ball 3, wenn der Durchgang zu riskant ist."]'::jsonb, ''),
-  ('roger-conti-051', 'roger-conti', 51, 'Fiche 51', 51, '', '', '', '["Sehr interessante Durchgangslösung im Nachläufer. Der feine Durchgang zwischen Ball 2 und 3 ist zu unsicher.", "Ball-an-Ball über einen sehr vollen Treffer auf Ball 2 und nur leichtes Streifen von Ball 3 im Vorbeigehen ist hier die bessere Wahl.", "Grundsätzlich in der Mitte ohne Effet spielen, je nach Lage aber Stoßhöhe und Effet anpassen.", "Ziel ist die Folgeposition 56a, aus der ein langer Rückholer direkt oder über die Bande gespielt werden kann."]'::jsonb, ''),
-  ('roger-conti-052', 'roger-conti', 52, 'Fiche 52', 52, '', '', '', '["Variante des vorherigen Stoßes, ebenfalls ein Durchgang im Nachläufer.", "Hier Ball 1 oberhalb der Mitte mit linkem Effet spielen und Ball 2 etwa zu vier Fünfteln treffen.", "Sehr langsam stoßen. Je nach Lage kann Ball 2 die lange Bande noch berühren oder nicht.", "Ein feiner Durchgang an Ball 2 vorbei bringt hier nichts Gutes; die gezeigte Lösung führt die Bälle dagegen wieder in die günstige Zone.", "Für Linkshänder spiegelverkehrt denken."]'::jsonb, ''),
-  ('roger-conti-053', 'roger-conti', 53, 'Fiche 53', 53, '', '', '', '["Interessante Bricole-Lösung. Ball 3 kann nicht direkt durch Rückzieher gelocht werden, deshalb muss über die Bricole gespielt werden.", "Ball 1 leicht unterhalb der Mitte mit etwas linker Wirkung spielen und Ball 2 etwa zu drei Vierteln oder etwas mehr treffen.", "Der Treffer auf Ball 2 muss deutlich voller sein, als es sich zunächst wie eine Bricole anfühlt.", "Ball 1 soll die Bande berühren, wenn er nur noch etwa einen Millimeter von Ball 2 entfernt ist.", "Liegt Ball 2 nur sehr nahe an der Bande, gilt dieselbe Grundidee weiterhin."]'::jsonb, ''),
-  ('roger-conti-054', 'roger-conti', 54, 'Fiche 54', 54, '', '', '', '["Variante der vorherigen Bricole-Familie. Hier kann Ball 2 sehr voll getroffen werden, ohne zwingend eine Bricole zu benötigen.", "Ball 1 in der Mitte ohne Effet, Ball 2 etwa zu vier Fünfteln treffen und Ball 2 doppeln.", "Steht Ball 2 weiter innen oder fest an der Bande, etwas weniger voll nehmen, damit kein Konter entsteht.", "Für die zugehörige Nachzieh-Variante Ball 1 sehr tief, aber nicht zu tief, ohne Effet spielen und Ball 2 etwa zu drei Vierteln treffen.", "Wichtiger als perfekte Rückkehr von Ball 2 ist das Vermeiden des Konters."]'::jsonb, ''),
-  ('roger-conti-055', 'roger-conti', 55, 'Fiche 55', 55, '', '', '', '["Schöne Bricole zum Rückholen. Anders lässt sich Ball 2 hier praktisch nicht sinnvoll zurückführen.", "Ball 1 oberhalb der Mitte mit rechtem Effet spielen, aber nicht übertreiben. Ball 2 etwa zu zwei Dritteln treffen.", "Der Stoß muss lang und recht kräftig ausgeführt werden, damit Ball 2 bis zu Ball 3 getragen wird.", "Je nach Winkel wird mehr oder weniger rechter beziehungsweise linker Effet benötigt: je größer der Winkel, desto mehr rechter Effet ist sinnvoll."]'::jsonb, ''),
-  ('roger-conti-056', 'roger-conti', 56, 'Fiche 56', 56, '', '', '', '["Ball 1 in der Mitte oder leicht darunter mit maximal rechtem Effet spielen.", "Ball 2 sehr voll treffen, eher vier Fünftel als drei Viertel.", "Bei stärkerem Winkel Ball 2 etwas weniger voll nehmen. Die Stoßhöhe muss an die Lage von Ball 3 angepasst werden.", "Zu dünn gespielt folgt Ball 2 der natürlichen Linie; zu voll gespielt droht Konter oder Ball 1 verliert die Kraft für Ball 3.", "Liegt Ball 2 weiter innen, ist diese Lösung nicht mehr sinnvoll; dann besser über die lange Bande zurückziehen."]'::jsonb, ''),
-  ('roger-conti-057', 'roger-conti', 57, 'Fiche 57', 57, '', '', '', '["Ein sehr spektakulärer, aber bei großem Ball 3 durchaus spielbarer Stoß.", "Ball 1 sehr tief links spielen und Ball 2 etwa zu zwei Dritteln oder etwas mehr treffen.", "Durch den kraftvollen, tiefen Stoß beschreibt Ball 1 eine schöne Kurve und die Bälle sammeln sich in der Ecke.", "Wird Ball 2 nicht voll genug getroffen, folgt er nur der natürlichen Linie. Ball 2 darf außerdem nicht zu weit von Ball 1 entfernt sein."]'::jsonb, ''),
-  ('roger-conti-058', 'roger-conti', 58, 'Fiche 58', 58, '', '', '', '["Lange Variante der vorherigen Rückholfamilie. Ball 3 lässt sich nicht lochen, wenn Ball 2 nicht sehr voll getroffen wird; spielt man zu weich, fehlt Ball 1 die Kraft.", "Die Lösung ist, Ball 2 über drei statt über zwei Banden zurückzuholen.", "Ball 1 leicht unterhalb der Mitte mit Komposition und ohne Effet spielen, Ball 2 etwa zu drei Vierteln oder etwas mehr treffen.", "Darf Ball 2 die lange Bande nicht berühren, etwas weniger voll nehmen, damit nur eine Bande genutzt wird.", "Grundsätzlich eher tief und möglichst ohne Effet spielen."]'::jsonb, ''),
-  ('roger-conti-059', 'roger-conti', 59, 'Fiche 59', 59, '', '', '', '["Interessante Lösung nach F. Grange. Das eigentliche Massé ist sehr schwierig, und die Bricole wäre im ernsthaften Spiel riskant.", "Besser ist der Kontaktstoß, der praktisch kaum zu verfehlen ist.", "Ball 1 in der Mitte links spielen und Ball 2 sehr fein bis fast voll je nach genauer Stellung treffen.", "Liegen die Bälle innen, muss allerdings doch die Bricole gewählt werden.", "Um einen Kicks zu vermeiden, den Stoß wie ein abgestelltes Piqué ausführen, als ob Ball 1 fest anläge."]'::jsonb, ''),
-  ('roger-conti-060', 'roger-conti', 60, 'Fiche 60', 60, '', '', '', '["Vorbereitung des Ausgangs. Viele Spieler machen hier den Fehler, zwar Rot richtig im Nachläufer zu spielen, aber dabei rechten Effet zu nehmen.", "Richtig ist linker Effet, damit Ball 2 gehalten wird und nahe an der Linie eine kleine Lunette entsteht.", "Ball 1 sehr hoch spielen und Ball 2 links voll treffen.", "Mit rechtem Effet würde Ball 2 der natürlichen Linie folgen und ein schlechtes Bild ergeben."]'::jsonb, ''),
-  ('roger-conti-061', 'roger-conti', 61, 'Fiche 61', 61, '', '', '', '["Es gibt zwei Arten, Ball 3 zu karambolieren, abhängig davon, welchen Impuls Ball 2 erhält.", "Bleibt Ball 2 kurz, wird Ball 3 auf der gepunkteten Linie getroffen.", "Läuft Ball 2 weiter, darf Ball 3 nicht mehr dreiviertelvoll links getroffen werden, sondern nur sehr fein, damit Ball 1 nach vorn läuft.", "Man muss also aus Stellung und Lauf des Tisches abschätzen, welchen Weg Ball 2 nimmt, um den richtigen Angriff auf Ball 3 zu wählen."]'::jsonb, ''),
-  ('roger-conti-062', 'roger-conti', 62, 'Fiche 62', 62, '', '', '', '["Ball 1 sehr hoch und sehr rechts spielen, Ball 2 etwa zu zwei Dritteln oder etwas mehr treffen.", "Sehr weich mit langem Stoß spielen. Ein Konter wird nur vermieden, wenn Ball 1 beschleunigt wird und Ball 2 exakt in der richtigen Menge getroffen wird.", "Die Stellung wird deutlich schwieriger, wenn Ball 1 näher an der kurzen Bande liegt als Ball 2.", "Interessant ist hier die Lösung über den Nachläufer an die Bande: weder Massé noch klassisches Doppeln oder Dreiband um den Tisch, sondern den Nachläufer über die Bande spielen.", "Gut ausgeführt entsteht genau das gezeigte Ergebnis."]'::jsonb, ''),
-  ('roger-conti-2-063', 'roger-conti-63-151', 63, 'Fiche 63', 2, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-064', 'roger-conti-63-151', 64, 'Fiche 64', 3, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-065', 'roger-conti-63-151', 65, 'Fiche 65', 4, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-066', 'roger-conti-63-151', 66, 'Fiche 66', 5, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-067', 'roger-conti-63-151', 67, 'Fiche 67', 6, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-068', 'roger-conti-63-151', 68, 'Fiche 68', 7, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-069', 'roger-conti-63-151', 69, 'Fiche 69', 8, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-070', 'roger-conti-63-151', 70, 'Fiche 70', 9, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-071', 'roger-conti-63-151', 71, 'Fiche 71', 10, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-072', 'roger-conti-63-151', 72, 'Fiche 72', 11, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-073', 'roger-conti-63-151', 73, 'Fiche 73', 12, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-074', 'roger-conti-63-151', 74, 'Fiche 74', 13, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-075', 'roger-conti-63-151', 75, 'Fiche 75', 14, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-076', 'roger-conti-63-151', 76, 'Fiche 76', 15, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-077', 'roger-conti-63-151', 77, 'Fiche 77', 16, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-078', 'roger-conti-63-151', 78, 'Fiche 78', 17, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-079', 'roger-conti-63-151', 79, 'Fiche 79', 18, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-080', 'roger-conti-63-151', 80, 'Fiche 80', 19, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-081', 'roger-conti-63-151', 81, 'Fiche 81', 20, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-082', 'roger-conti-63-151', 82, 'Fiche 82', 21, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-083', 'roger-conti-63-151', 83, 'Fiche 83', 22, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-084', 'roger-conti-63-151', 84, 'Fiche 84', 23, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-085', 'roger-conti-63-151', 85, 'Fiche 85', 24, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-086', 'roger-conti-63-151', 86, 'Fiche 86', 25, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-087', 'roger-conti-63-151', 87, 'Fiche 87', 26, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-088', 'roger-conti-63-151', 88, 'Fiche 88', 27, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-089', 'roger-conti-63-151', 89, 'Fiche 89', 28, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-090', 'roger-conti-63-151', 90, 'Fiche 90', 29, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-091', 'roger-conti-63-151', 91, 'Fiche 91', 30, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-092', 'roger-conti-63-151', 92, 'Fiche 92', 31, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-093', 'roger-conti-63-151', 93, 'Fiche 93', 32, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-094', 'roger-conti-63-151', 94, 'Fiche 94', 33, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-095', 'roger-conti-63-151', 95, 'Fiche 95', 34, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-096', 'roger-conti-63-151', 96, 'Fiche 96', 35, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-097', 'roger-conti-63-151', 97, 'Fiche 97', 36, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-098', 'roger-conti-63-151', 98, 'Fiche 98', 37, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-099', 'roger-conti-63-151', 99, 'Fiche 99', 38, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-100', 'roger-conti-63-151', 100, 'Fiche 100', 39, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-101', 'roger-conti-63-151', 101, 'Fiche 101', 40, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-102', 'roger-conti-63-151', 102, 'Fiche 102', 41, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-103', 'roger-conti-63-151', 103, 'Fiche 103', 42, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-104', 'roger-conti-63-151', 104, 'Fiche 104', 43, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-105', 'roger-conti-63-151', 105, 'Fiche 105', 44, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-106', 'roger-conti-63-151', 106, 'Fiche 106', 45, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-107', 'roger-conti-63-151', 107, 'Fiche 107', 46, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-108', 'roger-conti-63-151', 108, 'Fiche 108', 47, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-109', 'roger-conti-63-151', 109, 'Fiche 109', 48, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-110', 'roger-conti-63-151', 110, 'Fiche 110', 49, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-111', 'roger-conti-63-151', 111, 'Fiche 111', 50, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-112', 'roger-conti-63-151', 112, 'Fiche 112', 51, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-113', 'roger-conti-63-151', 113, 'Fiche 113', 52, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-114', 'roger-conti-63-151', 114, 'Fiche 114', 53, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-115', 'roger-conti-63-151', 115, 'Fiche 115', 54, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-116', 'roger-conti-63-151', 116, 'Fiche 116', 55, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-117', 'roger-conti-63-151', 117, 'Fiche 117', 56, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-118', 'roger-conti-63-151', 118, 'Fiche 118', 57, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-119', 'roger-conti-63-151', 119, 'Fiche 119', 58, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-120', 'roger-conti-63-151', 120, 'Fiche 120', 59, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-121', 'roger-conti-63-151', 121, 'Fiche 121', 60, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-122', 'roger-conti-63-151', 122, 'Fiche 122', 61, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-123', 'roger-conti-63-151', 123, 'Fiche 123', 62, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-124', 'roger-conti-63-151', 124, 'Fiche 124', 63, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-125', 'roger-conti-63-151', 125, 'Fiche 125', 64, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-126', 'roger-conti-63-151', 126, 'Fiche 126', 65, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-127', 'roger-conti-63-151', 127, 'Fiche 127', 66, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-128', 'roger-conti-63-151', 128, 'Fiche 128', 67, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-129', 'roger-conti-63-151', 129, 'Fiche 129', 68, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-130', 'roger-conti-63-151', 130, 'Fiche 130', 69, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-131', 'roger-conti-63-151', 131, 'Fiche 131', 70, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-132', 'roger-conti-63-151', 132, 'Fiche 132', 71, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-133', 'roger-conti-63-151', 133, 'Fiche 133', 72, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-134', 'roger-conti-63-151', 134, 'Fiche 134', 73, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-135', 'roger-conti-63-151', 135, 'Fiche 135', 74, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-136', 'roger-conti-63-151', 136, 'Fiche 136', 75, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-137', 'roger-conti-63-151', 137, 'Fiche 137', 76, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-138', 'roger-conti-63-151', 138, 'Fiche 138', 77, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-139', 'roger-conti-63-151', 139, 'Fiche 139', 78, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-140', 'roger-conti-63-151', 140, 'Fiche 140', 79, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-141', 'roger-conti-63-151', 141, 'Fiche 141', 80, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-142', 'roger-conti-63-151', 142, 'Fiche 142', 81, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-143', 'roger-conti-63-151', 143, 'Fiche 143', 82, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-144', 'roger-conti-63-151', 144, 'Fiche 144', 83, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-145', 'roger-conti-63-151', 145, 'Fiche 145', 84, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-146', 'roger-conti-63-151', 146, 'Fiche 146', 85, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-147', 'roger-conti-63-151', 147, 'Fiche 147', 86, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-148', 'roger-conti-63-151', 148, 'Fiche 148', 87, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-149', 'roger-conti-63-151', 149, 'Fiche 149', 88, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-150', 'roger-conti-63-151', 150, 'Fiche 150', 89, '', '', '', '[]'::jsonb, 'poor-scan'),
-  ('roger-conti-2-151', 'roger-conti-63-151', 151, 'Fiche 151', 90, '', '', '', '[]'::jsonb, 'poor-scan')
-on conflict (id) do update set set_key = excluded.set_key, number = excluded.number, title = excluded.title, pdf_page = excluded.pdf_page, discipline = excluded.discipline, difficulty = excluded.difficulty, description = excluded.description, comments = excluded.comments, source_quality = excluded.source_quality, updated_at = timezone('utc', now());
+alter table public.training_positions_catalog enable row level security;
+alter table public.training_position_progress enable row level security;
+
+drop policy if exists "training_positions_catalog_select_all_auth" on public.training_positions_catalog;
+create policy "training_positions_catalog_select_all_auth" on public.training_positions_catalog for select to authenticated using (true);
+
+drop policy if exists "training_positions_catalog_admin_write" on public.training_positions_catalog;
+create policy "training_positions_catalog_admin_write" on public.training_positions_catalog for all to authenticated using (exists (select 1 from public.user_roles ur where ur.user_id = auth.uid() and ur.role = 'admin')) with check (exists (select 1 from public.user_roles ur where ur.user_id = auth.uid() and ur.role = 'admin'));
+
+drop policy if exists "training_position_progress_select_own_or_admin" on public.training_position_progress;
+create policy "training_position_progress_select_own_or_admin" on public.training_position_progress for select to authenticated using (user_id = auth.uid() or exists (select 1 from public.user_roles ur where ur.user_id = auth.uid() and ur.role = 'admin'));
+
+drop policy if exists "training_position_progress_insert_own_or_admin" on public.training_position_progress;
+create policy "training_position_progress_insert_own_or_admin" on public.training_position_progress for insert to authenticated with check (user_id = auth.uid() or exists (select 1 from public.user_roles ur where ur.user_id = auth.uid() and ur.role = 'admin'));
+
+drop policy if exists "training_position_progress_update_own_or_admin" on public.training_position_progress;
+create policy "training_position_progress_update_own_or_admin" on public.training_position_progress for update to authenticated using (user_id = auth.uid() or exists (select 1 from public.user_roles ur where ur.user_id = auth.uid() and ur.role = 'admin')) with check (user_id = auth.uid() or exists (select 1 from public.user_roles ur where ur.user_id = auth.uid() and ur.role = 'admin'));
+
+drop policy if exists "training_position_progress_delete_own_or_admin" on public.training_position_progress;
+create policy "training_position_progress_delete_own_or_admin" on public.training_position_progress for delete to authenticated using (user_id = auth.uid() or exists (select 1 from public.user_roles ur where ur.user_id = auth.uid() and ur.role = 'admin'));
+
+insert into public.training_positions_catalog (id, set_key, number, title, pdf_page, discipline, difficulty, description, comments, source_text, source_quality) values
+  ('roger-conti-001', 'roger-conti', 1, 'Fiche 1', 1, '', '', '', '["Die rote als Ball 2 nehmen und versuchen, sich die Position 1a) (siehe unten auf der Seite) zu verschaffen. Mit tiefem Stoß angreifen. Eine leichte Schräge anstreben. Ohne das Effet oder mit dem Effet stoßen, falls es hilft, die gewünschte Schräge zu erzielen (rechts oder links, je nach genauer Position).", "Dasselbe tun, indem man die Weiße als Ball 2 nimmt. Versuchen, sich die Position 1a) zu verschaffen.", "Hinweis: Bei allen Platzierungen im Serienspiel an der Linie immer als Ball 2 den Ball wählen, der der Bande am nächsten liegt, von der im nächsten Stoß die 2 per Rückläufer zurückgeholt wird. Auf diese Weise positioniert man sich sicherer und treibt den Ball, der beim geplanten Rückläufer Ball 3 sein wird, weniger weit weg. Beim Stoß Nr. 1 oben also Ball 2 nehmen und nur auf die Weiße spielen, wenn es nicht anders möglich ist, wie bei Stoß 1 bis (zweite Variante). Ergebnis der Stöße 1 und 1 bis (zweite Variante).", "Um die Ungenauigkeit oder den Fehler in der Einschätzung und den Maskeneffekt zu vermeiden, versuchen, die Rote auf Ball 3 zu spielen und das Effet sowie den Treffpunkt auf Ball 2 entsprechend zu berechnen."]'::jsonb, '', ''),
+  ('roger-conti-002', 'roger-conti', 2, 'Fiche 2', 2, '', '', '', '["Wenn nur wenig Schräge zwischen Ball 1 und Ball 2 vorhanden ist, dicker auf Ball 2 spielen. Wenn Ball 1 weiter links liegt, mit tiefem Stoß spielen.", "Ein einfacher und einfallsreicher Ausweg Einbänder Ball 1 tief ohne Effet spielen, Ball 2 zu ¾ treffen. Gedämpft auf Ball 3 links von diesem bleiben und ihn dabei kaum bewegen. Ball 2 läuft über zwei Banden und spielt Ball 3 frei. Ball 2 umso voller treffen, je geringer die Schräge ist. Liegt Ball 1 weiter links an der mit einem Bleistiftkreis markierten Stelle, ist der Stoß nicht mehr möglich und man muss mit einem direkten tiefen Stoß spielen.", "Hinweis: Wenn die Schräge deutlich ist, wird die Ausführung schwierig, da Ball 2 dünner getroffen, Ball 1 tiefer mit rechtem Effet gespielt werden muss und die Gefahr besteht, den Stoß nicht ausreichend zu dämpfen und Ball 3 zu verschieben. In einem solchen Fall sieht R. Conti vor, Ball 3 bewusst zu verschieben und die Rote nicht dahin zu spielen, wo Ball 3 zu Beginn steht, sondern dorthin, wo sie nach der Karambolage sein wird. Ich glaube, das können wir uns nicht leisten!", "Ball 1 oben und weit rechts stoßen. Ball 2 fast dünn treffen, etwa 1/8 Ball. Hinweis: Es gibt hier keinen Konter, da Ball 2, der sehr nah an Ball 1 liegt und dünn getroffen wird, sich verhält wie Ball 2, der weiter von Ball 1 entfernt ist und voller getroffen wird. „Das ist das Geheimnis der nah beieinander liegenden Bälle“, sagte mir R. Conti.", "Resultat aus obiger Position"]'::jsonb, '', ''),
+  ('roger-conti-003', 'roger-conti', 3, 'Fiche 3', 3, '', '', '', '["Steht Ball 3 auf Position A, Ball 2 weniger dünn treffen. Steht Ball 3 auf Position B, etwas weniger tief stoßen. Steht Ball 3 auf Position C, etwas tiefer stoßen.", "Steht Ball 2 auf Position 2’.", "Der Stoß wird sehr schwierig und fast unmöglich, da Ball 2 weiterhin sehr dünn getroffen werden muss, was einen extrem tiefen Stoß erfordert und das Risiko eines Kicks birgt. Der direkte Stoß ist hier vorzuziehen, da in dieser Position die Rückläuferkarambolage direkt möglich ist, wenn Ball 2 nicht zu voll getroffen wird, gegebenenfalls mit Effet.", "Ein schöner Einbänder, einfach und spektakulär. Die Bälle 1 und 2 liegen im gleichen Abstand zur kurzen Bande, also keine Schräge. Ball 1 sehr tief ohne Effet stoßen, Ball 2 etwa 1/8 Ball, fast dünn treffen, mit Versammlung in der Nähe von Ball 3 bleiben. Liegt Ball 2 einen Hauch näher an der Bande als Ball 1, etwas weniger tief stoßen und maximales Effet nach links geben. Liegt Ball 1 einen Hauch näher an Ball 2, Ball 2 dünner treffen und oft mit etwas Effet nach links spielen, da das Annähern der beiden Bälle trotz gleichem Treffpunkt an Ball 2 einer volleren Attacke entspricht (siehe Hinweis auf Seite 2 bei Stoß 3 – „Geheimnis der nah beieinander liegenden Bälle“)."]'::jsonb, '', ''),
+  ('roger-conti-004', 'roger-conti', 4, 'Fiche 4', 4, '', '', '', '["Sehr wichtig (Erläuterung des Prinzips aus der Anmerkung auf Seite 1): Immer die Rote als Ball 2 nehmen, um die Position auf diesem Ball zu erleichtern und Ball 3 möglichst wenig zu verschieben. Ball 1 tief mit starkem Effet nach rechts stoßen, um Ball 2 geradezurichten. Ball 2 fast voll rechts treffen.", "Man erhält das nebenstehende Ergebnis. Es ist zu beachten, dass die erzielte Position es ermöglicht, den Rückläufer mit nach außen laufendem Ball zu spielen und – dank der Schräge – die Rote auf Ball 3 zu schicken, bei minimaler Schwierigkeit.", "Hier hingegen das Ergebnis, das man erhalten hätte, wenn man die Weiße als Ball 2 genommen hätte.", "Hinweis: Wenn die Position dazu zwingt, als Ball 2 den Ball zu nehmen, der am weitesten von der Bande entfernt ist, muss dieser Ball sehr dünn getroffen werden, damit er buchstäblich an Ort und Stelle bleibt."]'::jsonb, '', ''),
+  ('roger-conti-005', 'roger-conti', 5, 'Fiche 5', 5, '', '', '', '["Stoß von entscheidender Bedeutung, der sich in vielen anderen Stellungen wiederfindet. Den Spielball B1, oben und mit linkem Effet stoßen. Ball 2 etwa zu ¾. Die Treffmenge sorgfältig wählen, um die Begegnung der vollen Roten mit Ball 1 in A zu erreichen.", "Befindet sich Ball 2 in 2’, etwas tiefer oder sogar mittig anspielen, immer mit linkem Effet. (Die Treffmenge leicht anpassen – mehr oder weniger –, je nachdem, ob der Winkel weniger oder stärker ausgeprägt ist.)", "Variante des Stoßes Nr. 6 in der Längsrichtung des Billards. Der Stoß ist absolut selbstverständlich für denjenigen, der Stoß Nr. 6 in- und auswendig kennt. Man erhält die Dämpfung durch das linke Effet und eine enge Versammlung nahe bei Ball 3. Die Höhe des Anspielens je nach genauer Position von Ball 3 bestimmen. Ein Tipp für den 6 bis: Sich vorstellen, dass Ball 3 in 3’ liegt und man Ball auf Ball spielt. Es ist unmöglich, mit dem linken Effet durch die Lücke zu gehen. Begegnung problematisch."]'::jsonb, '', ''),
+  ('roger-conti-006', 'roger-conti', 6, 'Fiche 6', 6, '', '', '', '["Interessant: Ein Stoß, der kindlich einfach aussieht und den dennoch nur wenige Spieler richtig ausführen. Es ist ein Fehler, die Weiße sehr dünn zu spielen. Warum? Weil in diesem Fall das Dosieren des Effets nötig wird, das man zu stark oder zu schwach ausführen kann. Was tun? Den Spielball B1 mittig nehmen und mit maximalem rechten Effet stoßen, Ball 2 so voll wie möglich treffen – selbstverständlich nur, sofern der Punkt dadurch weiterhin möglich bleibt. Das tiefe Nehmen erlaubt es, das maximale Effet zu geben, kann jedoch nicht angewandt werden, wenn B1 nahe bei Ball 2 liegt. B1 mittig, verlängerter Stoß.", "Fassen wir zusammen: Diese Vorgehensweise erlaubt es, Fehlerquellen auszuschalten. Der Spieler muss nicht mehr denken: „Achtung, nicht zu viel Effet, ich treffe Ball 2 dünn.“ Man muss also so viel Treffmenge und Effet geben, wie möglich. Mittig nehmen, sehr verlängerter Stoß. Weitere Vorteile: Anstelle des in der Skizze gestrichelten Laufwegs erhält man den durchgezogenen Laufweg und damit eine größere Chance, auf der richtigen Seite zu karambolieren. Schließlich schickt die volle Treffmenge Ball 2 in Position 2’ anstatt ihn in 2’’ zu lassen.", "Hinweis: Mit der Conti-Interpretation kann der folgende, mit blauem Stift markierte Punkt nicht verfehlt werden. Allenfalls läuft man in Position 1’, wenn man Ball 3 zu dünn trifft (siehe Zeichnung mit Bleistift)."]'::jsonb, '', ''),
+  ('roger-conti-007', 'roger-conti', 7, 'Fiche 7', 7, '', '', '', '["Diesen Stoß niemals über die Bande spielen, da die Rote nahezu an ihre ursprüngliche Position zurückkehren würde und sich B1 in der Mitte befände, was beim folgenden Stoß zu einem Piquet zwingen würde. Ebenso nicht versuchen, beim Karambolieren über die Bande nach hinten herauszukommen, indem man Ball 3 sehr dünn links trifft. Man würde sich eine Brillenstellung hinterlassen, bei der die Tendenz besteht, die Bälle in Richtung Mitte des zentralen Cadre-Feldes an der kurzen Bande zu schieben.", "Was tun? Ball auf Ball spielen mit maximalem linkem Effet. Auf diese Weise läuft Ball 2 über zwei Banden und geht in Position 2’ oder 2’’ (und nicht in 1). Spielball B1 tief und sehr weit links nehmen. Ball 2 etwa zu ½ oder ⅔ treffen. Zu beachten ist, dass das linke Effet dasjenige ist, welches Ball 2 in Position 2’ bringt – unabhängig davon, ob Ball 2 zuerst die kurze oder die lange Bande trifft."]'::jsonb, '', ''),
+  ('roger-conti-008', 'roger-conti', 8, 'Fiche 8', 8, '', '', '', '["Schwieriger Stoß über 1 Bande Der schwierige direkte Stoß ist deutlich weniger einfach und bringt keine guten Ergebnisse. Spielball B1 sehr hoch nehmen mit rechtem Effet. Ball 2 voll rechts treffen. Die Treffmenge variiert selbstverständlich je nach Winkel.", "Wäre B1 ein klein wenig weiter nach rechts, müsste Ball 2 voller getroffen werden. Wäre B1 ein klein wenig weiter nach links, müsste Ball 2 etwas dünner getroffen werden. Hinweis: Beim Spielen dieses Stoßes nicht vergessen, dass man an der kurzen Bande sehr nah an Ball 2 ankommen muss, da man reichlich Effet gegeben hat, was den Reflexionswinkel von B1 vergrößert. Weniger stark stoßen, wenn Ball 2 press an der Bande liegt. Etwas stärker stoßen (oder etwas weniger hoch nehmen), wenn Ball 2 etwas weiter von der Bande entfernt liegt.", "Ergebnis des Stoßes Nr. 9: Stellt man sich auf Ball 3, hat man die Möglichkeit, einen kleinen Zwei-Banden-Stoß über die Ecke zu spielen, da sich die Rote – dank des Effets – etwa um zwei Ballbreiten von der Ecke entfernt hat. Liegt B1 in Position 1’, spielt man den kleinen Zwei-Banden-Stoß über die volle Treffmenge von Ball 2, um den Punkt zu machen und gleichzeitig herauszukommen."]'::jsonb, '', ''),
+  ('roger-conti-009', 'roger-conti', 9, 'Fiche 9', 9, '', '', '', '["Einbänder mit perfektem Amorti. Rücklauf von Ball 2 über 3 Banden. Sehr einfach, auch wenn er heikel wirkt. Sehr spektakulär. Spielball B1 knapp oberhalb der Mitte (sehr wenig), ohne seitliches Effet. Ball 2 sehr voll treffen, fast komplett (ca. 8/10). Ball 3 darf nur um 4 bis 5 cm verschoben werden. Unter Wettkampfbedingungen etwas tiefer nehmen und etwas weniger voll treffen – Ball 3 verschiebt sich dann um 15 bis 20 cm. Liegt Ball 2 etwas weiter entfernt, etwas tiefer nehmen. Liegt Ball 2 nicht press, gleiche Höhe nehmen, wenn der Winkel die Karambolage über die volle Treffmenge erlaubt. Ist der Winkel ein klein wenig stärker, dieselbe Treffmenge nehmen – Ball 2 wird den in der Skizze mit Bleistift eingezeichneten Laufweg nehmen. Der Stoß ist nur mit absolut voller Treffmenge einfach."]'::jsonb, '', ''),
+  ('roger-conti-010', 'roger-conti', 10, 'Fiche 10', 10, '', '', '', '["Vorbereitung der Passage Es ist ein schwerer Fehler, die Rote als Ball 2 zu nehmen, da man vorsichtshalber immer damit rechnen muss, dass eine Ungenauigkeit oder ein Fehler in der Einschätzung möglich ist. Man sollte als Ball 2 denjenigen nehmen, der dem Spieler eine Sicherung bietet – das heißt die Möglichkeit, im Fall einer misslungenen Passage die Situation schnell durch einen einfachen Rückläufer von Ball 2 wiederherzustellen.", "a. Betrachten wir zunächst den Fall einer korrekt gespielten Vorbereitung der Passage. Spielball B1 tief ohne Effet. Ball 2 etwa zu 4/5, fast voll treffen. Es ist unbedingt erforderlich, etwa 2 mm von Ball 3 entfernt zu bleiben. Daher Ball 2 sehr voll nehmen und sehr tief stoßen.", "Man muss das nebenstehende Ergebnis erzielen.", "Hinweis: Es ist bekannt, dass man in einer Passage grundsätzlich als Ball 2 denjenigen nehmen sollte, auf den man sich positionieren möchte – in diesem Fall also die Rote spielen.", "Man hat als Ergebnis der Passage die Position 1’, 2, 3.", "Maximales linkes Effet, um durchzukommen. Mittig stoßen, da Ball 2 sehr nah liegt. Ball 2 um 2 oder 3 mm mitnehmen."]'::jsonb, '', ''),
+  ('roger-conti-011', 'roger-conti', 11, 'Fiche 11', 11, '', '', '', '["Fortsetzung des Stoßes Nr. 11 b. Betrachten wir den Fall einer misslungenen Vorbereitung der Passage. Spielt man zu sanft, erhält man die nebenstehende Position:", "Da der Passageweg zu eng ist, muss man entweder über Massé spielen oder (wenn möglich) die Weiße als Ball 2 nehmen und 1 mm von Ball 3 entfernt liegen bleiben, um die nebenstehende Position zu erreichen.", "Man spielt dann den Rückläufer, nach außen laufend, und bemüht sich, mit der entsprechenden Treffmenge und dem passenden Effet Ball 2 auf Ball 3 zu schicken, um so einen möglichen Mangel an Genauigkeit bei diesem kleinen, breiten Rückläufer auszugleichen. Denn wenn Ball 2 zu stark zurückkommt, wird er von der Roten aufgehalten und man vermeidet die Brillenstellung. Dieses Bestreben, Ball 2 auf Ball 3 zu schicken, macht deutlich, wie wichtig es ist, beim Stoß 11 bis die Treffmenge von Ball 2 sorgfältig zu wählen, um sich den gewünschten Winkel zu lassen. Kurz gesagt: Um die Brillenstellung zu vermeiden, muss man nicht den Stoß, den man gerade ausführt, besonders gut spielen, sondern den davor. Selbst wenn Stoß 11 bis misslingt und B1 Ball 2 nicht dominiert, ist nichts verloren: Es genügt, den nach außen laufenden Rückläufer maßvoll zu spielen, wobei Ball 2 nicht auf Ball 3 gehen kann.", "Wenn man Stoß Nr. 11 zu stark gespielt hat, erhält man sofort Stoß Nr. 11 ter.", "HINWEIS: Ich habe gesagt, dass man für die Vorbereitung der Passage den Spielball B1 grundsätzlich tief ohne Effet stoßen sollte – das stimmt. Aber Effet (rechts oder links) ist erforderlich, wenn man Ball 2 nach links oder rechts schicken möchte, falls die Treffmenge allein nicht ausreicht, um dies zu erreichen (siehe Seite 12)."]'::jsonb, '', ''),
+  ('roger-conti-012', 'roger-conti', 12, 'Fiche 12', 12, '', '', '', '["Fortsetzung des Stoßes Nr. 11 Zwei Varianten des ursprünglichen Stoßes 11", "Winkel geringer als bei Stoß Nr. 11, daher maximales rechtes Effet.", "Winkel ausgeprägter, daher maximales linkes Effet nehmen, um Ball 2 geradezuziehen.", "Der gebogene Pfeil zeigt, wie das linke Effet Ball 2 geradezieht.", "In beiden obigen Fällen nahezu eine absolute volle Treffmenge von Ball 2 nehmen. Die mit Bleistift eingezeichnete Queue-Position zeigt die Treffmenge von Ball 2, die man nehmen muss. Nun betrachten wir, was passiert, wenn man – aus Mangel an Technik – Stoß Nr. 11 so ausführt, dass man die Rote als Ball 2 nimmt.", "Zwei Fälle: a) ideales Maß. Dann dominiert entweder nur die Weiße, oder man stößt stärker, um auch die Rote zu dominieren.", "Was ist das Ergebnis einer stark gespielten Passage? Man liegt 20 cm von der Roten entfernt und nicht 10 cm wie beim Ergebnis 11 a auf Seite 10.", "Selbst wenn B1 10 oder 15 cm von der Roten entfernt bleibt, wird Ball 3 mindestens 10 cm von B1 entfernt sein, während bei Stoß 11 a B1 nur 2 oder 3 mm von Ball 3 liegt, was das Stellungsspiel für den folgenden Stoß erleichtert."]'::jsonb, '', ''),
+  ('roger-conti-013', 'roger-conti', 13, 'Fiche 13', 13, '', '', '', '["Fortsetzung des Stoßes Nr. 13 b. Vorbereitung der Passage zu stark gespielt – dann ist es die Katastrophe oder fast! Man hat nicht mehr, wie beim Ergebnis von Stoß 11 bis (siehe 11 ter), die Sicherung über Ball 2. Man muss dann den langen Rückläufer spielen oder die Weiße über 3 Banden zurückholen, vorausgesetzt, der Winkel erlaubt die Karambolage dieser Bälle.", "Schlussfolgerung zu Stoß Nr. 11 Man kann ohne Übertreibung sagen, dass derjenige, der bei Stoß Nr. 11 die Rote als Ball 2 nimmt, nur ein rudimentäres Verständnis der kleinen Serie hat. Es erscheint mir interessant, darauf hinzuweisen, dass für die Vorbereitung der Passage bei Stoß Nr. 11 die Auslegung von Derbier, Grange und Conti identisch ist – also keinerlei Diskussion möglich."]'::jsonb, '', ''),
+  ('roger-conti-014', 'roger-conti', 14, 'Fiche 14', 14, '', '', '', '["Verlust der Dominante in der Serienpartie an der Linie: a. Wenn der Ausgang der Dominante keinen allzu ausgeprägten negativen Laufwinkel (Biais) ergibt, muss die Dominante mit einem Piquet-Stoß zurückgewonnen werden. b. Wenn es unberechenbar ist, muss man sich von A nach B so zur roten Ball stellen, dass man sie mit zwei Banden aus der Ecke zurückholen kann. Die scheinbar natürliche Stellung ist sehr heikel, da es unendlich viele Stoßvarianten gibt: das Effet und der Treffpunkt auf Ball 2 variieren bei jeder Position. Manchmal muss Ball 3 in Richtung B vorgezogen werden. Nichts ersetzt in diesem Zusammenhang die mündlichen Hinweise am grünen Tuch. Schriftlich bräuchte ich dafür mehrere Seiten wie beim Stoß Nr. 11, um alle Angriffsvarianten für jede einzelne Position zu beschreiben.", "Für den Stoß Nr. 12: Ball 1: Mit maximalem Effet nach rechts stoßen, um Ball 3 geradezurichten. Ball 2: Etwa ein Viertel treffen, um ihn nach 3′ zu schicken (würde er durch einen ultradünnen Stoß am Platz bleiben, könnte Ball 2 nicht zurücklaufen).", "Ergebnis von Stoß Nr. 12: Ball 2 nicht nur zur Hälfte, sondern mindestens zu 2/3 treffen, damit Ball 2 zuerst die kurze Bande berührt."]'::jsonb, '', ''),
+  ('roger-conti-015', 'roger-conti', 15, 'Fiche 15', 15, '', '', '', '["Dominante verloren im Serienspiel an der Linie (Position von Stoß Nr. 12 in einem anderen Bereich des Billards) Es muss eine Vorbereitung für die Passage gespielt werden, um sofort zum nächsten Stoß übergehen zu können. Achtung: Hier ist eine Ausnahme von der bekannten Grundregel zu machen – anstatt Ball 2 vorzuschieben und auf Ball 3 zu bleiben, muss Ball 2 extradünn getroffen werden, um ihn buchstäblich an Ort und Stelle zu lassen und voll auf Ball 3 zu kommen. Tiefer Stoß ohne Effet (tief, um 1 bis 2 mm an der Roten zu bleiben). Man erhält das nebenstehende Ergebnis: \t•\tIst die Passage zu eng: fast mit Massé spielen. \t•\tIst die Passage zu weit: den Rückläufer mit nach außen laufendem Ball spielen (ebenso verfahren, wenn Ball 1 an der Roten anliegt). \t•\tIst die Passage sehr eng und kann man mit Massé spielen: einen kleinen Stoß spielen, um die Weiße vorzuziehen, und einen Rückläufer mit nach außen laufendem Ball vorbereiten.", "Man erhält das nebenstehende Ergebnis: \t•\tIst die Passage zu eng: fast mit Massé spielen. \t•\tIst die Passage zu weit: den Rückläufer mit nach außen laufendem Ball spielen (ebenso verfahren, wenn Ball 1 an der Roten anliegt). \t•\tIst die Passage sehr eng und kann man mit Massé spielen: einen kleinen Stoß spielen, um die Weiße vorzuziehen, und einen Rückläufer mit nach außen laufendem Ball vorbereiten."]'::jsonb, '', ''),
+  ('roger-conti-016', 'roger-conti', 16, 'Fiche 16', 16, '', '', '', '["Die Rote ohne Linkseffet spielen. Warum? Weil der Stoß mit Rechtseffet leichter ist und weil bei Linkseffet die Gefahr besteht, Ball 2 – falls man zu viel Effet oder zu voll spielt – auf Ball 3 zu schicken.", "Ball 1: tief und stark rechts stoßen. Ball 2: voll rechts treffen.", "Man erhält das nebenstehende Ergebnis: Ball 2 wird von Ball 1 blockiert und trifft diesen nicht voll, sondern zu etwa 2/3 Ball, was von Vorteil ist.", "Wäre der Austausch durch den vollen Treffer von Ball 2 auf Ball 1 erfolgt, stünde Ball 1 auf Position 1’ und man würde 1 Punkt verlieren. Denn: Man müsste anschließend sofort die Rote zurückholen und könnte die nebenstehende Vorbereitungsposition nicht spielen.", "Hinweis: Die Ausführung von Stoß Nr. 14 ist unbedingt zu wählen, wenn Ball 3 nicht zu weit von der kurzen Bande entfernt liegt. Sie kann nicht mehr angewendet werden, wenn die Lücke zwischen Ball 3 und Bande zu groß ist und Ball 2 entweichen kann. Achtung: Ball 1 muss bei dem Austausch auf gleicher Höhe mit Ball 3 liegen.", "Trotz der Entfernung von Ball 2 nicht mit tiefem Stoß spielen. Stoß wie Stoß Nr. 14 ausführen, aber kräftig genug. Es besteht keinerlei Grund zur Sorge – die Blockierung ist sicher."]'::jsonb, '', ''),
+  ('roger-conti-017', 'roger-conti', 17, 'Fiche 17', 17, '', '', '', '["Eine wenig bekannte und sehr interessante Begegnung. Sie ist sehr einfach, wenn die Schräge ausgeprägter ist. Sie ist etwas heikler, aber immer noch leicht, mit der sehr geringen Schräge bei Stoß Nr. 15. Den Spielball B1, oben und mit linkem Effet stoßen. Ball 2 etwa zu 2/3, eher etwas voller, treffen. Die Rote läuft über zwei Banden, und Ball 1 gesellt sich zu ihr auf Position A. Trifft man zu voll, verfehlt man den als Bleistiftspur markierten nächsten Punkt. Trifft man nicht voll genug, verfehlt man den in Blau markierten nächsten Punkt", "Variante von Stoß Nr. 15. Die Schräge bleibt gering, ist jedoch etwas ausgeprägter. Ball 2 läuft nur über eine Bande, die Begegnung findet bei B statt. Gleiche Stoßführung wie zuvor. Die Treffmenge („Voll“) entsprechend Schräge und genauer Position berechnen."]'::jsonb, '', ''),
+  ('roger-conti-018', 'roger-conti', 18, 'Fiche 18', 18, '', '', '', '["Was man nicht tun sollte: Die Positionierung auf die Weiße durch das dünne Treffen der Roten ergibt das untenstehende Ergebnis, das …", "…was einen Rückläufer ergibt, der die Bälle an dem Ort versammelt, an dem sie sich zu Beginn befanden.", "Was man tun sollte:", "Man muss sich auf die Weiße stellen, indem man die Rote ziemlich voll trifft, um sie nach A in die Nähe der Linie zu schicken.", "Man erhält dann das nebenstehende Ergebnis, das es mit einem kleinen Rückläufer ermöglicht, die Bälle rittlings zu versammeln.", "Hinweis: Es gibt 10 identische Fälle, die ich nicht alle aufzählen kann. Daher stets an das Prinzip von Stoß Nr. 16 denken, wann immer es anwendbar ist."]'::jsonb, '', ''),
+  ('roger-conti-019', 'roger-conti', 19, 'Fiche 19', 19, '', '', '', '["Zwei Platzierungen, die besonders sorgfältig ausgeführt werden müssen Die beiden Stöße 17 und 17 a’ sind wesentlich heikler, als sie scheinen. Wichtig ist dabei: \t1\tBall 3 so wenig wie möglich zu verschieben. \t2\tEine Schräge zu belassen, die es beim folgenden Rückläufer mit Außenstellung ermöglicht, die Rote auf Ball 3 zu spielen. (Das Blockieren der Roten durch Ball 3 verhindert den Maskeneffekt bei der Einschätzung.)", "Wenn eine Vorbereitung der Passage möglich ist, vorzugsweise diese Lösung wählen.", "Nicht vergessen, die Rote weit genug vorzuschieben.", "Man muss die beiden nebenstehenden Ergebnisse erzielen. Hinweis: Nie vergessen, dass man im Rückläufer mit Außenstellung – grundsätzlich und außer in Ausnahmefällen – Ball 2 so voll wie möglich treffen sollte, um zu dämpfen und Ball 1 nahe bei Ball 3 zu lassen (auch wenn man dafür etwas weniger tief stoßen muss).", "Wäre die Schräge einen Hauch zu ausgeprägt, müsste man Linkseffet geben und weniger voll stoßen; wäre sie weniger ausgeprägt, müsste man sehr fein dosieren – dann könnte Ball 2 jedoch nicht mehr auf Ball 3 gespielt werden."]'::jsonb, '', ''),
+  ('roger-conti-020', 'roger-conti', 20, 'Fiche 20', 20, '', '', '', '["Massé mit extrem dünnem Treffen von Ball 2. R. Conti meint, dass es für einen Spieler einer gewissen Spielstärke unverzeihlich ist, sich bei einem einfachen Massé falsch zu stellen. Er unterteilt die Massés in zwei Kategorien: A) Massés aus relativ kurzer Distanz, bei denen die Bälle nicht vollständig verdeckt sind. Er nennt sie Halb-Massés und empfiehlt, sie mit niedrigem Bock zu spielen, wobei der Handballen bzw. die Fingerknöchel auf dem Tuch aufliegen (nicht die Fingerspitzen). B) Massés aus mittlerer Distanz (egal ob die Bälle vollständig verdeckt sind oder nicht) sowie kurze Massés, bei denen die Bälle völlig in einer Linie liegen – also absolut verdeckt (Maskierung). Diese Massés der Kategorie B werden mit dem üblichen Bock gespielt. Der Massé aus Stoß 18 gehört zur Kategorie A). Man muss sich auf Ball 3 in Dominante stellen, ohne Ball 2 ins Cadre-Eckfeld zu bringen.", "Ball 1 links, tiefer Stoß, Queue nicht komplett senkrecht halten. Ball 2 ultradünn treffen. Zielen, als wolle man den Kontakt verfehlen – die Rote bewegt sich nur um 2–3 %. Schneller Stoß, wie ein Nadelstich."]'::jsonb, '', ''),
+  ('roger-conti-021', 'roger-conti', 21, 'Fiche 21', 21, '', '', '', '["Einbänder über das hintere Ende von Ball 2. Ball 1 sehr tief ohne Effet stoßen. Ball 2 seh dünn treffen.", "Accepted festgelegt von philippjuede", "None festgelegt von philippjuede", "Steht Ball 1 einen Hauch weiter von Ball 2 entfernt, Ball 2 etwas weniger dünn treffen. Steht Ball 3 auf Position 3’, weniger tief stoßen und Linkseffet geben.", "Stoß 19 bis ist derselbe wie Stoß 19, jedoch weiter von der kurzen Bande entfernt. Gleiche Stoßführung wie bei Stoß 19. Steht Ball 3 auf Position 3’, maximales Linkseffet geben und etwas weniger tief stoßen. Hinweis: Wenn beim Stoß 19 die Schräge (die kaum wahrnehmbar ist) gleich null ist, den Rückläufer mit Außenstellung spielen. Hält man Ball 2 für nicht nah genug, ohne Außenstellung spielen, indem man eine ½ Ball-Karambolage auf Ball 3, links von diesem, ausführt. Dieselben Anmerkungen gelten für Stoß 19 bis. Der Rückläufer auf Ball 2 über 3 Banden darf nur gespielt werden, wenn es keine bessere Möglichkeit gibt. Für die Stöße 19, 19 bis, 20 und 21 gilt: Je näher Ball 2 an Ball 1 liegt, desto dünner treffen – und umgekehrt."]'::jsonb, '', ''),
+  ('roger-conti-022', 'roger-conti', 22, 'Fiche 22', 22, '', '', '', '["Einbänder über das hintere Ende von Ball 2 (Fortsetzung). Wie bei den Stößen 19 und 19 bis gilt: Steht Ball 3 auf Position 3’, ist Linkseffet zu nehmen. Zu beachten ist eine identische Stoßführung (weniger tief als bei Stoß 19 für die Positionen 1, 2, 3), wenn Ball 3 auf Position 3 steht und nicht auf 3’, der Treffwinkel jedoch anstelle von kaum wahrnehmbar etwas ausgeprägter ist – ebenfalls stets mit Linkseffet (Stoß Nr. 20).", "Hinweis: Steht Ball 2 einen Hauch weiter links, gleiche Stoßführung, aber das Linkseffet noch stärker ausführen. Steht Ball 2 auf Position 2’, den direkten Rückläufer mit maximalem Rechtseffet spielen. Fazit: Die Stoßführung ist für die Positionen Nr. 20 und Nr. 21 identisch (wobei letzterer Stoß der Position 1.2.3’ von Stoß 19 entspricht).", "Zusammengefasst: Ob Ball 2 ein wenig weiter links steht oder Ball 3 eine Ballbreite weiter rechts – das läuft auf dasselbe hinaus.", "Stoßführung für die Stöße 21 und 20: Ball 1 tief (aber nicht sehr tief) und gelegentlich links stoßen. Ball 2 fast dünn treffen."]'::jsonb, '', ''),
+  ('roger-conti-023', 'roger-conti', 23, 'Fiche 23', 23, '', '', '', '["Interessant: Die Bälle in zwei Stößen in die günstigste Region des Billards bringen: Erster Stoß (Stoß 22): Die Rote voll vorziehen und auf Position 2’ bringen. Eine Dominante auf Ball 3 nehmen, um anschließend auf diesem entweder einen direkten Nachläufer oder einen Nachläufer über eine Bande zu spielen (manchmal auch direkter Stoß ohne Nachläufer).", "Hinweis: Wenn Ball 1 zu Beginn (Stoß 22) auf Position 1’ liegt, kein Rechtseffet nehmen – manchmal sogar Linkseffet. Wesentlich ist, mit nicht zu viel Kraft auf Ball 3 zu kommen und ihn etwa zu ¼ links zu treffen.", "Ball 2 etwa ½ treffen. Man erhält das nebenstehende Ergebnis. Ob Ball 1 auf Position 1, 1’ oder 1’’ liegt – der Stoß ist stets schön zu spielen und das Endergebnis ausgezeichnet. Zweiter Stoß: Den Nachläufer spielen. Versammlung auf Position A."]'::jsonb, '', ''),
+  ('roger-conti-024', 'roger-conti', 24, 'Fiche 24', 24, '', '', '', '["Grundlegend. Ein großes Prinzip, auf dem das gesamte moderne Billard beruht: Wann immer es möglich ist, auf Ball 3 dünn karambolieren und dabei rückwärts herauslaufen. Position A: Ball 1 sehr tief ohne Effet stoßen – oder mit Rechts- bzw. Linkseffet je nach Schräge. Ball 2 etwa zu ¾, eher etwas voller, treffen. Sehr dünn auf Ball 3 karambolieren, da Ball 3 sonst nicht rückwärts herauslaufen kann.", "Man erhält das nebenstehende Ergebnis. Wenn es an Gefühl gefehlt hat (denn man muss eher kurz spielen) und Ball 2 auf Position 2’’ steht, wäre das mit Ball 1 auf 1’ verhängnisvoll. Mit Ball 1 auf 1 ist der Nachläufer ein natürlicher Stoß. Position B: Die oben beschriebene Ausführung ist unmöglich, da Ball 2 zu weit entfernt von der Bande liegt. Wenn die Passage nicht möglich ist, muss man die Sperre spielen. Ausnahme: Wenn die Cadre-Linie an der Stelle des blauen Strichs verlaufen würde, müsste man den Rückläufer mit Außenstellung nach der gestrichelten Pfeilrichtung spielen.", "Achtung auf den Treffpunkt von Ball 2: Zu weit rechts – es entsteht eine Maske, zu weit links – die Dominante geht verloren."]'::jsonb, '', ''),
+  ('roger-conti-025', 'roger-conti', 25, 'Fiche 25', 25, '', '', '', '["Variante von Stoß 23. Es ist ein Fehler, die Sperre zu spielen. Warum? Weil niemand sicher sein kann, den Austausch unter optimalen Bedingungen zu erreichen. Es muss nämlich eine exakte Stoßhöhe gewählt werden, damit man genau neben Ball 3 auf derselben Linie bleibt – weder zu weit vorn noch zu weit hinten. Auch der Stoß mit dem Queue ist schwer auszuführen, da man Ball 2 aus solcher Nähe beim vollen Treffen nicht sauber genug spielen kann.", "Ball 1 sehr tief ohne Effet stoßen. Ball 2 etwa zu 2/3 treffen.", "Also wie bei Stoß 23 ausführen und versuchen, rückwärts herauszukommen, indem man Ball 3 sehr dünn trifft.", "Darauf achten, Ball 2 so wenig voll wie möglich zu treffen. Wenn diese geringe Treffmenge zwingt, Effet für den Eintritt zu nehmen, sollte man nicht zögern, es zu tun. Ist die Schräge zu stark, trotz des dünnen Treffens von Ball 2 Rechtseffet geben.", "@Arnd", "Hinweis: Spielt man den Austausch, ergibt es sich oft, dass man zwei Rückläufer an der Linie hintereinander spielt. Spielt man dagegen rückwärts heraus, erhält man stets eine vorbereitende Stellung vor dem Rückläufer – also einen Gewinn von 1 Punkt.", "Es ist zu beachten, dass die Ausführung von Stoß 24 automatisch die richtige Dosierung ergibt."]'::jsonb, '', ''),
+  ('roger-conti-026', 'roger-conti', 26, 'Fiche 26', 26, '', '', '', '["Eine einfallsreiche Lösung von R. Conti Die Passage ist unmöglich. Es gibt zu viel Schräge, um sofort zurückzuholen. Um auf die Rote zu kommen und einen Rückläufer vorzubereiten, muss Ball 2 sehr voll getroffen werden – das nebenstehende Ergebnis ergibt sich daraus.", "Schlechtes Ergebnis Natürlich ist der Rückläufer leicht und der Piquer ziemlich natürlich. Aber es gibt Besseres zu spielen – und völlig ohne Risiko. WAS MAN TUN SOLLTE: Sich auf die Rote stellen, indem man sie extrem dünn trifft und mit Rechtseffet spielt, um sie hinten zu belassen.", "WAS MAN NICHT TUN SOLLTE", "Man erhält die Position Nr. 19. Wenn die Schräge zu stark ist, Stoß Nr. 20 spielen oder den direkten Rückläufer, indem man Ball 2 über die Ecke zurückholt, oder auch über eine Bande an der kurzen Bande."]'::jsonb, '', ''),
+  ('roger-conti-027', 'roger-conti', 27, 'Fiche 27', 27, '', '', '', '["In dieser Region niemals Linkseffet nehmen. Ball 1 tief ohne Effet stoßen. Ball 2 etwa zu ¾ treffen.", "Man muss den Austausch erzielen, als würde man den direkten Rückläufer spielen.", "Stoß 26 bis ist heikler als Stoß 26. Man muss Ball 2 sehr voll treffen, doch genau das nimmt Ball 1 Impuls – umso mehr, als man kein Linkseffet nehmen darf, weil dieses verhindern würde, dass Ball 2 korrekt „hineingeht“. Daher kräftiger spielen, damit Ball 1 genug Lauf hat, um bis zu Ball 3 zu gelangen. Selbstverständlich darf man keinen Fehler in der Treffmenge machen, um den Austausch sicher zu bekommen. Steht Ball 1 auf Position 1’ (Stoß 26 bis), darf man die oben beschriebene Ausführung nicht mehr anwenden. Man muss den Punkt sichern, indem man tief mit Linkseffet spielt und die genaue Rückkehr von Ball 2 zugunsten der Punktsicherheit opfert. Zu beachten: Für alle diese Einbänder mit Effet gilt grundsätzlich: maximalen Effet auf die Kugel und maximalen Seiteneffet nehmen – und so wenig Tiefstoß wie möglich."]'::jsonb, '', ''),
+  ('roger-conti-028', 'roger-conti', 28, 'Fiche 28', 28, '', '', '', '["Ein natürlicher und sehr spektakulärer Ausstieg. Wie oben den Nachläufer über Bande spielen – mit Massé. Die Queue sehr senkrecht halten. Vorwärtsstoß (oben angespielt). Ein weicher, aber sehr schneller Queue-Stoß mit viel Biss. Wenn die Schräge sehr gering ist, streift die Rote Ball 3 und verschiebt ihn leicht; die Karambolage erfolgt dann als rattrapierte Begegnung, ohne dass man die Stoßführung verändert hätte. Etwas weniger weich spielen, wenn die bestehende Schräge eine solche Begegnung erwarten lässt.", "Zwei Ausstiege, die man kennen muss. Den Nachläufer über Bande auf die Rote spielen, mit einem Massé ausgeführt – genau so, wie man den Nachläufer spielen würde, wenn Ball 1 auf Position 1’ läge. Der Stoß ist heikel, aber zehnmal leichter, als wenn man versuchen würde, der mit Bleistift eingezeichneten Linie zur Karambolage zu folgen. Darum dieselbe Lösung wählen, auch wenn man nicht exakt in der Idealposition steht. Sehr energischer Queue-Stoß. Ball 2 fast voll treffen."]'::jsonb, '', ''),
+  ('roger-conti-029', 'roger-conti', 29, 'Fiche 29', 29, '', '', '', '["Die Sperre nicht spielen, \t•\tweil man – selbst wenn der Austausch gelingt – eine enge Versammlung nahe bei Ball 3 erhält, \t•\tweil die Gefahr besteht, Ball 2 nicht auf Ball 1, sondern auf Ball 3 zu schicken, \t•\tweil man entlang der kurzen Bande eine Maske riskieren kann, wenn man Ball 2 zu voll trifft und schlecht auf Ball 3 karamboliert.", "Was tun? Ball 1 sehr tief ohne Effet stoßen. Ball 2 nur etwa 1/3, kaum mehr. Man muss den Rückläufer über das dünne Treffen von Ball 2 spielen und dabei sehr dünn rechts auf Ball 3 karambolieren, um rückwärts herauszukommen. Man erhält das nebenstehende Ergebnis: Die Bälle gelangen in zwei Stößen in die günstige Region – und rittlings, wenn die Dosierung stimmt und ein wenig Glück dabei ist. Hinweis: Die Attacke auf Ball 2 bei Stoß 29 besonders sorgfältig ausführen. Lieber zu dünn treffen als nicht dünn genug. Es ist besser, die Rote auf Position B zu haben als auf Position A."]'::jsonb, '', ''),
+  ('roger-conti-030', 'roger-conti', 30, 'Fiche 30', 30, '', '', '', '["Variante von Stoß Nr. 29. Es ist unmöglich, Ball 2 durch dünnes Treffen und Linkseffet zu halten – die Schräge ist zu stark. Man muss Ball 2 daher über zwei Banden zurückholen. Die Sperre (Ball 2 durch Ball 1 blockieren) darf man nicht spielen: \t•\terstens ist sie viel zu schwierig, \t•\tzweitens würde man eine „Lunette“ (Rahmenstellung mit zwei Bällen nebeneinander) nahe bei Ball 3 erhalten \t•\tund eine Versammlung mitten im Feld, was wenig vorteilhaft ist.", "Man muss karambolieren (über das dünne Treffen von Ball 2), indem man Ball 3 dünn rechts trifft und rückwärts herausläuft. Ball 1 tief und weit rechts stoßen (ohne Effet, falls die Schräge ausgeprägter wäre). Ball 2 etwa ½ treffen. Nach dem Spielen dieser Resultante erhält man die Position 2, 3, 2’ – dabei markiert Ball 2 ungefähr die Stelle, an der sich Ball 1 befindet.", "Ohne das Rechtseffet aus Stoß Nr. 30 wäre die Rote oben in 2'''' und nicht in 3 (ich meine: bevor Stoß 30a gespielt wird)."]'::jsonb, '', ''),
+  ('roger-conti-031', 'roger-conti', 31, 'Fiche 31', 31, '', '', '', '["Was man nicht tun darf: Man darf nicht die dünne Lösung A spielen, um anschließend Stoß B und schließlich die Resultante C zu erhalten, denn man befindet sich dann auf der Linie in 50 % oder 55 % der Bande.", "Das Annähern der Bälle an die Linie", "Die Rote durch extrem vollen Treffer und mit maximalem Rechtseffet vorziehen. \t•\tAnstreben, sich den leichten Halb-Massé aus Position B zu lassen. \t•\tDadurch erhält man Position C’. Hinweis: Vergleicht man Position C mit Position C’, erkennt man, dass die Rote um etwa eine Ballbreite an die große Bande herangeführt wurde."]'::jsonb, '', ''),
+  ('roger-conti-032', 'roger-conti', 32, 'Fiche 32', 32, '', '', '', '["Wenn Ball 1 auf Position 1’ läge, erschiene die Begegnung Nr. 32 für jeden als natürlicher Stoß. Aber Ball 1 steht auf 1, und dadurch liegen die drei Bälle nicht mehr auf einer Geraden – die Rote ist „eingesperrt“. Keine Bedeutung: Man erhält die Begegnung auf A und zugleich den Ausstieg. Ball 1 oben und weit links stoßen. Ball 2 etwa ½ treffen. Sehr leicht, sobald man ein Gefühl für die exakte Treffmenge von Ball 2 hat. (Variante von Stoß Nr. 30)", "Cadre und Freie Partie Ein interessanter Cadre-Stoß, der zugleich eine schöne und einfache Amerika-Platzierung ergibt. Ball 1 sehr tief ohne Effet stoßen (oder mit Effet, je nach genauer Position). Ball 2 etwa ⅓, eher etwas weniger, treffen.", "Dünn rechts auf Ball 3 karambolieren und rückwärts herauslaufen. Wenn möglich weit nach hinten herauslaufen. Sehr weich spielen, damit Ball 2 – der voll getroffen werden muss – nicht zu weit läuft. Man erhält das nebenstehende Ergebnis →"]'::jsonb, '', ''),
+  ('roger-conti-033', 'roger-conti', 33, 'Fiche 33', 33, '', '', '', '["Feiner Stoß mit Maske. Nur spielen, wenn Ball 1 und 2 sowie Ball 3 nicht zu weit voneinander entfernt sind.", "Ball 1 tief ohne Effet spielen und Ball 2 sehr fein treffen. Der Stoß ist unsicher und nur sinnvoll, wenn er viel trainiert wurde.", "Liegt Ball 1 auf der Position 1, nicht den Einband-Rückläufer mit rechtem Effet spielen. Stattdessen den Kontakt-Ausgang mit etwas weniger dünnem Ball 2 und linkem Effet wählen.", "Vitry hält diese Lösung für sehr schwierig; im Spiel nur anwenden, wenn sie wirklich beherrscht wird."]'::jsonb, '', ''),
+  ('roger-conti-034', 'roger-conti', 34, 'Fiche 34', 34, '', '', '', '["Hier ist der Zugstoß über den Ballwechsel besser als ein kleiner Einband-Ausgang, der Ball 2 zu weit auseinanderzieht.", "Ball 1 fast nur anstreifen, mit maximal linkem Effet und langem, langsamen Stoß spielen, damit Ball 2 nach vorn kommt.", "Wenn Ball 1 auf A liegt, ist dieser Ausgang zwingend. Conti spielt erst das Zwischenbild 35a und kommt danach zu 35b, um aus der Linie zu gelangen."]'::jsonb, '', ''),
+  ('roger-conti-035', 'roger-conti', 35, 'Fiche 35', 35, '', '', '', '["Das ist das klassische Lochspiel durch Nachläufer. Die Sperre links neben Ball 3 ist nur eine Notlösung, weil sie sehr schwierig und gefährlich ist.", "Ball 1 in der Mitte mit maximal linkem Effet spielen und Ball 2 etwa halbvoll treffen.", "Wichtig ist das richtige Maß, damit Ball 2 ins Loch läuft. Ist das Maß nicht perfekt, blockiert Ball 1 den Ball 2 trotzdem oft noch ausreichend.", "Für die folgende Position 36 muss Ball 1 weit genug hinten auf die Bande kommen, damit Ball 3 nicht zu stark bewegt wird."]'::jsonb, '', ''),
+  ('roger-conti-036', 'roger-conti', 36, 'Fiche 36', 36, '', '', '', '["Variante ohne vorhandenes Loch. Das Loch muss erzeugt werden, indem Ball 1 kräftig etwa zwei Drittel rechts von Ball 3 ankommt.", "Ball 1 leicht oberhalb der Mitte ohne Effet spielen und Ball 2 etwa drei Viertel, eher etwas weniger, treffen.", "Nicht auf Stellen spielen, sondern Ball 2 eher kurz zurückholen. Ball 3 wird durch den halb amortisierten Kontakt leicht von der Bande gelöst und schafft so das Loch.", "Eine schlecht gespielte Vorposition kann sogar nützlich sein: Bleibt eine Maske stehen, lässt sich die Linie manchmal in einem Stoß herstellen."]'::jsonb, '', ''),
+  ('roger-conti-037', 'roger-conti', 37, 'Fiche 37', 37, '', '', '', '["Ist der Winkel etwas stärker und Ball 2 etwas weiter links, nicht versuchen, das Loch über einen dünneren Treffer von Ball 3 zu erzeugen.", "Gleiche Ballmenge auf Ball 2 spielen, aber linken Effet verwenden und Ball 1 etwas weniger tief stoßen.", "Liegt dieselbe Stellung in der Mitte eines Cadres, sollte nicht diese Linienlösung gewählt werden, sondern ein Rückzieher, um die Bälle in die günstige Zone zu bringen.", "Wichtig für die nächste Stellung: Ball 2 muss weiter rechts zurückkommen, weil Ball 1 Ball 3 noch leicht nach rechts bewegt."]'::jsonb, '', ''),
+  ('roger-conti-038', 'roger-conti', 38, 'Fiche 38', 38, '', '', '', '["Diese natürlichen Positionen verlangen genaue Kenntnis der Trefferbilder. Kleine Unterschiede in Effet und Stoßhöhe verändern das Ergebnis stark.", "In Stellung A wird Ball 2 oft zu voll getroffen. Besser ist es, etwas weniger zu nehmen und mit maximal rechtem Effet Luft zwischen die Bälle zu bringen.", "Stellung B wird ohne Effet gespielt, Stellung C mit linkem Effet."]'::jsonb, '', ''),
+  ('roger-conti-039', 'roger-conti', 39, 'Fiche 39', 39, '', '', '', '["Hier ist linker Effet nötig, damit Ball 1 sich von Ball 3 löst und kein Klemmer entsteht.", "Weil linker Effet Ball 2 ebenfalls wegdrückt, muss Ball 2 entsprechend voller getroffen werden.", "Ball 1 sehr tief links spielen und Ball 2 etwa zu fünf Sechsteln nehmen. Bei klarer Beherrschung kann daraus mehr als nur ein Punkt entstehen.", "Rechter Effet auf der Folgeposition würde Ball 1 eher zu Ball 3 hin statt von ihm weg führen."]'::jsonb, '', ''),
+  ('roger-conti-040', 'roger-conti', 40, 'Fiche 40', 40, '', '', '', '["Auch wenn ein Einband-Rückholer möglich wäre, ist der direkte Rückzieher hier vorzuziehen.", "Bei allen Sperrstößen ist ein sehr voller Treffer auf Ball 2 vorteilhaft. Hier deshalb mit maximal rechtem Effet spielen, damit Ball 2 links bleibt und Ball 3 zuerst die kurze Bande berührt.", "Eine weitere nützliche Variante ist der Nachläufer über die Bande: Ball 1 im Kopf ohne Effet, Ball 2 extrem voll, nicht zu weich."]'::jsonb, '', ''),
+  ('roger-conti-041', 'roger-conti', 41, 'Fiche 41', 41, '', '', '', '["Die Bälle liegen innen. Deshalb nicht erst den Ausgang vorbereiten, sondern Ball 3 sofort herausarbeiten.", "Eine kleine Ball-an-Ball-Lösung spielen und dabei amortisieren, damit Ball 1 rechts von Ball 3 auf derselben Linie bleibt.", "Die Menge auf Ball 2 so berechnen, dass Ball 2 auf Ball 3 läuft und ihn aus der Zone schiebt.", "Wer Stoß 43 nicht sicher beherrscht, sollte den Ausgang hier sofort suchen und nicht warten."]'::jsonb, '', ''),
+  ('roger-conti-042', 'roger-conti', 42, 'Fiche 42', 42, '', '', '', '["Wichtiger Fehler: Keine Lage hinterlassen, in der nach dem Rückzieher auf Ball 3 die Bälle wieder im ungünstigen Ausgangssektor zusammenlaufen.", "Ball 3 muss klar nach vorn gebracht werden, und es soll ein deutlicher Winkel entstehen.", "Dann ergibt sich eine sehr gute Folgeposition, aus der die Bälle mit einem Stoß wieder in die günstige Zone kommen.", "Ball 1 tief ohne Effet spielen und Ball 2 nur ganz fein nehmen. Die angegebene Lösung ist für Rechtshänder beschrieben."]'::jsonb, '', ''),
+  ('roger-conti-043', 'roger-conti', 43, 'Fiche 43', 43, '', '', '', '["Ball 1 tief ohne Effet, Ball 2 etwa zu vier Fünfteln oder etwas mehr treffen.", "Wenn die Bälle innen liegen, Ball 3 nach vorn bringen und bei Ball 1 bleiben, aber Ball 2 schon im ersten Stoß aus der Zone herausnehmen.", "Der Grund: Der nächste Stoß soll ein Durchgang werden. Das wäre unmöglich, wenn Ball 3 innen liegen bliebe.", "Liegt die Stellung weiter von der Linie weg, muss zunächst ein Winkel aufgebaut werden, um danach den langen Rückholer oder den Durchgang spielen zu können."]'::jsonb, '', ''),
+  ('roger-conti-044', 'roger-conti', 44, 'Fiche 44', 44, '', '', '', '["Nicht Ball 2 über zwei Banden zurückholen, das ist zu heikel. Drei Banden sind hier die bessere und sicherere Lösung.", "Ball 1 tief ohne Effet spielen und Ball 2 etwa zu drei Vierteln oder etwas mehr treffen.", "Je nach genauer Lage kann links- oder rechtsseitiger Effet nötig sein, wenn der Winkel minimal positiv oder negativ ist.", "Ein leichter, aber spektakulärer Stoß, wenn das richtige Maß getroffen wird."]'::jsonb, '', ''),
+  ('roger-conti-045', 'roger-conti', 45, 'Fiche 45', 45, '', '', '', '["Hier beginnt die umgekehrte Linienserie in drei Stößen. Es ist ein Fehler, die laufende Linie einfach weiter zur kurzen Bande fortzusetzen.", "Statt eines normalen Rückziehers mit Außenwirkung die Bande benutzen und das Loch suchen.", "Ball 3 nach vorn bringen und Ball 1 ein bis zwei Millimeter bei Ball 3 lassen. So entsteht die Folgeposition 47a.", "Danach den weißen Ball sehr genau auf Rot platzieren, ohne ihn zu nah an die Bande zu bringen, damit das Loch nicht zu klein wird.", "Diese Lösungen sind spielbar, aber technisch anspruchsvoll."]'::jsonb, '', ''),
+  ('roger-conti-046', 'roger-conti', 46, 'Fiche 46', 46, '', '', '', '["Ball 2 berührt die Bande und legt sich in den gewünschten Abstand. Danach genügt ein kleiner Ball-an-Ball-Stoß, um die nächste gute Lage zu erhalten.", "Dabei Ball 2 so kontrollieren, dass das Loch nicht zu groß wird und der Winkel auf Ball 3 günstig bleibt.", "Das ist auch eine gute Rettung, wenn die Vorposition zu weit nach vorn geraten ist und das Loch zu klein geworden ist."]'::jsonb, '', ''),
+  ('roger-conti-047', 'roger-conti', 47, 'Fiche 47', 47, '', '', '', '["Lochspiel auf Abstand mit Sperre. Auch in einer weiten Lage lohnt sich das Lochspiel, weil Ball 1 dadurch perfekt amortisiert wird.", "Ball 1 tief ohne Effet oder je nach genauer Lage mit rechtem Effet spielen und Ball 2 etwa zu einem Drittel treffen.", "Wird der Winkel danach zu stark, weil Ball 3 zur Bande gerückt ist, hilft ein extrem dünner Treffer auf Ball 2 mit maximal linkem Effet.", "Ball 2 bewegt sich dann kaum, und die Stellung richtet sich günstig auf."]'::jsonb, '', ''),
+  ('roger-conti-048', 'roger-conti', 48, 'Fiche 48', 48, '', '', '', '["Wieder das Loch suchen. In dieser Stellung den weißen Ball arbeiten lassen und zwei oder drei kleine Stöße spielen, ohne Ball 3 stark zu bewegen.", "Die Öffnung zwischen Ball 3 und der kurzen Bande darf nicht zerstört werden.", "Ball 1 nach vorn bringen und ein bis zwei Millimeter an Ball 3 bleiben. Dann einen Durchgang spielen, um die Zielstellung zu erzeugen.", "Ist der Durchgang zu breit, lieber einen kleinen Einband spielen. Sehr feines Gefühl und saubere Länge sind hier entscheidend."]'::jsonb, '', ''),
+  ('roger-conti-049', 'roger-conti', 49, 'Fiche 49', 49, '', '', '', '["Wenn nicht sicher ist, dass Ball 1 eng an der kurzen Bande bleibt, besser auf Rot statt auf Weiß platzieren.", "Ball 1 leicht unterhalb der Mitte ohne oder mit linkem Effet spielen und Ball 2 sehr dünn treffen, je nach Winkel.", "Mit maximal rechtem Effet kann Ball 1 trotz Ball-an-Ball oder Bandenberührung sicher an der kurzen Bande gehalten werden.", "Eine nicht sehr häufige, aber nützliche und verhältnismäßig einfache Lösung."]'::jsonb, '', ''),
+  ('roger-conti-050', 'roger-conti', 50, 'Fiche 50', 50, '', '', '', '["Diese Stellung hat nichts mit dem klassischen Spring-Piqué-Brunnen zu tun.", "Wenn Ball 1 auf 1'' liegen würde, wäre der Durchgang die natürliche Lösung. Von diesem Prinzip aus kann der Durchgang auch mit Ball 1 auf 1 gespielt werden, indem Ball 1 mit linkem Effet etwas nach vorn geschickt wird.", "Das Queue nicht zu steil führen, Ball 1 leicht hinten links ansetzen und weich, mit dem Gewicht des Queues, spielen.", "Der Erfolg kommt aus der richtigen Ballbehandlung, nicht aus Gewalt.", "Die alternative sehr leichte Piqué-Lösung dient nur der Positionierung auf Ball 3, wenn der Durchgang zu riskant ist."]'::jsonb, '', ''),
+  ('roger-conti-051', 'roger-conti', 51, 'Fiche 51', 51, '', '', '', '["Sehr interessante Durchgangslösung im Nachläufer. Der feine Durchgang zwischen Ball 2 und 3 ist zu unsicher.", "Ball-an-Ball über einen sehr vollen Treffer auf Ball 2 und nur leichtes Streifen von Ball 3 im Vorbeigehen ist hier die bessere Wahl.", "Grundsätzlich in der Mitte ohne Effet spielen, je nach Lage aber Stoßhöhe und Effet anpassen.", "Ziel ist die Folgeposition 56a, aus der ein langer Rückholer direkt oder über die Bande gespielt werden kann."]'::jsonb, '', ''),
+  ('roger-conti-052', 'roger-conti', 52, 'Fiche 52', 52, '', '', '', '["Variante des vorherigen Stoßes, ebenfalls ein Durchgang im Nachläufer.", "Hier Ball 1 oberhalb der Mitte mit linkem Effet spielen und Ball 2 etwa zu vier Fünfteln treffen.", "Sehr langsam stoßen. Je nach Lage kann Ball 2 die lange Bande noch berühren oder nicht.", "Ein feiner Durchgang an Ball 2 vorbei bringt hier nichts Gutes; die gezeigte Lösung führt die Bälle dagegen wieder in die günstige Zone.", "Für Linkshänder spiegelverkehrt denken."]'::jsonb, '', ''),
+  ('roger-conti-053', 'roger-conti', 53, 'Fiche 53', 53, '', '', '', '["Interessante Bricole-Lösung. Ball 3 kann nicht direkt durch Rückzieher gelocht werden, deshalb muss über die Bricole gespielt werden.", "Ball 1 leicht unterhalb der Mitte mit etwas linker Wirkung spielen und Ball 2 etwa zu drei Vierteln oder etwas mehr treffen.", "Der Treffer auf Ball 2 muss deutlich voller sein, als es sich zunächst wie eine Bricole anfühlt.", "Ball 1 soll die Bande berühren, wenn er nur noch etwa einen Millimeter von Ball 2 entfernt ist.", "Liegt Ball 2 nur sehr nahe an der Bande, gilt dieselbe Grundidee weiterhin."]'::jsonb, '', ''),
+  ('roger-conti-054', 'roger-conti', 54, 'Fiche 54', 54, '', '', '', '["Variante der vorherigen Bricole-Familie. Hier kann Ball 2 sehr voll getroffen werden, ohne zwingend eine Bricole zu benötigen.", "Ball 1 in der Mitte ohne Effet, Ball 2 etwa zu vier Fünfteln treffen und Ball 2 doppeln.", "Steht Ball 2 weiter innen oder fest an der Bande, etwas weniger voll nehmen, damit kein Konter entsteht.", "Für die zugehörige Nachzieh-Variante Ball 1 sehr tief, aber nicht zu tief, ohne Effet spielen und Ball 2 etwa zu drei Vierteln treffen.", "Wichtiger als perfekte Rückkehr von Ball 2 ist das Vermeiden des Konters."]'::jsonb, '', ''),
+  ('roger-conti-055', 'roger-conti', 55, 'Fiche 55', 55, '', '', '', '["Schöne Bricole zum Rückholen. Anders lässt sich Ball 2 hier praktisch nicht sinnvoll zurückführen.", "Ball 1 oberhalb der Mitte mit rechtem Effet spielen, aber nicht übertreiben. Ball 2 etwa zu zwei Dritteln treffen.", "Der Stoß muss lang und recht kräftig ausgeführt werden, damit Ball 2 bis zu Ball 3 getragen wird.", "Je nach Winkel wird mehr oder weniger rechter beziehungsweise linker Effet benötigt: je größer der Winkel, desto mehr rechter Effet ist sinnvoll."]'::jsonb, '', ''),
+  ('roger-conti-056', 'roger-conti', 56, 'Fiche 56', 56, '', '', '', '["Ball 1 in der Mitte oder leicht darunter mit maximal rechtem Effet spielen.", "Ball 2 sehr voll treffen, eher vier Fünftel als drei Viertel.", "Bei stärkerem Winkel Ball 2 etwas weniger voll nehmen. Die Stoßhöhe muss an die Lage von Ball 3 angepasst werden.", "Zu dünn gespielt folgt Ball 2 der natürlichen Linie; zu voll gespielt droht Konter oder Ball 1 verliert die Kraft für Ball 3.", "Liegt Ball 2 weiter innen, ist diese Lösung nicht mehr sinnvoll; dann besser über die lange Bande zurückziehen."]'::jsonb, '', ''),
+  ('roger-conti-057', 'roger-conti', 57, 'Fiche 57', 57, '', '', '', '["Ein sehr spektakulärer, aber bei großem Ball 3 durchaus spielbarer Stoß.", "Ball 1 sehr tief links spielen und Ball 2 etwa zu zwei Dritteln oder etwas mehr treffen.", "Durch den kraftvollen, tiefen Stoß beschreibt Ball 1 eine schöne Kurve und die Bälle sammeln sich in der Ecke.", "Wird Ball 2 nicht voll genug getroffen, folgt er nur der natürlichen Linie. Ball 2 darf außerdem nicht zu weit von Ball 1 entfernt sein."]'::jsonb, '', ''),
+  ('roger-conti-058', 'roger-conti', 58, 'Fiche 58', 58, '', '', '', '["Lange Variante der vorherigen Rückholfamilie. Ball 3 lässt sich nicht lochen, wenn Ball 2 nicht sehr voll getroffen wird; spielt man zu weich, fehlt Ball 1 die Kraft.", "Die Lösung ist, Ball 2 über drei statt über zwei Banden zurückzuholen.", "Ball 1 leicht unterhalb der Mitte mit Komposition und ohne Effet spielen, Ball 2 etwa zu drei Vierteln oder etwas mehr treffen.", "Darf Ball 2 die lange Bande nicht berühren, etwas weniger voll nehmen, damit nur eine Bande genutzt wird.", "Grundsätzlich eher tief und möglichst ohne Effet spielen."]'::jsonb, '', ''),
+  ('roger-conti-059', 'roger-conti', 59, 'Fiche 59', 59, '', '', '', '["Interessante Lösung nach F. Grange. Das eigentliche Massé ist sehr schwierig, und die Bricole wäre im ernsthaften Spiel riskant.", "Besser ist der Kontaktstoß, der praktisch kaum zu verfehlen ist.", "Ball 1 in der Mitte links spielen und Ball 2 sehr fein bis fast voll je nach genauer Stellung treffen.", "Liegen die Bälle innen, muss allerdings doch die Bricole gewählt werden.", "Um einen Kicks zu vermeiden, den Stoß wie ein abgestelltes Piqué ausführen, als ob Ball 1 fest anläge."]'::jsonb, '', ''),
+  ('roger-conti-060', 'roger-conti', 60, 'Fiche 60', 60, '', '', '', '["Vorbereitung des Ausgangs. Viele Spieler machen hier den Fehler, zwar Rot richtig im Nachläufer zu spielen, aber dabei rechten Effet zu nehmen.", "Richtig ist linker Effet, damit Ball 2 gehalten wird und nahe an der Linie eine kleine Lunette entsteht.", "Ball 1 sehr hoch spielen und Ball 2 links voll treffen.", "Mit rechtem Effet würde Ball 2 der natürlichen Linie folgen und ein schlechtes Bild ergeben."]'::jsonb, '', ''),
+  ('roger-conti-061', 'roger-conti', 61, 'Fiche 61', 61, '', '', '', '["Es gibt zwei Arten, Ball 3 zu karambolieren, abhängig davon, welchen Impuls Ball 2 erhält.", "Bleibt Ball 2 kurz, wird Ball 3 auf der gepunkteten Linie getroffen.", "Läuft Ball 2 weiter, darf Ball 3 nicht mehr dreiviertelvoll links getroffen werden, sondern nur sehr fein, damit Ball 1 nach vorn läuft.", "Man muss also aus Stellung und Lauf des Tisches abschätzen, welchen Weg Ball 2 nimmt, um den richtigen Angriff auf Ball 3 zu wählen."]'::jsonb, '', ''),
+  ('roger-conti-062', 'roger-conti', 62, 'Fiche 62', 62, '', '', '', '["Ball 1 sehr hoch und sehr rechts spielen, Ball 2 etwa zu zwei Dritteln oder etwas mehr treffen.", "Sehr weich mit langem Stoß spielen. Ein Konter wird nur vermieden, wenn Ball 1 beschleunigt wird und Ball 2 exakt in der richtigen Menge getroffen wird.", "Die Stellung wird deutlich schwieriger, wenn Ball 1 näher an der kurzen Bande liegt als Ball 2.", "Interessant ist hier die Lösung über den Nachläufer an die Bande: weder Massé noch klassisches Doppeln oder Dreiband um den Tisch, sondern den Nachläufer über die Bande spielen.", "Gut ausgeführt entsteht genau das gezeigte Ergebnis."]'::jsonb, '', ''),
+  ('roger-conti-2-063', 'roger-conti-63-151', 63, 'Fiche 63', 2, '', '', '', '[]'::jsonb, 'e faine
+Quinterarra
+dand mointe.
+dificile
+MeiA
+1
+AtLA
+cen
+More com
+daucher
+La coute
+ditest
+tens coach de
+Chertace
+IPI:
+Luant', 'poor-scan'),
+  ('roger-conti-2-064', 'roger-conti-63-151', 64, 'Fiche 64', 3, '', '', '', '[]'::jsonb, 'the wahs done a
+04 dreamend
+in Arenant to
+means darrentere
+heat the don
+aunt its delete
+de who har
+turnacle
+ill
+les diller some
+Shane it font
+Chase
+a here', 'poor-scan'),
+  ('roger-conti-2-065', 'roger-conti-63-151', 65, 'Fiche 65', 4, '', '', '', '[]'::jsonb, 'LEORDINAL.
+13
+More
+rectadation set the
+PTONAL
+aN
+que fin are effed
+vie.
+la want
+Thur ret
+Bon', 'poor-scan'),
+  ('roger-conti-2-066', 'roger-conti-63-151', 66, 'Fiche 66', 5, '', '', '', '[]'::jsonb, 'karie
+o 11
+OuL
+i calles
+tuttier
+Lauer
+u il front
+la tham
+Places dies dis morceae
+i trundent
+COu
+die ins fressetat frate
+der
+1)
+Gerteid', 'poor-scan'),
+  ('roger-conti-2-067', 'roger-conti-63-151', 67, 'Fiche 67', 6, '', '', '', '[]'::jsonb, '2 *
+Goad mod
+Otto detener
+francesi Alla deca,
+presensfe
+Made
+75
+laur
+fant 75)(e0
+a
+de la Assetton
+de 2 loro chiamar Avviti
+i tante difeniline:
+Il hille a cheont ius ties fires.', 'poor-scan'),
+  ('roger-conti-2-068', 'roger-conti-63-151', 68, 'Fiche 68', 7, '', '', '', '[]'::jsonb, 'ferste
+dell
+колмане
+teed
+15 Ammena
+wAw
+On doit dont forste la
+1 waren/e
+tadet
+austersale det.
+interoderneut
+teet. Condie
+cantenfotage, mai
+Áas
+mitA
++.
+deineile
+die freit
+et le catambolage addiste dared endercien
+Mica-seine
+ade.
+ele
+wIE
+LaQu
+the rad
+Ou ne des
+Cas, Genies
+du der
+-Pf4
+das Lass de Cavel inditur
+Faute indiané
+none il fand demente
+Wette
+dares wawal
+Resultan', 'poor-scan'),
+  ('roger-conti-2-069', 'roger-conti-63-151', 69, 'Fiche 69', 8, '', '', '', '[]'::jsonb, 'relat
+8214
+al de la delit desse
+kon
+Aie
+GIFE
+2 alma:
+ste della
+*
+Stono di a
+Fus ta cal
+baf
+caso de', 'poor-scan'),
+  ('roger-conti-2-070', 'roger-conti-63-151', 70, 'Fiche 70', 9, '', '', '', '[]'::jsonb, 'Chime
+A
+vues alors le bulle à bille par l''''atitue prlin
+14 '''' a le socion de fil gande tard
+inir le llocage de la 2 des
+1 oblient la
+resultante definitire 1''''2''''3', 'poor-scan'),
+  ('roger-conti-2-071', 'roger-conti-63-151', 71, 'Fiche 71', 10, '', '', '', '[]'::jsonb, 'Aria
+terreste
+la piet
+Bile i tre taste it
+/
+the a.
+sentire te fiscale malore l''''apparene a
+allomate
+- puer alleare deus da feger, alle di me
+ha io da
+the
+Penulla
+, coupe 79', 'poor-scan'),
+  ('roger-conti-2-072', 'roger-conti-63-151', 72, 'Fiche 72', 11, '', '', '', '[]'::jsonb, 'OC
+liter de
+Aunes
+La falition So.
+hui atter
+de Buches la 3 Aie fine et se possin que
+en amand hous ottous la resultant foa)
+a ie quil faut faire
+folaa)
+1001
+11 la rieuse par le fatre de celt. ci
+1% ou 9T au Alim de la 3
+ois la resultante tobia) Oblirace
+al orchième feneve de la Genrche live la luiser
+A a deict
+FAta
+sortion, do Le d) que restente a la prosation 30
+sérieure sar la i est plus pres (al ses complace
+lacile )
+2 dons gagné un point. celui de la provitan Satua', 'poor-scan'),
+  ('roger-conti-2-073', 'roger-conti-63-151', 73, 'Fiche 73', 12, '', '', '', '[]'::jsonb, 'Nommé
+Il faut intervinitée cette poration
+le mème firgin zu cadre
+Bill i tavie et i
+Incine suivant fondatien
+Bille 2.
+Atooint
+fume four
+Truche sure suite Fande, ts grand
+bande en A.
+Exécution, demandank feld mal
+wid la o heh
+grossie
+a tout la 3a
+gauche
+inné toleale de couchi s/
+ce has chacher
+l''''imhewitt.
+di la
+position et bat
+de placer tue la 3 par
+A 46e
+* 6
+8 en Huchand
+entendu
+gauche', 'poor-scan'),
+  ('roger-conti-2-074', 'roger-conti-63-151', 74, 'Fiche 74', 13, '', '', '', '[]'::jsonb, 'trascor 12, chancher i te
+di alterie
+la provalian
+Paurairai?
+These aut calle resultare
+il france que de conte de
+la
+dinve de ha leme su
+h.
+: # .
+"
+dares
+Alukt tale
+it comasme se le delle .
+sportance, es cuil frud retores.
+V Laul rashale diutt la c. 82a1
+!
+08
+TROCS ORE ALA
+Adel
+7. 3', 'poor-scan'),
+  ('roger-conti-2-075', 'roger-conti-63-151', 75, 'Fiche 75', 14, '', '', '', '[]'::jsonb, '*..
+clo
+Ride
+late
+At tru
+fande
+I Hande on
+idention de all', 'poor-scan'),
+  ('roger-conti-2-076', 'roger-conti-63-151', 76, 'Fiche 76', 15, '', '', '', '[]'::jsonb, 'w9
+07 15
+lation
+de cour
+frasilt car le hauts
+баноноі / 6
+( se destrait
+ME 244
+Lite
+a laider cette ci en antire an
+re 1 Km au plus et même maise di prodille (21
+Bille + baste el en assiere
+Selle a extra fine (attene
+*Tuer a mariniquer de Kouche.
+3
+peu verticale. Youp de queue
+d''''ehingle.
+On doit altivis da resultante
+Note: ollast bis imhortant de leur a la sahe', 'poor-scan'),
+  ('roger-conti-2-077', 'roger-conti-63-151', 77, 'Fiche 77', 16, '', '', '', '[]'::jsonb, '86.
+ISPANISIA
+dare didatidue de vedeule
+MandAriore
+4 in 2
+teme cenermiation deeve
+test
+coerena flaviove da dietano', 'poor-scan'),
+  ('roger-conti-2-078', 'roger-conti-63-151', 78, 'Fiche 78', 17, '', '', '', '[]'::jsonb, 'dus la Hanche dares senties
+poli
+I dad wan in t
+de:
+• Cr
+a leader
+Au G
+sest
+ou d
+704444.
+le hassa
+dhAd
+ou andant
+Au 048S
+hist
+ai mdur@or
+des est decolleurs
+dit
+& Action
+Lavette', 'poor-scan'),
+  ('roger-conti-2-079', 'roger-conti-63-151', 79, 'Fiche 79', 18, '', '', '', '[]'::jsonb, 'lad
+un Pendules
+B9.108
+it vente de NorgAA
+thes donne
+il faut fana te qua es', 'poor-scan'),
+  ('roger-conti-2-080', 'roger-conti-63-151', 80, 'Fiche 80', 19, '', '', '', '[]'::jsonb, 'col comet
+i credi
+Que frese
+28.9
+alu fiancato la famile, sent
+cedereschader
+P,', 'poor-scan'),
+  ('roger-conti-2-081', 'roger-conti-63-151', 81, 'Fiche 81', 20, '', '', '', '[]'::jsonb, '"• T
+Ché
+Karmelte musend.
+R Gonh
+Mariante de la dosetion do
+(beun intentique,
+dent Alles stend
+Heranle
+-30.', 'poor-scan'),
+  ('roger-conti-2-082', 'roger-conti-63-151', 82, 'Fiche 82', 21, '', '', '', '[]'::jsonb, 'Wo
+Verwande du
+1
+O,
+417
+speciasiti
+andraiion
+scheitert.
+Buttante
+das cout 94', 'poor-scan'),
+  ('roger-conti-2-083', 'roger-conti-63-151', 83, 'Fiche 83', 22, '', '', '', '[]'::jsonb, 'ilie vainelie fin 2 bande, rai le
+faite.
+Gent coherdiant howile. haret
+ANGL
+desord du
+ale deas satt
+fille d à 15%
+f a
+cottessioned.
+Lite la 1. tote
+Cat le radio
+qui a causale de Lait des
+afig
+ollana la rédullane 95e)
+identique
+claud ai
+ne serai thur fouade car
+Anierre
+" bandes, touches sette fille
+a grosse et alors la, 95.1
+es la force d''''arriver
+à 3.
+difer. bien entendu la
+dur d''''attaque file 3', 'poor-scan'),
+  ('roger-conti-2-084', 'roger-conti-63-151', 84, 'Fiche 84', 23, '', '', '', '[]'::jsonb, '1 ha
+lite di i venite
+• " аванек
+ficat de
+fonte are biller
+frette bassore (fras trit tiratflai)
+coach 76 dresdogue- fascine
+dirti
+clement.
+.O
+96°)
+condie del inividale.
+de
+are hostie
+A cateni
+Land
+E Aderericoina
+Made
+de- aredices,
+ALL
+tale deulemend
+Anche
+On com
+vencontie dia tantraddag
+fossilisy
+I conte wild rallimeet, a clairuthe
+1. Carte Mire', 'poor-scan'),
+  ('roger-conti-2-085', 'roger-conti-63-151', 85, 'Fiche 85', 24, '', '', '', '[]'::jsonb, 'Queliante du couch 97
+didermmend feis dise que dist come grade
+a sness a faire it rest tiled facile
+quid frat faire
+O
+976
+Do
+das et
+січене
+rie
+dOne
+date
+aucey dolage
+It tee
+Al alie d''''aseanist
+de resti
+fastest
+Ta trice de la bigne', 'poor-scan'),
+  ('roger-conti-2-086', 'roger-conti-63-151', 86, 'Fiche 86', 25, '', '', '', '[]'::jsonb, '19 U
+heteret har
+de rendet.
+tous le 1 bande,
+disi
+Quand on hrwiede. bien celte famille
+Bite d en lite
+on au dessees au
+(bertaines seriante se jouen
+attaque au contre, d''''aube es
+d''''effet ou pas du tout
+iNterie la resultant ce contre
+• au coupe 98 la 2 un fils moins
+Ales fais d''''elle et vice reda.
+en l''''attaquer bien entendu la 2
+e en modifiant cela va de bi le
+altaque et leffet.
+l''''emblacement de la 3 varie.
+ine foute d''''attaque a
+delimine
+K hiais et la travition
+* d 6 3.
+9. Cante.
+Mai 145.', 'poor-scan'),
+  ('roger-conti-2-087', 'roger-conti-63-151', 87, 'Fiche 87', 26, '', '', '', '[]'::jsonb, '93
+incorre
+Nous le 1.
+tande en couland de
+demi tique
+Gueue aue thes faite wertiale
+Outaque en avant the en tat
+à drade
+-
+Bile 2 environ 3
+or torsme.
+attaque Comme
+grand der
+des fais Planté de
+Tisanie.
+Caut de
+dorie et are beaucout al
+filistat trop fort que pues avez
+Aole
+doutement fa
+{ на
+la force d''''astre fresquis la 3
+Fan
+fort
+Ort ait televe
+presqu''''on à le renchlacement
+la l''''étant bloquie par la 1
+native.
+Mais te coup de queue
+dilicat, car on ne preuk
+ver pour éviter de quenter.
+Resultarde
+du d
+Rue ConcA', 'poor-scan'),
+  ('roger-conti-2-088', 'roger-conti-63-151', 88, 'Fiche 88', 27, '', '', '', '[]'::jsonb, '- de le conte est bien fosse ins
+K.G
+(Jane cete praction
+could age dame taught
+On doit
+4044.
+famed -fould fore
+danile
+ime de
+rowdland
+A 3.
+this sent cincontinion
+shra accifidalle gritse a la
+1 Cant (guille /965', 'poor-scan'),
+  ('roger-conti-2-089', 'roger-conti-63-151', 89, 'Fiche 89', 28, '', '', '', '[]'::jsonb, 'Auer Ч4
+та тайной
+95. 7 :1 des devia
+Bill 2 environ
+Comed as haast
+Aheat
+cart
+Resultant du our 102
+did
+dant
+L HI
+cede wealand
+salon await di dates
+gencial
+Command macines Aid
+dugglass don drag
+Lamar
+P. Bents (Juin ''''19465)', 'poor-scan'),
+  ('roger-conti-2-090', 'roger-conti-63-151', 90, 'Fiche 90', 29, '', '', '', '[]'::jsonb, 'MESSIE
+dal fe
+s cevale
+lat.
+Beile t en t6
+Bille
+Contre suit la
+danale
+Quit
+en d Coup
+t au aude
+JancreettE
+Variasse,
+de de de,
+dur
+"S tonft mal hat
+touh
+dar
+cas il te a que le telen
+Condaes
+iNde
+deson dent
+amorée prasfaré de la l
+Resultante de la position 103
+Dans le cout tes de la g est con vue
+fileur pares de la pratito lamde.
+suit la 1.
+les a Lutte dent a égale distance
+le crut
+n''''est filise fraseille , sue alors il franc que
+la 3 dort eue s''''
+1 Bonte Guilit 1945', 'poor-scan'),
+  ('roger-conti-2-091', 'roger-conti-63-151', 91, 'Fiche 91', 30, '', '', '', '[]'::jsonb, '1IQ
+3
+ut ананесь
+a 19 poste fassive rosemaria.
+Causeur
+dir
+(ant
+A''''
+100
+La rauge eit files
+Aud
+(compare avec la
+de ce frit
+fromanst
+baris futur qu''''on froids
+rappela la ringe con liegeur.
+La douraganit « itinte
+Noms
+On obtient la
+B', 'poor-scan'),
+  ('roger-conti-2-092', 'roger-conti-63-151', 92, 'Fiche 92', 31, '', '', '', '[]'::jsonb, 'fatale, comme, muded schtchad
+Aadage wrimer dal
+taid
+Que faire!
+Guidon on te frent forer.
+le lorage.in
+A lacce des
+3 en carambolant le d
+hat on teste
+w/dr
+malterneral en aswiere
+Prenaire le moins de bille à hoveille, cat
+de alomnet
+le moies i
+in domsant leaucosti
+B.M 1.
+Bite 2 muren
+dartr
+Ah.al meirw
+Lient
+la
+verd thine
+nateudd
+que l''''indemnitation
+TArd
+di on a de la meture, d''''alinis
+il la fossilian
+y doit ene d de en t'''' da
+Masseur delle, andine
+Pas
+102', 'poor-scan'),
+  ('roger-conti-2-093', 'roger-conti-63-151', 93, 'Fiche 93', 32, '', '', '', '[]'::jsonb, '901
+Bille i en tele et à rauche
+Belle 2 environ d
+Souk de queue altrat du
+(Execution lice facile bien a.
+Anse le contaie
+Marier
+fer
+alfaders
+et daterand
+variatives de frasition de
+Que fardion 3 en s''''attags
+dans ciel
+1 gauche
+Psultante du cout 106
+elle résultanie n''''est par
+hproximative, on altient
+resque chaque fois celte
+tradition
+Conte', 'poor-scan'),
+  ('roger-conti-2-094', 'roger-conti-63-151', 94, 'Fiche 94', 33, '', '', '', '[]'::jsonb, '21.11
+21
+le brais est bis fort pour quier fuite, ,
+ther ride,
+rappeler la rouge far s hardes
+An filein billard on derant louer de bille a bile
+n firenant la blanche comme bille z de façon à
+tendre une dominante dur la rouge
+Mais fores d''''une tarde il y a mieux a faire.
+Jouer te frattage far
+discale
+les filles sont
+Toh scarlies au. be. l''''est exact.
+Verti faud. il jouer ane .
+iMt à dauste
+souvent avioer due A
+batrice
+le pines de la g
+de façon a toucher celle ci ances /
+tire
+de fait de la bricete cent comme si la 1 de
+tourait au achart en 1:
+te doit obtenir comme résultante la pradition 1.3.3.
+i on tuche la 2 Kiop grasse on de laise un
+Ko par 1 bande sur la frette bande.
+1. Genti', 'poor-scan'),
+  ('roger-conti-2-095', 'roger-conti-63-151', 95, 'Fiche 95', 34, '', '', '', '[]'::jsonb, 'Di"
+des a gauche
+trister
+1.
+TALTEPRIE
+la visultante (ost) et one destai
+thanche hous raspeter cult
+largans se la
+Ohe faire! Il frut toucher
+Line frout /''''arranset son fres, tout
+due la racie in dema-masque.
+editana la resultanet 108 a) ci
+randage:
+de houvois enante de
+e due la blanche in dicerincente
+we aloes un filacement 7084)
+suge frour la rappelei
+que de la legne et on
+# hoinet.
+In somine on dec
+0244
+filace ven lis conege
+Adorare
+fissette
+1 1. 3.2. de cond top
+Velite: di on maisait iu
+fredhait un perint, te serai', 'poor-scan'),
+  ('roger-conti-2-096', 'roger-conti-63-151', 96, 'Fiche 96', 35, '', '', '', '[]'::jsonb, 'Rainel Simulame du tille sehs
+Yole thas forate
+le Aridere
+Trahhel die lorse deas la
+fossel.
+''''Lasche
+Il y a miner a faire!
+ciner le bille a balle
+due Catand
+de la rocce
+façon.
+diritter corr
+dare la
+fan destar dee eseche
+Bile 2 estros
+''''apparence facile
+dentande dodg
+de Carail hous di
+tour coureliancend
+Alaieria
+PiE
+y dea de''''
+de caramdod
+il dressa
+de la 3 ed inedia
+R. Bente 1945', 'poor-scan'),
+  ('roger-conti-2-097', 'roger-conti-63-151', 97, 'Fiche 97', 36, '', '', '', '[]'::jsonb, 'ille d. last et
+Chagio
+Carte consulte
+Aliare ad
+Commment
+Anchand
+d''''
+Chercher a 180
+prIl
+A
+..
+d
+daL callar
+deer
+alcantiru
+dhoud
+тан/є', 'poor-scan'),
+  ('roger-conti-2-098', 'roger-conti-63-151', 98, 'Fiche 98', 37, '', '', '', '[]'::jsonb, 'Na e passe dares le seuli irar
+tiver tende de conte
+de bucher
+la s he lese are
+tire
++7049446
+d''''ies
+On desone que aute reite frise
+il y a gras cartas,
+. dE
+Ane
+4199 APeditiraro
+de reardure
+koceanati
+Constreant
+donnet. de reatoram
+Es altaiuant
+A !
+en buchand
+de gunide
+*Pista
+Cat
+can d
+Ciente
+ford, bien entircalce
+ave colt Kowbie
+é de Goiana
+feille impulsion facilitera
+de Ale l develosonianin
+dote: elé pas fouer
+toda
+danterind
+cat
+chore de la s sua da 3 et da
+fat
+me fonifica duas
+4
+144 g
+dea
+grange', 'poor-scan'),
+  ('roger-conti-2-099', 'roger-conti-63-151', 99, 'Fiche 99', 38, '', '', '', '[]'::jsonb, 'ade
+£st
+hier vacile se me fini
+Laure
+hette farde.
+Sa tevere doit
+harde et si
+houd sonie en 2
+(On pourrait certe place
+daws dur cell
+i. ce Auch
+A
+mais il faudrais fover
+Rout
+resterait bish
+faites
+@ue
+ire la 3.
+fave
+112 ÷)
+Schirak
+deferent de for face
+De sera aellénieusement
+ce
+lisse de faite.
+Aeratera
+Tha
+rade de reth format de
+Oh. sait
+(ira crecoraphatient) se far.
+la secultante 482 a) avec fedecouche palier de', 'poor-scan'),
+  ('roger-conti-2-100', 'roger-conti-63-151', 100, 'Fiche 100', 39, '', '', '', '[]'::jsonb, 'grange a indiqué la
+trime asteradation.
+rait que les avis concordent.
+Vroint.
+Pour que la
+frad une cour
+risque fias de
+2 fias aveg
+Attaquer bien
+tales bas four
+le défaut d''''ell
+art conte etteud
+i caramboles A
+Un dest chercher
+tour previe la
+On carambolera
+deur au trois de
+Je trace au e
+monte le par
+A la l are la
+flet à gauche
+la charte de
+la 2 avre le Alain
+PEanti', 'poor-scan'),
+  ('roger-conti-2-101', 'roger-conti-63-151', 101, 'Fiche 101', 40, '', '', '', '[]'::jsonb, 'grange a indiqué la
+trime asteradation.
+rait que les avis concordent.
+Vroint.
+Pour que la
+frad une cour
+risque fias de
+2 fias aveg
+Attaquer bien
+tales bas four
+le défaut d''''ell
+art conte etteud
+i caramboles A
+Un dest chercher
+tour previe la
+On carambolera
+deur au trois de
+Je trace au e
+monte le par
+A la l are la
+flet à gauche
+la charte de
+la 2 avre le Alain
+PEanti', 'poor-scan'),
+  ('roger-conti-2-102', 'roger-conti-63-151', 102, 'Fiche 102', 41, '', '', '', '[]'::jsonb, 'ove coup due est tes shin
+ede s bande sur la rem
+la grande bande voie la
+grand chose, car on est
+de prendre fise la rouge
+laite far contefues
+de tenseve.
+Aar
+Oucun contre a craindre.
+prend bien Ailein la 2.
+toutefor à donner auve
+force d''''ariver jusque
+Kouk inalement.
+de Cale 3 en 3%
+anciens dar.
+Quet.
+d''''autard meins ter
+la 3 est Ailes ilsignie
+grande banche.
+Il 1. base et à droite
+1•
+''''le 2. envies, % filata! plus te)
+Gerculant du coup
+Jouer asser fort', 'poor-scan'),
+  ('roger-conti-2-103', 'roger-conti-63-151', 103, 'Fiche 103', 42, '', '', '', '[]'::jsonb, 'cordeland
+Charut
+/. 3
+char
+la 1 est sinue en /° le
+satire
+Voila
+Garante!
+Il a farré le dieu
+bander en touche
+aule droite duc
+files cicacement as
+que la fetmettant
+mecende de carian
+Рсияднок!
+caramdolade
+Buche
+grade.
+hited
+la ferreir
+La 2e g
+l''''attaque quadie
+la. 2i3
+de g
+le AM des
+Ont dout aller
+résultant 13.2
+R. Conte
+theres', 'poor-scan'),
+  ('roger-conti-2-104', 'roger-conti-63-151', 104, 'Fiche 104', 43, '', '', '', '[]'::jsonb, 'M''''arcond, mair, fallai
+I. dad en
+• (la mencontia, ane offi
+Il dur done de face
+quite
+dear.
+La dedage
+la 3 in. A
+Il faut animr sun he
+flus fries de la E. diles
+Lit 3. dont filed fries. de
+bande.
+d on fridlède him re
+one ficeed
+i ent let de façone
+• bodie then hard the Al master
+ind.
++ thus alertine,
+• has bricate it cit
+.
+en le freint.
+Or oblient la retaliante
+Che
+little Sit I me tout had exactement
+hette finde. Operse. la reclifenta,
+o', 'poor-scan'),
+  ('roger-conti-2-105', 'roger-conti-63-151', 105, 'Fiche 105', 44, '', '', '', '[]'::jsonb, '% unt fanat aute 2
+gauche en Vainlisaient
+a bouche la a bats lisse a a
+La 2 toute ces instact fior
+chuand la led en d''''et de
+oh est dehaille ww e"
+La 3 est envoyée en 3'''' au
+renconte.
+de la s à touche eurafieu
+la 3 celle dermitre de biode
+ilorguée de la preate bande
+caramfolage et daves re car
+touche
+la s non fans fileinte
+4 au marines ! de
+chaste
+Acte doutermerat fiscal audamoulg
+naittantade daws f
+Gad al danse
+de La 3 fias la r.
+de L
+2 huisant le brait forer
+ce l
+dauche.
+Averiered.
+M.
+N''''andard Aider
+eloignes de la 3
+, Avis de la frette Lande.
+moind il frut
+mane et plus il faut ift Peuleants du coup 117', 'poor-scan'),
+  ('roger-conti-2-106', 'roger-conti-63-151', 106, 'Fiche 106', 45, '', '', '', '[]'::jsonb, 'disquera
+інс
+ATe4
+Larute
+cart
+de
+Afar
+As
+for
+Adementé
+Za.
+A
+Cad
+Vicile
+1604.cons
+Pille 1'''' au centre et trei à drosti
+Bit e environ 94 tileulst hales
+Sette quantité de Lille et Villet
+consta
+Kent
+amorti prasfait', 'poor-scan'),
+  ('roger-conti-2-107', 'roger-conti-63-151', 107, 'Fiche 107', 46, '', '', '', '[]'::jsonb, 'Il a gasache di o
+A
+duit te hack
+sur la blanche, et quil faille rapper
+incirediattomend sette balle comme an a
+A.
+, tre conchi.
+Allaquer darsi la 1 base ed asco
+à
+gauche (si tonifice la prasitin di
+rouge permet est affid) di fagini e a
+int attitit foust fresedie
+iene tratte
+dominante tue la rouge
+Ohr dout oblemir
+la reiuliante
+lon
+ler la 3. tre line
+ne de dilace fior Frate.
+t hot di
+hertion:
+iste de La frette barde
+it cit la massue
+la 2 burg grove
+, et tortant fröter
+rouge. da
+pattage
+i tiffet i droute
+e proser itte rusne
+da Kanche avant
+A 0e', 'poor-scan'),
+  ('roger-conti-2-108', 'roger-conti-63-151', 108, 'Fiche 108', 47, '', '', '', '[]'::jsonb, 'Prend
+feuer
+tas le fin
+. Allasue de la
+lave et hand ill
+Chercher a remis
+di on carambole
+tant initit.
+clam
+négalive in fait
+taar. le retour
+gr
+de
+a
+imie de Aador. do
+Pentrée de la g
+deux bandes.
+Boul de Bevere in
+Pas de dedage
+et de tas.
+Avec 3 en 3 patied tours
+pointille au egayen', 'poor-scan'),
+  ('roger-conti-2-109', 'roger-conti-63-151', 109, 'Fiche 109', 48, '', '', '', '[]'::jsonb, 'Oute
+t. au conde of ag
+sill 2. moirer
+(La 2 doit frôla.
+(arrivent dur la
+Quizara
+Ha 1 doit toucher la
+bande frceque à la ha
+de la monade a i da hode
+de altert
+Best alors la grosse
+qui envovi la i lestem
+freute bande la 1 doit;
+the filud avais de fotce
+de l''''imesti procume
+Qui fermet de Kucher la e
+de plir lárantige
+à 2 qui, at ce fait vicante
+drout.
+ist in then hle wei la pauche
+анафині
++ fort hour
+doubler. la i
+Seulltante
+core', 'poor-scan'),
+  ('roger-conti-2-110', 'roger-conti-63-151', 110, 'Fiche 110', 49, '', '', '', '[]'::jsonb, 'Ge coup d
+de lale at als
+"arettant.
+Bille t au ce
+4191.
+Gs.
+il droite
+Bille a insine
+Aucun contre d
+mense de ter 3 d
+un home desit
+vers la seseche
+La 1 dire estes
+la
+frente a 4
+2 ou Miss
+L''''amiti
+Jentice parfaik
+Star daine dar
+t Phont, pas conte, attaque
+1 home d/let. ce qui prorait pilus difficile
+tare effet sonne durtout de la
+MEné', 'poor-scan'),
+  ('roger-conti-2-111', 'roger-conti-63-151', 111, 'Fiche 111', 50, '', '', '', '[]'::jsonb, 'tAleute nie
+(Devis cette lissation
+Viver le locare
+Me jas A
+Matches
+Ege
+dat
+Saut ahur wa
+la 2 limite
+6 3. c le
+corder ait
+cour
+(6) estes
+Pacte
+chasure
+Feuler
+AINE TE
+Aut wakaur
+Aermners
+HILI
+logé
+4
+al
+«Fun
+01
+Lieue coute de la a
+vite filias loins de la San A.
+°OM
+A Conte, vend 1945', 'poor-scan'),
+  ('roger-conti-2-112', 'roger-conti-63-151', 112, 'Fiche 112', 51, '', '', '', '[]'::jsonb, 'THIAMLADE
+CompIrene
+contretenren
+calca
+Endort
+/
+іномоінті
+que beat delaud
+de arcameroate.
+NAX
+Yola comment de dact faire proser
+acement ta venerland
+Batte 1. Ottaque très basie et däret "
+Autodie
+Bille g
+nasse hie
+Que te
+carameltur
+Frein
+7631.
+Gookeret
+le sien ale balle
+fait de
+toridemment fourer. eues souplesse et
+dethiale.
+une attaque de la 2
+atance de la la la g
+la mesur dalenactaue
+aill en A. B. aC. le
+est linjones éxcellenté
+Brultan
+Le de camA', 'poor-scan'),
+  ('roger-conti-2-113', 'roger-conti-63-151', 113, 'Fiche 113', 52, '', '', '', '[]'::jsonb, 'haut fait filer
+la s en aversé
+dome coute due celte bille
+On doit donc allers le
+résultat par couk dur
+Bill 1. en tete et a greete
+Bill e. environ 45
+ention:
+Weme de on s''''est au entie,
+il ist prifere
+Jouer adis fort freur envoyer immédiatement
+le à caramboler en immorte de façon à ne fras
+te la rouge dans le cadre
+de cous.
+halle à un von tiles à gauche,
+altaaute la dilli:
+8 en 24
+d''''at et
+dhe ducote
+zuche,
+dinende de
+lit dant de car on are front,
+couch, l''''envoyer en 3
+hautes d''''attache prest
+un entaines variants de coup 19 O
+lains ans ont dont.
+delaite,
+futiane la vouide
+le a are touche conta fine
+e en force ne la sen
+/am
+CocA', 'poor-scan'),
+  ('roger-conti-2-114', 'roger-conti-63-151', 114, 'Fiche 114', 53, '', '', '', '[]'::jsonb, 'te d. ou a
+Gere
+gauche
+Bille e
+Akire
+Straler la 8 dons
+la déflacer
+On dois aflitour alto
+vemené da redutiand
+e anuel el florage
+Cat op
+telenteee
+valore de wehant
+Uthreadonn
+4 el Ao da relatante
+no excedent der la meude
+1.8. o C.
+a 196 est hitn fosse ame
+wat
+Veres
+se da fane
+couche roa
+16ор
+1262)
+19
+19,', 'poor-scan'),
+  ('roger-conti-2-115', 'roger-conti-63-151', 115, 'Fiche 115', 54, '', '', '', '[]'::jsonb, 'wattile.
+fatiment
+Alare.
+diet
+cal del
+al sen
+ahacorr da PAs
+A
+filare sene la 3.
+fase sta
+dide
+rar
+e de donanand
+fosse /had
+«raria )
+apace la
+fit (hai
+§ tagia.
+flient da
+Attenet ( ma dir conto) d''''anima
+farneuection, ale
+Nas de costit
+Mediale,
+Aio Conide
+1 Kant (11 7472', 'poor-scan'),
+  ('roger-conti-2-116', 'roger-conti-63-151', 116, 'Fiche 116', 55, '', '', '', '[]'::jsonb, 'ALremtal come fanat
+kit la
+METEITER
+A la Marine comen
+Conde das del :
+ale fase has cela.
+cadA
+No Alud de menfras dial da
+•
+потсатьні
+VIl lise convente de jover de
+coleriotisation sus la blanche
+(iSt. de a natie houte! Y
+te Lave are
+hout
+descalade
+A Olimas la resultante a . comite
+heredaded
+wald
+Lamed
+mahe (aovi sestoel / di
+est in A
+R. ''''Corte ( aste 1945;', 'poor-scan'),
+  ('roger-conti-2-117', 'roger-conti-63-151', 117, 'Fiche 117', 56, '', '', '', '[]'::jsonb, 'Craze 1c
+Checker
+deme
+d
+la s in wee
+four.
+9. at i
+corder
+CALO
+Ran awe 6
+weeds fear deses
+''''w,
+NARES
+and do coma Ci Care
+4. 6 reseat
+have rel
+12? Ent Sette it.', 'poor-scan'),
+  ('roger-conti-2-118', 'roger-conti-63-151', 118, 'Fiche 118', 57, '', '', '', '[]'::jsonb, 'CREE
+9, cent
+d l
+487
+ALacres
+Peraltante de conde 130
+shenfor
+dIre
+125
+1001
+10
+Prat
+130 a)
+04444r с
+COER
+•UrL.
+ty
+Alare
+OA', 'poor-scan'),
+  ('roger-conti-2-119', 'roger-conti-63-151', 119, 'Fiche 119', 58, '', '', '', '[]'::jsonb, 'interessante bauste for 17. Senti.
+Non Ce
+une cones de tecon au il venail
+de A
+sume allergue au
+olined 25 ans.
+aire Adage
+131h
+1 # arné
+Comment heud-e
+rEs
+Gemedadora
+doute!
+clair le faut est la . On fiat te
+on amide tas et s
+Wet en antie
+donc soldat de cacambores Aus
+Manute
+degl
+0904%
+formais fouet un
+On frant fouer le proches venire aime
+hordter
+(Ola) wood has dans d
+ne est i fauche, cas an autre ont
+1412', 'poor-scan'),
+  ('roger-conti-2-120', 'roger-conti-63-151', 120, 'Fiche 120', 59, '', '', '', '[]'::jsonb, 'Ca.
+a marceller me resoo
+Comma la frisinest his pan
+houser dele effet a dearte po
+• Lassie he cauls die
+Belle 1 an desses di
+castre
+Ch
+I dart froler la 3 a
+cade
+CouN
+as armame
+the. im
+rafarlande
+offt a
+fa I de
+dir en aware
+3
+Benh, octobe 115', 'poor-scan'),
+  ('roger-conti-2-121', 'roger-conti-63-151', 121, 'Fiche 121', 60, '', '', '', '[]'::jsonb, 'entest so cheches, has famen
+la
+drankarel
+44.3
+time conspudiation dare
+de wardse de la helde dande
+de»нінани
+freelani
+Auto ww hi
+remain. doe de Case
+Che died i liver de domlle de
+one chechant a file in don
+in caramolant fin a drouie
+Bill 4. zu conte a dre
+Ore ollient la residente as
+de coramtolage comme
+i do. dolled on hend empone
+sour donne heveter en bouchan
++ fleche in henri
+Landu stars
+taramdole dAm
+A
+late
+133, touche
+h з
+a!''''
+10
+A', 'poor-scan'),
+  ('roger-conti-2-122', 'roger-conti-63-151', 122, 'Fiche 122', 61, '', '', '', '[]'::jsonb, 'd
+COMA VERAIE +
+ur.t
+L g
+( d
+antolage en 1
+reP.
+gauche
+hau
+Arr
+sures/nies
+4444,
+9.
+Conte did quin factile
+l''''ixiasion de hoir en tiant
+comere di la s dant coll
+Ariu
+Sir.
+Lande ara
+d dal caler
+d
+bande, il les declata
+"I faut dane operet anse: Attaquer
+2
+A
+dan file et ha a deade
+fuites
+danse des weresad rederand
+recales
+Wald
+lantuse vers la séroule
+fosse avait une si, tie lege
+Note: ni la rouge n''''est touts collie
+il faut cherch
+carambolage fuse trois danier ins leuchant
+range et 4
+fremière bande lice fisci de coins', 'poor-scan'),
+  ('roger-conti-2-123', 'roger-conti-63-151', 123, 'Fiche 123', 62, '', '', '', '[]'::jsonb, 'daler á
+Sus
+talo
+a La
+1
+13;
+13', 'poor-scan'),
+  ('roger-conti-2-124', 'roger-conti-63-151', 124, 'Fiche 124', 63, '', '', '', '[]'::jsonb, 'te jeter con
+sisanté durs 77
+Dans
+frasition 136 haut en
+La 1 dans
+ot offre
+haut
+de
+balle 2 sece, dorme, la
+est rappelle frase deux landes
+On doit ablemer la resultante.
+de la 2 far la 1 demande pas mal de travail,
+arquer que la 3 est plus long
+i bande que dan h tire normal.
+un cade suicidation
+he feau.
+Hale qu''''aure.
+condait.
+La a inchrase tas de récessive
+thet
+"O
+obligerait à
+faner lisp fort
+nale.
++ plus facile di la 2 est ins peu plus forci de la petite
+travailler, cat es coup te freient ans dansent et
+ineur lavent l''''inicules', 'poor-scan'),
+  ('roger-conti-2-125', 'roger-conti-63-151', 125, 'Fiche 125', 64, '', '', '', '[]'::jsonb, '!
+Un redestant in as
+Mac
+des
+oh dast
+fut
+Lanche Cotent.
+fr. B
+en doit pr
+Toues commere Galle
+int choisisant coma
+dans chaque foreta
+finale la moins ils
+Он киркане віст enid
+kais identique. ou
+sest la Karate et des
+Astienche
+thal
+Pente tE.
+chinton
+de Archite
+de le / (ance rentre
+de lant vie Parute de
+bille)
+Pesente en antinie
+indique sid
+t''''est an thed matines alla
+que le blocage (dicto
+vil disphare fies).', 'poor-scan'),
+  ('roger-conti-2-126', 'roger-conti-63-151', 126, 'Fiche 126', 65, '', '', '', '[]'::jsonb, 'da 194
+de 6
+hilace frout./
+do per end
+Giant les
+494 ten d
+E due la 3 are fist fraud.
+139.)
+> indudendall, de laddies ins
+de la c has were candles
+he locare
+2412
+Key westie daws te
+Austral de
+Per she does
+Got co illear due dare
+183
+1394.
+9 Conte (skonte 1135)', 'poor-scan'),
+  ('roger-conti-2-127', 'roger-conti-63-151', 127, 'Fiche 127', 66, '', '', '', '[]'::jsonb, 'donne
+dans
+GEOL TRIS
+aFri
+dination
+fia
+-MOLAN-S48
+hairi.
+Que pas !.
+dort toucher la rouge adres
+de de façpos a moisit dans la
+| JE
+laistant cons fort bises
+Tour froquere
+de . confie
+Haque sue
+tahid et sand elle
+Bute 2.
+© envisen
+Il sullit alors
+blazer sur la sess
+la finesse de la
+On gaque dine «
+taud
+en liminant
+Gaulons defuntere', 'poor-scan'),
+  ('roger-conti-2-128', 'roger-conti-63-151', 128, 'Fiche 128', 67, '', '', '', '[]'::jsonb, 'Quoique ian mile
+billard la 3 fite
+gredice.
+Son sela cherch
+manquer le ridiod
+haut
+Jouer aung fort
+de est casernhale
+tout ra brie.
+de on transtat de hit
+farties the.
+cal.
+enda
+Des decte sme.
+tonn
+chance de lettondre
+dentinant
+de ville a Aide
+dulte. avec mars', 'poor-scan'),
+  ('roger-conti-2-129', 'roger-conti-63-151', 129, 'Fiche 129', 68, '', '', '', '[]'::jsonb, 'I parce que
+on parte que le fias est
+Vavorable comme ci cont
+Ce doit
+y vertericer et
+CHIMEHE!
+toriidoment les
+dans la
+inerviere tégion
+favorable de billard en
+Prendre tres de bille 3.4
+lier animer
+Al. et
+la a vi cola de la 3 de
+touches (ente cette elerri
+la ligne du cadre)
+1 tres basse, en frenseine dans fet.
+tait
+se rien files a troate
+Resultante du coup 142
+Si la a danes le coup 149 élixil
+" felus à droite ou à gauche
+urrait jouer le blorage en.
+ant
+ill. ci soit par deux bandes
+Hete eure
+bande.', 'poor-scan'),
+  ('roger-conti-2-130', 'roger-conti-63-151', 130, 'Fiche 130', 69, '', '', '', '[]'::jsonb, 'faguere
+de cede
+dentalion
+munite dano audia
+hai
+140
+Time
+Ag
+dire
+Karde
+, lete dame effet
+la raineles aver llocaze
+fender da con.
+flocase due
+0 00044
+hais
+wee dat
+de pararie
+fresnipi
+-hal
+d 43
+il crice de tou
+far couté lie fin
+143
+auto de ne das colle cade
+insofte vers la gauche) it in instin
+mauritile mattar due le tre 414
+da tele
+Larea,
+Resultante is', 'poor-scan'),
+  ('roger-conti-2-131', 'roger-conti-63-151', 131, 'Fiche 131', 70, '', '', '', '[]'::jsonb, 'V entres.
+Rito direct ante sudatis
+à dune barder et vient en s
+la premiere
+1 0
+gardent la fannide
+Pesultante de ecun) 146
+ii Cheval.
+Reto une bande rose.
+Salage tien fin tour la 3 de façon si
+: teviouke de servir
+wert en d''''at on il les billes a cherrat
+dit
+At
+oei mesure, de tute façon la résultnt est arcelten', 'poor-scan'),
+  ('roger-conti-2-132', 'roger-conti-63-151', 132, 'Fiche 132', 71, '', '', '', '[]'::jsonb, 'Ca for
+D,
+cart
+Miel en ?
+Rivaisie mes defençant d''''envoyes
+L''''inonde Grande, Foules des la j
+adudiant 145 a )
+h ah
+har
+Paul ds sort
+R. Sentir
+Times', 'poor-scan'),
+  ('roger-conti-2-133', 'roger-conti-63-151', 133, 'Fiche 133', 72, '', '', '', '[]'::jsonb, '10-5
+Bille i sand
+€,
+Ne die daum.
+Al de Aristant
+Dans si circh et vase
+bas le coure
+ine nie drid fras forcer le blocage (i an fient faire
+mulement ) car la bassie et autre.
+On dect hat wehre inf et attesur
+re anade en caritanfoland ha
+сатани
+or Caract
+''''anc
+somm
+flacast.
+O
+•
+de
+ferrade A
+cultante du tout 106
+ANdition
+domine
+ANAL CAS
+fortere,
+Comment se', 'poor-scan'),
+  ('roger-conti-2-134', 'roger-conti-63-151', 134, 'Fiche 134', 73, '', '', '', '[]'::jsonb, 'Bille 1 en tete et dans
+Belle 3. hueue pleine ni deaite
+Toute dur
+has
+Auronteure.
+catrides Alade
+laquer. la
+S treind
+filerre de ut ait colle.
+franicament
+telein, et frereuse faamais far ances de folien demanant tenes au orant
+reung interet de fremire di l''''after à gauche. Outre pur
+ch
+plus facile, ell o fle
+lavante
+de me dhats darowel
+dre.
+09
+Pecultante du cart 107
+Si on n''''est tens filice sue la blanche on foue
+ne banale tas lis rouge. Os, celle en
+art enter
+et qu''''en A re
+Tilt a douche', 'poor-scan'),
+  ('roger-conti-2-135', 'roger-conti-63-151', 135, 'Fiche 135', 74, '', '', '', '[]'::jsonb, 'Aller
+Bille 3
+coule sentende
+Avicule
+est cever Aedul
+resultanie sure li
+souse soude tercond
+iles difiste.
+won.
+don
+Trieste
+ne diast tues d''''un masse nosinal, ose
+mode coule verconde
+, honte de fin
+on secarti qu''''elle sort, leur que le coule rene
+wlh > et loucher
+la g Ao
+gauche ah col
+allante du cour 141-210', 'poor-scan'),
+  ('roger-conti-2-136', 'roger-conti-63-151', 136, 'Fiche 136', 75, '', '', '', '[]'::jsonb, '006
+Position A.
+Les latte etrad ling de la
+Cit.
+dire fours
+Arene
+de façue a
+hatsite cono germinare
+mardess
+Madre
+Aut
+fret
+Band Laddad de mare
+sudor
+Laud
+Carta
+rete fiat iene deonde est fundesligonion sinteressand
+le hinis est ans pess
+arruove de
+Pera', 'poor-scan'),
+  ('roger-conti-2-137', 'roger-conti-63-151', 137, 'Fiche 137', 76, '', '', '', '[]'::jsonb, 'file
+TRAL
+hotelle
+dedA
+Aril danie
+Am fines
+de dégager tond la roue
+faue: Oie doit se place sur
+la
+Galant ce de
+tas et hies fauche
+hut
+TAle
+rie
+150
+Trider
+tout
+*WI
+huant ang.
+Acad
+fasse feue hardes.
+Aired
+deute
+Aose roule sard en
+Grenche la Galle d', 'poor-scan'),
+  ('roger-conti-2-138', 'roger-conti-63-151', 138, 'Fiche 138', 77, '', '', '', '[]'::jsonb, 'tie
+share su eroefs
+checkes
+file
+4/3d1-74486
+Keta
+frastare:
+de on emanasse
+dischiono de cata
+fanale e /
+Aaci me Morette
+tale a
+Vie brace in toug
+Audie amantare
+Falle ontendiation cA
+tfr.
+Amr datarlo
+chil 145', 'poor-scan'),
+  ('roger-conti-2-139', 'roger-conti-63-151', 139, 'Fiche 139', 78, '', '', '', '[]'::jsonb, 'des
+Balle 1 au ventre et a desche
+Bille 2. Jure perfres ires
+lent
+3 Qutant que possible pers
+iL mort de Aile
+Qu''''on peut, pour déplacer cale à de aneloues
+cententies deulerment
+e dard certains cas, en jaime messe )
+grande dande tie files se don
+à prendre moues d''''ellet se cole.
++ d''''aillener lite préferalle de caranovle
+dese bander due fuse bisis lanis
+par jouer.
+Mar
+concament
+9. Conti. (Doul 1946)
+10
+Fóultonie
+du couch', 'poor-scan'),
+  ('roger-conti-2-140', 'roger-conti-63-151', 140, 'Fiche 140', 79, '', '', '', '[]'::jsonb, 'des
+Balle 1 au ventre et a desche
+Bille 2. Jure perfres ires
+lent
+3 Qutant que possible pers
+iL mort de Aile
+Qu''''on peut, pour déplacer cale à de aneloues
+cententies deulerment
+e dard certains cas, en jaime messe )
+grande dande tie files se don
+à prendre moues d''''ellet se cole.
++ d''''aillener lite préferalle de caranovle
+dese bander due fuse bisis lanis
+par jouer.
+Mar
+concament
+9. Conti. (Doul 1946)
+10
+Fóultonie
+du couch', 'poor-scan'),
+  ('roger-conti-2-141', 'roger-conti-63-151', 141, 'Fiche 141', 80, '', '', '', '[]'::jsonb, 'te fiteet.
+19
+On seihrase la bicale. far
+de la rouge impossill
+Le conte hai
+bricole
+hich le billes.
+Your une bande avec cas
+fuir contre de la 2, qui
+la bille 1 de skeande weed /
+de
+hillard.
+Bilà 1. au dessei du cent
+her i douche
+Si S. environ
+Bout de
+re44
+Yout
+doutomnett
+ont ce en crud
+Que ce ind
+le point durant rare au.
+I Aoupe der son chone:
+un a pris la initaudion
+Le therme il ceront )
+SENTE
+des cout 763', 'poor-scan'),
+  ('roger-conti-2-142', 'roger-conti-63-151', 142, 'Fiche 142', 81, '', '', '', '[]'::jsonb, 'time
+fore for conte, mai the he ha
+ete has fouce de mast
+cal
+bait futi de on de lainita sume
+four k und dande ave tat
+Bile
+Bille
+MO-PHS
+Jusique touchie fine lad
+prescive thout dreamed ille
+de Are
+Aid/que fine.
+FRES
+si в
+que did dilicatt
+a
+Lien filacer la proselion, 156
+faut. que ha I sout assay fires de
+2. Haute hart il fant sue la
+talke teresque frost couls,
+(
+foul fores (dome is preme masque)l
+''''Taullant du can
+.', 'poor-scan'),
+  ('roger-conti-2-143', 'roger-conti-63-151', 143, 'Fiche 143', 82, '', '', '', '[]'::jsonb, 'Placemank sur la reuge
+har Aigui
+Herche ne ventie par De loute façon, le une
+de sui colf.ci est dilliale de la mam danilo
+•IA PPA
+Lande set la rodute
+(Ane save ) aut la rosse
+I hits defficate, et di en
+o al far Alare dur la rese
+tate de micoli.
+Stili o. Accorda di riusa
+cadde sa die', 'poor-scan'),
+  ('roger-conti-2-144', 'roger-conti-63-151', 144, 'Fiche 144', 83, '', '', '', '[]'::jsonb, '2.
+, il freud l''''amenes.
+serie tal,
+someme cit de cas wi-seioe, cind
+sete cordel de
+de 4 3.
+doit
+Leair
+de tement
+3 a dan
+code
+ne dassedanie
+et
+-Ame
+(ay,
+doid
+a ,
+Laut
+cede
+impar/
+AR
+ia um.
+tes atedtte Anda
+vie schart
+Resultante
+äu couh 158 (
+euroide mais arsht.
+di la 1 est en !'''' tout ver
+Mais si en v''''ul mal filare
+deve', 'poor-scan'),
+  ('roger-conti-2-145', 'roger-conti-63-151', 145, 'Fiche 145', 84, '', '', '', '[]'::jsonb, '40 1069005
+51494.4
+ou fresque
+Koup de queue douk,
+, *Pr
+aura de merdant
+Sarmane de la main
+Accente
+Bille 1. daris effet de cote
+horrit d''''allaque sur la li
+Bille 2. Plein
+Fróler la 3 au passage,
+celle-ci reste a.
+(decarter filutal la raupe sous le ssin que tes
+Frécutoy
+tres facile
+transt qui
+connait /
+du mase
+coule
+n seul danger:
+que de faire faute aie la
+gauche.
+Sone bien faire
+vom est fessant la maire
+w oublier.
+que si la man et
+corrictement
+la fice interieure
+Nad
+doit the a quelques
+nettes deulement de la v.
+Resultante du con', 'poor-scan'),
+  ('roger-conti-2-146', 'roger-conti-63-151', 146, 'Fiche 146', 85, '', '', '', '[]'::jsonb, '.O
+che fuis atterquer
+d''''aulant files
+reale, ben elindu, que lis
+* mans ileignée de la
+de fande.
+Pesultante du coupe 160.
+que / comme Serbier
+Conti tricanise
+jetenner!
+de la
+maste far fa
+Mouer aderg
+fort
+boatie la é du e
+frous ne pas rester
+(de la 3.
+trotte frater on', 'poor-scan'),
+  ('roger-conti-2-147', 'roger-conti-63-151', 147, 'Fiche 147', 86, '', '', '', '[]'::jsonb, 'nos
+etion, frosse la fivilion
+y la fustatione "(saites")
+, al moins dileade
+wadie diseit, maid
+sentant / celte int
+Les billes sont dedans.
+Le masé est diliale
+auricement .
+car les billes dit 3 me forment frat i
+la t une liame aroute, mais un dos.
+Novice donc le mani trat la
+(Gégler l''''effet à gauché et
+terticalité suivant
+(iracte à jouer.
+la frisitio
+Attention:
+il pers jouer bish doucement
+de cette farfer di en lireche
+hok grade on carambolera
+récrirains par dems-code dela', 'poor-scan'),
+  ('roger-conti-2-148', 'roger-conti-63-151', 148, 'Fiche 148', 87, '', '', '', '[]'::jsonb, 'Se placer su la 3 m don
+Caramio
+cland Alein à sas
+la 3 hari
+12 6
+Mbeci restéra de hich rattra
+de la grande Lande et de
+une densi - madous de on a
+feu bish fort.
+de fras jouer.
+hon
+QA
+dera
+doucement de façon d ensoy
+de la dont du court
+Che me ridout tien
+''''impulsion de la I de Faisan
+allarlie fuse de
+Na 4 3
+Position " Dechars
+troue invoyer la i man has en s''''mais.
+esultante du coute 160 -
+Sud GlaçA
+Ai la s siest tas contre
+de Maure a 2 de 4 Y
+bande, même intspractations
+se de massue dant
+v élimieri fide le toush dur', 'poor-scan'),
+  ('roger-conti-2-149', 'roger-conti-63-151', 149, 'Fiche 149', 88, '', '', '', '[]'::jsonb, '65
+Rive
+coud
+ar
+naercament
+164
+Jean
+TELLE
+3 Landes
+delles du confie
+elonger', 'poor-scan'),
+  ('roger-conti-2-150', 'roger-conti-63-151', 150, 'Fiche 150', 89, '', '', '', '[]'::jsonb, 'dal
+Bill c 4.', 'poor-scan'),
+  ('roger-conti-2-151', 'roger-conti-63-151', 151, 'Fiche 151', 90, '', '', '', '[]'::jsonb, '', 'poor-scan')
+on conflict (id) do update set set_key = excluded.set_key, number = excluded.number, title = excluded.title, pdf_page = excluded.pdf_page, discipline = excluded.discipline, difficulty = excluded.difficulty, description = excluded.description, comments = excluded.comments, source_text = excluded.source_text, source_quality = excluded.source_quality, updated_at = timezone('utc', now());
