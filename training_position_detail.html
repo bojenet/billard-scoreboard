@@ -77,7 +77,6 @@
                         <textarea id="notesInput" placeholder="Eigene Notizen, Hinweise, Varianten, wichtige Punkte"></textarea>
                     </div>
                     <button class="btn primary" id="saveBtn" onclick="savePositionState()">Speichern</button>
-                    <div class="hint" id="hintText">Fokus auf bearbeitbare Notizen und Trainingsstatus.</div>
                 </div>
             </div>
         </div>
@@ -153,7 +152,7 @@
             document.getElementById("qualityPill").innerText = currentPosition.sourceQuality === "poor-scan" ? "Quelle: schwacher Scan" : "Quelle: PDF mit Text";
         }
         function renderViewer() {
-            const pdfUrl = COLLECTIONS[currentCollection].pdfPath + "#page=" + currentPosition.pdfPage + "&view=FitH";
+            const pdfUrl = COLLECTIONS[currentCollection].pdfPath + "#page=" + currentPosition.pdfPage + "&view=FitH&pagemode=none";
             document.getElementById("pdfFrame").src = pdfUrl;
             document.getElementById("openPdfBtn").onclick = () => window.open(pdfUrl, "_blank");
         }
