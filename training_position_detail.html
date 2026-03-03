@@ -5,35 +5,31 @@
     <title>Trainingsposition</title>
     <style>
         body { margin:0; font-family:Arial,sans-serif; background:linear-gradient(180deg,#0f1c3f,#0a122b); color:white; }
-        .page { width:min(1380px,95%); margin:20px auto 28px; }
+        .page { width:min(1500px,96%); margin:20px auto 28px; }
         .topbar { display:flex; justify-content:space-between; gap:14px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
         .left h1 { margin:0; font-size:46px; }
         .sub { margin-top:8px; opacity:.76; font-size:17px; }
         .actions { display:flex; gap:10px; flex-wrap:wrap; }
         .btn { border:none; border-radius:12px; padding:12px 16px; background:#1c3380; border:1px solid #3659bb; color:white; font-size:16px; font-weight:700; cursor:pointer; }
         .btn.primary { background:#2f4fe0; }
-        .btn.good { background:#198754; border-color:#30a96e; }
-        .btn.bad { background:#b03c3c; border-color:#cc6767; }
-        .layout { display:grid; grid-template-columns:minmax(0,2fr) minmax(320px,.95fr); gap:18px; }
+        .layout { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(420px,1fr); gap:18px; }
         .card { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:22px; box-shadow:0 24px 56px rgba(0,0,0,.45); overflow:hidden; }
         .viewer-head { padding:14px 16px; border-bottom:1px solid #27417f; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
         .viewer-title { font-size:22px; font-weight:800; }
         .viewer-sub { font-size:14px; opacity:.76; margin-top:4px; }
-        .viewer { height:76vh; min-height:680px; background:#08122f; }
+        .viewer { height:78vh; min-height:760px; background:#08122f; }
         .viewer iframe { width:100%; height:100%; border:none; background:white; }
-        .side { padding:16px; }
-        .notice { margin-bottom:12px; padding:12px 14px; border-radius:14px; border:1px solid #556db2; background:rgba(20,38,89,.78); font-size:14px; line-height:1.5; opacity:.92; }
-        .stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
-        .stat { border:1px solid #2f4ea0; border-radius:14px; padding:12px; background:rgba(8,20,54,.44); }
-        .stat-label { font-size:12px; opacity:.72; margin-bottom:6px; }
-        .stat-value { font-size:24px; font-weight:800; }
-        .stack { display:grid; gap:10px; }
-        .field label { display:block; font-size:13px; opacity:.8; margin-bottom:6px; }
-        .field textarea { width:100%; box-sizing:border-box; border:1px solid #3959ab; border-radius:12px; padding:11px 12px; color:white; background:#112659; min-height:420px; resize:vertical; font-size:16px; line-height:1.5; }
-        .pill-row { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 10px; }
+        .side { padding:16px; display:grid; gap:12px; }
+        .notice { padding:12px 14px; border-radius:14px; border:1px solid #556db2; background:rgba(20,38,89,.78); font-size:14px; line-height:1.5; opacity:.92; }
+        .meta { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
         .pill { padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); }
+        .train-box { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:16px; border:1px solid #3a60bf; background:rgba(17,38,89,.72); }
+        .train-box input { width:22px; height:22px; }
+        .train-label { font-size:20px; font-weight:800; }
+        .field label { display:block; font-size:13px; opacity:.8; margin-bottom:6px; }
+        .field textarea { width:100%; box-sizing:border-box; border:1px solid #3959ab; border-radius:12px; padding:14px 14px; color:white; background:#112659; min-height:640px; resize:vertical; font-size:18px; line-height:1.55; }
         .hint { font-size:13px; opacity:.74; line-height:1.5; }
-        @media (max-width:1000px) { .layout { grid-template-columns:1fr; } .viewer { height:66vh; min-height:520px; } }
+        @media (max-width:1100px) { .layout { grid-template-columns:1fr; } .viewer { height:68vh; min-height:560px; } .field textarea { min-height:420px; } }
     </style>
 </head>
 <body>
@@ -65,22 +61,19 @@
             <div class="card">
                 <div class="side">
                     <div class="notice" id="noticeBox" style="display:none;"></div>
-                    <div class="stats">
-                        <div class="stat"><div class="stat-label">TREFFER</div><div class="stat-value" id="hitsValue">0</div></div>
-                        <div class="stat"><div class="stat-label">FEHLER</div><div class="stat-value" id="missesValue">0</div></div>
-                        <div class="stat"><div class="stat-label">QUOTE</div><div class="stat-value" id="rateValue">0 %</div></div>
+                    <div class="meta">
+                        <div class="pill" id="qualityPill">Quelle</div>
                     </div>
-                    <div class="pill-row"><div class="pill" id="qualityPill">Quelle</div></div>
-                    <div class="stack">
-                        <button class="btn good" onclick="recordAttempt(true)">Treffer erfassen</button>
-                        <button class="btn bad" onclick="recordAttempt(false)">Fehler erfassen</button>
-                        <div class="field">
-                            <label for="notesInput">Notizen</label>
-                            <textarea id="notesInput" placeholder="z.B. Effet, Tempo, Schwierigkeit, typische Fehler"></textarea>
-                        </div>
-                        <button class="btn primary" onclick="saveNotes()">Notizen speichern</button>
-                        <div class="hint" id="hintText">Texte werden lokal offline vorbereitet und dann in den Katalog übernommen. Hier bearbeitest du nur fertige Inhalte oder eigene Notizen.</div>
+                    <label class="train-box">
+                        <input id="trainedCheckbox" type="checkbox">
+                        <span class="train-label">Trainiert</span>
+                    </label>
+                    <div class="field">
+                        <label for="notesInput">Notizen</label>
+                        <textarea id="notesInput" placeholder="Eigene Notizen, Hinweise, Varianten, wichtige Punkte"></textarea>
                     </div>
+                    <button class="btn primary" onclick="savePositionState()">Speichern</button>
+                    <div class="hint" id="hintText">Fokus auf bearbeitbare Notizen und Trainingsstatus.</div>
                 </div>
             </div>
         </div>
@@ -98,7 +91,12 @@
             "roger-conti-63-151": { file: "data/roger_conti_positions_63_150.json", label: "Roger Conti 63-151", pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_63-151.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfNjMtMTUxLnBkZiIsImlhdCI6MTc3MjQ1Nzk0MywiZXhwIjoxODAzOTkzOTQzfQ.3c2paRxUB3ifN6kZSkeAJ81YWjv_-AxmuDqv5PNJAXQ" }
         };
         let currentUser = null, positions = [], currentPosition = null, currentCollection = null, entry = null;
-        function setNotice(text) { const el = document.getElementById("noticeBox"); el.style.display = text ? "block" : "none"; el.innerText = text || ""; }
+
+        function setNotice(text) {
+            const el = document.getElementById("noticeBox");
+            el.style.display = text ? "block" : "none";
+            el.innerText = text || "";
+        }
         function localStorageKey() { return "position_training_progress_" + String(currentUser?.id || "guest"); }
         function loadLocalProgressMap() { try { return JSON.parse(localStorage.getItem(localStorageKey()) || "{}"); } catch (_) { return {}; } }
         function saveLocalProgressMap(map) { localStorage.setItem(localStorageKey(), JSON.stringify(map)); }
@@ -109,11 +107,8 @@
             if (currentCollection === "roger-conti-63-151") return "Für diese Position liegt noch kein importierter Text vor. Notizen hier manuell ergänzen oder lokal OCRen und später importieren.";
             return "";
         }
-        function renderStats() {
-            const hits = Number(entry?.hits || 0), misses = Number(entry?.misses || 0), total = hits + misses, rate = total > 0 ? Math.round((hits / total) * 100) : 0;
-            document.getElementById("hitsValue").innerText = hits;
-            document.getElementById("missesValue").innerText = misses;
-            document.getElementById("rateValue").innerText = rate + " %";
+        function renderState() {
+            document.getElementById("trainedCheckbox").checked = Boolean(entry?.trained);
             document.getElementById("notesInput").value = getDefaultNotes();
         }
         function renderMeta() {
@@ -136,9 +131,9 @@
             const { data: list, error: listError } = await supabaseClient.from("training_positions_catalog").select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality,source_text").eq("set_key", currentCollection).order("number", { ascending: true });
             if (listError) throw listError;
             positions = (list || []).map((item) => ({ ...item, pdfPage: item.pdf_page, sourceQuality: item.source_quality, sourceText: item.source_text || item.sourceText || "" }));
-            const { data: progressRow, error: progressError } = await supabaseClient.from("training_position_progress").select("position_id,hits,misses,notes,last_trained").eq("user_id", currentUser.id).eq("position_id", currentPosition.id).maybeSingle();
+            const { data: progressRow, error: progressError } = await supabaseClient.from("training_position_progress").select("position_id,notes,trained,updated_at").eq("user_id", currentUser.id).eq("position_id", currentPosition.id).maybeSingle();
             if (progressError) throw progressError;
-            entry = progressRow || { position_id: currentPosition.id, hits: 0, misses: 0, notes: "", last_trained: "" };
+            entry = progressRow || { position_id: currentPosition.id, notes: "", trained: false, updated_at: "" };
         }
         async function loadFallback() {
             for (const [key, cfg] of Object.entries(COLLECTIONS)) {
@@ -153,21 +148,23 @@
             }
             const map = loadLocalProgressMap();
             const raw = map[currentPosition.id] || {};
-            entry = { position_id: currentPosition.id, hits: Number(raw.hits || 0), misses: Number(raw.misses || 0), notes: raw.notes || "", last_trained: raw.lastTrained || "" };
+            entry = { position_id: currentPosition.id, notes: raw.notes || "", trained: Boolean(raw.trained), updated_at: raw.updatedAt || "" };
         }
-        async function saveProgress() {
+        async function savePositionState() {
+            entry.notes = document.getElementById("notesInput").value || "";
+            entry.trained = document.getElementById("trainedCheckbox").checked;
+            entry.updated_at = new Date().toISOString();
             try {
-                const payload = { position_id: currentPosition.id, user_id: currentUser.id, hits: Number(entry.hits || 0), misses: Number(entry.misses || 0), notes: entry.notes || "", last_trained: entry.last_trained || null };
+                const payload = { position_id: currentPosition.id, user_id: currentUser.id, notes: entry.notes || "", trained: Boolean(entry.trained), updated_at: entry.updated_at };
                 const { error } = await supabaseClient.from("training_position_progress").upsert(payload, { onConflict: "position_id,user_id" });
                 if (error) throw error;
             } catch (_) {
                 const map = loadLocalProgressMap();
-                map[currentPosition.id] = { hits: Number(entry.hits || 0), misses: Number(entry.misses || 0), notes: entry.notes || "", lastTrained: entry.last_trained || "" };
+                map[currentPosition.id] = { notes: entry.notes || "", trained: Boolean(entry.trained), updatedAt: entry.updated_at };
                 saveLocalProgressMap(map);
             }
+            renderState();
         }
-        async function recordAttempt(success) { try { if (success) entry.hits = Number(entry.hits || 0) + 1; else entry.misses = Number(entry.misses || 0) + 1; entry.last_trained = new Date().toISOString(); await saveProgress(); renderStats(); } catch (error) { console.error(error); alert("Fortschritt konnte nicht gespeichert werden."); } }
-        async function saveNotes() { try { entry.notes = document.getElementById("notesInput").value || ""; entry.last_trained = new Date().toISOString(); await saveProgress(); renderStats(); } catch (error) { console.error(error); alert("Notizen konnten nicht gespeichert werden."); } }
         function goToPosition(index) { if (index < 0 || index >= positions.length) return; window.location.href = "training_position_detail.html?id=" + encodeURIComponent(positions[index].id); }
         function goPrev() { const index = positions.findIndex((x) => x.id === currentPosition.id); goToPosition(index - 1); }
         function goNext() { const index = positions.findIndex((x) => x.id === currentPosition.id); goToPosition(index + 1); }
@@ -175,7 +172,7 @@
             currentUser = await requireAuth(); if (!currentUser) return;
             try { await loadPositionAndCollectionFromDb(); } catch (error) { console.warn("Positionstraining DB-Fallback aktiv:", error); setNotice("Datenbanktabellen für Positionstraining noch nicht aktiv. JSON/localStorage-Fallback läuft. SQL aus sql/training_positions.sql in Supabase ausführen."); await loadFallback(); }
             if (!currentPosition) return;
-            renderMeta(); renderViewer(); renderStats();
+            renderMeta(); renderViewer(); renderState();
         }
         init();
     </script>

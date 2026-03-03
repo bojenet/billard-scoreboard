@@ -12,7 +12,7 @@
         .actions,.filter-group,.collection-group { display:flex; gap:10px; flex-wrap:wrap; }
         .btn { border:none; border-radius:12px; padding:12px 16px; background:#1c3380; border:1px solid #3659bb; color:white; font-size:16px; font-weight:700; cursor:pointer; }
         .btn.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
-        .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
+        .stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
         .stat,.card { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:18px; box-shadow:0 18px 36px rgba(0,0,0,.35); }
         .stat { padding:16px; }
         .stat-label { font-size:13px; opacity:.72; margin-bottom:8px; letter-spacing:1px; }
@@ -26,7 +26,6 @@
         .tile { border-radius:18px; padding:16px 14px; background:linear-gradient(180deg,#223d8f,#172c69); border:1px solid #3659bb; cursor:pointer; min-height:150px; display:flex; flex-direction:column; justify-content:space-between; transition:transform .16s ease, filter .16s ease, border-color .16s ease; }
         .tile:hover { transform:translateY(-2px); filter:brightness(1.05); }
         .tile.done { border-color:#4bd58a; box-shadow:inset 0 0 0 1px rgba(75,213,138,.4); }
-        .tile.weak { border-color:#ff7b7b; box-shadow:inset 0 0 0 1px rgba(255,123,123,.35); }
         .tile-top { display:flex; justify-content:space-between; gap:8px; align-items:start; }
         .tile-no { font-size:28px; font-weight:800; }
         .badge { font-size:11px; padding:4px 7px; border-radius:999px; background:rgba(255,255,255,.12); }
@@ -42,7 +41,7 @@
         <div class="topbar">
             <div>
                 <h1>Positionstraining</h1>
-                <div class="sub">Lokaler OCR-Import nur offline, App zeigt fertige Inhalte aus dem Katalog</div>
+                <div class="sub">Fokus auf Notizen und Trainingsstatus</div>
             </div>
             <div class="actions">
                 <button class="btn" onclick="window.location.href='training.html'">Zurück</button>
@@ -52,7 +51,6 @@
         <div class="stats">
             <div class="stat"><div class="stat-label">POSITIONEN</div><div class="stat-value" id="totalPositions">0</div></div>
             <div class="stat"><div class="stat-label">TRAINIERT</div><div class="stat-value" id="trainedPositions">0</div></div>
-            <div class="stat"><div class="stat-label">TREFFERQUOTE</div><div class="stat-value" id="hitRate">0 %</div></div>
             <div class="stat"><div class="stat-label">OFFEN</div><div class="stat-value" id="openPositions">0</div></div>
         </div>
 
@@ -69,7 +67,6 @@
                 <div class="filter-group">
                     <button class="btn active" id="filterAll" onclick="setFilter('all')">Alle</button>
                     <button class="btn" id="filterOpen" onclick="setFilter('open')">Offen</button>
-                    <button class="btn" id="filterWeak" onclick="setFilter('weak')">Schwach</button>
                     <button class="btn" id="filterDone" onclick="setFilter('done')">Trainiert</button>
                 </div>
             </div>
@@ -105,19 +102,18 @@
                 const raw = JSON.parse(localStorage.getItem(localStorageKey()) || "{}");
                 progressMap = {};
                 Object.entries(raw).forEach(([positionId, entry]) => {
-                    progressMap[positionId] = { position_id: positionId, hits: Number(entry.hits || 0), misses: Number(entry.misses || 0), notes: entry.notes || "", last_trained: entry.lastTrained || "" };
+                    progressMap[positionId] = { position_id: positionId, notes: entry.notes || "", trained: Boolean(entry.trained), updated_at: entry.updatedAt || "" };
                 });
             } catch (_) { progressMap = {}; }
         }
-        function getProgress(id) { return progressMap[id] || { position_id: id, hits: 0, misses: 0, notes: "", last_trained: "" }; }
+        function getProgress(id) { return progressMap[id] || { position_id: id, notes: "", trained: false, updated_at: "" }; }
         function computeStats(item) {
             const p = getProgress(item.id);
-            const total = Number(p.hits || 0) + Number(p.misses || 0);
-            return { total, trained: total > 0, rate: total > 0 ? (Number(p.hits || 0) / total) : 0, data: p };
+            return { trained: Boolean(p.trained), data: p };
         }
         function setFilter(filter) {
             currentFilter = filter;
-            ["all", "open", "weak", "done"].forEach((key) => {
+            ["all", "open", "done"].forEach((key) => {
                 const el = document.getElementById("filter" + key.charAt(0).toUpperCase() + key.slice(1));
                 if (el) el.classList.toggle("active", key === filter);
             });
@@ -135,24 +131,14 @@
             const stats = computeStats(item);
             if (currentFilter === "open") return !stats.trained;
             if (currentFilter === "done") return stats.trained;
-            if (currentFilter === "weak") return stats.trained && stats.rate < 0.6;
             return true;
         }
         function renderStats() {
             const total = positions.length;
-            const trainedItems = positions.filter((item) => computeStats(item).trained);
-            const trainedCount = trainedItems.length;
-            const openCount = total - trainedCount;
-            let hits = 0, attempts = 0;
-            trainedItems.forEach((item) => {
-                const p = computeStats(item).data;
-                hits += Number(p.hits || 0);
-                attempts += Number(p.hits || 0) + Number(p.misses || 0);
-            });
+            const trainedCount = positions.filter((item) => computeStats(item).trained).length;
             document.getElementById("totalPositions").innerText = total;
             document.getElementById("trainedPositions").innerText = trainedCount;
-            document.getElementById("openPositions").innerText = openCount;
-            document.getElementById("hitRate").innerText = (attempts > 0 ? Math.round((hits / attempts) * 100) : 0) + " %";
+            document.getElementById("openPositions").innerText = total - trainedCount;
         }
         function render() {
             const currentConfig = COLLECTIONS[currentCollection];
@@ -171,19 +157,15 @@
                 const tile = document.createElement("div");
                 tile.className = "tile";
                 if (stats.trained) tile.classList.add("done");
-                if (stats.trained && stats.rate < 0.6) tile.classList.add("weak");
-                const attempts = stats.total;
-                const rateText = attempts > 0 ? Math.round(stats.rate * 100) + " %" : "offen";
-                const lastTrainedText = stats.data.last_trained ? ("Zuletzt: " + new Date(stats.data.last_trained).toLocaleDateString()) : "Noch nicht trainiert";
-                const sourceText = hasImportedText ? "Text importiert" : (currentCollection === "roger-conti-63-151" ? "Noch kein lokaler Import" : lastTrainedText);
+                const statusText = stats.trained ? "Trainiert" : "Offen";
+                const sourceText = hasImportedText ? "Text importiert" : (currentCollection === "roger-conti-63-151" ? "Noch kein lokaler Import" : "Noch kein Text");
                 tile.innerHTML = `
                     <div>
                         <div class="tile-top">
                             <div class="tile-no">${item.number}</div>
-                            <div class="badge">${attempts > 0 ? attempts + " Vers." : (hasImportedText ? "Text" : "neu")}</div>
+                            <div class="badge">${statusText}</div>
                         </div>
                         <div class="tile-title">${item.title}</div>
-                        <div class="tile-sub">Trefferquote: ${rateText}</div>
                     </div>
                     <div class="tile-sub">${sourceText}</div>
                 `;
@@ -203,7 +185,7 @@
         async function loadProgressFromDb(ids) {
             progressMap = {};
             if (!ids.length) return;
-            const { data, error } = await supabaseClient.from("training_position_progress").select("position_id,hits,misses,notes,last_trained").eq("user_id", currentUser.id).in("position_id", ids);
+            const { data, error } = await supabaseClient.from("training_position_progress").select("position_id,notes,trained,updated_at").eq("user_id", currentUser.id).in("position_id", ids);
             if (error) throw error;
             (data || []).forEach((row) => { progressMap[row.position_id] = row; });
         }
