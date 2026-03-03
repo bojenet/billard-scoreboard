@@ -10,8 +10,11 @@
         .left h1 { margin:0; font-size:46px; }
         .sub { margin-top:8px; opacity:.76; font-size:17px; }
         .actions { display:flex; gap:10px; flex-wrap:wrap; }
-        .btn { border:none; border-radius:12px; padding:12px 16px; background:#1c3380; border:1px solid #3659bb; color:white; font-size:16px; font-weight:700; cursor:pointer; }
+        .btn { border:none; border-radius:12px; padding:12px 16px; background:#1c3380; border:1px solid #3659bb; color:white; font-size:16px; font-weight:700; cursor:pointer; transition:transform .08s ease, box-shadow .16s ease, filter .16s ease, background .16s ease, border-color .16s ease; }
+        .btn:active { transform:translateY(2px) scale(.985); filter:brightness(.92); }
         .btn.primary { background:#2f4fe0; }
+        .btn.primary.saving { background:#2743bd; border-color:#6f8cff; box-shadow:inset 0 2px 10px rgba(0,0,0,.25); transform:translateY(1px) scale(.99); }
+        .btn.primary.saved { background:#3e62ff; border-color:#9ab0ff; box-shadow:0 0 0 3px rgba(117,146,255,.24), 0 10px 24px rgba(67,99,255,.28); }
         .layout { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(420px,1fr); gap:18px; }
         .card { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:22px; box-shadow:0 24px 56px rgba(0,0,0,.45); overflow:hidden; }
         .viewer-head { padding:14px 16px; border-bottom:1px solid #27417f; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
@@ -72,7 +75,7 @@
                         <label for="notesInput">Notizen</label>
                         <textarea id="notesInput" placeholder="Eigene Notizen, Hinweise, Varianten, wichtige Punkte"></textarea>
                     </div>
-                    <button class="btn primary" onclick="savePositionState()">Speichern</button>
+                    <button class="btn primary" id="saveBtn" onclick="savePositionState()">Speichern</button>
                     <div class="hint" id="hintText">Fokus auf bearbeitbare Notizen und Trainingsstatus.</div>
                 </div>
             </div>
@@ -91,11 +94,39 @@
             "roger-conti-63-151": { file: "data/roger_conti_positions_63_150.json", label: "Roger Conti 63-151", pdfPath: "https://kstqhcaazuuxchqtnyfc.supabase.co/storage/v1/object/sign/pdf/Conti_63-151.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83MDBhNTU0Ny1jODNmLTQ5NzUtOWViMi01ODA4ZGQyOWZjZWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYvQ29udGlfNjMtMTUxLnBkZiIsImlhdCI6MTc3MjQ1Nzk0MywiZXhwIjoxODAzOTkzOTQzfQ.3c2paRxUB3ifN6kZSkeAJ81YWjv_-AxmuDqv5PNJAXQ" }
         };
         let currentUser = null, positions = [], currentPosition = null, currentCollection = null, entry = null;
+        let saveInProgress = false;
+        let savedPulseTimeout = null;
 
         function setNotice(text) {
             const el = document.getElementById("noticeBox");
             el.style.display = text ? "block" : "none";
             el.innerText = text || "";
+        }
+        function setSaveButtonState(label, disabled) {
+            const btn = document.getElementById("saveBtn");
+            btn.innerText = label;
+            btn.disabled = disabled;
+            btn.style.opacity = disabled ? "0.72" : "1";
+            btn.style.cursor = disabled ? "wait" : "pointer";
+        }
+        function setSaveButtonVisualState(state) {
+            const btn = document.getElementById("saveBtn");
+            btn.classList.remove("saving", "saved");
+            if (savedPulseTimeout) {
+                clearTimeout(savedPulseTimeout);
+                savedPulseTimeout = null;
+            }
+            if (state === "saving") {
+                btn.classList.add("saving");
+                return;
+            }
+            if (state === "saved") {
+                btn.classList.add("saved");
+                savedPulseTimeout = window.setTimeout(() => {
+                    btn.classList.remove("saved");
+                    savedPulseTimeout = null;
+                }, 900);
+            }
         }
         function localStorageKey() { return "position_training_progress_" + String(currentUser?.id || "guest"); }
         function loadLocalProgressMap() { try { return JSON.parse(localStorage.getItem(localStorageKey()) || "{}"); } catch (_) { return {}; } }
@@ -110,6 +141,9 @@
         function renderState() {
             document.getElementById("trainedCheckbox").checked = Boolean(entry?.trained);
             document.getElementById("notesInput").value = getDefaultNotes();
+            if (!saveInProgress) {
+                setSaveButtonState("Speichern", false);
+            }
         }
         function renderMeta() {
             document.getElementById("pageTitle").innerText = "Position " + currentPosition.number;
@@ -151,18 +185,26 @@
             entry = { position_id: currentPosition.id, notes: raw.notes || "", trained: Boolean(raw.trained), updated_at: raw.updatedAt || "" };
         }
         async function savePositionState() {
+            if (saveInProgress) return;
+            saveInProgress = true;
             entry.notes = document.getElementById("notesInput").value || "";
             entry.trained = document.getElementById("trainedCheckbox").checked;
             entry.updated_at = new Date().toISOString();
+            setSaveButtonState("Speichert...", true);
+            setSaveButtonVisualState("saving");
             try {
                 const payload = { position_id: currentPosition.id, user_id: currentUser.id, notes: entry.notes || "", trained: Boolean(entry.trained), updated_at: entry.updated_at };
                 const { error } = await supabaseClient.from("training_position_progress").upsert(payload, { onConflict: "position_id,user_id" });
                 if (error) throw error;
-            } catch (_) {
+            } catch (error) {
                 const map = loadLocalProgressMap();
                 map[currentPosition.id] = { notes: entry.notes || "", trained: Boolean(entry.trained), updatedAt: entry.updated_at };
                 saveLocalProgressMap(map);
+                console.warn("Positionstraining lokal gespeichert:", error);
             }
+            saveInProgress = false;
+            setSaveButtonState("Speichern", false);
+            setSaveButtonVisualState("saved");
             renderState();
         }
         function goToPosition(index) { if (index < 0 || index >= positions.length) return; window.location.href = "training_position_detail.html?id=" + encodeURIComponent(positions[index].id); }
