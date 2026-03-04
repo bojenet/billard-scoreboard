@@ -478,6 +478,7 @@
                 let { data: players, error } = await supabaseClient
                     .from("players")
                     .select("id,name,user_id")
+                    .eq("user_id", currentUserId)
                     .order("name", { ascending: true });
 
                 if (error && String(error.message || "").toLowerCase().includes("user_id")) {
