@@ -13,21 +13,21 @@
         }
 
         .page {
-            max-width: 440px;
+            max-width: 760px;
             margin: 0 auto;
-            padding: 20px 10px 28px;
+            padding: 26px 16px 34px;
         }
 
         .actions {
             display: flex;
             justify-content: space-between;
             gap: 12px;
-            margin-bottom: 18px;
+            margin-bottom: 22px;
         }
 
         .btn {
-            font-size: 16px;
-            padding: 10px 18px;
+            font-size: 18px;
+            padding: 12px 22px;
             border: none;
             border-radius: 8px;
             color: white;
@@ -49,12 +49,12 @@
         .sheet-header {
             text-align: center;
             border-bottom: 1px solid #3a4058;
-            padding: 14px 10px 12px;
+            padding: 18px 12px 16px;
         }
 
         .sheet-header h1 {
             margin: 0 0 4px;
-            font-size: 20px;
+            font-size: 30px;
             letter-spacing: 0.3px;
         }
 
@@ -65,12 +65,12 @@
 
         .meta td {
             border: 1px solid #3a4058;
-            padding: 6px 6px;
-            font-size: 12px;
+            padding: 9px 10px;
+            font-size: 16px;
         }
 
         .meta .label {
-            width: 72px;
+            width: 112px;
             color: #aeb8cf;
         }
 
@@ -84,8 +84,8 @@
         .score-grid td {
             border: 1px solid #3a4058;
             text-align: center;
-            padding: 4px 3px;
-            font-size: 12px;
+            padding: 7px 6px;
+            font-size: 16px;
         }
 
         .score-grid th {
@@ -95,12 +95,12 @@
 
         .score-grid td.name-cell {
             text-align: left;
-            padding-left: 10px;
+            padding-left: 14px;
             font-weight: 700;
         }
 
         .inn-col {
-            width: 36px;
+            width: 54px;
             color: #aeb8cf;
         }
 
@@ -118,14 +118,14 @@
             border: 1px solid #3a4058;
             text-align: left;
             vertical-align: top;
-            padding: 10px 12px;
-            font-size: 14px;
+            padding: 14px 16px;
+            font-size: 17px;
         }
 
         .summary th {
             background: #191c2a;
             color: #c7d0e5;
-            font-size: 13px;
+            font-size: 15px;
             letter-spacing: 0.2px;
         }
 
@@ -134,7 +134,7 @@
             justify-content: space-between;
             gap: 12px;
             border-top: 1px solid #333a51;
-            padding: 7px 0;
+            padding: 10px 0;
         }
 
         .stat-item:first-child {
@@ -144,11 +144,39 @@
 
         .stat-label {
             color: #aeb8cf;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         .stat-value {
             font-weight: 700;
+        }
+
+        @media (max-width: 820px) {
+            .page {
+                max-width: 100%;
+                padding: 20px 10px 28px;
+            }
+
+            .btn {
+                font-size: 16px;
+                padding: 10px 18px;
+            }
+
+            .sheet-header h1 {
+                font-size: 24px;
+            }
+
+            .meta td,
+            .score-grid th,
+            .score-grid td {
+                font-size: 13px;
+                padding: 6px 6px;
+            }
+
+            .summary td {
+                font-size: 14px;
+                padding: 10px 12px;
+            }
         }
 
         @media print {
