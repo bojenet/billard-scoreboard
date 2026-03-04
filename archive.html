@@ -207,7 +207,10 @@ async function loadArchive() {
             <td>${isAdmin ? `<button class="delete-btn" onclick="deleteArchivedMatch(event, '${match.id}')">Löschen</button>` : ""}</td>
         `;
 
-        row.onclick = () => {
+        row.onclick = (event) => {
+            if (event.target.closest(".delete-btn") || event.target.closest(".actions-col")) {
+                return;
+            }
             window.location.href = "archive_detail.html?id=" + match.id;
         };
 
@@ -220,6 +223,7 @@ async function deleteArchivedMatch(event, matchId) {
     if (!user) return;
 
     event.stopPropagation();
+    event.preventDefault();
 
     if (!confirm("Partie wirklich löschen?")) {
         return;
