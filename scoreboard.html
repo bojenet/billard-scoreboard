@@ -1537,7 +1537,12 @@
                     },
                     (payload) => {
 
+                        const previous = payload.old || {};
                         const d = payload.new;
+
+                        if (d && d.controlMode === "remote") {
+                            syncRemoteSeriesFromDelta(previous, d);
+                        }
 
                         score1 = d.score1;
                         score2 = d.score2;
@@ -1556,6 +1561,37 @@
                     }
                 )
                 .subscribe();
+        }
+
+        function syncRemoteSeriesFromDelta(previous, current) {
+            const prevInn1 = Number(previous.inn1 || 0);
+            const prevInn2 = Number(previous.inn2 || 0);
+            const curInn1 = Number(current.inn1 || 0);
+            const curInn2 = Number(current.inn2 || 0);
+
+            // Undo/History-Restore: Serienliste an tatsächliche Aufnahmenzahl anpassen.
+            if (curInn1 < innings1.length) innings1 = innings1.slice(0, curInn1);
+            if (curInn2 < innings2.length) innings2 = innings2.slice(0, curInn2);
+
+            // Spieler 1 hat eine Aufnahme abgeschlossen.
+            if (curInn1 > prevInn1) {
+                const oldSeries1 = Number(previous.series1 || 0);
+                const fallbackByScore = Math.max(0, Number(current.score1 || 0) - Number(previous.score1 || 0));
+                const committed = oldSeries1 >= 0 ? oldSeries1 : fallbackByScore;
+                innings1.push(committed);
+            }
+
+            // Spieler 2 hat eine Aufnahme abgeschlossen.
+            if (curInn2 > prevInn2) {
+                const oldSeries2 = Number(previous.series2 || 0);
+                const fallbackByScore = Math.max(0, Number(current.score2 || 0) - Number(previous.score2 || 0));
+                const committed = oldSeries2 >= 0 ? oldSeries2 : fallbackByScore;
+                innings2.push(committed);
+            }
+
+            // Sicherheitsnetz bei größeren Sprüngen.
+            if (innings1.length > curInn1) innings1 = innings1.slice(0, curInn1);
+            if (innings2.length > curInn2) innings2 = innings2.slice(0, curInn2);
         }
 
     </script>
