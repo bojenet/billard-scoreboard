@@ -848,6 +848,7 @@
             series2 = d.series2 || 0;
             high1 = d.high1 || 0;
             high2 = d.high2 || 0;
+            reconcileInningsLists();
 
             document.getElementById("discipline1Big").innerText =
                 d.discipline1 + " – " + d.target1 +
@@ -1562,6 +1563,7 @@
                         series2 = d.series2 || 0;
                         high1 = d.high1 || 0;
                         high2 = d.high2 || 0;
+                        reconcileInningsLists();
 
                         updateUI();
                         showEndIfFinished();
@@ -1611,6 +1613,17 @@
             // Sicherheitsnetz bei größeren Sprüngen.
             if (innings1.length > curInn1) innings1 = innings1.slice(0, curInn1);
             if (innings2.length > curInn2) innings2 = innings2.slice(0, curInn2);
+        }
+
+        function reconcileInningsLists() {
+            const targetInn1 = Math.max(0, Number(inn1 || 0));
+            const targetInn2 = Math.max(0, Number(inn2 || 0));
+
+            if (innings1.length > targetInn1) innings1 = innings1.slice(0, targetInn1);
+            if (innings2.length > targetInn2) innings2 = innings2.slice(0, targetInn2);
+
+            while (innings1.length < targetInn1) innings1.push(0);
+            while (innings2.length < targetInn2) innings2.push(0);
         }
 
     </script>
