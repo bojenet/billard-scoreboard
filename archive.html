@@ -197,13 +197,17 @@ async function loadArchive() {
         const disciplineText = discipline1 === discipline2
             ? discipline1
             : `${discipline1} / ${discipline2}`;
+        const playedInnings = Math.max(
+            Number(match.inn1 || 0),
+            Number(match.inn2 || 0)
+        );
 
         row.innerHTML = `
             <td>${date}</td>
             <td>${match.player1} vs ${match.player2}</td>
             <td>${disciplineText}</td>
             <td>${match.score1 ?? 0} : ${match.score2 ?? 0}</td>
-            <td>${match.totalInnings ?? "-"}</td>
+            <td>${playedInnings > 0 ? playedInnings : "-"}</td>
             <td>${isAdmin ? `<button class="delete-btn" onclick="deleteArchivedMatch(event, '${match.id}')">Löschen</button>` : ""}</td>
         `;
 

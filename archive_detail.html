@@ -219,10 +219,16 @@
 
             <table class="meta">
                 <tr>
-                    <td class="label">Disziplin</td>
-                    <td id="discipline">-</td>
+                    <td class="label">Disziplin 1</td>
+                    <td id="discipline1">-</td>
                     <td class="label">Datum</td>
                     <td id="date">-</td>
+                </tr>
+                <tr>
+                    <td class="label">Disziplin 2</td>
+                    <td id="discipline2">-</td>
+                    <td class="label"></td>
+                    <td>-</td>
                 </tr>
                 <tr>
                     <td class="label">Spieler 1</td>
@@ -422,7 +428,8 @@
             const avg1 = innings1 > 0 ? (Number(match.score1 || 0) / innings1).toFixed(3) : "0.000";
             const avg2 = innings2 > 0 ? (Number(match.score2 || 0) / innings2).toFixed(3) : "0.000";
 
-            document.getElementById("discipline").innerText = match.discipline1 || "-";
+            document.getElementById("discipline1").innerText = match.discipline1 || "-";
+            document.getElementById("discipline2").innerText = match.discipline2 || "-";
             document.getElementById("date").innerText = createdAt ? new Date(createdAt).toLocaleString() : "-";
             document.getElementById("player1").innerText = match.player1 || "-";
             document.getElementById("player2").innerText = match.player2 || "-";
