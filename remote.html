@@ -23,12 +23,29 @@
             font-size: 30px;
         }
 
-        .button-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+        .controls-stack {
             width: 100%;
             max-width: 720px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .point-main {
+            width: 100%;
+        }
+
+        .points-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            width: 100%;
+        }
+
+        .action-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            width: 100%;
         }
 
         button {
@@ -177,16 +194,20 @@
             <span id="miniSeriesInfo" class="mini-series"></span>
         </div>
     </div>
-    <div class="button-grid">
-        <button onclick="add(1)">+1</button>
-        <button onclick="add(5)">+5</button>
-        <button onclick="add(10)">+10</button>
-        <button onclick="add(-1)">-1</button>
+    <div class="controls-stack">
+        <button class="point-main" onclick="add(1)">+1</button>
 
-        <button class="switch" onclick="switchPlayer()">Wechsel</button>
-        <button onclick="undo()">Undo</button>
+        <div class="points-row">
+            <button onclick="add(5)">+5</button>
+            <button onclick="add(10)">+10</button>
+            <button onclick="add(-1)">-1</button>
+        </div>
 
-        <button class="danger" onclick="finish()">Beenden</button>
+        <div class="action-row">
+            <button class="switch" onclick="switchPlayer()">Wechsel</button>
+            <button onclick="undo()">Undo</button>
+            <button class="danger" onclick="finish()">Beenden</button>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -355,7 +376,7 @@ async function pollMatch() {
 }
 
 function setControlsEnabled(enabled) {
-    document.querySelectorAll(".button-grid button").forEach((btn) => {
+    document.querySelectorAll(".controls-stack button").forEach((btn) => {
         btn.disabled = !enabled;
     });
 }
