@@ -1584,9 +1584,9 @@
 
             // Spieler 1 hat eine Aufnahme abgeschlossen.
             if (curInn1 > prevInn1) {
+                const byScoreDelta = Math.max(0, Number(current.score1 || 0) - Number(previous.score1 || 0));
                 const oldSeries1 = Number(previous.series1 || 0);
-                const fallbackByScore = Math.max(0, Number(current.score1 || 0) - Number(previous.score1 || 0));
-                const committed = oldSeries1 >= 0 ? oldSeries1 : fallbackByScore;
+                const committed = byScoreDelta > 0 ? byScoreDelta : oldSeries1;
                 if (innings1.length < curInn1) {
                     innings1.push(committed);
                 }
@@ -1599,9 +1599,9 @@
 
             // Spieler 2 hat eine Aufnahme abgeschlossen.
             if (curInn2 > prevInn2) {
+                const byScoreDelta = Math.max(0, Number(current.score2 || 0) - Number(previous.score2 || 0));
                 const oldSeries2 = Number(previous.series2 || 0);
-                const fallbackByScore = Math.max(0, Number(current.score2 || 0) - Number(previous.score2 || 0));
-                const committed = oldSeries2 >= 0 ? oldSeries2 : fallbackByScore;
+                const committed = byScoreDelta > 0 ? byScoreDelta : oldSeries2;
                 if (innings2.length < curInn2) {
                     innings2.push(committed);
                 }
