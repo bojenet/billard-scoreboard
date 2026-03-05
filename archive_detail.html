@@ -74,6 +74,10 @@
             color: #aeb8cf;
         }
 
+        .meta .player-value {
+            font-weight: 800;
+        }
+
         .score-grid {
             width: 100%;
             border-collapse: collapse;
@@ -222,9 +226,9 @@
                 </tr>
                 <tr>
                     <td class="label">Spieler 1</td>
-                    <td id="player1">-</td>
+                    <td id="player1" class="player-value">-</td>
                     <td class="label">Spieler 2</td>
-                    <td id="player2">-</td>
+                    <td id="player2" class="player-value">-</td>
                 </tr>
                 <tr>
                     <td class="label">Ergebnis</td>
@@ -241,11 +245,6 @@
                     <th class="inn-col">Aufn.</th>
                     <th>Serie</th>
                     <th>Gesamt</th>
-                </tr>
-                <tr>
-                    <td class="name-cell" colspan="2" id="leftName">-</td>
-                    <td class="inn-col"></td>
-                    <td class="name-cell" colspan="2" id="rightName">-</td>
                 </tr>
             </table>
 
@@ -430,8 +429,6 @@
             document.getElementById("result").innerText = `${match.score1 ?? 0} : ${match.score2 ?? 0}`;
             document.getElementById("totalInnings").innerText = playedInnings;
 
-            document.getElementById("leftName").innerText = match.player1 || "-";
-            document.getElementById("rightName").innerText = match.player2 || "-";
             document.getElementById("balls1").innerText = match.score1 ?? 0;
             document.getElementById("balls2").innerText = match.score2 ?? 0;
             document.getElementById("innings1").innerText = innings1;
