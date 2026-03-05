@@ -995,7 +995,7 @@
 
         /* ================= POINTS ================= */
 
-        function addPoints(value) {
+        async function addPoints(value) {
 
             if (finished) return;
 
@@ -1023,6 +1023,7 @@
             }
 
             updateUI();
+            await updateMatchInDB();
         }
 
         /* ================= SWITCH ================= */
@@ -1178,7 +1179,7 @@
             });
         }
 
-        function undo() {
+        async function undo() {
             if (history.length === 0) return;
             const prev = history.pop();
             score1 = prev.score1;
@@ -1195,6 +1196,7 @@
             innings1 = [...prev.innings1];
             innings2 = [...prev.innings2];
             updateUI();
+            await updateMatchInDB();
         }
 
         /* ================= END ================= */
