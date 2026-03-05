@@ -1588,6 +1588,11 @@
                 if (innings1.length < curInn1) {
                     innings1.push(committed);
                 }
+                // Falls mehrere Aufnahmen zwischen zwei Realtime-Events passiert sind:
+                // fehlende Einträge als 0 auffüllen, damit A und Serienliste synchron bleiben.
+                while (innings1.length < curInn1) {
+                    innings1.push(0);
+                }
             }
 
             // Spieler 2 hat eine Aufnahme abgeschlossen.
@@ -1597,6 +1602,9 @@
                 const committed = oldSeries2 >= 0 ? oldSeries2 : fallbackByScore;
                 if (innings2.length < curInn2) {
                     innings2.push(committed);
+                }
+                while (innings2.length < curInn2) {
+                    innings2.push(0);
                 }
             }
 
