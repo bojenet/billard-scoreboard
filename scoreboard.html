@@ -1537,8 +1537,15 @@
                     },
                     (payload) => {
 
-                        const previous = payload.old || {};
                         const d = payload.new;
+                        const previous = {
+                            score1,
+                            score2,
+                            inn1,
+                            inn2,
+                            series1,
+                            series2
+                        };
 
                         if (d && d.controlMode === "remote") {
                             syncRemoteSeriesFromDelta(previous, d);
@@ -1578,7 +1585,9 @@
                 const oldSeries1 = Number(previous.series1 || 0);
                 const fallbackByScore = Math.max(0, Number(current.score1 || 0) - Number(previous.score1 || 0));
                 const committed = oldSeries1 >= 0 ? oldSeries1 : fallbackByScore;
-                innings1.push(committed);
+                if (innings1.length < curInn1) {
+                    innings1.push(committed);
+                }
             }
 
             // Spieler 2 hat eine Aufnahme abgeschlossen.
@@ -1586,7 +1595,9 @@
                 const oldSeries2 = Number(previous.series2 || 0);
                 const fallbackByScore = Math.max(0, Number(current.score2 || 0) - Number(previous.score2 || 0));
                 const committed = oldSeries2 >= 0 ? oldSeries2 : fallbackByScore;
-                innings2.push(committed);
+                if (innings2.length < curInn2) {
+                    innings2.push(committed);
+                }
             }
 
             // Sicherheitsnetz bei größeren Sprüngen.

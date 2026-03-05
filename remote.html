@@ -307,10 +307,11 @@ function updateDisplay() {
         seriesInfo.style.color = "#ffd84a";
     }
 
+    const activePlayer = Number(matchData.activePlayer || 1);
     const currentSeries =
-        matchData.activePlayer === 1
-            ? matchData.series1
-            : matchData.series2;
+        activePlayer === 1
+            ? Number(matchData.series1 || 0)
+            : Number(matchData.series2 || 0);
 
     if (Number(matchData.finished || 0) === 1) {
         seriesInfo.innerText = "Partie beendet - am Hauptscreen speichern oder verwerfen";
@@ -422,19 +423,18 @@ async function add(value) {
     if (isFinished()) return;
     saveHistory();
 
-    let {
-        activePlayer,
-        series1,
-        series2,
-        score1,
-        score2,
-        target1,
-        target2
-    } = matchData;
+    let activePlayer = Number(matchData.activePlayer || 1);
+    let series1 = Number(matchData.series1 || 0);
+    let series2 = Number(matchData.series2 || 0);
+    let score1 = Number(matchData.score1 || 0);
+    let score2 = Number(matchData.score2 || 0);
+    let target1 = Number(matchData.target1 || 0);
+    let target2 = Number(matchData.target2 || 0);
+    const delta = Number(value || 0);
 
     if (activePlayer === 1) {
 
-        series1 += value;
+        series1 += delta;
         if (series1 < 0) series1 = 0;
 
         if (target1 > 0 && score1 + series1 > target1)
@@ -442,7 +442,7 @@ async function add(value) {
 
     } else {
 
-        series2 += value;
+        series2 += delta;
         if (series2 < 0) series2 = 0;
 
         if (target2 > 0 && score2 + series2 > target2)
@@ -462,18 +462,16 @@ async function switchPlayer() {
     if (isFinished()) return;
     saveHistory();
 
-    let {
-        activePlayer,
-        series1,
-        series2,
-        score1,
-        score2,
-        high1,
-        high2,
-        inn1,
-        inn2,
-        totalInnings
-    } = matchData;
+    let activePlayer = Number(matchData.activePlayer || 1);
+    let series1 = Number(matchData.series1 || 0);
+    let series2 = Number(matchData.series2 || 0);
+    let score1 = Number(matchData.score1 || 0);
+    let score2 = Number(matchData.score2 || 0);
+    let high1 = Number(matchData.high1 || 0);
+    let high2 = Number(matchData.high2 || 0);
+    let inn1 = Number(matchData.inn1 || 0);
+    let inn2 = Number(matchData.inn2 || 0);
+    let totalInnings = Number(matchData.totalInnings || 1);
 
     if (activePlayer === 1) {
 
