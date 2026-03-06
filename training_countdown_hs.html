@@ -489,6 +489,31 @@
                 return;
             }
 
+            try {
+                const response = await fetch("/api/send-challenge-invite", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        to: guestEmail,
+                        hostName: payload.host_name,
+                        guestName,
+                        hostDiscipline: selectedHostDiscipline,
+                        guestDiscipline: selectedGuestDiscipline,
+                        durationMinutes: selectedMinutes,
+                        sessionId: data.id,
+                        appBaseUrl: window.location.origin
+                    })
+                });
+                if (!response.ok) {
+                    const details = await response.json().catch(() => ({}));
+                    console.warn("Challenge-Einladungsmail fehlgeschlagen:", details);
+                    alert("Session erstellt, aber Einladungsmail konnte nicht gesendet werden.");
+                }
+            } catch (mailError) {
+                console.warn("Challenge-Einladungsmail Ausnahme:", mailError);
+                alert("Session erstellt, aber Einladungsmail konnte nicht gesendet werden.");
+            }
+
             window.location.href = "training_countdown_hs_run.html?session=" + data.id;
         }
 
