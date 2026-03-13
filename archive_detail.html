@@ -47,22 +47,29 @@
         }
 
         .sheet-title {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .sheet-title td {
-            border: 1px solid #3a4058;
-            padding: 10px 12px;
-            font-size: 20px;
-            background: #202333;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 20px;
+            align-items: center;
+            padding: 18px 20px 14px;
         }
 
         .sheet-title .title-cell {
             font-size: 44px;
             font-weight: 800;
             line-height: 1;
-            padding: 16px 12px 10px;
+        }
+
+        .sheet-date {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 12px 18px;
+            align-items: center;
+            font-size: 20px;
+        }
+
+        .sheet-date-label {
+            color: #aeb8cf;
         }
 
         .meta {
@@ -221,25 +228,13 @@
         </div>
 
         <div class="sheet">
-            <table class="sheet-title">
-                <tr>
-                    <td class="title-cell" colspan="2">Partiezettel</td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td></td>
-                    <td class="label">Datum</td>
-                    <td id="date">-</td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-            </table>
+            <div class="sheet-title">
+                <div class="title-cell">Partiezettel</div>
+                <div class="sheet-date">
+                    <div class="sheet-date-label">Datum</div>
+                    <div id="date">-</div>
+                </div>
+            </div>
 
             <table class="meta">
                 <tr>
