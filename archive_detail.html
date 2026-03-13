@@ -46,16 +46,23 @@
             overflow: hidden;
         }
 
-        .sheet-header {
-            text-align: center;
-            border-bottom: 1px solid #3a4058;
-            padding: 18px 12px 16px;
+        .sheet-title {
+            width: 100%;
+            border-collapse: collapse;
         }
 
-        .sheet-header h1 {
-            margin: 0 0 4px;
-            font-size: 30px;
-            letter-spacing: 0.3px;
+        .sheet-title td {
+            border: 1px solid #3a4058;
+            padding: 10px 12px;
+            font-size: 20px;
+            background: #202333;
+        }
+
+        .sheet-title .title-cell {
+            font-size: 44px;
+            font-weight: 800;
+            line-height: 1;
+            padding: 16px 12px 10px;
         }
 
         .meta {
@@ -65,8 +72,9 @@
 
         .meta td {
             border: 1px solid #3a4058;
-            padding: 9px 10px;
+            padding: 8px 10px;
             font-size: 16px;
+            background: #202333;
         }
 
         .meta .label {
@@ -213,28 +221,38 @@
         </div>
 
         <div class="sheet">
-            <div class="sheet-header">
-                <h1>Partiezettel</h1>
-            </div>
-
-            <table class="meta">
+            <table class="sheet-title">
                 <tr>
-                    <td class="label">Disziplin 1</td>
-                    <td id="discipline1">-</td>
+                    <td class="title-cell" colspan="2">Partiezettel</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td></td>
                     <td class="label">Datum</td>
                     <td id="date">-</td>
                 </tr>
                 <tr>
-                    <td class="label">Disziplin 2</td>
-                    <td id="discipline2">-</td>
-                    <td class="label"></td>
-                    <td>-</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
                 </tr>
+            </table>
+
+            <table class="meta">
                 <tr>
                     <td class="label">Spieler 1</td>
                     <td id="player1" class="player-value">-</td>
                     <td class="label">Spieler 2</td>
                     <td id="player2" class="player-value">-</td>
+                </tr>
+                <tr>
+                    <td class="label">Disziplin 1</td>
+                    <td id="discipline1">-</td>
+                    <td class="label">Disziplin 2</td>
+                    <td id="discipline2">-</td>
                 </tr>
                 <tr>
                     <td class="label">Ergebnis</td>
