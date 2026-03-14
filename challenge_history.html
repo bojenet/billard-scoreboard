@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Challenge Historie</title>
+  <title>Training Historie</title>
   <style>
     body {
       margin: 0;
@@ -163,7 +163,7 @@
 <body>
   <div class="page">
     <div class="top">
-      <h1>Challenge Historie</h1>
+      <h1>Training Historie</h1>
       <div class="actions">
         <button class="btn" id="scopeMineBtn" onclick="setScope('mine')">Meine</button>
         <button class="btn" id="scopeAllBtn" style="display:none;" onclick="setScope('all')">Alle</button>
@@ -179,6 +179,7 @@
           <th class="desktop-only">Owner</th>
           <th>Modus</th>
           <th>Disziplin</th>
+          <th class="right">Ziel</th>
           <th>Gegner</th>
           <th class="right">Punkte</th>
           <th class="right">Aufn.</th>
@@ -263,7 +264,7 @@
 
       let query = supabaseClient
         .from('training_challenge_results')
-        .select('source_key,mode,owner_user_id,owner_name,opponent_name,discipline,duration_minutes,score,innings,series,high_series,avg,created_at')
+        .select('source_key,mode,owner_user_id,owner_name,opponent_name,discipline,duration_minutes,target_points,score,innings,series,high_series,avg,created_at')
         .order('created_at', { ascending: false })
         .limit(300);
 
@@ -281,7 +282,7 @@
         }
         let fallbackQuery = supabaseClient
           .from('training_challenge_results')
-          .select('source_key,mode,owner_user_id,owner_name,opponent_name,discipline,duration_minutes,score,innings,high_series,avg,created_at')
+          .select('source_key,mode,owner_user_id,owner_name,opponent_name,discipline,duration_minutes,target_points,score,innings,high_series,avg,created_at')
           .order('created_at', { ascending: false })
           .limit(300);
         if (!isAdmin || currentScope === 'mine') {
@@ -301,6 +302,7 @@
           <th class="desktop-only">Owner</th>
           <th>Modus</th>
           <th>Disziplin</th>
+          <th class="right">Ziel</th>
           <th>Gegner</th>
           <th class="right">Punkte</th>
           <th class="right">Aufn.</th>
@@ -312,14 +314,14 @@
 
       if (error) {
         const row = document.createElement('tr');
-        row.innerHTML = `<td colspan="10" class="empty">Fehler beim Laden: ${error.message}</td>`;
+        row.innerHTML = `<td colspan="11" class="empty">Fehler beim Laden: ${error.message}</td>`;
         table.appendChild(row);
         return;
       }
 
       if (!data || data.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = '<td colspan="10" class="empty">Keine Challenge-Ergebnisse gefunden.</td>';
+        row.innerHTML = '<td colspan="11" class="empty">Keine Trainingsergebnisse gefunden.</td>';
         table.appendChild(row);
         return;
       }
@@ -327,12 +329,18 @@
       data.forEach((item) => {
         const row = document.createElement('tr');
         const rowKey = String(item.source_key || '').replace(/[^a-zA-Z0-9_-]/g, '_');
-        const modeLabel = item.mode === 'duel' ? '2P' : 'Solo';
+        const modeLabel = item.mode === 'duel'
+          ? 'Challenge 2P'
+          : (item.mode === 'go_on' ? 'Go-On' : 'Challenge Solo');
+        const targetLabel = item.mode === 'go_on'
+          ? `${item.target_points ?? '-'} P`
+          : `${item.duration_minutes ?? '-'} min`;
         row.innerHTML = `
           <td>${formatDate(item.created_at)}</td>
           <td class="desktop-only">${item.owner_name || '-'}</td>
           <td>${modeLabel}</td>
           <td>${item.discipline || '-'}</td>
+          <td class="right">${targetLabel}</td>
           <td>${item.opponent_name || '-'}</td>
           <td class="right">${item.score ?? 0}</td>
           <td class="right">${item.innings ?? 0}</td>
@@ -346,7 +354,7 @@
         detailRow.className = 'innings-row';
         detailRow.id = 'innings-' + rowKey;
         detailRow.style.display = 'none';
-        detailRow.innerHTML = `<td colspan="10">${buildInningsTable(item.series)}</td>`;
+        detailRow.innerHTML = `<td colspan="11">${buildInningsTable(item.series)}</td>`;
         table.appendChild(detailRow);
       });
     }

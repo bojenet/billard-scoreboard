@@ -183,13 +183,14 @@ create policy "countdown_hs_messages_delete_sender_or_admin"
 
 create table if not exists public.training_challenge_results (
   source_key text primary key,
-  mode text not null check (mode in ('solo', 'duel')),
+  mode text not null check (mode in ('solo', 'duel', 'go_on')),
   session_id uuid references public.training_countdown_hs_sessions(id) on delete set null,
   owner_user_id uuid not null references auth.users(id) on delete cascade,
   owner_name text,
   opponent_name text,
   discipline text,
-  duration_minutes int not null check (duration_minutes in (30,45,60)),
+  duration_minutes int check (duration_minutes in (30,45,60)),
+  target_points int check (target_points is null or target_points > 0),
   score int not null default 0,
   innings int not null default 0,
   series jsonb not null default '[]'::jsonb,
@@ -202,10 +203,25 @@ alter table public.training_challenge_results
   add column if not exists series jsonb not null default '[]'::jsonb;
 
 alter table public.training_challenge_results
+  add column if not exists target_points int;
+
+alter table public.training_challenge_results
   drop constraint if exists training_challenge_results_duration_minutes_check;
 alter table public.training_challenge_results
   add constraint training_challenge_results_duration_minutes_check
-  check (duration_minutes in (30,45,60));
+  check (duration_minutes is null or duration_minutes in (30,45,60));
+
+alter table public.training_challenge_results
+  drop constraint if exists training_challenge_results_target_points_check;
+alter table public.training_challenge_results
+  add constraint training_challenge_results_target_points_check
+  check (target_points is null or target_points > 0);
+
+alter table public.training_challenge_results
+  drop constraint if exists training_challenge_results_mode_check;
+alter table public.training_challenge_results
+  add constraint training_challenge_results_mode_check
+  check (mode in ('solo', 'duel', 'go_on'));
 
 create index if not exists idx_training_challenge_owner on public.training_challenge_results(owner_user_id, created_at desc);
 create index if not exists idx_training_challenge_session on public.training_challenge_results(session_id);

@@ -2,67 +2,310 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Go-on Partie</title>
+    <title>Go-on Trainingspartie</title>
     <style>
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: linear-gradient(180deg, #1e1f29, #14151c);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(180deg, #0f1c3f, #0a122b);
             color: white;
         }
 
-        .wrap {
-            width: min(920px, 92%);
-            margin: 70px auto;
+        .page {
+            width: min(980px, 94%);
+            margin: 22px auto;
+        }
+
+        .header {
             text-align: center;
-            background: linear-gradient(180deg, #2b2e40, #24283a);
-            border: 1px solid #3a4060;
-            border-radius: 20px;
-            padding: 36px 28px;
-            box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
+            margin-bottom: 14px;
         }
 
-        h1 {
-            margin: 0 0 14px;
-            font-size: 46px;
-        }
-
-        p {
+        .header h1 {
             margin: 0;
-            opacity: 0.8;
-            font-size: 20px;
+            font-size: 42px;
+        }
+
+        .header p {
+            margin: 6px 0 0;
+            opacity: 0.76;
+            font-size: 16px;
+        }
+
+        .card {
+            background: linear-gradient(180deg, #162b66, #0f1c3f);
+            border: 1px solid #2d488f;
+            border-radius: 28px;
+            padding: 18px;
+            box-shadow: 0 28px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .section {
+            margin-bottom: 18px;
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .section-sub {
+            margin: 4px 0 10px;
+            opacity: 0.74;
+            font-size: 14px;
+        }
+
+        .panel {
+            border: 1px solid #2f4ea0;
+            border-radius: 14px;
+            padding: 12px;
+            background: rgba(8, 20, 54, 0.42);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            padding: 10px 14px;
+            border: none;
+            border-radius: 12px;
+            background: #1c3380;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid #2f4ea0;
+            transition: background .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+        }
+
+        .chip:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        }
+
+        .chip.active {
+            background: #ffd84a;
+            color: #101420;
+            border-color: #ffe27a;
+            box-shadow: 0 8px 24px rgba(255, 216, 74, 0.28);
+        }
+
+        .field {
+            margin-top: 10px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 14px;
+            opacity: 0.84;
+            margin-bottom: 6px;
+        }
+
+        .field input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #3959ab;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 18px;
+            color: #fff;
+            background: #112659;
+        }
+
+        .hint {
+            margin-top: 8px;
+            font-size: 13px;
+            opacity: 0.72;
         }
 
         .actions {
-            margin-top: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-top: 12px;
         }
 
         .btn {
-            padding: 12px 22px;
+            padding: 14px 14px;
             border: none;
-            border-radius: 12px;
-            background: #4352a8;
+            border-radius: 14px;
             color: white;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             cursor: pointer;
+            transition: transform .16s ease, filter .16s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.06);
+        }
+
+        .btn-start {
+            background: linear-gradient(180deg, #2f4fe0, #1c3380);
+        }
+
+        .btn-back {
+            background: #233a8f;
+        }
+
+        @media (max-width: 760px) {
+            .actions {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 34px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="wrap">
-        <h1>Go-on Partie</h1>
-        <p>Trainingsmodus angelegt. Funktionale Logik kann als nächstes ergänzt werden.</p>
-        <div class="actions">
-            <button class="btn" onclick="window.location.href='training.html'">Zurück</button>
+    <div class="page">
+        <div class="header">
+            <h1>Go-on Trainingspartie</h1>
+            <p>Solo wie Challenge, aber mit fester Distanz statt Countdown</p>
+        </div>
+
+        <div class="card">
+            <div class="section">
+                <h2 class="section-title">Disziplin</h2>
+                <div class="section-sub">Du spielst allein, wählst aber eine feste Disziplin wie bei einer Partie.</div>
+                <div class="panel">
+                    <div id="disciplineButtons" class="btn-group"></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Distanz</h2>
+                <div class="section-sub">Zielpunktzahl für diese Trainingspartie</div>
+                <div class="panel">
+                    <div id="targetButtons" class="btn-group"></div>
+                    <div class="field">
+                        <label for="targetInput">Eigene Distanz</label>
+                        <input id="targetInput" type="number" min="1" step="1" placeholder="z.B. 120" />
+                    </div>
+                    <div class="hint">Die Partie endet automatisch, sobald du die Distanz erreicht hast. Überzählige Punkte werden auf die Distanz gekappt.</div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-start" onclick="startGoOnTraining()">Starten</button>
+                <button class="btn btn-back" onclick="window.location.href='challenge_history.html'">Historie</button>
+                <button class="btn btn-back" onclick="window.location.href='training.html'">Zurück</button>
+            </div>
         </div>
     </div>
-</body>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase.js"></script>
-<script src="js/auth.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
     <script src="js/user_menu.js"></script>
-<script>
-    requireAuth();
-</script>
+    <script>
+        const disciplines = [
+            "Freie Partie",
+            "Cadre 35/2",
+            "Cadre 52/2",
+            "Cadre 47/2",
+            "Cadre 47/1",
+            "Cadre 71/2",
+            "Einband",
+            "Dreiband"
+        ];
+        const defaultTargets = [25, 50, 75, 100, 150, 200, 300];
+
+        let selectedDiscipline = "";
+        let selectedTarget = 0;
+
+        function createRunId() {
+            if (window.crypto && typeof window.crypto.randomUUID === "function") {
+                return window.crypto.randomUUID();
+            }
+            return "run-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
+        }
+
+        function renderChipGroup(containerId, values, onSelect) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = "";
+            values.forEach((value) => {
+                const btn = document.createElement("button");
+                btn.className = "chip";
+                btn.type = "button";
+                btn.innerText = typeof value === "number" ? String(value) : value;
+                btn.onclick = () => {
+                    container.querySelectorAll(".chip").forEach((x) => x.classList.remove("active"));
+                    btn.classList.add("active");
+                    onSelect(value);
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function syncTargetInput(value) {
+            const input = document.getElementById("targetInput");
+            if (input) input.value = value > 0 ? String(value) : "";
+        }
+
+        function clearTargetChipSelection() {
+            document.querySelectorAll("#targetButtons .chip").forEach((chip) => chip.classList.remove("active"));
+        }
+
+        function startGoOnTraining() {
+            const manualTarget = Number(document.getElementById("targetInput").value || 0);
+            const target = Number.isInteger(manualTarget) && manualTarget > 0 ? manualTarget : selectedTarget;
+
+            if (!selectedDiscipline) {
+                alert("Bitte eine Disziplin auswählen.");
+                return;
+            }
+            if (!Number.isInteger(target) || target < 1) {
+                alert("Bitte eine gültige Distanz eingeben.");
+                return;
+            }
+
+            const params = new URLSearchParams({
+                mode: "go_on",
+                discipline: selectedDiscipline,
+                target: String(target),
+                runId: createRunId()
+            });
+            window.location.href = "training_countdown_hs_run.html?" + params.toString();
+        }
+
+        async function init() {
+            const user = await requireAuth();
+            if (!user) return;
+
+            renderChipGroup("disciplineButtons", disciplines, (value) => {
+                selectedDiscipline = value;
+            });
+
+            renderChipGroup("targetButtons", defaultTargets, (value) => {
+                selectedTarget = Number(value) || 0;
+                syncTargetInput(selectedTarget);
+            });
+
+            const targetInput = document.getElementById("targetInput");
+            if (targetInput) {
+                targetInput.addEventListener("input", () => {
+                    const value = Number(targetInput.value || 0);
+                    if (defaultTargets.includes(value)) {
+                        document.querySelectorAll("#targetButtons .chip").forEach((chip) => {
+                            chip.classList.toggle("active", Number(chip.innerText) === value);
+                        });
+                    } else {
+                        clearTargetChipSelection();
+                    }
+                    selectedTarget = Number.isInteger(value) && value > 0 ? value : 0;
+                });
+            }
+        }
+
+        init();
+    </script>
+</body>
 </html>

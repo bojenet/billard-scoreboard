@@ -395,7 +395,7 @@
 <body>
     <div class="page">
         <div class="topbar">
-            <button class="btn" onclick="window.location.href='training_countdown_hs.html'">Zurück zum Setup</button>
+            <button class="btn" id="backToSetupBtn" onclick="goBackToSetup()">Zurück zum Setup</button>
             <button class="btn" id="startCountdownBtn" style="display:none;" onclick="startCountdownNow()">Countdown starten</button>
             <button class="btn" id="finishNowBtn" onclick="finishChallengeNow()">Beenden & speichern</button>
             <button class="btn" onclick="resetMyStats()">Meine Werte reset</button>
@@ -417,12 +417,12 @@
                     <div class="meta-value" id="statusValue">Aktiv</div>
                 </div>
                 <div class="meta-item">
-                    <div class="meta-label">Dauer</div>
+                    <div class="meta-label" id="durationLabel">Dauer</div>
                     <div class="meta-value" id="durationValue">-</div>
                 </div>
             </div>
 
-            <div class="timer-wrap">
+            <div class="timer-wrap" id="timerWrap">
                 <div class="timer-label">Restzeit</div>
                 <div class="timer" id="timerValue">00:00</div>
             </div>
@@ -494,10 +494,13 @@
     <script src="js/user_menu.js"></script>
     <script>
         const params = new URLSearchParams(window.location.search);
+        const sessionId = params.get("session") || "";
+        const soloMode = params.get("mode") || "challenge";
+        const isGoOnSolo = !sessionId && soloMode === "go_on";
         const soloDiscipline = params.get("discipline") || "";
         const soloMinutes = Number(params.get("minutes") || 0);
+        const soloTarget = Number(params.get("target") || 0);
         const soloRunId = params.get("runId") || "";
-        const sessionId = params.get("session") || "";
 
         let currentUser = null;
         let timerId = null;
@@ -528,7 +531,8 @@
             p1Series: [],
             p1Score: 0,
             p1Innings: 0,
-            p1High: 0
+            p1High: 0,
+            p1Target: 0
         };
 
         function parseSeries(value) {
@@ -547,6 +551,22 @@
 
         function avg(score, innings) {
             return innings > 0 ? (score / innings).toFixed(3) : "0.000";
+        }
+
+        function getBackTarget() {
+            return isGoOnSolo ? "training_go_on.html" : "training_countdown_hs.html";
+        }
+
+        function goBackToSetup() {
+            window.location.href = getBackTarget();
+        }
+
+        function getSoloSourceKey() {
+            const soloKeyPart = soloRunId || String(soloStartedAtIso || "");
+            if (isGoOnSolo) {
+                return "go_on:solo:" + currentUser.id + ":" + soloKeyPart;
+            }
+            return "challenge:solo:" + currentUser.id + ":" + soloKeyPart;
         }
 
         function setText(id, value) {
@@ -654,9 +674,10 @@
 
             try {
                 if (!isDuelMode) {
-                    if (!soloState.p1Disc || ![30, 45, 60].includes(soloMinutes)) return;
-                    const soloKeyPart = soloRunId || String(soloStartedAtIso || "");
-                    const sourceKey = "challenge:solo:" + currentUser.id + ":" + soloKeyPart;
+                    if (!soloState.p1Disc) return;
+                    if (isGoOnSolo && (!Number.isInteger(soloState.p1Target) || soloState.p1Target < 1)) return;
+                    if (!isGoOnSolo && ![30, 45, 60].includes(soloMinutes)) return;
+                    const sourceKey = getSoloSourceKey();
                     const score = Number(soloState.p1Score || 0);
                     const innings = Number(soloState.p1Innings || 0);
                     const high = Number(soloState.p1High || 0);
@@ -667,13 +688,14 @@
                         .from("training_challenge_results")
                         .upsert([{
                             source_key: sourceKey,
-                            mode: "solo",
+                            mode: isGoOnSolo ? "go_on" : "solo",
                             session_id: null,
                             owner_user_id: currentUser.id,
                             owner_name: getDisplayName(currentUser),
                             opponent_name: null,
                             discipline: soloState.p1Disc,
-                            duration_minutes: soloMinutes,
+                            duration_minutes: isGoOnSolo ? null : soloMinutes,
+                            target_points: isGoOnSolo ? soloState.p1Target : null,
                             score,
                             innings,
                             series: ownSeries,
@@ -687,13 +709,14 @@
                             .from("training_challenge_results")
                             .upsert([{
                                 source_key: sourceKey,
-                                mode: "solo",
+                                mode: isGoOnSolo ? "go_on" : "solo",
                                 session_id: null,
                                 owner_user_id: currentUser.id,
                                 owner_name: getDisplayName(currentUser),
                                 opponent_name: null,
                                 discipline: soloState.p1Disc,
-                                duration_minutes: soloMinutes,
+                                duration_minutes: isGoOnSolo ? null : soloMinutes,
+                                target_points: isGoOnSolo ? soloState.p1Target : null,
                                 score,
                                 innings,
                                 high_series: high,
@@ -845,7 +868,10 @@
             const p1Series = parseSeries(data.host_series);
             const p2Series = parseSeries(data.guest_series);
             const guestReady = !!data.guest_user_id;
+            const timerWrap = document.getElementById("timerWrap");
+            if (timerWrap) timerWrap.style.display = "block";
 
+            setText("durationLabel", "Dauer");
             setText("sessionValue", data.id ? data.id.slice(0, 8) : "-");
             const started = !!data.countdown_started_at;
             countdownStarted = started;
@@ -910,10 +936,13 @@
         function renderSolo() {
             setText("sessionValue", "Solo");
             setText("statusValue", localChallengeEnded ? "Beendet" : "Aktiv");
-            setText("durationValue", String(soloMinutes) + " min");
+            setText("durationLabel", isGoOnSolo ? "Distanz" : "Dauer");
+            setText("durationValue", isGoOnSolo ? (String(soloState.p1Target || "-") + " Punkte") : (String(soloMinutes) + " min"));
 
             setText("p1Name", "Du");
-            setText("p1Disc", soloState.p1Disc || "-");
+            setText("p1Disc", isGoOnSolo
+                ? ((soloState.p1Disc || "-") + " • " + String(soloState.p1Target || "-") + " Punkte")
+                : (soloState.p1Disc || "-"));
             setText("p1Score", String(soloState.p1Score));
             setText("p1Innings", String(soloState.p1Innings));
             setText("p1High", String(soloState.p1High));
@@ -929,9 +958,11 @@
             setText("p2History", "-");
 
             setText("readonlyInfo", localChallengeEnded
-                ? "Challenge beendet und gespeichert."
-                : "Solo-Modus: nur dein Ergebnis wird geführt.");
-            if (timerExpired && !localChallengeEnded) {
+                ? (isGoOnSolo ? "Go-on Trainingspartie beendet und gespeichert." : "Challenge beendet und gespeichert.")
+                : (isGoOnSolo
+                    ? "Solo-Modus: die Partie endet automatisch bei erreichter Distanz."
+                    : "Solo-Modus: nur dein Ergebnis wird geführt."));
+            if (!isGoOnSolo && timerExpired && !localChallengeEnded) {
                 if (lastInningUsed) {
                     setText("readonlyInfo", "Zeit abgelaufen. Letzte Aufnahme erfasst. Bitte jetzt beenden & speichern.");
                 } else {
@@ -940,6 +971,8 @@
             }
             const chatSection = document.getElementById("chatSection");
             if (chatSection) chatSection.style.display = "none";
+            const timerWrap = document.getElementById("timerWrap");
+            if (timerWrap) timerWrap.style.display = isGoOnSolo ? "none" : "block";
         }
 
         function startVisualTimer() {
@@ -993,7 +1026,7 @@
 
         async function commitInning() {
             if (localChallengeEnded) {
-                alert("Challenge ist bereits beendet.");
+                alert(isGoOnSolo ? "Die Go-on Trainingspartie ist bereits beendet." : "Challenge ist bereits beendet.");
                 return;
             }
             if (isDuelMode && sessionData?.status === "finished") return;
@@ -1001,16 +1034,19 @@
                 alert("Countdown wurde noch nicht gestartet.");
                 return;
             }
-            const remaining = Math.max(0, Math.floor((countdownEndMs - Date.now()) / 1000));
-            const expiredNow = timerExpired || remaining <= 0;
-            if (expiredNow) {
-                timerExpired = true;
-                if (!lastInningWindowOpen && !lastInningUsed) {
-                    lastInningWindowOpen = true;
-                }
-                if (!lastInningWindowOpen || lastInningUsed) {
-                    alert("Zeit ist abgelaufen. Die letzte Aufnahme wurde bereits erfasst.");
-                    return;
+            let expiredNow = false;
+            if (!isGoOnSolo) {
+                const remaining = Math.max(0, Math.floor((countdownEndMs - Date.now()) / 1000));
+                expiredNow = timerExpired || remaining <= 0;
+                if (expiredNow) {
+                    timerExpired = true;
+                    if (!lastInningWindowOpen && !lastInningUsed) {
+                        lastInningWindowOpen = true;
+                    }
+                    if (!lastInningWindowOpen || lastInningUsed) {
+                        alert("Zeit ist abgelaufen. Die letzte Aufnahme wurde bereits erfasst.");
+                        return;
+                    }
                 }
             }
 
@@ -1022,15 +1058,30 @@
             }
 
             if (!isDuelMode) {
-                soloState.p1Series.push(series);
+                let appliedSeries = series;
+                if (isGoOnSolo) {
+                    const remainingTarget = Math.max(0, Number(soloState.p1Target || 0) - Number(soloState.p1Score || 0));
+                    if (remainingTarget <= 0) {
+                        alert("Die Distanz ist bereits erreicht.");
+                        return;
+                    }
+                    if (appliedSeries > remainingTarget) {
+                        appliedSeries = remainingTarget;
+                    }
+                }
+                soloState.p1Series.push(appliedSeries);
                 soloState.p1Innings += 1;
-                soloState.p1Score += series;
-                if (series > soloState.p1High) soloState.p1High = series;
+                soloState.p1Score += appliedSeries;
+                if (appliedSeries > soloState.p1High) soloState.p1High = appliedSeries;
                 if (expiredNow) {
                     lastInningUsed = true;
                     lastInningWindowOpen = false;
                 }
                 input.value = 0;
+                if (isGoOnSolo && soloState.p1Target > 0 && soloState.p1Score >= soloState.p1Target) {
+                    localChallengeEnded = true;
+                    await persistCurrentChallengeResult("target_reached");
+                }
                 renderSolo();
                 return;
             }
@@ -1176,7 +1227,7 @@
             if (finishBtn) finishBtn.disabled = true;
 
             if (!isDuelMode) {
-                if (!confirm("Challenge jetzt beenden und speichern?")) {
+                if (!confirm(isGoOnSolo ? "Go-on Trainingspartie jetzt beenden und speichern?" : "Challenge jetzt beenden und speichern?")) {
                     if (finishBtn && !resultSaved) finishBtn.disabled = false;
                     return;
                 }
@@ -1185,7 +1236,7 @@
                     clearInterval(timerId);
                     timerId = null;
                 }
-                await persistCurrentChallengeResult("manual_finish_solo");
+                await persistCurrentChallengeResult(isGoOnSolo ? "manual_finish_go_on" : "manual_finish_solo");
                 renderSolo();
                 if (finishBtn && !resultSaved) finishBtn.disabled = false;
                 return;
@@ -1378,22 +1429,27 @@
         }
 
         async function initSolo() {
-            if (!soloDiscipline || ![30, 45, 60].includes(soloMinutes)) {
-                window.location.href = "training_countdown_hs.html";
+            const validChallengeSolo = !!soloDiscipline && [30, 45, 60].includes(soloMinutes);
+            const validGoOnSolo = !!soloDiscipline && Number.isInteger(soloTarget) && soloTarget > 0;
+            if ((isGoOnSolo && !validGoOnSolo) || (!isGoOnSolo && !validChallengeSolo)) {
+                window.location.href = getBackTarget();
                 return;
             }
             isDuelMode = false;
             applyModeLayout();
-            setText("modeValue", "Challenge (Solo)");
+            setText("modeValue", isGoOnSolo ? "Go-on Partie" : "Challenge (Solo)");
             soloState.p1Disc = soloDiscipline;
+            soloState.p1Target = isGoOnSolo ? soloTarget : 0;
             soloStartedAtIso = new Date().toISOString();
-            countdownEndMs = Date.now() + soloMinutes * 60000;
+            countdownEndMs = isGoOnSolo ? 0 : (Date.now() + soloMinutes * 60000);
             timerExpired = false;
             lastInningWindowOpen = false;
             lastInningUsed = false;
             oneMinuteWarned = false;
             renderSolo();
-            startVisualTimer();
+            if (!isGoOnSolo) {
+                startVisualTimer();
+            }
         }
 
         async function initDual() {
