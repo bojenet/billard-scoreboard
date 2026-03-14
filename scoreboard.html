@@ -73,6 +73,27 @@
             opacity: .6;
         }
 
+        .topbar-actions {
+            margin-top: 10px;
+        }
+
+        .topbar-btn {
+            border: 1px solid #3458b8;
+            background: #1c3380;
+            color: white;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: .2s ease;
+        }
+
+        .topbar-btn:hover {
+            background: #2f4fe0;
+            transform: translateY(-1px);
+        }
+
         /* ================= MAIN ================= */
 
         .main {
@@ -539,6 +560,9 @@
             <div class="game-label">GAME TIME</div>
             <div class="game-time" id="gameTime">00:00:00</div>
             <div class="discipline-info" id="disciplineInfo"></div>
+            <div class="topbar-actions">
+                <button class="topbar-btn" id="fullscreenBtn" type="button" onclick="toggleFullscreen()">Vollbild starten</button>
+            </div>
         </div>
 
         <div style="text-align:right;">
@@ -758,6 +782,27 @@
         let inn1 = 0, inn2 = 0;
         let totalInnings = 1;
         let activePlayer = 1;
+
+        function updateFullscreenButton() {
+            const btn = document.getElementById("fullscreenBtn");
+            if (!btn) return;
+            btn.innerText = document.fullscreenElement ? "Vollbild beenden" : "Vollbild starten";
+        }
+
+        async function toggleFullscreen() {
+            try {
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen();
+                } else {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch (error) {
+                alert("Vollbild konnte nicht umgeschaltet werden.");
+                console.warn("Fullscreen Toggle fehlgeschlagen:", error);
+            } finally {
+                updateFullscreenButton();
+            }
+        }
         let finished = 0;
         let series1 = 0, series2 = 0;
         let high1 = 0, high2 = 0;
@@ -1626,6 +1671,9 @@
             while (innings1.length < targetInn1) innings1.push(0);
             while (innings2.length < targetInn2) innings2.push(0);
         }
+
+        document.addEventListener("fullscreenchange", updateFullscreenButton);
+        updateFullscreenButton();
 
     </script>
 
