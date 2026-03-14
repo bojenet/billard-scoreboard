@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Training Historie</title>
+  <title>Challenge Historie</title>
   <style>
     body {
       margin: 0;
@@ -163,7 +163,7 @@
 <body>
   <div class="page">
     <div class="top">
-      <h1>Training Historie</h1>
+      <h1>Challenge Historie</h1>
       <div class="actions">
         <button class="btn" id="scopeMineBtn" onclick="setScope('mine')">Meine</button>
         <button class="btn" id="scopeAllBtn" style="display:none;" onclick="setScope('all')">Alle</button>
@@ -253,6 +253,26 @@
       `;
     }
 
+    function isGoOnEntry(item) {
+      const sourceKey = String(item?.source_key || '');
+      const discipline = String(item?.discipline || '');
+      return item?.mode === 'go_on'
+        || sourceKey.startsWith('go_on:solo:')
+        || /\(Go-On\s+\d+\)/i.test(discipline);
+    }
+
+    function getGoOnTargetLabel(item) {
+      if (item?.target_points != null) return `${item.target_points} P`;
+      const discipline = String(item?.discipline || '');
+      const match = discipline.match(/\(Go-On\s+(\d+)\)/i);
+      return match ? `${match[1]} P` : '-';
+    }
+
+    function getDisciplineLabel(item) {
+      const discipline = String(item?.discipline || '');
+      return discipline.replace(/\s*\(Go-On\s+\d+\)\s*/i, '').trim() || '-';
+    }
+
     function toggleInnings(sourceKey) {
       const row = document.getElementById('innings-' + sourceKey);
       if (!row) return;
@@ -274,22 +294,24 @@
 
       let { data, error } = await query;
       const errText = String((error && error.message) || '').toLowerCase();
-      if (error && errText.includes('series')) {
+      if (error && (errText.includes('series') || errText.includes('target_points'))) {
         const warning = document.getElementById('seriesWarning');
         if (warning) {
           warning.style.display = 'block';
-          warning.innerText = "DB-Migration fehlt: Aufnahmen-Verlauf (series) wird noch nicht gespeichert.";
+          warning.innerText = errText.includes('target_points')
+            ? "DB-Migration fehlt: Go-On-Ziel wird im Legacy-Format gelesen."
+            : "DB-Migration fehlt: Aufnahmen-Verlauf (series) wird noch nicht gespeichert.";
         }
         let fallbackQuery = supabaseClient
           .from('training_challenge_results')
-          .select('source_key,mode,owner_user_id,owner_name,opponent_name,discipline,duration_minutes,target_points,score,innings,high_series,avg,created_at')
+          .select('source_key,mode,owner_user_id,owner_name,opponent_name,discipline,duration_minutes,score,innings,high_series,avg,created_at')
           .order('created_at', { ascending: false })
           .limit(300);
         if (!isAdmin || currentScope === 'mine') {
           fallbackQuery = fallbackQuery.eq('owner_user_id', currentUser.id);
         }
         const fallback = await fallbackQuery;
-        data = (fallback.data || []).map((x) => ({ ...x, series: [] }));
+        data = (fallback.data || []).map((x) => ({ ...x, series: [], target_points: null }));
         error = fallback.error;
       } else {
         const warning = document.getElementById('seriesWarning');
@@ -321,7 +343,7 @@
 
       if (!data || data.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = '<td colspan="11" class="empty">Keine Trainingsergebnisse gefunden.</td>';
+        row.innerHTML = '<td colspan="11" class="empty">Keine Challenge-Ergebnisse gefunden.</td>';
         table.appendChild(row);
         return;
       }
@@ -329,17 +351,18 @@
       data.forEach((item) => {
         const row = document.createElement('tr');
         const rowKey = String(item.source_key || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const goOnEntry = isGoOnEntry(item);
         const modeLabel = item.mode === 'duel'
           ? 'Challenge 2P'
-          : (item.mode === 'go_on' ? 'Go-On' : 'Challenge Solo');
-        const targetLabel = item.mode === 'go_on'
-          ? `${item.target_points ?? '-'} P`
+          : (goOnEntry ? 'Go-On' : 'Challenge Solo');
+        const targetLabel = goOnEntry
+          ? getGoOnTargetLabel(item)
           : `${item.duration_minutes ?? '-'} min`;
         row.innerHTML = `
           <td>${formatDate(item.created_at)}</td>
           <td class="desktop-only">${item.owner_name || '-'}</td>
           <td>${modeLabel}</td>
-          <td>${item.discipline || '-'}</td>
+          <td>${getDisciplineLabel(item)}</td>
           <td class="right">${targetLabel}</td>
           <td>${item.opponent_name || '-'}</td>
           <td class="right">${item.score ?? 0}</td>

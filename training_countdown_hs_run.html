@@ -569,6 +569,10 @@
             return "challenge:solo:" + currentUser.id + ":" + soloKeyPart;
         }
 
+        function buildGoOnLegacyDiscipline() {
+            return String(soloState.p1Disc || "") + " (Go-On " + String(soloState.p1Target || 0) + ")";
+        }
+
         function setText(id, value) {
             const el = document.getElementById(id);
             if (el) el.innerText = value;
@@ -683,24 +687,27 @@
                     const high = Number(soloState.p1High || 0);
                     const ownSeries = parseSeries(soloState.p1Series);
                     const avgValue = innings > 0 ? (score / innings) : 0;
+                    const baseSoloPayload = {
+                        source_key: sourceKey,
+                        mode: isGoOnSolo ? "go_on" : "solo",
+                        session_id: null,
+                        owner_user_id: currentUser.id,
+                        owner_name: getDisplayName(currentUser),
+                        opponent_name: null,
+                        discipline: soloState.p1Disc,
+                        duration_minutes: isGoOnSolo ? null : soloMinutes,
+                        target_points: isGoOnSolo ? soloState.p1Target : null,
+                        score,
+                        innings,
+                        high_series: high,
+                        avg: Number(avgValue.toFixed(3))
+                    };
 
                     let { error } = await supabaseClient
                         .from("training_challenge_results")
                         .upsert([{
-                            source_key: sourceKey,
-                            mode: isGoOnSolo ? "go_on" : "solo",
-                            session_id: null,
-                            owner_user_id: currentUser.id,
-                            owner_name: getDisplayName(currentUser),
-                            opponent_name: null,
-                            discipline: soloState.p1Disc,
-                            duration_minutes: isGoOnSolo ? null : soloMinutes,
-                            target_points: isGoOnSolo ? soloState.p1Target : null,
-                            score,
-                            innings,
+                            ...baseSoloPayload,
                             series: ownSeries,
-                            high_series: high,
-                            avg: Number(avgValue.toFixed(3))
                         }], { onConflict: "source_key" });
 
                     const soloErrorText = String((error && error.message) || "").toLowerCase();
@@ -708,24 +715,54 @@
                         const retry = await supabaseClient
                             .from("training_challenge_results")
                             .upsert([{
-                                source_key: sourceKey,
-                                mode: isGoOnSolo ? "go_on" : "solo",
-                                session_id: null,
-                                owner_user_id: currentUser.id,
-                                owner_name: getDisplayName(currentUser),
-                                opponent_name: null,
-                                discipline: soloState.p1Disc,
-                                duration_minutes: isGoOnSolo ? null : soloMinutes,
-                                target_points: isGoOnSolo ? soloState.p1Target : null,
-                                score,
-                                innings,
-                                high_series: high,
-                                avg: Number(avgValue.toFixed(3))
+                                ...baseSoloPayload
                             }], { onConflict: "source_key" });
                         error = retry.error;
                         if (!seriesDbUnsupportedNotified) {
                             seriesDbUnsupportedNotified = true;
                             alert("Ergebnis gespeichert, aber Aufnahmen-Verlauf nicht. Bitte DB-Migration für 'series' ausführen.");
+                        }
+                    }
+
+                    const legacyGoOnErrorText = String((error && error.message) || "").toLowerCase();
+                    if (error && isGoOnSolo && (
+                        legacyGoOnErrorText.includes("target_points")
+                        || legacyGoOnErrorText.includes("mode")
+                        || legacyGoOnErrorText.includes("duration_minutes")
+                        || legacyGoOnErrorText.includes("check constraint")
+                    )) {
+                        const legacyPayload = {
+                            source_key: sourceKey,
+                            mode: "solo",
+                            session_id: null,
+                            owner_user_id: currentUser.id,
+                            owner_name: getDisplayName(currentUser),
+                            opponent_name: null,
+                            discipline: buildGoOnLegacyDiscipline(),
+                            duration_minutes: 30,
+                            score,
+                            innings,
+                            high_series: high,
+                            avg: Number(avgValue.toFixed(3))
+                        };
+                        const retryLegacy = await supabaseClient
+                            .from("training_challenge_results")
+                            .upsert([{
+                                ...legacyPayload,
+                                series: ownSeries
+                            }], { onConflict: "source_key" });
+                        error = retryLegacy.error;
+
+                        const retryLegacyText = String((error && error.message) || "").toLowerCase();
+                        if (error && retryLegacyText.includes("series")) {
+                            const retryLegacyNoSeries = await supabaseClient
+                                .from("training_challenge_results")
+                                .upsert([legacyPayload], { onConflict: "source_key" });
+                            error = retryLegacyNoSeries.error;
+                            if (!seriesDbUnsupportedNotified && !error) {
+                                seriesDbUnsupportedNotified = true;
+                                alert("Ergebnis gespeichert, aber Aufnahmen-Verlauf nicht. Bitte DB-Migration für 'series' ausführen.");
+                            }
                         }
                     }
 
