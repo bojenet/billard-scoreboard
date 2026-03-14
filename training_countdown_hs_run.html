@@ -60,6 +60,25 @@
             border-color: #be5757;
         }
 
+        .fullscreen-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1300;
+            width: 34px;
+            height: 34px;
+            border: 1px solid #3458b8;
+            border-radius: 10px;
+            background: rgba(28, 51, 128, 0.92);
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
         .board {
             background: linear-gradient(180deg, #162b66, #0f1c3f);
             border: 1px solid #2d488f;
@@ -393,6 +412,7 @@
     </style>
 </head>
 <body>
+    <button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()" title="Vollbild starten" aria-label="Vollbild starten">⛶</button>
     <div class="page">
         <div class="topbar">
             <button class="btn" id="backToSetupBtn" onclick="goBackToSetup()">Zurück zum Setup</button>
@@ -559,6 +579,29 @@
 
         function goBackToSetup() {
             window.location.href = getBackTarget();
+        }
+
+        function updateFullscreenButton() {
+            const btn = document.getElementById("fullscreenBtn");
+            if (!btn) return;
+            const active = !!document.fullscreenElement;
+            btn.innerText = active ? "×" : "⛶";
+            btn.title = active ? "Vollbild beenden" : "Vollbild starten";
+            btn.setAttribute("aria-label", active ? "Vollbild beenden" : "Vollbild starten");
+        }
+
+        async function toggleFullscreen() {
+            try {
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen();
+                } else {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch (error) {
+                console.warn("Fullscreen Toggle fehlgeschlagen:", error);
+            } finally {
+                updateFullscreenButton();
+            }
         }
 
         function getSoloSourceKey() {
@@ -1510,6 +1553,7 @@
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
+            updateFullscreenButton();
             document.addEventListener("pointerdown", primeAudio, { once: true });
 
             if (sessionId) {
@@ -1545,6 +1589,7 @@
             }
         });
 
+        document.addEventListener("fullscreenchange", updateFullscreenButton);
         init();
     </script>
 </body>

@@ -34,6 +34,27 @@
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
 
+        .fullscreen-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1200;
+            width: 34px;
+            height: 34px;
+            border: 1px solid #3458b8;
+            border-radius: 10px;
+            background: rgba(28, 51, 128, 0.92);
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+        }
+
         .player-name {
             font-size: clamp(26px, 4.8vw, 70px);
             font-weight: 600;
@@ -526,6 +547,7 @@
 </head>
 
 <body>
+    <button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()" title="Vollbild starten" aria-label="Vollbild starten">⛶</button>
 
     <!-- ================= TOPBAR ================= -->
 
@@ -758,6 +780,30 @@
         let inn1 = 0, inn2 = 0;
         let totalInnings = 1;
         let activePlayer = 1;
+
+        function updateFullscreenButton() {
+            const btn = document.getElementById("fullscreenBtn");
+            if (!btn) return;
+            const active = !!document.fullscreenElement;
+            btn.innerText = active ? "×" : "⛶";
+            btn.title = active ? "Vollbild beenden" : "Vollbild starten";
+            btn.setAttribute("aria-label", active ? "Vollbild beenden" : "Vollbild starten");
+        }
+
+        async function toggleFullscreen() {
+            try {
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen();
+                } else {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch (error) {
+                alert("Vollbild konnte nicht umgeschaltet werden.");
+                console.warn("Fullscreen Toggle fehlgeschlagen:", error);
+            } finally {
+                updateFullscreenButton();
+            }
+        }
 
         let finished = 0;
         let series1 = 0, series2 = 0;
@@ -1627,6 +1673,9 @@
             while (innings1.length < targetInn1) innings1.push(0);
             while (innings2.length < targetInn2) innings2.push(0);
         }
+
+        document.addEventListener("fullscreenchange", updateFullscreenButton);
+        updateFullscreenButton();
 
     </script>
 

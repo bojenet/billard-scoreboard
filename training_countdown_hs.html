@@ -11,6 +11,25 @@
             color: white;
         }
 
+        .fullscreen-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1200;
+            width: 34px;
+            height: 34px;
+            border: 1px solid #3659bb;
+            border-radius: 10px;
+            background: rgba(28, 51, 128, 0.92);
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
         .page {
             width: min(1080px, 94%);
             margin: 18px auto;
@@ -243,6 +262,7 @@
     </style>
 </head>
 <body>
+    <button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()" title="Vollbild starten" aria-label="Vollbild starten">⛶</button>
     <div class="page">
         <div class="header">
             <h1>Challenge</h1>
@@ -383,6 +403,29 @@
             return String(value || "").trim().toLowerCase();
         }
 
+        function updateFullscreenButton() {
+            const btn = document.getElementById("fullscreenBtn");
+            if (!btn) return;
+            const active = !!document.fullscreenElement;
+            btn.innerText = active ? "×" : "⛶";
+            btn.title = active ? "Vollbild beenden" : "Vollbild starten";
+            btn.setAttribute("aria-label", active ? "Vollbild beenden" : "Vollbild starten");
+        }
+
+        async function toggleFullscreen() {
+            try {
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen();
+                } else {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch (error) {
+                console.warn("Fullscreen Toggle fehlgeschlagen:", error);
+            } finally {
+                updateFullscreenButton();
+            }
+        }
+
         async function loadIncomingInvites() {
             if (!currentUser?.email) return;
             const email = normalizeEmail(currentUser.email);
@@ -495,6 +538,7 @@
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
+            updateFullscreenButton();
 
             buildDisciplineButtons("disciplineButtonsHost", (value) => {
                 selectedHostDiscipline = value;
@@ -507,6 +551,7 @@
             loadIncomingInvites();
         }
 
+        document.addEventListener("fullscreenchange", updateFullscreenButton);
         init();
     </script>
 </body>

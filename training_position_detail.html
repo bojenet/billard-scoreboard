@@ -5,6 +5,7 @@
     <title>Trainingsposition</title>
     <style>
         body { margin:0; font-family:Arial,sans-serif; background:linear-gradient(180deg,#0f1c3f,#0a122b); color:white; }
+        .fullscreen-btn { position: fixed; top: 10px; right: 10px; z-index: 1200; width: 34px; height: 34px; border: 1px solid #3659bb; border-radius: 10px; background: rgba(28, 51, 128, 0.92); color: white; font-size: 16px; font-weight: 700; display:flex; align-items:center; justify-content:center; cursor:pointer; }
         .page { width:min(1500px,96%); margin:20px auto 28px; }
         .topbar { display:flex; justify-content:space-between; gap:14px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
         .left h1 { margin:0; font-size:46px; }
@@ -37,6 +38,7 @@
     </style>
 </head>
 <body>
+    <button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()" title="Vollbild starten" aria-label="Vollbild starten">⛶</button>
     <div class="page">
         <div class="topbar">
             <div class="left">
@@ -96,6 +98,27 @@
         let currentUser = null, positions = [], currentPosition = null, currentCollection = null, entry = null;
         let saveInProgress = false;
         let savedPulseTimeout = null;
+        function updateFullscreenButton() {
+            const btn = document.getElementById("fullscreenBtn");
+            if (!btn) return;
+            const active = !!document.fullscreenElement;
+            btn.innerText = active ? "×" : "⛶";
+            btn.title = active ? "Vollbild beenden" : "Vollbild starten";
+            btn.setAttribute("aria-label", active ? "Vollbild beenden" : "Vollbild starten");
+        }
+        async function toggleFullscreen() {
+            try {
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen();
+                } else {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch (error) {
+                console.warn("Fullscreen Toggle fehlgeschlagen:", error);
+            } finally {
+                updateFullscreenButton();
+            }
+        }
 
         function setNotice(text) {
             const el = document.getElementById("noticeBox");
@@ -211,10 +234,12 @@
         function goNext() { const index = positions.findIndex((x) => x.id === currentPosition.id); goToPosition(index + 1); }
         async function init() {
             currentUser = await requireAuth(); if (!currentUser) return;
+            updateFullscreenButton();
             try { await loadPositionAndCollectionFromDb(); } catch (error) { console.warn("Positionstraining DB-Fallback aktiv:", error); setNotice("Datenbanktabellen für Positionstraining noch nicht aktiv. JSON/localStorage-Fallback läuft. SQL aus sql/training_positions.sql in Supabase ausführen."); await loadFallback(); }
             if (!currentPosition) return;
             renderMeta(); renderViewer(); renderState();
         }
+        document.addEventListener("fullscreenchange", updateFullscreenButton);
         init();
     </script>
 </body>

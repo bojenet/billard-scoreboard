@@ -11,6 +11,25 @@
       color: white;
     }
 
+    .fullscreen-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1200;
+      width: 34px;
+      height: 34px;
+      border: 1px solid #3458b8;
+      border-radius: 10px;
+      background: rgba(28, 51, 128, 0.92);
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
     .page {
       width: min(1180px, 95%);
       margin: 26px auto 34px;
@@ -161,6 +180,7 @@
   </style>
 </head>
 <body>
+  <button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()" title="Vollbild starten" aria-label="Vollbild starten">⛶</button>
   <div class="page">
     <div class="top">
       <h1>Challenge Historie</h1>
@@ -199,6 +219,29 @@
     let currentUser = null;
     let isAdmin = false;
     let currentScope = 'mine';
+
+    function updateFullscreenButton() {
+      const btn = document.getElementById('fullscreenBtn');
+      if (!btn) return;
+      const active = !!document.fullscreenElement;
+      btn.innerText = active ? '×' : '⛶';
+      btn.title = active ? 'Vollbild beenden' : 'Vollbild starten';
+      btn.setAttribute('aria-label', active ? 'Vollbild beenden' : 'Vollbild starten');
+    }
+
+    async function toggleFullscreen() {
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch (error) {
+        console.warn('Fullscreen Toggle fehlgeschlagen:', error);
+      } finally {
+        updateFullscreenButton();
+      }
+    }
 
     function formatDate(value) {
       if (!value) return '-';
@@ -385,6 +428,7 @@
     async function init() {
       currentUser = await requireAuth();
       if (!currentUser) return;
+      updateFullscreenButton();
       isAdmin = await hasAdminAccess(currentUser);
       if (isAdmin) {
         document.getElementById('scopeAllBtn').style.display = 'inline-block';
@@ -392,6 +436,7 @@
       setScope('mine');
     }
 
+    document.addEventListener('fullscreenchange', updateFullscreenButton);
     init();
   </script>
 </body>

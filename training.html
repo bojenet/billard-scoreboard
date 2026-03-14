@@ -11,6 +11,25 @@
             color: white;
         }
 
+        .fullscreen-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1200;
+            width: 34px;
+            height: 34px;
+            border: 1px solid #4d5ec0;
+            border-radius: 10px;
+            background: rgba(47, 60, 135, 0.92);
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
         .header {
             text-align: center;
             padding: 56px 0 18px;
@@ -95,6 +114,7 @@
     </style>
 </head>
 <body>
+    <button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()" title="Vollbild starten" aria-label="Vollbild starten">⛶</button>
     <div class="header">Training</div>
     <div class="sub">Bitte Trainingsmodus wählen</div>
 
@@ -124,6 +144,29 @@
 <script src="js/auth.js"></script>
     <script src="js/user_menu.js"></script>
 <script>
+    function updateFullscreenButton() {
+        const btn = document.getElementById("fullscreenBtn");
+        if (!btn) return;
+        const active = !!document.fullscreenElement;
+        btn.innerText = active ? "×" : "⛶";
+        btn.title = active ? "Vollbild beenden" : "Vollbild starten";
+        btn.setAttribute("aria-label", active ? "Vollbild beenden" : "Vollbild starten");
+    }
+    async function toggleFullscreen() {
+        try {
+            if (document.fullscreenElement) {
+                await document.exitFullscreen();
+            } else {
+                await document.documentElement.requestFullscreen();
+            }
+        } catch (error) {
+            console.warn("Fullscreen Toggle fehlgeschlagen:", error);
+        } finally {
+            updateFullscreenButton();
+        }
+    }
+    document.addEventListener("fullscreenchange", updateFullscreenButton);
+    updateFullscreenButton();
     requireAuth();
 </script>
 </html>

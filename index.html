@@ -27,30 +27,6 @@
             z-index: 9999;
         }
 
-        .top-actions {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 9998;
-        }
-
-        .action-btn {
-            border: 1px solid #4d5ec0;
-            background: #2f3c87;
-            color: white;
-            border-radius: 10px;
-            padding: 7px 12px;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .action-btn:hover {
-            background: #3f4fa3;
-            transform: translateY(-1px);
-        }
-
         .header {
             text-align: center;
             padding: 60px 0 20px 0;
@@ -133,10 +109,6 @@
 
 <body>
 
-    <div class="top-actions">
-        <button id="fullscreenBtn" class="action-btn" type="button" onclick="toggleFullscreen()">Vollbild starten</button>
-    </div>
-
     <div id="exitZone"></div>
 
     <div class="header">
@@ -191,29 +163,6 @@
             clearTimeout(exitTimer);
         });
 
-        function updateFullscreenButton() {
-            const btn = document.getElementById("fullscreenBtn");
-            if (!btn) return;
-            btn.innerText = document.fullscreenElement ? "Vollbild beenden" : "Vollbild starten";
-        }
-
-        async function toggleFullscreen() {
-            try {
-                if (document.fullscreenElement) {
-                    await document.exitFullscreen();
-                } else {
-                    await document.documentElement.requestFullscreen();
-                }
-            } catch (error) {
-                alert("Vollbild konnte nicht umgeschaltet werden.");
-                console.warn("Fullscreen Toggle fehlgeschlagen:", error);
-            } finally {
-                updateFullscreenButton();
-            }
-        }
-
-        document.addEventListener("fullscreenchange", updateFullscreenButton);
-        updateFullscreenButton();
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
