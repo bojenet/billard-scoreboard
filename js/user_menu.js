@@ -92,7 +92,13 @@
   `;
   document.head.appendChild(style);
 
+  function shouldShowUserMenu() {
+    const path = String(window.location.pathname || '');
+    return path === '/' || path.endsWith('/index.html') || path === 'index.html';
+  }
+
   async function init() {
+    if (!shouldShowUserMenu()) return;
     if (typeof window.supabaseClient === 'undefined') return;
     if (typeof window.getCurrentUser !== 'function') return;
 
