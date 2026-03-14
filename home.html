@@ -35,27 +35,6 @@
             position: relative;
         }
 
-        .header-actions {
-            margin-top: 18px;
-        }
-
-        .header-btn {
-            border: 1px solid #4d5ec0;
-            background: #2f3c87;
-            color: white;
-            border-radius: 12px;
-            padding: 10px 18px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .header-btn:hover {
-            background: #3f4fa3;
-            transform: translateY(-2px);
-        }
-
         .grid {
             width: 1000px;
             max-width: 92%;
@@ -150,9 +129,6 @@
 
     <div class="header">
         Billard System
-        <div class="header-actions">
-            <button id="fullscreenBtn" class="header-btn" type="button" onclick="toggleShellFullscreen()">Vollbild starten</button>
-        </div>
     </div>
 
     <div class="grid" id="mainGrid">
@@ -203,32 +179,6 @@
             clearTimeout(exitTimer);
         });
 
-        function updateFullscreenButton() {
-            const btn = document.getElementById("fullscreenBtn");
-            if (!btn) return;
-            const inFullscreen = !!(window.parent && window.parent.document && window.parent.document.fullscreenElement);
-            btn.innerText = inFullscreen ? "Vollbild beenden" : "Vollbild starten";
-        }
-
-        async function toggleShellFullscreen() {
-            try {
-                if (window.parent && window.parent !== window && typeof window.parent.toggleFullscreen === "function") {
-                    await window.parent.toggleFullscreen();
-                } else if (document.fullscreenElement) {
-                    await document.exitFullscreen();
-                } else {
-                    await document.documentElement.requestFullscreen();
-                }
-            } catch (error) {
-                alert("Vollbild konnte nicht umgeschaltet werden.");
-                console.warn("Fullscreen Toggle fehlgeschlagen:", error);
-            } finally {
-                updateFullscreenButton();
-            }
-        }
-
-        document.addEventListener("visibilitychange", updateFullscreenButton);
-        window.addEventListener("focus", updateFullscreenButton);
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -332,7 +282,6 @@
         }
 
         loadLiveMatches();
-        updateFullscreenButton();
     </script>
 
 </body>

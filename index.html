@@ -22,23 +22,17 @@
         .topbar {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-end;
             gap: 12px;
-            padding: 14px 18px;
+            padding: 8px 10px;
             background: linear-gradient(180deg, #25293a, #1f2231);
             border-bottom: 1px solid #363b55;
             box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
         }
 
-        .brand {
-            font-size: 26px;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-        }
-
         .actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
         }
 
@@ -46,9 +40,9 @@
             border: 1px solid #4d5ec0;
             background: #2f3c87;
             color: white;
-            border-radius: 12px;
-            padding: 10px 18px;
-            font-size: 15px;
+            border-radius: 10px;
+            padding: 7px 12px;
+            font-size: 13px;
             font-weight: 700;
             cursor: pointer;
             transition: 0.2s;
@@ -70,7 +64,6 @@
 <body>
     <div class="shell">
         <div class="topbar">
-            <div class="brand">Billard System</div>
             <div class="actions">
                 <button class="btn" type="button" onclick="goHome()">Startseite</button>
                 <button class="btn" id="fullscreenBtn" type="button" onclick="toggleFullscreen()">Vollbild starten</button>
