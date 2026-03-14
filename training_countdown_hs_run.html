@@ -60,10 +60,6 @@
             border-color: #be5757;
         }
 
-        .btn.secondary {
-            background: #15306f;
-        }
-
         .board {
             background: linear-gradient(180deg, #162b66, #0f1c3f);
             border: 1px solid #2d488f;
@@ -400,7 +396,6 @@
     <div class="page">
         <div class="topbar">
             <button class="btn" id="backToSetupBtn" onclick="goBackToSetup()">Zurück zum Setup</button>
-            <button class="btn secondary" id="fullscreenBtn" onclick="toggleFullscreen()">Vollbild starten</button>
             <button class="btn" id="startCountdownBtn" style="display:none;" onclick="startCountdownNow()">Countdown starten</button>
             <button class="btn" id="finishNowBtn" onclick="finishChallengeNow()">Beenden & speichern</button>
             <button class="btn" onclick="resetMyStats()">Meine Werte reset</button>
@@ -564,27 +559,6 @@
 
         function goBackToSetup() {
             window.location.href = getBackTarget();
-        }
-
-        function updateFullscreenButton() {
-            const btn = document.getElementById("fullscreenBtn");
-            if (!btn) return;
-            btn.innerText = document.fullscreenElement ? "Vollbild beenden" : "Vollbild starten";
-        }
-
-        async function toggleFullscreen() {
-            try {
-                if (document.fullscreenElement) {
-                    await document.exitFullscreen();
-                } else {
-                    await document.documentElement.requestFullscreen();
-                }
-            } catch (error) {
-                alert("Vollbild konnte nicht umgeschaltet werden.");
-                console.warn("Fullscreen Toggle fehlgeschlagen:", error);
-            } finally {
-                updateFullscreenButton();
-            }
         }
 
         function getSoloSourceKey() {
@@ -1536,7 +1510,6 @@
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
-            updateFullscreenButton();
             document.addEventListener("pointerdown", primeAudio, { once: true });
 
             if (sessionId) {
@@ -1571,8 +1544,6 @@
                 loadChatMessages();
             }
         });
-
-        document.addEventListener("fullscreenchange", updateFullscreenButton);
 
         init();
     </script>

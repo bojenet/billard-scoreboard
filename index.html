@@ -36,6 +36,27 @@
             position: relative;
         }
 
+        .header-actions {
+            margin-top: 18px;
+        }
+
+        .header-btn {
+            border: 1px solid #4d5ec0;
+            background: #2f3c87;
+            color: white;
+            border-radius: 12px;
+            padding: 10px 18px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .header-btn:hover {
+            background: #3f4fa3;
+            transform: translateY(-2px);
+        }
+
         /* GRID */
         .grid {
             width: 1000px;
@@ -133,6 +154,9 @@
 
     <div class="header">
         Billard System
+        <div class="header-actions">
+            <button id="fullscreenBtn" class="header-btn" type="button" onclick="toggleFullscreen()">Vollbild starten</button>
+        </div>
     </div>
 
     <div class="grid" id="mainGrid">
@@ -185,6 +209,30 @@
         exitZone.addEventListener("touchend", () => {
             clearTimeout(exitTimer);
         });
+
+        function updateFullscreenButton() {
+            const btn = document.getElementById("fullscreenBtn");
+            if (!btn) return;
+            btn.innerText = document.fullscreenElement ? "Vollbild beenden" : "Vollbild starten";
+        }
+
+        async function toggleFullscreen() {
+            try {
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen();
+                } else {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch (error) {
+                alert("Vollbild konnte nicht umgeschaltet werden.");
+                console.warn("Fullscreen Toggle fehlgeschlagen:", error);
+            } finally {
+                updateFullscreenButton();
+            }
+        }
+
+        document.addEventListener("fullscreenchange", updateFullscreenButton);
+        updateFullscreenButton();
     </script>
 
     <!-- SUPABASE -->
