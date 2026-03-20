@@ -182,6 +182,10 @@
             background: #4758a8;
         }
 
+        .btn-repeat {
+            background: #5667ba;
+        }
+
         .nav-btn {
             margin-top: 20px;
             padding: 10px 30px;
@@ -470,6 +474,10 @@
                 Match starten
             </button>
 
+            <button class="btn btn-repeat" id="repeatLastBtn" onclick="repeatLastMatchSetup()">
+                Letzte Partie übernehmen
+            </button>
+
             <button class="btn btn-secondary" onclick="window.location.href='index.html'">
                 Zurück
             </button>
@@ -492,6 +500,7 @@
             let currentUserId = "";
             let ownedPlayerNames = [];
             let availablePlayers = [];
+            const LAST_MATCH_SETUP_KEY = "last_match_setup_v1";
 
 
             function selectMode(mode) {
@@ -503,6 +512,80 @@
 
                 document.querySelector(`[data-mode='${mode}']`)
                     .classList.add("active");
+            }
+
+            function getLastMatchSetup() {
+                try {
+                    return JSON.parse(localStorage.getItem(LAST_MATCH_SETUP_KEY) || "null");
+                } catch (_) {
+                    return null;
+                }
+            }
+
+            function saveLastMatchSetup(setup) {
+                localStorage.setItem(LAST_MATCH_SETUP_KEY, JSON.stringify(setup));
+                updateRepeatButtonState();
+            }
+
+            function updateRepeatButtonState() {
+                const btn = document.getElementById("repeatLastBtn");
+                if (!btn) return;
+                const hasSavedSetup = !!getLastMatchSetup();
+                btn.disabled = !hasSavedSetup;
+                btn.style.opacity = hasSavedSetup ? "1" : "0.55";
+                btn.style.cursor = hasSavedSetup ? "pointer" : "not-allowed";
+            }
+
+            function setActivePlayerButton(containerId, playerId) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                container.querySelectorAll(".touch-player-btn").forEach((btn) => {
+                    btn.classList.toggle("active", btn.innerText === playerId);
+                });
+            }
+
+            function setActiveDisciplineButton(containerId, discipline) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                container.querySelectorAll(".touch-select-btn").forEach((btn) => {
+                    btn.classList.toggle("active", btn.innerText === discipline);
+                });
+            }
+
+            function repeatLastMatchSetup() {
+                const lastSetup = getLastMatchSetup();
+                if (!lastSetup) {
+                    setFormMessage("Keine letzte Partie gespeichert.", "error");
+                    updateRepeatButtonState();
+                    return;
+                }
+
+                const p1Row = availablePlayers.find((x) => String(x.name) === String(lastSetup.player1 || ""));
+                const p2Row = availablePlayers.find((x) => String(x.name) === String(lastSetup.player2 || ""));
+                if (!p1Row || !p2Row) {
+                    setFormMessage("Letzte Partie konnte nicht vollständig geladen werden. Spieler fehlen.", "error");
+                    return;
+                }
+
+                document.getElementById("player1").value = String(p1Row.id);
+                document.getElementById("player2").value = String(p2Row.id);
+                document.querySelectorAll('#touchPlayer1 .touch-player-btn').forEach((btn) => {
+                    btn.classList.toggle("active", btn.innerText === p1Row.name);
+                });
+                document.querySelectorAll('#touchPlayer2 .touch-player-btn').forEach((btn) => {
+                    btn.classList.toggle("active", btn.innerText === p2Row.name);
+                });
+
+                document.getElementById("discipline1").value = lastSetup.discipline1 || "";
+                document.getElementById("discipline2").value = lastSetup.discipline2 || "";
+                setActiveDisciplineButton("touchDiscipline1", lastSetup.discipline1 || "");
+                setActiveDisciplineButton("touchDiscipline2", lastSetup.discipline2 || "");
+
+                document.getElementById("target1").value = lastSetup.target1 || "";
+                document.getElementById("target2").value = lastSetup.target2 || "";
+                syncMaxInnings(lastSetup.maxInnings || 15);
+                selectMode(lastSetup.controlMode || "local");
+                setFormMessage("Letzte Partie übernommen.", "ok");
             }
 
 
@@ -766,6 +849,17 @@
                         return;
                     }
 
+                    saveLastMatchSetup({
+                        player1: p1,
+                        player2: p2,
+                        discipline1: d1,
+                        discipline2: d2,
+                        target1,
+                        target2,
+                        maxInnings,
+                        controlMode: selectedMode
+                    });
+
                     const matchId = data[0].id;
                     setFormMessage("Match wird gestartet...", "ok");
                     window.location.href = "/scoreboard.html?match=" + matchId;
@@ -826,6 +920,7 @@
                 buildTouchDiscipline("discipline2", "touchDiscipline2");
                 resetAll();
                 syncMaxInnings(15);
+                updateRepeatButtonState();
 
             });
 
