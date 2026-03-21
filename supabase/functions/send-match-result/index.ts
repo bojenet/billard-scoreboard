@@ -84,15 +84,15 @@ async function buildPdf(match: MatchPayload) {
   const page = pdf.addPage([842, 595]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const bg = rgb(0.12, 0.13, 0.20);
-  const panel = rgb(0.14, 0.16, 0.24);
-  const header = rgb(0.11, 0.12, 0.18);
-  const line = rgb(0.26, 0.29, 0.40);
-  const text = rgb(0.92, 0.94, 0.98);
-  const muted = rgb(0.72, 0.76, 0.86);
+  const bg = rgb(1, 1, 1);
+  const panel = rgb(1, 1, 1);
+  const header = rgb(0.95, 0.95, 0.95);
+  const line = rgb(0.55, 0.55, 0.55);
+  const text = rgb(0.08, 0.08, 0.08);
+  const muted = rgb(0.28, 0.28, 0.28);
 
   page.drawRectangle({ x: 0, y: 0, width: 842, height: 595, color: bg });
-  page.drawRectangle({ x: 24, y: 24, width: 794, height: 547, color: panel, borderColor: line, borderWidth: 1.5 });
+  page.drawRectangle({ x: 24, y: 24, width: 794, height: 547, color: panel, borderColor: line, borderWidth: 1 });
 
   const drawText = (value: string, x: number, y: number, size: number, opts: { bold?: boolean; color?: ReturnType<typeof rgb> } = {}) => {
     page.drawText(String(value || ""), {
@@ -104,7 +104,7 @@ async function buildPdf(match: MatchPayload) {
     });
   };
 
-  const drawCell = (x: number, yTop: number, width: number, height: number, left: string, right = "", options: { valueBold?: boolean; center?: boolean; fill?: ReturnType<typeof rgb> } = {}) => {
+  const drawCell = (x: number, yTop: number, width: number, height: number, left: string, right = "", options: { valueBold?: boolean; center?: boolean; fill?: ReturnType<typeof rgb>; labelWidth?: number } = {}) => {
     page.drawRectangle({
       x,
       y: yTop - height,
@@ -119,28 +119,23 @@ async function buildPdf(match: MatchPayload) {
       drawText(left, x + (width - textWidth) / 2, yTop - height / 2 - 5, 13, { bold: options.valueBold });
       return;
     }
-    drawText(left, x + 10, yTop - height / 2 - 5, 12, { color: muted });
-    if (right) drawText(right, x + width * 0.42, yTop - height / 2 - 5, 12, { bold: options.valueBold });
+    const labelWidth = options.labelWidth ?? 92;
+    if (left) drawText(left, x + 10, yTop - height / 2 - 5, 12, { color: muted });
+    if (right) drawText(right, x + 10 + labelWidth, yTop - height / 2 - 5, 12, { bold: options.valueBold });
   };
 
-  drawText("Partie-Ergebnis", 46, 516, 44, { bold: true });
-  drawText("Datum", 532, 524, 22, { color: muted });
-  drawText(formatDate(match.finishedAt), 610, 524, 24, { bold: true });
+  drawText("Partie-Ergebnis", 46, 520, 34, { bold: true });
+  drawText("Datum", 548, 522, 18, { color: muted });
+  drawText(formatDate(match.finishedAt), 620, 522, 20, { bold: true });
 
   const metaTop = 470;
   const rowH = 34;
-  drawCell(24, metaTop, 142, rowH, "Spieler 1", match.player1, { valueBold: true });
-  drawCell(166, metaTop, 248, rowH, "", match.player1, { valueBold: true });
-  drawCell(414, metaTop, 142, rowH, "Spieler 2", match.player2, { valueBold: true });
-  drawCell(556, metaTop, 262, rowH, "", match.player2, { valueBold: true });
-  drawCell(24, metaTop - rowH, 142, rowH, "Disziplin 1", match.discipline1 || "-");
-  drawCell(166, metaTop - rowH, 248, rowH, "", match.discipline1 || "-");
-  drawCell(414, metaTop - rowH, 142, rowH, "Disziplin 2", match.discipline2 || "-");
-  drawCell(556, metaTop - rowH, 262, rowH, "", match.discipline2 || "-");
-  drawCell(24, metaTop - rowH * 2, 142, rowH, "Ergebnis", `${match.score1} : ${match.score2}`, { valueBold: true });
-  drawCell(166, metaTop - rowH * 2, 248, rowH, "", `${match.score1} : ${match.score2}`, { valueBold: true });
-  drawCell(414, metaTop - rowH * 2, 142, rowH, "Aufnahmen", String(match.innings ?? 0), { valueBold: true });
-  drawCell(556, metaTop - rowH * 2, 262, rowH, "", String(match.innings ?? 0), { valueBold: true });
+  drawCell(24, metaTop, 390, rowH, "Spieler 1", match.player1, { valueBold: true, labelWidth: 92 });
+  drawCell(414, metaTop, 404, rowH, "Spieler 2", match.player2, { valueBold: true, labelWidth: 92 });
+  drawCell(24, metaTop - rowH, 390, rowH, "Disziplin 1", match.discipline1 || "-", { labelWidth: 102 });
+  drawCell(414, metaTop - rowH, 404, rowH, "Disziplin 2", match.discipline2 || "-", { labelWidth: 102 });
+  drawCell(24, metaTop - rowH * 2, 390, rowH, "Ergebnis", `${match.score1} : ${match.score2}`, { valueBold: true, labelWidth: 84 });
+  drawCell(414, metaTop - rowH * 2, 404, rowH, "Aufnahmen", String(match.innings ?? 0), { valueBold: true, labelWidth: 98 });
 
   const leftSeries = toSeries(match.series1);
   const rightSeries = toSeries(match.series2);
@@ -193,8 +188,8 @@ async function buildPdf(match: MatchPayload) {
         borderColor: line,
         borderWidth: 1,
       });
-      const width = font.widthOfTextAtSize(value, 12);
-      drawText(value, cols[index] + (widths[index] - width) / 2, yTop - 20, 12);
+      const width = font.widthOfTextAtSize(value, 11);
+      drawText(value, cols[index] + (widths[index] - width) / 2, yTop - 19, 11);
     });
   }
 
@@ -222,10 +217,10 @@ async function buildPdf(match: MatchPayload) {
         page.drawLine({ start: { x: x + 14, y }, end: { x: x + 383, y }, thickness: 1, color: line });
         y -= 22;
       }
-      drawText(label, x + 14, y - 8, 12, { color: muted });
-      const width = bold.widthOfTextAtSize(value, 13);
-      drawText(value, x + 383 - width, y - 10, 13, { bold: true });
-      y -= 42;
+      drawText(label, x + 14, y - 8, 11, { color: muted });
+      const width = bold.widthOfTextAtSize(value, 12);
+      drawText(value, x + 383 - width, y - 9, 12, { bold: true });
+      y -= 38;
     });
   };
 
