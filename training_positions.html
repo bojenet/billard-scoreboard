@@ -93,6 +93,7 @@
         let currentCollection = "roger-conti";
         let positions = [];
         let progressMap = {};
+        const localCollectionCache = {};
         function updateFullscreenButton() {
             const btn = document.getElementById("fullscreenBtn");
             if (!btn) return;
@@ -202,9 +203,29 @@
             if (error) throw error;
             return (data || []).map((item) => ({ ...item, pdfPage: item.pdf_page, sourceQuality: item.source_quality, sourceText: item.source_text || item.sourceText || "" }));
         }
+        async function loadLocalCollection(key) {
+            if (localCollectionCache[key]) return localCollectionCache[key];
+            const res = await fetch(COLLECTIONS[key].file, { cache: "no-store" });
+            const items = await res.json();
+            localCollectionCache[key] = items;
+            return items;
+        }
+        async function applyLocalOverrides(key, items) {
+            const localItems = await loadLocalCollection(key);
+            const localMap = new Map(localItems.map((item) => [item.id, item]));
+            return items.map((item) => {
+                const localItem = localMap.get(item.id);
+                if (!localItem) return item;
+                return {
+                    ...item,
+                    comments: Array.isArray(localItem.comments) && localItem.comments.length ? localItem.comments : item.comments,
+                    sourceQuality: localItem.sourceQuality || item.sourceQuality,
+                    sourceText: localItem.sourceText || item.sourceText || ""
+                };
+            });
+        }
         async function loadCatalogFallback() {
-            const res = await fetch(COLLECTIONS[currentCollection].file, { cache: "no-store" });
-            return await res.json();
+            return await loadLocalCollection(currentCollection);
         }
         async function loadProgressFromDb(ids) {
             progressMap = {};
@@ -217,6 +238,7 @@
             setNotice("");
             try {
                 positions = await loadCatalogFromDb();
+                positions = await applyLocalOverrides(currentCollection, positions);
                 await loadProgressFromDb(positions.map((item) => item.id));
             } catch (error) {
                 console.warn("Positionstraining DB-Fallback aktiv:", error);

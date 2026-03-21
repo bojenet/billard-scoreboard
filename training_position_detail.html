@@ -99,6 +99,7 @@
         let currentUser = null, positions = [], currentPosition = null, currentCollection = null, entry = null;
         let saveInProgress = false;
         let savedPulseTimeout = null;
+        const localCollectionCache = {};
         function updateFullscreenButton() {
             const btn = document.getElementById("fullscreenBtn");
             if (!btn) return;
@@ -173,12 +174,33 @@
             document.getElementById("pageSub").innerText = COLLECTIONS[currentCollection].label;
             document.getElementById("viewerTitle").innerText = COLLECTIONS[currentCollection].label + " - Fiche " + currentPosition.number;
             document.getElementById("viewerSub").innerText = currentPosition.pdfPage ? ("PDF-Seite " + currentPosition.pdfPage) : "PDF-Seite nicht gesetzt";
-            document.getElementById("qualityPill").innerText = currentPosition.sourceQuality === "poor-scan" ? "Quelle: schwacher Scan" : "Quelle: PDF mit Text";
+            document.getElementById("qualityPill").innerText = currentPosition.sourceQuality === "poor-scan" ? "Quelle: schwacher Scan" : (currentPosition.sourceQuality === "imported-text" ? "Quelle: importierter Text" : "Quelle: PDF mit Text");
         }
         function renderViewer() {
             const pdfUrl = COLLECTIONS[currentCollection].pdfPath + "#page=" + currentPosition.pdfPage + "&view=FitH&pagemode=none";
             document.getElementById("pdfFrame").src = pdfUrl;
             document.getElementById("openPdfBtn").onclick = () => window.open(pdfUrl, "_blank");
+        }
+        async function loadLocalCollection(key) {
+            if (localCollectionCache[key]) return localCollectionCache[key];
+            const res = await fetch(COLLECTIONS[key].file, { cache: "no-store" });
+            const items = await res.json();
+            localCollectionCache[key] = items;
+            return items;
+        }
+        async function applyLocalOverrides(key, items) {
+            const localItems = await loadLocalCollection(key);
+            const localMap = new Map(localItems.map((item) => [item.id, item]));
+            return items.map((item) => {
+                const localItem = localMap.get(item.id);
+                if (!localItem) return item;
+                return {
+                    ...item,
+                    comments: Array.isArray(localItem.comments) && localItem.comments.length ? localItem.comments : item.comments,
+                    sourceQuality: localItem.sourceQuality || item.sourceQuality,
+                    sourceText: localItem.sourceText || item.sourceText || ""
+                };
+            });
         }
         async function loadPositionAndCollectionFromDb() {
             const { data: pos, error: posError } = await supabaseClient.from("training_positions_catalog").select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality,source_text").eq("id", positionId).maybeSingle();
@@ -188,20 +210,20 @@
             const { data: list, error: listError } = await supabaseClient.from("training_positions_catalog").select("id,set_key,number,title,pdf_page,discipline,difficulty,description,comments,source_quality,source_text").eq("set_key", currentCollection).order("number", { ascending: true });
             if (listError) throw listError;
             positions = (list || []).map((item) => ({ ...item, pdfPage: item.pdf_page, sourceQuality: item.source_quality, sourceText: item.source_text || item.sourceText || "" }));
+            positions = await applyLocalOverrides(currentCollection, positions);
+            currentPosition = positions.find((item) => item.id === currentPosition.id) || currentPosition;
             const { data: progressRow, error: progressError } = await supabaseClient.from("training_position_progress").select("position_id,notes,trained,updated_at").eq("user_id", currentUser.id).eq("position_id", currentPosition.id).maybeSingle();
             if (progressError) throw progressError;
             entry = progressRow || { position_id: currentPosition.id, notes: "", trained: false, updated_at: "" };
         }
         async function loadFallback() {
             for (const [key, cfg] of Object.entries(COLLECTIONS)) {
-                const res = await fetch(cfg.file, { cache: "no-store" });
-                const items = await res.json();
+                const items = await loadLocalCollection(key);
                 const found = items.find((x) => x.id === positionId) || null;
                 if (found) { currentCollection = key; positions = items; currentPosition = found; break; }
             }
             if (!currentPosition) {
-                const res = await fetch(COLLECTIONS["roger-conti"].file, { cache: "no-store" });
-                positions = await res.json(); currentCollection = "roger-conti"; currentPosition = positions[0] || null;
+                positions = await loadLocalCollection("roger-conti"); currentCollection = "roger-conti"; currentPosition = positions[0] || null;
             }
             const map = loadLocalProgressMap();
             const raw = map[currentPosition.id] || {};
