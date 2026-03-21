@@ -72,6 +72,24 @@
             margin-top: 4px;
         }
 
+        .player-sub.remaining {
+            color: #ff6b6b;
+            opacity: 1;
+            font-weight: 700;
+        }
+
+        .remaining-label {
+            position: absolute;
+            top: 208px;
+            width: 100%;
+            text-align: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: #ff6b6b;
+            display: none;
+            z-index: 20;
+        }
+
         .top-center {
             text-align: center;
         }
@@ -603,6 +621,8 @@
 
         <!-- CENTER -->
 
+        <div id="remainingLabel" class="remaining-label"></div>
+
         <div id="nachstossLabel" style="
     position:absolute;
     top: 250px;
@@ -1063,6 +1083,7 @@
 
             document.getElementById("list1").innerText = innings1.join(",");
             document.getElementById("list2").innerText = innings2.join(",");
+            updateRemainingHint();
 
             p1.className = activePlayer === 1 ? "player active-white" : "player inactive-white";
             p2.className = activePlayer === 2 ? "player active-yellow" : "player inactive-yellow";
@@ -1105,6 +1126,21 @@
                     ? "block"
                     : "none";
 
+        }
+
+        function updateRemainingHint() {
+            const el = document.getElementById("remainingLabel");
+            if (!el) return;
+            const liveScore = activePlayer === 1 ? (score1 + series1) : (score2 + series2);
+            const target = activePlayer === 1 ? target1 : target2;
+            const remaining = Number(target || 0) - Number(liveScore || 0);
+            if (target > 0 && remaining > 0 && remaining <= 10) {
+                el.innerText = "Noch " + remaining;
+                el.style.display = "block";
+                return;
+            }
+            el.innerText = "";
+            el.style.display = "none";
         }
 
         /* ================= POINTS ================= */
