@@ -839,9 +839,35 @@
         let channel;
         let currentUserId = "";
         let ownedPlayerNames = [];
+        let lastAnnouncedRemainingKey = "";
 
         function normalizeEmail(value) {
             return String(value || "").trim().toLowerCase();
+        }
+
+        function speakRemaining(remaining) {
+            if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+            const value = Number(remaining || 0);
+            if (!Number.isInteger(value) || value < 1 || value > 5) return;
+            const currentKey = String(activePlayer) + ":" + String(value);
+            if (lastAnnouncedRemainingKey === currentKey) return;
+            lastAnnouncedRemainingKey = currentKey;
+
+            try {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance("Noch " + value);
+                utterance.lang = "de-DE";
+                const voices = typeof window.speechSynthesis.getVoices === "function"
+                    ? window.speechSynthesis.getVoices()
+                    : [];
+                const germanVoice = voices.find((voice) => String(voice.lang || "").toLowerCase().startsWith("de"));
+                if (germanVoice) utterance.voice = germanVoice;
+                utterance.rate = 1;
+                utterance.pitch = 1;
+                window.speechSynthesis.speak(utterance);
+            } catch (error) {
+                console.warn("Sprachausgabe fehlgeschlagen:", error);
+            }
         }
 
         async function loadMatchResultRecipients(playerNames) {
@@ -1137,8 +1163,10 @@
             if (target > 0 && remaining > 0 && remaining <= 5) {
                 el.innerText = "Noch " + remaining;
                 el.style.display = "block";
+                speakRemaining(remaining);
                 return;
             }
+            lastAnnouncedRemainingKey = "";
             el.innerText = "";
             el.style.display = "none";
         }
