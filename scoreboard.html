@@ -80,10 +80,10 @@
 
         .remaining-label {
             position: absolute;
-            top: 208px;
+            top: 258px;
             width: 100%;
             text-align: center;
-            font-size: 28px;
+            font-size: 42px;
             font-weight: 700;
             color: #ff6b6b;
             display: none;
@@ -1134,7 +1134,7 @@
             const liveScore = activePlayer === 1 ? (score1 + series1) : (score2 + series2);
             const target = activePlayer === 1 ? target1 : target2;
             const remaining = Number(target || 0) - Number(liveScore || 0);
-            if (target > 0 && remaining > 0 && remaining <= 10) {
+            if (target > 0 && remaining > 0 && remaining <= 5) {
                 el.innerText = "Noch " + remaining;
                 el.style.display = "block";
                 return;
