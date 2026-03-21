@@ -1096,8 +1096,9 @@
 
             const showNachstossByMaxForP2 =
                 maxInnings > 0 &&
-                inn2 >= maxInnings &&
-                inn1 < inn2;
+                activePlayer === 2 &&
+                inn1 >= maxInnings &&
+                inn1 > inn2;
 
             nachstoss.style.display =
                 (showNachstossByTargetP1 || showNachstossByMaxForP2)
