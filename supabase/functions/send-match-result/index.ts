@@ -75,39 +75,162 @@ function wrapLine(text: string, maxChars: number) {
   return lines.length ? lines : [""];
 }
 
+function toSeries(values?: number[]) {
+  return Array.isArray(values) ? values.map((value) => Number(value || 0)) : [];
+}
+
 async function buildPdf(match: MatchPayload) {
   const pdf = await PDFDocument.create();
-  const page = pdf.addPage([595, 842]);
+  const page = pdf.addPage([842, 595]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const color = rgb(0.09, 0.12, 0.2);
-  let y = 790;
+  const bg = rgb(0.12, 0.13, 0.20);
+  const panel = rgb(0.14, 0.16, 0.24);
+  const header = rgb(0.11, 0.12, 0.18);
+  const line = rgb(0.26, 0.29, 0.40);
+  const text = rgb(0.92, 0.94, 0.98);
+  const muted = rgb(0.72, 0.76, 0.86);
 
-  const drawBlock = (label: string, value: string, size = 12) => {
-    page.drawText(label, { x: 50, y, size, font: bold, color });
-    y -= size + 4;
-    const lines = wrapLine(value, 82);
-    lines.forEach((line) => {
-      page.drawText(line, { x: 50, y, size, font, color });
-      y -= size + 4;
+  page.drawRectangle({ x: 0, y: 0, width: 842, height: 595, color: bg });
+  page.drawRectangle({ x: 24, y: 24, width: 794, height: 547, color: panel, borderColor: line, borderWidth: 1.5 });
+
+  const drawText = (value: string, x: number, y: number, size: number, opts: { bold?: boolean; color?: ReturnType<typeof rgb> } = {}) => {
+    page.drawText(String(value || ""), {
+      x,
+      y,
+      size,
+      font: opts.bold ? bold : font,
+      color: opts.color || text,
     });
-    y -= 10;
   };
 
-  page.drawText("Partie-Ergebnis", { x: 50, y, size: 24, font: bold, color });
-  y -= 40;
+  const drawCell = (x: number, yTop: number, width: number, height: number, left: string, right = "", options: { valueBold?: boolean; center?: boolean; fill?: ReturnType<typeof rgb> } = {}) => {
+    page.drawRectangle({
+      x,
+      y: yTop - height,
+      width,
+      height,
+      color: options.fill || panel,
+      borderColor: line,
+      borderWidth: 1,
+    });
+    if (options.center) {
+      const textWidth = (options.valueBold ? bold : font).widthOfTextAtSize(left, 13);
+      drawText(left, x + (width - textWidth) / 2, yTop - height / 2 - 5, 13, { bold: options.valueBold });
+      return;
+    }
+    drawText(left, x + 10, yTop - height / 2 - 5, 12, { color: muted });
+    if (right) drawText(right, x + width * 0.42, yTop - height / 2 - 5, 12, { bold: options.valueBold });
+  };
 
-  drawBlock("Partie", `${match.player1} vs. ${match.player2}`);
-  drawBlock("Ergebnis", `${match.score1} : ${match.score2}`);
-  drawBlock("Disziplin", `${match.discipline1 || "-"} / ${match.discipline2 || "-"}`);
-  drawBlock("Aufnahmen", String(match.innings ?? 0));
-  drawBlock("Durchschnitt", `${match.player1}: ${match.avg1}   |   ${match.player2}: ${match.avg2}`);
-  drawBlock("Höchstserie", `${match.player1}: ${match.hs1 ?? 0}   |   ${match.player2}: ${match.hs2 ?? 0}`);
-  drawBlock("Dauer", formatDuration(Number(match.duration || 0)));
-  drawBlock("Gestartet", formatDate(match.startedAt));
-  drawBlock("Beendet", formatDate(match.finishedAt));
-  drawBlock(`Serienverlauf ${match.player1}`, (match.series1 || []).length ? match.series1.join(", ") : "-");
-  drawBlock(`Serienverlauf ${match.player2}`, (match.series2 || []).length ? match.series2.join(", ") : "-");
+  drawText("Partie-Ergebnis", 46, 516, 44, { bold: true });
+  drawText("Datum", 532, 524, 22, { color: muted });
+  drawText(formatDate(match.finishedAt), 610, 524, 24, { bold: true });
+
+  const metaTop = 470;
+  const rowH = 34;
+  drawCell(24, metaTop, 142, rowH, "Spieler 1", match.player1, { valueBold: true });
+  drawCell(166, metaTop, 248, rowH, "", match.player1, { valueBold: true });
+  drawCell(414, metaTop, 142, rowH, "Spieler 2", match.player2, { valueBold: true });
+  drawCell(556, metaTop, 262, rowH, "", match.player2, { valueBold: true });
+  drawCell(24, metaTop - rowH, 142, rowH, "Disziplin 1", match.discipline1 || "-");
+  drawCell(166, metaTop - rowH, 248, rowH, "", match.discipline1 || "-");
+  drawCell(414, metaTop - rowH, 142, rowH, "Disziplin 2", match.discipline2 || "-");
+  drawCell(556, metaTop - rowH, 262, rowH, "", match.discipline2 || "-");
+  drawCell(24, metaTop - rowH * 2, 142, rowH, "Ergebnis", `${match.score1} : ${match.score2}`, { valueBold: true });
+  drawCell(166, metaTop - rowH * 2, 248, rowH, "", `${match.score1} : ${match.score2}`, { valueBold: true });
+  drawCell(414, metaTop - rowH * 2, 142, rowH, "Aufnahmen", String(match.innings ?? 0), { valueBold: true });
+  drawCell(556, metaTop - rowH * 2, 262, rowH, "", String(match.innings ?? 0), { valueBold: true });
+
+  const leftSeries = toSeries(match.series1);
+  const rightSeries = toSeries(match.series2);
+  const rowCount = Math.max(leftSeries.length, rightSeries.length, Number(match.innings || 0), 5);
+  const gridTop = 368;
+  const gridHeaderH = 34;
+  const gridRowH = 30;
+  const cols = [24, 203, 382, 452, 631];
+  const widths = [179, 179, 70, 179, 187];
+
+  ["Serie", "Gesamt", "Aufn.", "Serie", "Gesamt"].forEach((label, index) => {
+    page.drawRectangle({
+      x: cols[index],
+      y: gridTop - gridHeaderH,
+      width: widths[index],
+      height: gridHeaderH,
+      color: header,
+      borderColor: line,
+      borderWidth: 1,
+    });
+    const labelWidth = bold.widthOfTextAtSize(label, 13);
+    drawText(label, cols[index] + (widths[index] - labelWidth) / 2, gridTop - 22, 13, { bold: true, color: muted });
+  });
+
+  let sumLeft = 0;
+  let sumRight = 0;
+  for (let i = 0; i < rowCount; i++) {
+    const yTop = gridTop - gridHeaderH - i * gridRowH;
+    const leftValue = Number(leftSeries[i] || 0);
+    const rightValue = Number(rightSeries[i] || 0);
+    const hasLeft = i < leftSeries.length;
+    const hasRight = i < rightSeries.length;
+    if (hasLeft) sumLeft += leftValue;
+    if (hasRight) sumRight += rightValue;
+    const values = [
+      hasLeft ? String(leftValue || "-") : "-",
+      sumLeft ? String(sumLeft) : "-",
+      String(i + 1),
+      hasRight ? String(rightValue || "-") : "-",
+      sumRight ? String(sumRight) : "-",
+    ];
+
+    values.forEach((value, index) => {
+      page.drawRectangle({
+        x: cols[index],
+        y: yTop - gridRowH,
+        width: widths[index],
+        height: gridRowH,
+        color: panel,
+        borderColor: line,
+        borderWidth: 1,
+      });
+      const width = font.widthOfTextAtSize(value, 12);
+      drawText(value, cols[index] + (widths[index] - width) / 2, yTop - 20, 12);
+    });
+  }
+
+  const summaryTop = gridTop - gridHeaderH - rowCount * gridRowH - 2;
+  page.drawRectangle({ x: 24, y: 24, width: 397, height: summaryTop - 24, borderColor: line, borderWidth: 1, color: panel });
+  page.drawRectangle({ x: 421, y: 24, width: 397, height: summaryTop - 24, borderColor: line, borderWidth: 1, color: panel });
+
+  const statRowsLeft = [
+    ["Anzahl der Bälle", String(match.score1 ?? 0)],
+    ["Anzahl der Aufnahmen", String(match.innings ?? 0)],
+    ["Durchschnitt", String(match.avg1 || "0.000")],
+    ["Höchstserie", String(match.hs1 ?? 0)],
+  ];
+  const statRowsRight = [
+    ["Anzahl der Bälle", String(match.score2 ?? 0)],
+    ["Anzahl der Aufnahmen", String(match.innings ?? 0)],
+    ["Durchschnitt", String(match.avg2 || "0.000")],
+    ["Höchstserie", String(match.hs2 ?? 0)],
+  ];
+
+  const drawStatColumn = (x: number, rows: string[][]) => {
+    let y = summaryTop - 24;
+    rows.forEach(([label, value], index) => {
+      if (index > 0) {
+        page.drawLine({ start: { x: x + 14, y }, end: { x: x + 383, y }, thickness: 1, color: line });
+        y -= 22;
+      }
+      drawText(label, x + 14, y - 8, 12, { color: muted });
+      const width = bold.widthOfTextAtSize(value, 13);
+      drawText(value, x + 383 - width, y - 10, 13, { bold: true });
+      y -= 42;
+    });
+  };
+
+  drawStatColumn(24, statRowsLeft);
+  drawStatColumn(421, statRowsRight);
 
   return await pdf.save();
 }
@@ -183,7 +306,7 @@ Deno.serve(async (req) => {
       html,
       attachments: [
         {
-          filename: `partie-${match.matchId}.pdf`,
+          filename: "Partie-Ergebnis.pdf",
           content: bytesToBase64(pdfBytes),
           encoding: "base64",
           contentType: "application/pdf",
