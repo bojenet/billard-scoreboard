@@ -869,11 +869,15 @@
 
             const sendPromise = supabaseClient.functions.invoke("send-match-result", { body });
             const timeoutPromise = new Promise((resolve) => {
-                setTimeout(() => resolve({ data: null, error: { message: "timeout" } }), 8000);
+                setTimeout(() => resolve({ data: null, error: { message: "timeout" } }), 1800);
             });
             const result = await Promise.race([sendPromise, timeoutPromise]);
 
             if (result?.error) {
+                if (String(result.error.message || "").toLowerCase() === "timeout") {
+                    console.warn("Ergebnis-Mail läuft im Hintergrund weiter.");
+                    return { skipped: false, ok: true, background: true };
+                }
                 console.warn("Ergebnis-Mail konnte nicht gesendet werden:", result.error);
                 return { skipped: false, ok: false, error: result.error };
             }

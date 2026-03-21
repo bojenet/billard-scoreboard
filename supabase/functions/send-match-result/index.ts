@@ -52,6 +52,16 @@ function formatDate(value?: string) {
   }).format(date);
 }
 
+function formatDateForFilename(value?: string) {
+  if (!value) return "unbekannt";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unbekannt";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function bytesToBase64(bytes: Uint8Array) {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -81,7 +91,6 @@ function toSeries(values?: number[]) {
 
 async function buildPdf(match: MatchPayload) {
   const pdf = await PDFDocument.create();
-  const page = pdf.addPage([842, 595]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const bg = rgb(1, 1, 1);
@@ -90,9 +99,12 @@ async function buildPdf(match: MatchPayload) {
   const line = rgb(0.55, 0.55, 0.55);
   const text = rgb(0.08, 0.08, 0.08);
   const muted = rgb(0.28, 0.28, 0.28);
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const page = pdf.addPage([pageWidth, pageHeight]);
 
-  page.drawRectangle({ x: 0, y: 0, width: 842, height: 595, color: bg });
-  page.drawRectangle({ x: 24, y: 24, width: 794, height: 547, color: panel, borderColor: line, borderWidth: 1 });
+  page.drawRectangle({ x: 0, y: 0, width: pageWidth, height: pageHeight, color: bg });
+  page.drawRectangle({ x: 24, y: 24, width: 547, height: 794, color: panel, borderColor: line, borderWidth: 1 });
 
   const drawText = (value: string, x: number, y: number, size: number, opts: { bold?: boolean; color?: ReturnType<typeof rgb> } = {}) => {
     page.drawText(String(value || ""), {
@@ -124,27 +136,29 @@ async function buildPdf(match: MatchPayload) {
     if (right) drawText(right, x + 10 + labelWidth, yTop - height / 2 - 5, 12, { bold: options.valueBold });
   };
 
-  drawText("Partie-Ergebnis", 46, 520, 34, { bold: true });
-  drawText("Datum", 548, 522, 18, { color: muted });
-  drawText(formatDate(match.finishedAt), 620, 522, 20, { bold: true });
+  drawText("Partie-Ergebnis", 42, 774, 28, { bold: true });
+  drawText("Datum", 378, 778, 14, { color: muted });
+  drawText(formatDate(match.finishedAt), 430, 778, 16, { bold: true });
 
-  const metaTop = 470;
-  const rowH = 34;
-  drawCell(24, metaTop, 390, rowH, "Spieler 1", match.player1, { valueBold: true, labelWidth: 92 });
-  drawCell(414, metaTop, 404, rowH, "Spieler 2", match.player2, { valueBold: true, labelWidth: 92 });
-  drawCell(24, metaTop - rowH, 390, rowH, "Disziplin 1", match.discipline1 || "-", { labelWidth: 102 });
-  drawCell(414, metaTop - rowH, 404, rowH, "Disziplin 2", match.discipline2 || "-", { labelWidth: 102 });
-  drawCell(24, metaTop - rowH * 2, 390, rowH, "Ergebnis", `${match.score1} : ${match.score2}`, { valueBold: true, labelWidth: 84 });
-  drawCell(414, metaTop - rowH * 2, 404, rowH, "Aufnahmen", String(match.innings ?? 0), { valueBold: true, labelWidth: 98 });
+  const metaTop = 728;
+  const rowH = 28;
+  drawCell(24, metaTop, 273, rowH, "Spieler 1", match.player1, { valueBold: true, labelWidth: 76 });
+  drawCell(297, metaTop, 274, rowH, "Spieler 2", match.player2, { valueBold: true, labelWidth: 76 });
+  drawCell(24, metaTop - rowH, 273, rowH, "Disziplin 1", match.discipline1 || "-", { labelWidth: 84 });
+  drawCell(297, metaTop - rowH, 274, rowH, "Disziplin 2", match.discipline2 || "-", { labelWidth: 84 });
+  drawCell(24, metaTop - rowH * 2, 273, rowH, "Ergebnis", `${match.score1} : ${match.score2}`, { valueBold: true, labelWidth: 68 });
+  drawCell(297, metaTop - rowH * 2, 274, rowH, "Aufnahmen", String(match.innings ?? 0), { valueBold: true, labelWidth: 82 });
 
   const leftSeries = toSeries(match.series1);
   const rightSeries = toSeries(match.series2);
   const rowCount = Math.max(leftSeries.length, rightSeries.length, Number(match.innings || 0), 5);
-  const gridTop = 368;
-  const gridHeaderH = 34;
-  const gridRowH = 30;
-  const cols = [24, 203, 382, 452, 631];
-  const widths = [179, 179, 70, 179, 187];
+  const maxRowsFirstPage = 30;
+  const firstPageRows = Math.min(rowCount, maxRowsFirstPage);
+  const gridTop = 644;
+  const gridHeaderH = 28;
+  const gridRowH = 14;
+  const cols = [24, 152, 280, 339, 467];
+  const widths = [128, 128, 59, 128, 104];
 
   ["Serie", "Gesamt", "Aufn.", "Serie", "Gesamt"].forEach((label, index) => {
     page.drawRectangle({
@@ -156,13 +170,13 @@ async function buildPdf(match: MatchPayload) {
       borderColor: line,
       borderWidth: 1,
     });
-    const labelWidth = bold.widthOfTextAtSize(label, 13);
-    drawText(label, cols[index] + (widths[index] - labelWidth) / 2, gridTop - 22, 13, { bold: true, color: muted });
+    const labelWidth = bold.widthOfTextAtSize(label, 11);
+    drawText(label, cols[index] + (widths[index] - labelWidth) / 2, gridTop - 18, 11, { bold: true, color: muted });
   });
 
   let sumLeft = 0;
   let sumRight = 0;
-  for (let i = 0; i < rowCount; i++) {
+  for (let i = 0; i < firstPageRows; i++) {
     const yTop = gridTop - gridHeaderH - i * gridRowH;
     const leftValue = Number(leftSeries[i] || 0);
     const rightValue = Number(rightSeries[i] || 0);
@@ -188,15 +202,12 @@ async function buildPdf(match: MatchPayload) {
         borderColor: line,
         borderWidth: 1,
       });
-      const width = font.widthOfTextAtSize(value, 11);
-      drawText(value, cols[index] + (widths[index] - width) / 2, yTop - 19, 11);
+      const width = font.widthOfTextAtSize(value, 9.5);
+      drawText(value, cols[index] + (widths[index] - width) / 2, yTop - 10, 9.5);
     });
   }
 
-  const summaryTop = gridTop - gridHeaderH - rowCount * gridRowH - 2;
-  page.drawRectangle({ x: 24, y: 24, width: 397, height: summaryTop - 24, borderColor: line, borderWidth: 1, color: panel });
-  page.drawRectangle({ x: 421, y: 24, width: 397, height: summaryTop - 24, borderColor: line, borderWidth: 1, color: panel });
-
+  const summaryTop = gridTop - gridHeaderH - firstPageRows * gridRowH - 4;
   const statRowsLeft = [
     ["Anzahl der Bälle", String(match.score1 ?? 0)],
     ["Anzahl der Aufnahmen", String(match.innings ?? 0)],
@@ -210,22 +221,97 @@ async function buildPdf(match: MatchPayload) {
     ["Höchstserie", String(match.hs2 ?? 0)],
   ];
 
-  const drawStatColumn = (x: number, rows: string[][]) => {
-    let y = summaryTop - 24;
+  const drawStatColumn = (targetPage: typeof page, x: number, top: number, columnWidth: number, rows: string[][]) => {
+    let y = top - 24;
     rows.forEach(([label, value], index) => {
       if (index > 0) {
-        page.drawLine({ start: { x: x + 14, y }, end: { x: x + 383, y }, thickness: 1, color: line });
+        targetPage.drawLine({ start: { x: x + 14, y }, end: { x: x + columnWidth - 14, y }, thickness: 1, color: line });
         y -= 22;
       }
-      drawText(label, x + 14, y - 8, 11, { color: muted });
-      const width = bold.widthOfTextAtSize(value, 12);
-      drawText(value, x + 383 - width, y - 9, 12, { bold: true });
+      targetPage.drawText(label, { x: x + 14, y: y - 8, size: 11, font, color: muted });
+      const textWidth = bold.widthOfTextAtSize(value, 12);
+      targetPage.drawText(value, { x: x + columnWidth - 14 - textWidth, y: y - 9, size: 12, font: bold, color: text });
       y -= 38;
     });
   };
 
-  drawStatColumn(24, statRowsLeft);
-  drawStatColumn(421, statRowsRight);
+  if (summaryTop >= 188) {
+    page.drawRectangle({ x: 24, y: 24, width: 273, height: summaryTop - 24, borderColor: line, borderWidth: 1, color: panel });
+    page.drawRectangle({ x: 297, y: 24, width: 274, height: summaryTop - 24, borderColor: line, borderWidth: 1, color: panel });
+    drawStatColumn(page, 24, summaryTop, 273, statRowsLeft);
+    drawStatColumn(page, 297, summaryTop, 274, statRowsRight);
+  } else {
+    const secondPage = pdf.addPage([pageWidth, pageHeight]);
+    secondPage.drawRectangle({ x: 0, y: 0, width: pageWidth, height: pageHeight, color: bg });
+    secondPage.drawRectangle({ x: 24, y: 24, width: 547, height: 794, color: panel, borderColor: line, borderWidth: 1 });
+    secondPage.drawText("Partie-Ergebnis", { x: 42, y: 778, size: 24, font: bold, color: text });
+    secondPage.drawText("Kennzahlen", { x: 42, y: 748, size: 14, font, color: muted });
+    secondPage.drawRectangle({ x: 24, y: 482, width: 273, height: 250, borderColor: line, borderWidth: 1, color: panel });
+    secondPage.drawRectangle({ x: 297, y: 482, width: 274, height: 250, borderColor: line, borderWidth: 1, color: panel });
+    drawStatColumn(secondPage, 24, 716, 273, statRowsLeft);
+    drawStatColumn(secondPage, 297, 716, 274, statRowsRight);
+
+    const remainingRows = rowCount - firstPageRows;
+    if (remainingRows > 0) {
+      const secondGridTop = 446;
+      ["Serie", "Gesamt", "Aufn.", "Serie", "Gesamt"].forEach((label, index) => {
+        secondPage.drawRectangle({
+          x: cols[index],
+          y: secondGridTop - gridHeaderH,
+          width: widths[index],
+          height: gridHeaderH,
+          color: header,
+          borderColor: line,
+          borderWidth: 1,
+        });
+        const labelWidth = bold.widthOfTextAtSize(label, 11);
+        secondPage.drawText(label, {
+          x: cols[index] + (widths[index] - labelWidth) / 2,
+          y: secondGridTop - 18,
+          size: 11,
+          font: bold,
+          color: muted,
+        });
+      });
+
+      for (let i = firstPageRows; i < rowCount; i++) {
+        const yTop = secondGridTop - gridHeaderH - (i - firstPageRows) * gridRowH;
+        const leftValue = Number(leftSeries[i] || 0);
+        const rightValue = Number(rightSeries[i] || 0);
+        const hasLeft = i < leftSeries.length;
+        const hasRight = i < rightSeries.length;
+        if (hasLeft) sumLeft += leftValue;
+        if (hasRight) sumRight += rightValue;
+        const values = [
+          hasLeft ? String(leftValue || "-") : "-",
+          sumLeft ? String(sumLeft) : "-",
+          String(i + 1),
+          hasRight ? String(rightValue || "-") : "-",
+          sumRight ? String(sumRight) : "-",
+        ];
+
+        values.forEach((value, index) => {
+          secondPage.drawRectangle({
+            x: cols[index],
+            y: yTop - gridRowH,
+            width: widths[index],
+            height: gridRowH,
+            color: panel,
+            borderColor: line,
+            borderWidth: 1,
+          });
+          const width = font.widthOfTextAtSize(value, 9.5);
+          secondPage.drawText(value, {
+            x: cols[index] + (widths[index] - width) / 2,
+            y: yTop - 10,
+            size: 9.5,
+            font,
+            color: text,
+          });
+        });
+      }
+    }
+  }
 
   return await pdf.save();
 }
@@ -284,6 +370,7 @@ Deno.serve(async (req) => {
     const pdfBytes = await buildPdf(match);
     const transporter = buildTransport();
     const subject = `Partie-Ergebnis: ${match.player1} ${match.score1} : ${match.score2} ${match.player2}`;
+    const pdfFilename = `Partie-Ergebnis_${formatDateForFilename(match.finishedAt)}_${match.matchId}.pdf`;
 
     const html = `
       <div style="font-family:Arial,sans-serif;color:#1b1f2b;line-height:1.5">
@@ -301,7 +388,7 @@ Deno.serve(async (req) => {
       html,
       attachments: [
         {
-          filename: "Partie-Ergebnis.pdf",
+          filename: pdfFilename,
           content: bytesToBase64(pdfBytes),
           encoding: "base64",
           contentType: "application/pdf",
