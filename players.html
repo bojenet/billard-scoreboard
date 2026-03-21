@@ -19,8 +19,18 @@ h1 {
 }
 
 .container {
-    width:700px;
+    width:min(1080px, 92%);
     margin:40px auto;
+}
+
+.notice {
+    display:none;
+    margin-bottom:20px;
+    padding:14px 16px;
+    border-radius:12px;
+    background:#394064;
+    color:#eef2ff;
+    font-size:16px;
 }
 
 .add-box {
@@ -30,23 +40,44 @@ h1 {
     margin-bottom:30px;
 }
 
+.add-grid {
+    display:grid;
+    grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr) auto auto;
+    gap:12px;
+    align-items:center;
+}
+
 .add-box input {
     font-size:18px;
     padding:10px;
-    width:250px;
     border-radius:8px;
     border:none;
+    width:100%;
+    box-sizing:border-box;
 }
 
 .add-box button {
     font-size:18px;
     padding:10px 20px;
-    margin-left:10px;
     background:#3f4fa3;
     color:white;
     border:none;
     border-radius:8px;
     cursor:pointer;
+}
+
+.checkbox-wrap {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    font-size:16px;
+    white-space:nowrap;
+}
+
+.checkbox-wrap input {
+    width:18px;
+    height:18px;
 }
 
 table {
@@ -80,6 +111,35 @@ td {
     background:#d64545;
 }
 
+.save-btn {
+    background:#3f7c58;
+    border:none;
+    color:white;
+    padding:6px 14px;
+    border-radius:6px;
+    cursor:pointer;
+    margin-right:8px;
+}
+
+.save-btn:hover {
+    background:#4a9468;
+}
+
+.row-input {
+    width:100%;
+    box-sizing:border-box;
+    font-size:16px;
+    padding:8px 10px;
+    border-radius:8px;
+    border:none;
+    background:#eef2ff;
+}
+
+.row-check {
+    width:18px;
+    height:18px;
+}
+
 .nav-btn {
     margin-top:40px;
     padding:10px 30px;
@@ -90,6 +150,35 @@ td {
     color:white;
     cursor:pointer;
 }
+
+@media (max-width: 840px) {
+    .add-grid {
+        grid-template-columns:1fr;
+    }
+
+    table, thead, tbody, th, td, tr {
+        display:block;
+    }
+
+    table {
+        background:transparent;
+    }
+
+    tr {
+        background:#2a2b35;
+        border-radius:15px;
+        margin-bottom:16px;
+        overflow:hidden;
+    }
+
+    th {
+        display:none;
+    }
+
+    td {
+        border-top:1px solid #333;
+    }
+}
 </style>
 </head>
 <body>
@@ -97,15 +186,25 @@ td {
 <h1>Spielerverwaltung</h1>
 
 <div class="container">
+    <div class="notice" id="noticeBox"></div>
 
     <div class="add-box">
-        <input type="text" id="newPlayer" placeholder="Neuer Spieler">
-        <button onclick="addPlayer()">Hinzufügen</button>
+        <div class="add-grid">
+            <input type="text" id="newPlayer" placeholder="Neuer Spieler">
+            <input type="email" id="newPlayerEmail" placeholder="E-Mail für Ergebnisversand">
+            <label class="checkbox-wrap" for="newPlayerSendEmail">
+                <input type="checkbox" id="newPlayerSendEmail">
+                <span>Partie-Ergebnis per Mail</span>
+            </label>
+            <button onclick="addPlayer()">Hinzufügen</button>
+        </div>
     </div>
 
     <table id="playerTable">
         <tr>
             <th>Name</th>
+            <th>E-Mail</th>
+            <th>Ergebnis per Mail</th>
             <th>Aktion</th>
         </tr>
     </table>
@@ -125,24 +224,36 @@ Zurück
 
 <script>
 let currentUserId = "";
+let supportsEmailSettings = true;
+
+function setNotice(text) {
+    const box = document.getElementById("noticeBox");
+    if (!box) return;
+    box.style.display = text ? "block" : "none";
+    box.innerText = text || "";
+}
 
 async function loadScopedPlayers() {
     let result = await supabaseClient
         .from("players")
-        .select("*")
+        .select("id,name,email,send_match_result_email,user_id")
         .eq("user_id", currentUserId)
         .order("name", { ascending: true });
 
     if (!result.error) {
+        supportsEmailSettings = true;
         return result;
     }
 
-    // Fallback für altes Schema ohne user_id.
-    if (String(result.error.message || "").toLowerCase().includes("user_id")) {
-        console.warn("players.user_id fehlt, nutze unscoped fallback.");
+    const message = String(result.error.message || "").toLowerCase();
+
+    // Fallback für altes Schema ohne neue Mail-Felder oder user_id.
+    if (message.includes("user_id") || message.includes("email") || message.includes("send_match_result_email")) {
+        supportsEmailSettings = false;
+        console.warn("players-Mailspalten fehlen oder players.user_id fehlt, nutze Kompatibilitätsmodus.");
         result = await supabaseClient
             .from("players")
-            .select("*")
+            .select("id,name")
             .order("name", { ascending: true });
     }
     return result;
@@ -161,20 +272,39 @@ async function loadPlayers(){
     }
 
     const table = document.getElementById("playerTable");
+    if (!supportsEmailSettings) {
+        setNotice("Die Felder für E-Mail-Versand sind in Supabase noch nicht aktiv. Bitte zuerst sql/player_result_email.sql ausführen.");
+    } else {
+        setNotice("");
+    }
 
     table.innerHTML = `
         <tr>
             <th>Name</th>
+            <th>E-Mail</th>
+            <th>Ergebnis per Mail</th>
             <th>Aktion</th>
         </tr>
     `;
 
     data.forEach(p => {
+        const name = String(p.name || "");
+        const email = String(p.email || "");
+        const sendMail = Boolean(p.send_match_result_email);
 
         table.innerHTML += `
             <tr>
-                <td>${p.name}</td>
                 <td>
+                    <input class="row-input" id="player-name-${p.id}" value="${escapeHtml(name)}" />
+                </td>
+                <td>
+                    <input class="row-input" id="player-email-${p.id}" type="email" value="${escapeHtml(email)}" ${supportsEmailSettings ? "" : "disabled"} />
+                </td>
+                <td>
+                    <input class="row-check" id="player-send-${p.id}" type="checkbox" ${sendMail ? "checked" : ""} ${supportsEmailSettings ? "" : "disabled"} />
+                </td>
+                <td>
+                    <button class="save-btn" onclick="updatePlayer(${p.id})">Speichern</button>
                     <button class="delete-btn" onclick="deletePlayer(${p.id})">
                         Löschen
                     </button>
@@ -184,20 +314,31 @@ async function loadPlayers(){
     });
 }
 
+function escapeHtml(value) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
 async function addPlayer(){
     const user = await requireAuth();
     if (!user) return;
     currentUserId = user.id;
 
     const name = document.getElementById("newPlayer").value.trim();
+    const email = document.getElementById("newPlayerEmail").value.trim().toLowerCase();
+    const sendMail = document.getElementById("newPlayerSendEmail").checked;
     if(!name) return;
 
     let { error } = await supabaseClient
         .from("players")
-        .insert([{ name, user_id: currentUserId }]);
+        .insert([{ name, email: email || null, send_match_result_email: sendMail, user_id: currentUserId }]);
 
-    // Fallback für altes Schema ohne user_id.
-    if (error && String(error.message || "").toLowerCase().includes("user_id")) {
+    // Fallback für altes Schema ohne neue Felder oder user_id.
+    const message = String(error?.message || "").toLowerCase();
+    if (error && (message.includes("user_id") || message.includes("email") || message.includes("send_match_result_email"))) {
         const fallback = await supabaseClient
             .from("players")
             .insert([{ name }]);
@@ -210,7 +351,53 @@ async function addPlayer(){
     }
 
     document.getElementById("newPlayer").value="";
+    document.getElementById("newPlayerEmail").value="";
+    document.getElementById("newPlayerSendEmail").checked=false;
     loadPlayers();
+}
+
+async function updatePlayer(id) {
+    const user = await requireAuth();
+    if (!user) return;
+    currentUserId = user.id;
+
+    const name = document.getElementById(`player-name-${id}`)?.value.trim() || "";
+    const email = document.getElementById(`player-email-${id}`)?.value.trim().toLowerCase() || "";
+    const sendMail = Boolean(document.getElementById(`player-send-${id}`)?.checked);
+
+    if (!name) {
+        alert("Bitte einen Spielernamen eintragen.");
+        return;
+    }
+
+    let updateQuery = supabaseClient
+        .from("players")
+        .update({
+            name,
+            email: email || null,
+            send_match_result_email: sendMail
+        })
+        .eq("id", id)
+        .eq("user_id", currentUserId);
+
+    let { error } = await updateQuery;
+    const message = String(error?.message || "").toLowerCase();
+
+    if (error && (message.includes("user_id") || message.includes("email") || message.includes("send_match_result_email"))) {
+        const fallback = await supabaseClient
+            .from("players")
+            .update({ name })
+            .eq("id", id);
+        error = fallback.error;
+    }
+
+    if (error) {
+        console.error(error);
+        alert("Spieler konnte nicht gespeichert werden.");
+        return;
+    }
+
+    await loadPlayers();
 }
 
 async function deletePlayer(id){

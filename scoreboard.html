@@ -814,10 +814,72 @@
         let innings2 = [];
         let seconds = 0;
         let maxInnings = 0;
+        let startedAtIso = "";
         let timerInterval;
         let channel;
         let currentUserId = "";
         let ownedPlayerNames = [];
+
+        function normalizeEmail(value) {
+            return String(value || "").trim().toLowerCase();
+        }
+
+        async function loadMatchResultRecipients(playerNames) {
+            const cleanNames = Array.from(new Set((playerNames || []).map((name) => String(name || "").trim()).filter(Boolean)));
+            if (!cleanNames.length) return [];
+
+            let result = await supabaseClient
+                .from("players")
+                .select("id,name,email,send_match_result_email,user_id")
+                .eq("user_id", currentUserId)
+                .in("name", cleanNames);
+
+            let data = result.data || [];
+            let error = result.error;
+            const message = String(error?.message || "").toLowerCase();
+
+            if (error && (message.includes("user_id") || message.includes("email") || message.includes("send_match_result_email"))) {
+                console.warn("players-Mailfelder noch nicht aktiv oder user_id fehlt:", error);
+                return [];
+            }
+
+            if (error) {
+                console.warn("Spieler-Maildaten konnten nicht geladen werden:", error);
+                return [];
+            }
+
+            return data
+                .filter((row) => Boolean(row.send_match_result_email) && normalizeEmail(row.email))
+                .map((row) => ({
+                    name: String(row.name || "").trim(),
+                    email: normalizeEmail(row.email)
+                }))
+                .filter((row, index, list) => list.findIndex((item) => item.email === row.email) === index);
+        }
+
+        async function sendMatchResultEmails(matchPayload) {
+            const recipients = await loadMatchResultRecipients([matchPayload.player1, matchPayload.player2]);
+            if (!recipients.length) return { skipped: true, reason: "no-recipients" };
+
+            const body = {
+                matchId,
+                recipients,
+                match: matchPayload
+            };
+
+            const sendPromise = supabaseClient.functions.invoke("send-match-result", { body });
+            const timeoutPromise = new Promise((resolve) => {
+                setTimeout(() => resolve({ data: null, error: { message: "timeout" } }), 8000);
+            });
+            const result = await Promise.race([sendPromise, timeoutPromise]);
+
+            if (result?.error) {
+                console.warn("Ergebnis-Mail konnte nicht gesendet werden:", result.error);
+                return { skipped: false, ok: false, error: result.error };
+            }
+
+            return { skipped: false, ok: true, data: result?.data || null };
+        }
 
         /* ================= TIMER ================= */
 
@@ -905,6 +967,7 @@
                 (maxInnings > 0 ? "/" + maxInnings : "");
 
             updateUI();
+            startedAtIso = d.started_at || "";
             startTimer(d.started_at);
             subscribeToMatch();
             showEndIfFinished();
@@ -1387,6 +1450,17 @@
                 status: 0
             };
 
+            const matchMailPayload = {
+                ...archiveData,
+                discipline1: document.getElementById("discipline1Big").innerText,
+                discipline2: document.getElementById("discipline2Big").innerText,
+                target1,
+                target2,
+                maxInnings,
+                startedAt: startedAtIso || new Date(Date.now() - (seconds * 1000)).toISOString(),
+                finishedAt: new Date().toISOString()
+            };
+
             try {
                 localStorage.setItem(
                     "series_" + matchId,
@@ -1431,6 +1505,8 @@
             if (archiveWriteError) {
                 console.error("Archivspeicherung fehlgeschlagen:", archiveWriteError);
             }
+
+            await sendMatchResultEmails(matchMailPayload);
 
             window.location.href = "/";
         }
