@@ -1444,11 +1444,6 @@
                 score2,
                 player2Name.innerText
             );
-            document.getElementById("endDiscipline").innerText =
-                document.getElementById("discipline1Big").innerText;
-
-            document.getElementById("endTargetMeta").innerText =
-                target1 + (maxInnings > 0 ? " / " + maxInnings : "");
             const disciplineText =
                 document.getElementById("discipline1Big").innerText;
 
@@ -1515,8 +1510,7 @@
                 hs2: high2,
                 series1: finalSeries1,
                 series2: finalSeries2,
-                duration: seconds,
-                status: 0
+                duration: seconds
             };
 
             const matchMailPayload = {
