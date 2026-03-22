@@ -1460,6 +1460,7 @@
 
             const finalSeries1 = [...innings1];
             const finalSeries2 = [...innings2];
+            const playedInnings = Math.max(inn1, inn2);
 
             // Wenn die letzte Aufnahme noch nicht per Spielerwechsel verbucht wurde,
             // beim Speichern in den Serienverlauf aufnehmen.
@@ -1503,7 +1504,7 @@
                 player2: player2Name.innerText,
                 score1,
                 score2,
-                innings: totalInnings,
+                innings: playedInnings,
                 avg1: inn1 > 0 ? (score1 / inn1).toFixed(3) : "0.000",
                 avg2: inn2 > 0 ? (score2 / inn2).toFixed(3) : "0.000",
                 hs1: high1,
