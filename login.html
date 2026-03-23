@@ -15,11 +15,11 @@
         }
 
         .card {
-            width: min(520px, 92%);
+            width: min(560px, 92%);
             background: linear-gradient(180deg, #162b66, #0f1c3f);
             border: 1px solid #2d488f;
             border-radius: 22px;
-            padding: 28px 24px;
+            padding: 30px 26px;
             box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
         }
 
@@ -29,7 +29,25 @@
         }
 
         .sub {
-            margin: 0 0 18px;
+            margin: 0 0 20px;
+            opacity: 0.78;
+            line-height: 1.45;
+        }
+
+        .stack {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .field label {
+            font-size: 14px;
             opacity: 0.78;
         }
 
@@ -39,7 +57,6 @@
             border: none;
             border-radius: 12px;
             padding: 12px 14px;
-            margin-bottom: 10px;
             font-size: 18px;
         }
 
@@ -55,44 +72,170 @@
             cursor: pointer;
         }
 
+        button[disabled] {
+            opacity: 0.68;
+            cursor: wait;
+        }
+
         .btn-secondary {
-            margin-top: 10px;
             background: #243b90;
         }
 
         .btn-link {
-            margin-top: 10px;
             background: transparent;
             border: 1px solid #3f5fc0;
             color: #dbe4ff;
         }
 
-        .error {
-            min-height: 20px;
-            margin: 10px 0 0;
-            color: #ffb6b6;
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .message {
+            min-height: 22px;
+            margin-top: 14px;
             font-size: 14px;
+        }
+
+        .message.error {
+            color: #ffb6b6;
+        }
+
+        .message.ok {
+            color: #b7f7c5;
+        }
+
+        .tiny {
+            margin-top: 12px;
+            font-size: 13px;
+            opacity: 0.68;
+            line-height: 1.45;
         }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>Login</h1>
-        <p class="sub">Mit deinem Konto anmelden</p>
-        <input id="email" type="email" placeholder="E-Mail" autocomplete="username" />
-        <input id="password" type="password" placeholder="Passwort" autocomplete="current-password" />
-        <button onclick="login()">Anmelden</button>
-        <button class="btn-secondary" onclick="signUp()">Konto erstellen</button>
-        <button class="btn-link" onclick="resetPassword()">Passwort zurücksetzen</button>
-        <div id="errorText" class="error"></div>
+        <h1 id="title">Login</h1>
+        <p class="sub" id="subText">Mit deinem Konto anmelden</p>
+
+        <div class="stack">
+            <div class="field" id="emailField">
+                <label for="email">E-Mail</label>
+                <input id="email" type="email" placeholder="name@domain.de" autocomplete="username" />
+            </div>
+
+            <div class="field" id="passwordField">
+                <label for="password">Passwort</label>
+                <input id="password" type="password" placeholder="Passwort" autocomplete="current-password" />
+            </div>
+
+            <div class="field" id="confirmField" style="display:none;">
+                <label for="confirmPassword">Passwort wiederholen</label>
+                <input id="confirmPassword" type="password" placeholder="Passwort wiederholen" autocomplete="new-password" />
+            </div>
+        </div>
+
+        <div class="actions">
+            <button id="primaryBtn" type="button" onclick="handlePrimary()">Anmelden</button>
+            <button id="secondaryBtn" class="btn-secondary" type="button" onclick="handleSecondary()">Konto erstellen</button>
+            <button id="tertiaryBtn" class="btn-link" type="button" onclick="handleTertiary()">Passwort zurücksetzen</button>
+        </div>
+
+        <div id="messageBox" class="message"></div>
+        <div id="tinyText" class="tiny"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script>
+        let currentMode = "login";
+        let busy = false;
+
         function resolveNextPath() {
             const next = new URLSearchParams(window.location.search).get("next");
             return next || "/index.html";
+        }
+
+        function setBusy(nextBusy) {
+            busy = Boolean(nextBusy);
+            document.querySelectorAll("button").forEach((btn) => {
+                btn.disabled = busy;
+            });
+        }
+
+        function setMessage(text, type) {
+            const box = document.getElementById("messageBox");
+            box.className = "message " + (type || "");
+            box.innerText = text || "";
+        }
+
+        function applyMode(mode) {
+            currentMode = mode;
+            const emailField = document.getElementById("emailField");
+            const passwordField = document.getElementById("passwordField");
+            const confirmField = document.getElementById("confirmField");
+            const title = document.getElementById("title");
+            const subText = document.getElementById("subText");
+            const primaryBtn = document.getElementById("primaryBtn");
+            const secondaryBtn = document.getElementById("secondaryBtn");
+            const tertiaryBtn = document.getElementById("tertiaryBtn");
+            const tinyText = document.getElementById("tinyText");
+
+            emailField.style.display = "flex";
+            passwordField.style.display = "flex";
+            confirmField.style.display = "none";
+            secondaryBtn.style.display = "block";
+            tertiaryBtn.style.display = "block";
+            tinyText.innerText = "";
+            setMessage("", "");
+
+            if (mode === "login") {
+                title.innerText = "Login";
+                subText.innerText = "Mit deinem Konto anmelden";
+                primaryBtn.innerText = "Anmelden";
+                secondaryBtn.innerText = "Konto erstellen";
+                tertiaryBtn.innerText = "Passwort zurücksetzen";
+                document.getElementById("password").autocomplete = "current-password";
+                return;
+            }
+
+            if (mode === "signup") {
+                title.innerText = "Konto erstellen";
+                subText.innerText = "Neues Konto mit E-Mail und Passwort anlegen";
+                primaryBtn.innerText = "Konto erstellen";
+                secondaryBtn.innerText = "Zum Login";
+                tertiaryBtn.style.display = "none";
+                confirmField.style.display = "flex";
+                document.getElementById("password").autocomplete = "new-password";
+                tinyText.innerText = "Wenn E-Mail-Bestätigung aktiv ist, musst du danach dein Postfach prüfen.";
+                return;
+            }
+
+            if (mode === "reset") {
+                title.innerText = "Passwort zurücksetzen";
+                subText.innerText = "Wir senden dir einen Link, über den du ein neues Passwort setzen kannst.";
+                primaryBtn.innerText = "Reset-Mail senden";
+                secondaryBtn.innerText = "Zum Login";
+                tertiaryBtn.style.display = "none";
+                passwordField.style.display = "none";
+                confirmField.style.display = "none";
+                return;
+            }
+        }
+
+        function getEmail() {
+            return document.getElementById("email").value.trim();
+        }
+
+        function getPassword() {
+            return document.getElementById("password").value;
+        }
+
+        function getConfirmPassword() {
+            return document.getElementById("confirmPassword").value;
         }
 
         async function redirectIfSessionExists() {
@@ -111,24 +254,19 @@
         }
 
         async function login() {
-            const email = document.getElementById("email").value.trim();
-            const password = document.getElementById("password").value;
-            const errorText = document.getElementById("errorText");
-            errorText.innerText = "";
-            errorText.style.color = "#ffb6b6";
-
+            const email = getEmail();
+            const password = getPassword();
             if (!email || !password) {
-                errorText.innerText = "Bitte E-Mail und Passwort eingeben.";
+                setMessage("Bitte E-Mail und Passwort eingeben.", "error");
                 return;
             }
 
-            const { error } = await supabaseClient.auth.signInWithPassword({
-                email,
-                password
-            });
+            setBusy(true);
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            setBusy(false);
 
             if (error) {
-                errorText.innerText = "Login fehlgeschlagen: " + error.message;
+                setMessage("Login fehlgeschlagen: " + error.message, "error");
                 return;
             }
 
@@ -136,56 +274,81 @@
         }
 
         async function signUp() {
-            const email = document.getElementById("email").value.trim();
-            const password = document.getElementById("password").value;
-            const errorText = document.getElementById("errorText");
-            errorText.innerText = "";
-            errorText.style.color = "#ffb6b6";
+            const email = getEmail();
+            const password = getPassword();
+            const confirmPassword = getConfirmPassword();
 
             if (!email || !password || password.length < 6) {
-                errorText.innerText = "Bitte E-Mail und Passwort (mind. 6 Zeichen) eingeben.";
+                setMessage("Bitte E-Mail und Passwort mit mindestens 6 Zeichen eingeben.", "error");
+                return;
+            }
+            if (password !== confirmPassword) {
+                setMessage("Die beiden Passwörter stimmen nicht überein.", "error");
                 return;
             }
 
-            const { error } = await supabaseClient.auth.signUp({
-                email,
-                password
-            });
+            setBusy(true);
+            const { error } = await supabaseClient.auth.signUp({ email, password });
+            setBusy(false);
 
             if (error) {
-                errorText.innerText = "Registrierung fehlgeschlagen: " + error.message;
+                setMessage("Registrierung fehlgeschlagen: " + error.message, "error");
                 return;
             }
 
-            errorText.style.color = "#b7f7c5";
-            errorText.innerText = "Konto erstellt. Falls E-Mail-Bestätigung aktiv ist, bitte Postfach prüfen.";
+            setMessage("Konto erstellt. Bitte E-Mail-Bestätigung prüfen, falls sie aktiv ist.", "ok");
+            applyMode("login");
+            document.getElementById("password").value = "";
+            document.getElementById("confirmPassword").value = "";
         }
 
-        async function resetPassword() {
-            const email = document.getElementById("email").value.trim();
-            const errorText = document.getElementById("errorText");
-            errorText.innerText = "";
-            errorText.style.color = "#ffb6b6";
-
+        async function requestPasswordReset() {
+            const email = getEmail();
             if (!email) {
-                errorText.innerText = "Bitte zuerst E-Mail eingeben.";
+                setMessage("Bitte zuerst deine E-Mail eingeben.", "error");
                 return;
             }
 
+            setBusy(true);
             const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin + "/login.html"
+                redirectTo: window.location.origin + "/reset_password.html"
             });
+            setBusy(false);
 
             if (error) {
-                errorText.innerText = "Reset fehlgeschlagen: " + error.message;
+                setMessage("Reset fehlgeschlagen: " + error.message, "error");
                 return;
             }
 
-            errorText.style.color = "#b7f7c5";
-            errorText.innerText = "Reset-Mail wurde gesendet.";
+            setMessage("Reset-Mail wurde gesendet.", "ok");
+        }
+        async function handlePrimary() {
+            if (busy) return;
+            if (currentMode === "login") return await login();
+            if (currentMode === "signup") return await signUp();
+            if (currentMode === "reset") return await requestPasswordReset();
         }
 
-        redirectIfSessionExists();
+        function handleSecondary() {
+            if (busy) return;
+            if (currentMode === "login") return applyMode("signup");
+            applyMode("login");
+        }
+
+        function handleTertiary() {
+            if (busy) return;
+            if (currentMode === "login") applyMode("reset");
+        }
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" || busy) return;
+            handlePrimary();
+        });
+
+        (async function init() {
+            applyMode("login");
+            await redirectIfSessionExists();
+        })();
     </script>
 </body>
 </html>
