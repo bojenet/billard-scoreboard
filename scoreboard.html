@@ -276,9 +276,15 @@
 
         .button-row {
             display: grid;
-            grid-template-columns: repeat(6, minmax(0, 1fr));
+            grid-template-columns: repeat(7, minmax(0, 1fr));
             gap: clamp(6px, 1vw, 14px);
             width: min(1100px, 96vw);
+        }
+
+        .swap-btn {
+            font-size: clamp(22px, 2.2vw, 34px);
+            font-weight: 700;
+            letter-spacing: -0.02em;
         }
 
         .button-row button:hover {
@@ -683,6 +689,7 @@
             <button onclick="addPoints(1)">+1</button>
             <button onclick="addPoints(5)">+5</button>
             <button class="main-btn" onclick="addPoints(10)">+10</button>
+            <button class="swap-btn" onclick="swapPlayersSides()" title="Spieler tauschen" aria-label="Spieler tauschen">⇄</button>
             <button onclick="addPoints(-1)">-1</button>
             <button onclick="undo()">Undo</button>
             <button class="abort-btn" onclick="abortMatch()">Beenden</button>
@@ -835,11 +842,26 @@
         let seconds = 0;
         let maxInnings = 0;
         let startedAtIso = "";
+        let player1Label = "";
+        let player2Label = "";
+        let discipline1Label = "";
+        let discipline2Label = "";
+        let player1Id = null;
+        let player2Id = null;
         let timerInterval;
         let channel;
         let currentUserId = "";
         let ownedPlayerNames = [];
         let lastAnnouncedRemainingKey = "";
+
+        function renderMatchMeta() {
+            document.getElementById("player1Name").innerText = player1Label;
+            document.getElementById("player2Name").innerText = player2Label;
+            document.getElementById("discipline1Big").innerText =
+                discipline1Label + " – " + target1 + (maxInnings > 0 ? "/" + maxInnings : "");
+            document.getElementById("discipline2Big").innerText =
+                discipline2Label + " – " + target2 + (maxInnings > 0 ? "/" + maxInnings : "");
+        }
 
         function normalizeEmail(value) {
             return String(value || "").trim().toLowerCase();
@@ -987,9 +1009,12 @@
                 viewerMode = false;
             }
 
-
-            document.getElementById("player1Name").innerText = d.player1;
-            document.getElementById("player2Name").innerText = d.player2;
+            player1Label = String(d.player1 || "");
+            player2Label = String(d.player2 || "");
+            discipline1Label = String(d.discipline1 || "");
+            discipline2Label = String(d.discipline2 || "");
+            player1Id = d.player1_id ?? null;
+            player2Id = d.player2_id ?? null;
 
             target1 = Number(d.target1 || 0);
             target2 = Number(d.target2 || 0);
@@ -1007,15 +1032,7 @@
             high1 = d.high1 || 0;
             high2 = d.high2 || 0;
             reconcileInningsLists();
-
-            document.getElementById("discipline1Big").innerText =
-                d.discipline1 + " – " + d.target1 +
-                (maxInnings > 0 ? "/" + maxInnings : "");
-
-            document.getElementById("discipline2Big").innerText =
-                d.discipline2 + " – " + d.target2 +
-                (maxInnings > 0 ? "/" + maxInnings : "");
-
+            renderMatchMeta();
             updateUI();
             startedAtIso = d.started_at || "";
             startTimer(d.started_at);
@@ -1269,6 +1286,14 @@
             const { error } = await supabaseClient
                 .from("matches")
                 .update({
+                    player1: player1Label,
+                    player2: player2Label,
+                    player1_id: player1Id,
+                    player2_id: player2Id,
+                    discipline1: discipline1Label,
+                    discipline2: discipline2Label,
+                    target1,
+                    target2,
                     score1,
                     score2,
                     inn1,
@@ -1286,6 +1311,28 @@
             if (error) {
                 console.error("Update Fehler:", error);
             }
+        }
+
+        async function swapPlayersSides() {
+            if (finished) return;
+
+            saveState();
+
+            [player1Label, player2Label] = [player2Label, player1Label];
+            [player1Id, player2Id] = [player2Id, player1Id];
+            [discipline1Label, discipline2Label] = [discipline2Label, discipline1Label];
+            [target1, target2] = [target2, target1];
+            [score1, score2] = [score2, score1];
+            [inn1, inn2] = [inn2, inn1];
+            [series1, series2] = [series2, series1];
+            [high1, high2] = [high2, high1];
+            [innings1, innings2] = [innings2, innings1];
+            activePlayer = activePlayer === 1 ? 2 : 1;
+            lastAnnouncedRemainingKey = "";
+
+            renderMatchMeta();
+            updateUI();
+            await updateMatchInDB();
         }
 
         function checkWinner() {
@@ -1352,6 +1399,10 @@
                 score1, score2, inn1, inn2, totalInnings,
                 activePlayer, series1, series2,
                 high1, high2, finished,
+                target1, target2,
+                player1Label, player2Label,
+                discipline1Label, discipline2Label,
+                player1Id, player2Id,
                 innings1: [...innings1],
                 innings2: [...innings2]
             });
@@ -1371,8 +1422,17 @@
             high1 = prev.high1;
             high2 = prev.high2;
             finished = prev.finished;
+            target1 = prev.target1;
+            target2 = prev.target2;
+            player1Label = prev.player1Label;
+            player2Label = prev.player2Label;
+            discipline1Label = prev.discipline1Label;
+            discipline2Label = prev.discipline2Label;
+            player1Id = prev.player1Id;
+            player2Id = prev.player2Id;
             innings1 = [...prev.innings1];
             innings2 = [...prev.innings2];
+            renderMatchMeta();
             updateUI();
             await updateMatchInDB();
         }
@@ -1500,8 +1560,8 @@
             const archiveData = {
                 matchId,
                 created_by: currentUserId,
-                player1: player1Name.innerText,
-                player2: player2Name.innerText,
+                player1: player1Label,
+                player2: player2Label,
                 score1,
                 score2,
                 innings: playedInnings,
@@ -1744,6 +1804,14 @@
                         score2 = d.score2;
                         inn1 = d.inn1;
                         inn2 = d.inn2;
+                        player1Label = String(d.player1 || "");
+                        player2Label = String(d.player2 || "");
+                        discipline1Label = String(d.discipline1 || "");
+                        discipline2Label = String(d.discipline2 || "");
+                        player1Id = d.player1_id ?? null;
+                        player2Id = d.player2_id ?? null;
+                        target1 = Number(d.target1 || 0);
+                        target2 = Number(d.target2 || 0);
                         totalInnings = d.totalInnings;
                         activePlayer = d.activePlayer;
                         finished = d.finished;
@@ -1753,6 +1821,7 @@
                         high2 = d.high2 || 0;
                         reconcileInningsLists();
 
+                        renderMatchMeta();
                         updateUI();
                         showEndIfFinished();
                     }
