@@ -1327,6 +1327,93 @@
             }
         }
 
+        async function refreshMatchStateFromDB() {
+            const { data: d, error } = await supabaseClient
+                .from("matches")
+                .select("*")
+                .eq("id", matchId)
+                .single();
+
+            if (error || !d) {
+                console.error("Aktuellen Match-Stand laden fehlgeschlagen:", error);
+                return false;
+            }
+
+            const previous = {
+                score1,
+                score2,
+                inn1,
+                inn2,
+                series1,
+                series2
+            };
+
+            syncRemoteSeriesFromDelta(previous, d);
+
+            score1 = Number(d.score1 || 0);
+            score2 = Number(d.score2 || 0);
+            inn1 = Number(d.inn1 || 0);
+            inn2 = Number(d.inn2 || 0);
+            player1Label = String(d.player1 || "");
+            player2Label = String(d.player2 || "");
+            discipline1Label = String(d.discipline1 || "");
+            discipline2Label = String(d.discipline2 || "");
+            player1Id = d.player1_id ?? null;
+            player2Id = d.player2_id ?? null;
+            target1 = Number(d.target1 || 0);
+            target2 = Number(d.target2 || 0);
+            totalInnings = Number(d.totalInnings || 1);
+            activePlayer = Number(d.activePlayer || 1);
+            finished = Number(d.finished || 0);
+            series1 = Number(d.series1 || 0);
+            series2 = Number(d.series2 || 0);
+            high1 = Number(d.high1 || 0);
+            high2 = Number(d.high2 || 0);
+            maxInnings = Number(d.maxInnings || 0);
+            startedAtIso = d.started_at || startedAtIso;
+            reconcileInningsLists();
+            renderMatchMeta();
+            updateUI();
+            return true;
+        }
+
+        function buildFinalMatchSnapshot() {
+            const finalSeries1 = [...innings1];
+            const finalSeries2 = [...innings2];
+            let finalScore1 = Number(score1 || 0);
+            let finalScore2 = Number(score2 || 0);
+            let finalInn1 = Number(inn1 || 0);
+            let finalInn2 = Number(inn2 || 0);
+            let finalHigh1 = Number(high1 || 0);
+            let finalHigh2 = Number(high2 || 0);
+
+            if (Number(series1 || 0) > 0 && finalSeries1.length <= finalInn1) {
+                finalSeries1.push(Number(series1 || 0));
+                finalScore1 += Number(series1 || 0);
+                finalInn1 = finalSeries1.length;
+                finalHigh1 = Math.max(finalHigh1, Number(series1 || 0));
+            }
+
+            if (Number(series2 || 0) > 0 && finalSeries2.length <= finalInn2) {
+                finalSeries2.push(Number(series2 || 0));
+                finalScore2 += Number(series2 || 0);
+                finalInn2 = finalSeries2.length;
+                finalHigh2 = Math.max(finalHigh2, Number(series2 || 0));
+            }
+
+            return {
+                finalSeries1,
+                finalSeries2,
+                finalScore1,
+                finalScore2,
+                finalInn1,
+                finalInn2,
+                finalHigh1,
+                finalHigh2,
+                playedInnings: Math.max(finalInn1, finalInn2)
+            };
+        }
+
         async function swapPlayersSides() {
             if (finished) return;
 
@@ -1532,30 +1619,31 @@
 
         async function saveMatch() {
 
-            const finalSeries1 = [...innings1];
-            const finalSeries2 = [...innings2];
-            const playedInnings = Math.max(inn1, inn2);
+            await refreshMatchStateFromDB();
 
-            // Wenn die letzte Aufnahme noch nicht per Spielerwechsel verbucht wurde,
-            // beim Speichern in den Serienverlauf aufnehmen.
-            if (series1 > 0 && finalSeries1.length < inn1) {
-                finalSeries1.push(series1);
-            }
-            if (series2 > 0 && finalSeries2.length < inn2) {
-                finalSeries2.push(series2);
-            }
+            const {
+                finalSeries1,
+                finalSeries2,
+                finalScore1,
+                finalScore2,
+                finalInn1,
+                finalInn2,
+                finalHigh1,
+                finalHigh2,
+                playedInnings
+            } = buildFinalMatchSnapshot();
 
             const data = {
-                score1,
-                score2,
-                inn1,
-                inn2,
+                score1: finalScore1,
+                score2: finalScore2,
+                inn1: finalInn1,
+                inn2: finalInn2,
                 totalInnings,
                 activePlayer,
-                series1,
-                series2,
-                high1,
-                high2,
+                series1: 0,
+                series2: 0,
+                high1: finalHigh1,
+                high2: finalHigh2,
                 status: 0,
                 finished: 1
             };
@@ -1576,13 +1664,13 @@
                 created_by: currentUserId,
                 player1: player1Label,
                 player2: player2Label,
-                score1,
-                score2,
+                score1: finalScore1,
+                score2: finalScore2,
                 innings: playedInnings,
-                avg1: inn1 > 0 ? (score1 / inn1).toFixed(3) : "0.000",
-                avg2: inn2 > 0 ? (score2 / inn2).toFixed(3) : "0.000",
-                hs1: high1,
-                hs2: high2,
+                avg1: finalInn1 > 0 ? (finalScore1 / finalInn1).toFixed(3) : "0.000",
+                avg2: finalInn2 > 0 ? (finalScore2 / finalInn2).toFixed(3) : "0.000",
+                hs1: finalHigh1,
+                hs2: finalHigh2,
                 series1: finalSeries1,
                 series2: finalSeries2,
                 duration: seconds
