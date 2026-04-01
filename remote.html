@@ -230,6 +230,26 @@ let ownedPlayerNames = [];
 let remoteChannel = null;
 let pollId = null;
 let remoteHistory = [];
+let matchSeriesStorageAvailable = false;
+
+function toSeriesArray(value) {
+    if (Array.isArray(value)) {
+        return value.map((entry) => Math.max(0, Number(entry || 0)));
+    }
+
+    if (typeof value === "string") {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed)
+                ? parsed.map((entry) => Math.max(0, Number(entry || 0)))
+                : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    return [];
+}
 
 // ===============================
 // LOAD MATCH
@@ -264,6 +284,9 @@ async function loadMatch() {
     }
 
     matchData = data;
+    matchSeriesStorageAvailable =
+        Object.prototype.hasOwnProperty.call(data, "series_log1") &&
+        Object.prototype.hasOwnProperty.call(data, "series_log2");
     updateDisplay();
 }
 
@@ -287,6 +310,9 @@ function subscribeToMatch() {
             },
             (payload) => {
                 matchData = payload.new;
+                matchSeriesStorageAvailable =
+                    Object.prototype.hasOwnProperty.call(matchData, "series_log1") &&
+                    Object.prototype.hasOwnProperty.call(matchData, "series_log2");
                 updateDisplay();
             }
         )
@@ -377,6 +403,9 @@ async function pollMatch() {
         .single();
     if (error || !data) return;
     matchData = data;
+    matchSeriesStorageAvailable =
+        Object.prototype.hasOwnProperty.call(data, "series_log1") &&
+        Object.prototype.hasOwnProperty.call(data, "series_log2");
     updateDisplay();
 }
 
@@ -435,7 +464,9 @@ function saveHistory() {
         inn1: matchData.inn1,
         inn2: matchData.inn2,
         totalInnings: matchData.totalInnings,
-        finished: matchData.finished
+        finished: matchData.finished,
+        series_log1: toSeriesArray(matchData.series_log1),
+        series_log2: toSeriesArray(matchData.series_log2)
     });
 }
 
@@ -498,11 +529,14 @@ async function switchPlayer() {
     let inn1 = Number(matchData.inn1 || 0);
     let inn2 = Number(matchData.inn2 || 0);
     let totalInnings = Number(matchData.totalInnings || 1);
+    let seriesLog1 = toSeriesArray(matchData.series_log1);
+    let seriesLog2 = toSeriesArray(matchData.series_log2);
 
     if (activePlayer === 1) {
 
         score1 += series1;
         if (series1 > high1) high1 = series1;
+        if (matchSeriesStorageAvailable) seriesLog1.push(series1);
 
         series1 = 0;
         inn1++;
@@ -512,6 +546,7 @@ async function switchPlayer() {
 
         score2 += series2;
         if (series2 > high2) high2 = series2;
+        if (matchSeriesStorageAvailable) seriesLog2.push(series2);
 
         series2 = 0;
         inn2++;
@@ -532,6 +567,11 @@ async function switchPlayer() {
         totalInnings,
         finished: Number(matchData.finished || 0)
     };
+
+    if (matchSeriesStorageAvailable) {
+        nextState.series_log1 = seriesLog1;
+        nextState.series_log2 = seriesLog2;
+    }
 
     const winner = detectWinner({ ...matchData, ...nextState });
     if (winner !== null) {
