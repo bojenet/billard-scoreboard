@@ -164,6 +164,73 @@
             background: #112659;
         }
 
+        .selected-user {
+            display: none;
+            margin-bottom: 10px;
+            padding: 10px 12px;
+            border: 1px solid #4d71d4;
+            border-radius: 12px;
+            background: rgba(24, 45, 110, 0.62);
+        }
+
+        .selected-user.active {
+            display: block;
+        }
+
+        .selected-user-name {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .selected-user-meta {
+            margin-top: 3px;
+            font-size: 13px;
+            opacity: 0.76;
+        }
+
+        .user-results {
+            margin-top: 10px;
+            border: 1px solid #2f4ea0;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(8, 20, 54, 0.35);
+        }
+
+        .user-result {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid #27417f;
+        }
+
+        .user-result:last-child {
+            border-bottom: none;
+        }
+
+        .user-result-main {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .user-result-sub {
+            margin-top: 2px;
+            font-size: 12px;
+            opacity: 0.72;
+        }
+
+        .user-result-btn {
+            border: none;
+            border-radius: 10px;
+            background: #2f4fe0;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
         .hint {
             font-size: 13px;
             opacity: 0.7;
@@ -286,16 +353,17 @@
 
             <div class="section">
                 <div class="panel" id="guestInvitePanel" style="display:none; margin-bottom:14px;">
-                    <div class="panel-title">Spieler 2 einladen</div>
-                    <div class="field">
-                        <label for="guestName">Spielername</label>
-                        <input id="guestName" type="text" placeholder="z.B. Max" />
+                    <div class="panel-title">Registrierten Spieler ausw&auml;hlen</div>
+                    <div id="selectedGuestBox" class="selected-user">
+                        <div id="selectedGuestName" class="selected-user-name">-</div>
+                        <div id="selectedGuestMeta" class="selected-user-meta">-</div>
                     </div>
                     <div class="field">
-                        <label for="guestEmail">User-E-Mail (für Einladung)</label>
-                        <input id="guestEmail" type="email" placeholder="name@domain.de" />
+                        <label for="guestUserSearch">Spieler suchen</label>
+                        <input id="guestUserSearch" type="text" placeholder="Name oder E-Mail" />
                     </div>
-                    <div class="hint">Der eingeladene User sieht die Session unter Challenge und auf dem gemeinsamen Screen.</div>
+                    <div class="hint">F&uuml;r Online-Challenges muss der Gegner einen Account haben.</div>
+                    <div class="user-results" id="guestUserResults"></div>
                 </div>
 
                 <h2 class="section-title">Disziplinen</h2>
@@ -357,6 +425,7 @@
         let selectedHostDiscipline = "";
         let selectedGuestDiscipline = "";
         let selectedMinutes = 0;
+        let selectedGuestUser = null;
 
         function createRunId() {
             if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -409,6 +478,102 @@
             return String(value || "").trim().toLowerCase();
         }
 
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function setSelectedGuestUser(user) {
+            selectedGuestUser = user || null;
+            const box = document.getElementById("selectedGuestBox");
+            const name = document.getElementById("selectedGuestName");
+            const meta = document.getElementById("selectedGuestMeta");
+            if (!box || !name || !meta) return;
+            if (!selectedGuestUser) {
+                box.classList.remove("active");
+                name.innerText = "";
+                meta.innerText = "";
+                return;
+            }
+            box.classList.add("active");
+            name.innerText = selectedGuestUser.display_name || selectedGuestUser.email || "User";
+            meta.innerText = selectedGuestUser.email || "";
+        }
+
+        function renderGuestUserResults(users, errorText = "") {
+            const wrap = document.getElementById("guestUserResults");
+            if (!wrap) return;
+
+            if (errorText) {
+                wrap.innerHTML = `<div class="empty">${escapeHtml(errorText)}</div>`;
+                return;
+            }
+
+            if (!users || !users.length) {
+                wrap.innerHTML = `<div class="empty">Kein passender registrierter User gefunden.</div>`;
+                return;
+            }
+
+            wrap.innerHTML = "";
+            users.forEach((user) => {
+                const row = document.createElement("div");
+                row.className = "user-result";
+                row.innerHTML = `
+                    <div>
+                        <div class="user-result-main">${escapeHtml(user.display_name || user.email || "User")}</div>
+                        <div class="user-result-sub">${escapeHtml(user.email || "")}</div>
+                    </div>
+                    <button class="user-result-btn" type="button">Auswählen</button>
+                `;
+                row.querySelector(".user-result-btn").onclick = () => {
+                    setSelectedGuestUser(user);
+                };
+                wrap.appendChild(row);
+            });
+        }
+
+        async function loadChallengeUsers(searchTerm = "") {
+            const term = String(searchTerm || "").trim();
+            const { data, error } = await supabaseClient.rpc("search_challenge_users", {
+                search_term: term,
+                limit_count: 12
+            });
+
+            if (error) {
+                console.warn("Challenge-User konnten nicht geladen werden:", error);
+                renderGuestUserResults([], "Registrierte User konnten nicht geladen werden. Bitte SQL aus sql/training_challenge_user_directory.sql ausführen.");
+                return;
+            }
+
+            const users = (data || [])
+                .filter((row) => String(row.user_id || "") !== String(currentUser?.id || ""))
+                .map((row) => ({
+                    user_id: row.user_id,
+                    display_name: row.display_name || row.email || "User",
+                    email: row.email || ""
+                }));
+
+            renderGuestUserResults(users);
+
+            if (selectedGuestUser) {
+                const stillExists = users.find((row) => String(row.user_id) === String(selectedGuestUser.user_id));
+                if (stillExists) {
+                    setSelectedGuestUser(stillExists);
+                }
+            }
+        }
+
+        function bindGuestUserSearch() {
+            const input = document.getElementById("guestUserSearch");
+            if (!input) return;
+            input.addEventListener("input", () => {
+                loadChallengeUsers(input.value || "");
+            });
+        }
+
         function updateFullscreenButton() {
             const btn = document.getElementById("fullscreenBtn");
             if (!btn) return;
@@ -433,17 +598,23 @@
         }
 
         async function loadIncomingInvites() {
-            if (!currentUser?.email) return;
-            const email = normalizeEmail(currentUser.email);
             const section = document.getElementById("invitesSection");
-
-            const { data, error } = await supabaseClient
+            if (!currentUser?.id) return;
+            const email = normalizeEmail(currentUser.email);
+            let query = supabaseClient
                 .from("training_countdown_hs_sessions")
                 .select("id,host_name,guest_name,host_discipline,guest_discipline,duration_minutes,ends_at,status")
-                .eq("guest_email", email)
                 .eq("status", "active")
                 .order("created_at", { ascending: false })
                 .limit(10);
+
+            if (email) {
+                query = query.or(`guest_user_id.eq.${currentUser.id},guest_email.eq.${email}`);
+            } else {
+                query = query.eq("guest_user_id", currentUser.id);
+            }
+
+            const { data, error } = await query;
 
             const wrap = document.getElementById("invitesList");
             if (error) {
@@ -497,14 +668,8 @@
                 return;
             }
 
-            const guestName = String(document.getElementById("guestName").value || "").trim();
-            const guestEmail = normalizeEmail(document.getElementById("guestEmail").value);
-            if (!guestName) {
-                alert("Bitte Spielernamen für Spieler 2 eingeben.");
-                return;
-            }
-            if (!guestEmail) {
-                alert("Bitte User-E-Mail für die Einladung eingeben.");
+            if (!selectedGuestUser?.user_id) {
+                alert("Bitte einen registrierten User für Spieler 2 auswählen.");
                 return;
             }
             if (!selectedGuestDiscipline) {
@@ -518,8 +683,9 @@
                 host_user_id: currentUser.id,
                 host_name: getDisplayName(currentUser),
                 host_discipline: selectedHostDiscipline,
-                guest_email: guestEmail,
-                guest_name: guestName,
+                guest_user_id: selectedGuestUser.user_id,
+                guest_email: selectedGuestUser.email || null,
+                guest_name: selectedGuestUser.display_name || selectedGuestUser.email || "Spieler 2",
                 guest_discipline: selectedGuestDiscipline,
                 duration_minutes: selectedMinutes,
                 status: "active",
@@ -554,6 +720,9 @@
             });
             bindModeButtons();
             bindTimeButtons();
+            bindGuestUserSearch();
+            setSelectedGuestUser(null);
+            loadChallengeUsers("");
             loadIncomingInvites();
         }
 
