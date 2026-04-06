@@ -29,6 +29,7 @@
             justify-content: space-between;
             gap: 12px;
             margin-bottom: 22px;
+            flex-wrap: wrap;
         }
 
         .btn {
@@ -43,6 +44,32 @@
 
         .btn.primary {
             background: #355fd4;
+        }
+
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: wait;
+        }
+
+        .notice {
+            margin-bottom: 16px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #3a4058;
+            background: #202333;
+            color: #d8e0f2;
+            font-size: 15px;
+            display: none;
+        }
+
+        .notice.success {
+            border-color: #2f8f5b;
+            color: #d7f8e5;
+        }
+
+        .notice.error {
+            border-color: #9b4747;
+            color: #ffd9d9;
         }
 
         .sheet {
@@ -230,8 +257,13 @@
     <div class="page">
         <div class="actions">
             <button class="btn" onclick="window.location.href='archive.html'">Zur&uuml;ck</button>
-            <button class="btn primary" onclick="window.print()">Drucken</button>
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <button id="sendEmailBtn" class="btn primary" type="button" onclick="sendResultPdfByEmail()" style="display:none">Ergebnis per E-Mail senden</button>
+                <button class="btn primary" onclick="window.print()">Drucken</button>
+            </div>
         </div>
+
+        <div id="noticeBox" class="notice"></div>
 
         <div class="sheet">
             <div class="sheet-title">
@@ -323,6 +355,24 @@
 
     <script>
         const id = new URLSearchParams(window.location.search).get("id");
+        let currentUser = null;
+        let currentMatch = null;
+        let emailSendInProgress = false;
+
+        function setNotice(message, type = "") {
+            const box = document.getElementById("noticeBox");
+            if (!box) return;
+            box.style.display = message ? "block" : "none";
+            box.className = "notice" + (type ? " " + type : "");
+            box.innerText = message || "";
+        }
+
+        function setSendButtonState(isBusy) {
+            const btn = document.getElementById("sendEmailBtn");
+            if (!btn) return;
+            btn.disabled = Boolean(isBusy);
+            btn.innerText = isBusy ? "E-Mail wird gesendet..." : "Ergebnis per E-Mail senden";
+        }
 
         function toSeries(value) {
             if (Array.isArray(value)) return value;
@@ -356,6 +406,137 @@
                 }
             }
             return [];
+        }
+
+        function normalizeEmail(value) {
+            return String(value || "").trim().toLowerCase();
+        }
+
+        function formatDuration(totalSeconds) {
+            const safe = Number.isFinite(totalSeconds) ? Math.max(0, Math.round(totalSeconds)) : 0;
+            const h = Math.floor(safe / 3600);
+            const m = Math.floor((safe % 3600) / 60);
+            const s = safe % 60;
+            return [h, m, s].map((part) => String(part).padStart(2, "0")).join(":");
+        }
+
+        async function loadMatchResultRecipients(playerNames) {
+            const cleanNames = Array.from(new Set((playerNames || []).map((name) => String(name || "").trim()).filter(Boolean)));
+            if (!cleanNames.length || !currentUser?.id) return [];
+
+            const result = await supabaseClient
+                .from("players")
+                .select("id,name,email,send_match_result_email,user_id")
+                .eq("user_id", currentUser.id)
+                .in("name", cleanNames);
+
+            const data = result.data || [];
+            const error = result.error;
+            const message = String(error?.message || "").toLowerCase();
+
+            if (error && (message.includes("user_id") || message.includes("email") || message.includes("send_match_result_email"))) {
+                setNotice("Die Felder f\u00fcr den E-Mail-Versand sind in Supabase noch nicht aktiv. Bitte zuerst sql/player_result_email.sql ausf\u00fchren.", "error");
+                return [];
+            }
+
+            if (error) {
+                console.warn("Spieler-Maildaten konnten nicht geladen werden:", error);
+                setNotice("Die Empf\u00e4nger konnten nicht geladen werden.", "error");
+                return [];
+            }
+
+            return data
+                .filter((row) => Boolean(row.send_match_result_email) && normalizeEmail(row.email))
+                .map((row) => ({
+                    name: String(row.name || "").trim(),
+                    email: normalizeEmail(row.email)
+                }))
+                .filter((row, index, list) => list.findIndex((item) => item.email === row.email) === index);
+        }
+
+        function getSeriesSource(match) {
+            const archiveSeries1 = toSeries(match?.series1);
+            const archiveSeries2 = toSeries(match?.series2);
+            if (archiveSeries1.length || archiveSeries2.length) {
+                return { series1: archiveSeries1, series2: archiveSeries2 };
+            }
+
+            try {
+                const raw = localStorage.getItem("series_" + id);
+                const parsed = raw ? JSON.parse(raw) : null;
+                return {
+                    series1: toSeries(parsed?.series1),
+                    series2: toSeries(parsed?.series2)
+                };
+            } catch (error) {
+                console.warn("Lokale Serien konnten nicht gelesen werden:", error);
+            }
+
+            return { series1: [], series2: [] };
+        }
+
+        async function sendResultPdfByEmail() {
+            if (emailSendInProgress || !currentMatch) return;
+
+            emailSendInProgress = true;
+            setSendButtonState(true);
+            setNotice("");
+
+            try {
+                const recipients = await loadMatchResultRecipients([currentMatch.player1, currentMatch.player2]);
+                if (!recipients.length) {
+                    setNotice("Es sind keine Empf\u00e4nger aktiviert. In der Spielerverwaltung muss f\u00fcr mindestens einen Spieler eine E-Mail mit Versandfreigabe hinterlegt sein.", "error");
+                    return;
+                }
+
+                const series = getSeriesSource(currentMatch);
+                const innings1 = Number(currentMatch.inn1 || 0);
+                const innings2 = Number(currentMatch.inn2 || 0);
+                const playedInnings = Math.max(innings1, innings2, series.series1.length, series.series2.length);
+                const avg1 = innings1 > 0 ? (Number(currentMatch.score1 || 0) / innings1).toFixed(3) : "0.000";
+                const avg2 = innings2 > 0 ? (Number(currentMatch.score2 || 0) / innings2).toFixed(3) : "0.000";
+                const durationSeconds = Number(currentMatch.duration_seconds || currentMatch.duration || 0);
+
+                const body = {
+                    matchId: currentMatch.id,
+                    recipients,
+                    match: {
+                        matchId: currentMatch.id,
+                        player1: currentMatch.player1 || "-",
+                        player2: currentMatch.player2 || "-",
+                        score1: Number(currentMatch.score1 || 0),
+                        score2: Number(currentMatch.score2 || 0),
+                        innings: playedInnings,
+                        avg1,
+                        avg2,
+                        hs1: Number(currentMatch.high1 || 0),
+                        hs2: Number(currentMatch.high2 || 0),
+                        series1: series.series1,
+                        series2: series.series2,
+                        duration: durationSeconds,
+                        discipline1: currentMatch.discipline1 || "",
+                        discipline2: currentMatch.discipline2 || "",
+                        target1: Number(currentMatch.target1 || 0),
+                        target2: Number(currentMatch.target2 || 0),
+                        maxInnings: Number(currentMatch.max_innings || 0),
+                        startedAt: currentMatch.started_at || currentMatch.created_at || "",
+                        finishedAt: currentMatch.finished_at || currentMatch.updated_at || currentMatch.created_at || ""
+                    }
+                };
+
+                const result = await supabaseClient.functions.invoke("send-match-result", { body });
+                if (result.error) throw result.error;
+
+                const recipientLabels = recipients.map((item) => item.email).join(", ");
+                const durationText = durationSeconds > 0 ? " Dauer " + formatDuration(durationSeconds) + "." : "";
+                setNotice("PDF erfolgreich versendet an: " + recipientLabels + "." + durationText, "success");
+            } catch (error) {
+                console.error("Ergebnis-Mail konnte nicht gesendet werden:", error);
+                setNotice("Der Versand ist fehlgeschlagen: " + String(error?.message || error), "error");
+            } finally {
+                emailSendInProgress = false;
+                setSendButtonState(false);
+            }
         }
 
         function buildRows(match) {
@@ -408,6 +589,7 @@
         async function loadDetail() {
             const user = await requireAuth();
             if (!user) return;
+            currentUser = user;
             const isAdmin = await hasAdminAccess(user);
             const ownedNames = await getOwnedPlayerNames(user.id);
 
@@ -428,6 +610,8 @@
                 document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf diese Partie.</div>";
                 return;
             }
+            currentMatch = match;
+            document.getElementById("sendEmailBtn").style.display = "inline-block";
 
             const { data: archiveRows, error: archiveError } = await supabaseClient
                 .from("archive")
