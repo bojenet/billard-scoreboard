@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Mein Account</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(180deg, #0f1c3f, #0a122b);
+            color: white;
+        }
+
+        .page {
+            width: min(760px, 94%);
+            margin: 32px auto;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 40px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 12px;
+            padding: 12px 16px;
+            background: #1c3380;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn.primary {
+            background: linear-gradient(180deg, #2f4fe0, #1c3380);
+        }
+
+        .card {
+            background: linear-gradient(180deg, #162b66, #0f1c3f);
+            border: 1px solid #2d488f;
+            border-radius: 22px;
+            padding: 20px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+        }
+
+        .field {
+            margin-bottom: 14px;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            opacity: 0.82;
+        }
+
+        .field input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #3959ab;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 18px;
+            color: white;
+            background: #112659;
+        }
+
+        .field input[readonly] {
+            opacity: 0.76;
+        }
+
+        .msg {
+            min-height: 22px;
+            margin-top: 14px;
+            font-size: 14px;
+        }
+
+        .msg.ok {
+            color: #b6f5c4;
+        }
+
+        .msg.err {
+            color: #ffb6b6;
+        }
+
+        .hint {
+            margin-top: 10px;
+            font-size: 13px;
+            opacity: 0.72;
+            line-height: 1.45;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="topbar">
+            <button class="btn" type="button" onclick="window.location.href='index.html'">Zurück</button>
+            <h1>Mein Account</h1>
+            <div></div>
+        </div>
+
+        <div class="card">
+            <div class="field">
+                <label for="fullName">Name</label>
+                <input id="fullName" type="text" placeholder="Dein Name" autocomplete="name" />
+            </div>
+
+            <div class="field">
+                <label for="email">E-Mail</label>
+                <input id="email" type="email" readonly />
+            </div>
+
+            <button class="btn primary" type="button" onclick="saveAccount()">Speichern</button>
+            <div id="messageBox" class="msg"></div>
+            <div class="hint">Der Name wird im Benutzerkonto gespeichert und in der Challenge-Auswahl sowie im Menü angezeigt.</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/user_menu.js"></script>
+    <script>
+        let currentUser = null;
+
+        function setMessage(text, type) {
+            const box = document.getElementById("messageBox");
+            box.className = "msg " + (type || "");
+            box.innerText = text || "";
+        }
+
+        async function loadAccount() {
+            currentUser = await requireAuth();
+            if (!currentUser) return;
+
+            document.getElementById("email").value = currentUser.email || "";
+
+            let displayName = getDisplayName(currentUser);
+            if (typeof getOwnProfile === "function") {
+                const profile = await getOwnProfile(currentUser.id);
+                if (profile?.full_name) {
+                    displayName = profile.full_name;
+                }
+            }
+            document.getElementById("fullName").value = displayName && displayName !== currentUser.email ? displayName : "";
+        }
+
+        async function saveAccount() {
+            if (!currentUser) return;
+            const fullName = String(document.getElementById("fullName").value || "").trim();
+            if (!fullName || fullName.length < 2) {
+                setMessage("Bitte einen Namen mit mindestens 2 Zeichen eingeben.", "err");
+                return;
+            }
+
+            setMessage("", "");
+
+            const { data, error } = await supabaseClient.auth.updateUser({
+                data: {
+                    display_name: fullName,
+                    full_name: fullName,
+                    name: fullName
+                }
+            });
+
+            if (error) {
+                setMessage("Account konnte nicht gespeichert werden: " + error.message, "err");
+                return;
+            }
+
+            const user = data?.user || currentUser;
+            const profilePayload = {
+                id: user.id,
+                email: user.email || currentUser.email || null,
+                full_name: fullName
+            };
+
+            const { error: profileError } = await supabaseClient
+                .from("profiles")
+                .upsert(profilePayload, { onConflict: "id" });
+
+            if (profileError) {
+                setMessage("Name im Profil konnte nicht gespeichert werden: " + profileError.message, "err");
+                return;
+            }
+
+            currentUser = user;
+            setMessage("Account gespeichert.", "ok");
+        }
+
+        loadAccount();
+    </script>
+</body>
+</html>

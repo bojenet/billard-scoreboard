@@ -19,6 +19,7 @@ as $$
     select
       p.id as user_id,
       coalesce(
+        nullif(trim(p.full_name), ''),
         nullif(trim(self_player.name), ''),
         split_part(coalesce(p.email, ''), '@', 1),
         'User'

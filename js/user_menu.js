@@ -124,7 +124,13 @@
     const panel = document.createElement('div');
     panel.className = 'user-menu-panel';
 
-    const displayName = typeof window.getDisplayName === 'function' ? getDisplayName(user) : (user.email || user.id);
+    let displayName = typeof window.getDisplayName === 'function' ? getDisplayName(user) : (user.email || user.id);
+    if (typeof window.getOwnProfile === 'function') {
+      const profile = await getOwnProfile(user.id);
+      if (profile?.full_name) {
+        displayName = profile.full_name;
+      }
+    }
 
     panel.innerHTML = `
       <div class="user-menu-head">
@@ -133,11 +139,16 @@
         <div class="user-menu-sub">Rolle: ${role}</div>
       </div>
       <div class="user-menu-actions">
+        <button class="user-menu-action account" type="button">Mein Account</button>
         <button class="user-menu-action logout" type="button">Logout</button>
       </div>
     `;
 
+    const accountBtn = panel.querySelector('.account');
     const logoutBtn = panel.querySelector('.logout');
+    accountBtn.addEventListener('click', () => {
+      window.location.href = '/account.html';
+    });
     logoutBtn.addEventListener('click', async () => {
       if (typeof window.signOutAndRedirect === 'function') {
         await signOutAndRedirect();

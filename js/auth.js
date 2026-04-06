@@ -7,6 +7,21 @@ async function getCurrentUser() {
   return (data && data.user) || null;
 }
 
+async function getOwnProfile(userId) {
+  if (!userId) return null;
+  const { data, error } = await supabaseClient
+    .from("profiles")
+    .select("id,email,full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Konnte Profil nicht laden:", error);
+    return null;
+  }
+  return data || null;
+}
+
 function isAdminUser(user) {
   if (!user) return false;
   const appRole = user.app_metadata && user.app_metadata.role;
@@ -112,6 +127,7 @@ function getDisplayName(user) {
   if (!user) return "";
   const userMeta = user.user_metadata || {};
   return (
+    userMeta.name ||
     userMeta.display_name ||
     userMeta.full_name ||
     user.email ||

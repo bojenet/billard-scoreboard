@@ -122,6 +122,11 @@
         <p class="sub" id="subText">Mit deinem Konto anmelden</p>
 
         <div class="stack">
+            <div class="field" id="nameField" style="display:none;">
+                <label for="fullName">Name</label>
+                <input id="fullName" type="text" placeholder="Dein Name" autocomplete="name" />
+            </div>
+
             <div class="field" id="emailField">
                 <label for="email">E-Mail</label>
                 <input id="email" type="email" placeholder="name@domain.de" autocomplete="username" />
@@ -175,6 +180,7 @@
         function applyMode(mode) {
             currentMode = mode;
             const emailField = document.getElementById("emailField");
+            const nameField = document.getElementById("nameField");
             const passwordField = document.getElementById("passwordField");
             const confirmField = document.getElementById("confirmField");
             const title = document.getElementById("title");
@@ -185,6 +191,7 @@
             const tinyText = document.getElementById("tinyText");
 
             emailField.style.display = "flex";
+            nameField.style.display = "none";
             passwordField.style.display = "flex";
             confirmField.style.display = "none";
             secondaryBtn.style.display = "block";
@@ -204,10 +211,11 @@
 
             if (mode === "signup") {
                 title.innerText = "Konto erstellen";
-                subText.innerText = "Neues Konto mit E-Mail und Passwort anlegen";
+                subText.innerText = "Neues Konto mit Name, E-Mail und Passwort anlegen";
                 primaryBtn.innerText = "Konto erstellen";
                 secondaryBtn.innerText = "Zum Login";
                 tertiaryBtn.style.display = "none";
+                nameField.style.display = "flex";
                 confirmField.style.display = "flex";
                 document.getElementById("password").autocomplete = "new-password";
                 tinyText.innerText = "Wenn E-Mail-Bestätigung aktiv ist, musst du danach dein Postfach prüfen.";
@@ -228,6 +236,10 @@
 
         function getEmail() {
             return document.getElementById("email").value.trim();
+        }
+
+        function getFullName() {
+            return document.getElementById("fullName").value.trim();
         }
 
         function getPassword() {
@@ -274,12 +286,17 @@
         }
 
         async function signUp() {
+            const fullName = getFullName();
             const email = getEmail();
             const password = getPassword();
             const confirmPassword = getConfirmPassword();
 
+            if (!fullName || fullName.length < 2) {
+                setMessage("Bitte deinen Namen eingeben.", "error");
+                return;
+            }
             if (!email || !password || password.length < 6) {
-                setMessage("Bitte E-Mail und Passwort mit mindestens 6 Zeichen eingeben.", "error");
+                setMessage("Bitte Name, E-Mail und Passwort mit mindestens 6 Zeichen eingeben.", "error");
                 return;
             }
             if (password !== confirmPassword) {
@@ -288,7 +305,16 @@
             }
 
             setBusy(true);
-            const { error } = await supabaseClient.auth.signUp({ email, password });
+            const { error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        display_name: fullName,
+                        full_name: fullName
+                    }
+                }
+            });
             setBusy(false);
 
             if (error) {
@@ -298,6 +324,7 @@
 
             setMessage("Konto erstellt. Bitte E-Mail-Bestätigung prüfen, falls sie aktiv ist.", "ok");
             applyMode("login");
+            document.getElementById("fullName").value = "";
             document.getElementById("password").value = "";
             document.getElementById("confirmPassword").value = "";
         }
