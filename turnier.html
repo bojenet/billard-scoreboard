@@ -20,7 +20,7 @@
 
         .header {
             text-align: center;
-            padding: 48px 16px 10px;
+            padding: 46px 16px 10px;
             font-size: 48px;
             font-weight: 700;
         }
@@ -59,7 +59,8 @@
         }
 
         textarea,
-        input {
+        input,
+        select {
             box-sizing: border-box;
             width: 100%;
             border: none;
@@ -73,6 +74,25 @@
         textarea {
             min-height: 150px;
             resize: vertical;
+        }
+
+        .setup-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .side-stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        .field-title {
+            margin: 0 0 8px;
+            font-size: 15px;
+            font-weight: 700;
+            opacity: 0.88;
         }
 
         .button-row {
@@ -108,6 +128,10 @@
 
         .btn-danger {
             background: #8b3d3d;
+        }
+
+        .btn-save {
+            background: #327251;
         }
 
         .message {
@@ -201,7 +225,7 @@
 
         .field-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 10px;
         }
 
@@ -217,6 +241,31 @@
             font-size: 16px;
         }
 
+        .avg-box {
+            display: flex;
+            align-items: end;
+            justify-content: center;
+            height: 100%;
+            min-height: 72px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 14px;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .avg-label {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        .avg-value {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
         .table-wrap {
             overflow-x: auto;
         }
@@ -224,7 +273,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 980px;
+            min-width: 1080px;
         }
 
         th,
@@ -261,9 +310,11 @@
             line-height: 1.5;
         }
 
-        @media (max-width: 1100px) {
-            .summary-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+        @media (max-width: 1180px) {
+            .setup-grid,
+            .summary-grid,
+            .field-grid {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -274,7 +325,6 @@
             }
 
             .match-grid,
-            .field-grid,
             .summary-grid {
                 grid-template-columns: 1fr;
             }
@@ -293,19 +343,39 @@
 
 <body>
     <div class="header">Turnier</div>
-    <div class="sub">Spieler frei eingeben, Spielplan erzeugen und Tabelle live berechnen</div>
+    <div class="sub">Jeder gegen jeden mit DB-Speicherung, Live-Auswertung und Tabelle</div>
 
     <div class="page">
         <div class="panel">
             <h2>Setup</h2>
-            <div class="panel-sub">Ein Spieler pro Zeile. Danach wird automatisch jeder gegen jeden erzeugt.</div>
-            <textarea id="playersInput" placeholder="Beispiel:
+            <div class="panel-sub">Spieler frei eingeben, Turnier speichern und später wieder laden.</div>
+            <div class="setup-grid">
+                <div>
+                    <div class="field-title">Spieler</div>
+                    <textarea id="playersInput" placeholder="Beispiel:
 Anna
 Ben
 Chris
 Daniel"></textarea>
+                </div>
+                <div class="side-stack">
+                    <div>
+                        <div class="field-title">Turniername</div>
+                        <input id="tournamentTitle" type="text" placeholder="z. B. Vereinsabend April">
+                    </div>
+                    <div>
+                        <div class="field-title">Gespeichertes Turnier laden</div>
+                        <select id="savedTournamentSelect">
+                            <option value="">Kein gespeichertes Turnier</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             <div class="button-row">
                 <button class="btn btn-primary" type="button" onclick="generateTournament()">Turnier erzeugen</button>
+                <button class="btn btn-save" type="button" onclick="saveTournament()">In DB speichern</button>
+                <button class="btn btn-secondary" type="button" onclick="loadSelectedTournament()">Auswahl laden</button>
+                <button class="btn btn-secondary" type="button" onclick="startNewTournament()">Neues Turnier</button>
                 <button class="btn btn-secondary" type="button" onclick="fillExample()">Beispiel laden</button>
                 <button class="btn btn-danger" type="button" onclick="resetTournament()">Alles zurücksetzen</button>
                 <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
@@ -360,18 +430,19 @@ Daniel"></textarea>
                             <th>Diff.</th>
                             <th>Aufnahmen</th>
                             <th>GD</th>
+                            <th>BED</th>
                             <th>HS</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
                         <tr>
-                            <td colspan="13" class="empty-state">Noch keine Daten vorhanden.</td>
+                            <td colspan="14" class="empty-state">Noch keine Daten vorhanden.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
             <div class="notes">
-                Wertung: Sieg = 2 Turnierpunkte, Unentschieden = 1, Niederlage = 0. Der GD wird als erzielte Punkte geteilt durch gesamte Aufnahmen berechnet.
+                Wertung: Sieg = 2 Turnierpunkte, Unentschieden = 1, Niederlage = 0. GD = gesamte erzielte Punkte durch gesamte Aufnahmen. BED = bester Einzeldurchschnitt aus gewonnenen Partien.
             </div>
         </div>
     </div>
@@ -381,8 +452,11 @@ Daniel"></textarea>
     <script src="js/auth.js"></script>
     <script src="js/user_menu.js"></script>
     <script>
-        const STORAGE_KEY = "tournament_round_robin_v1";
+        const STORAGE_KEY = "tournament_round_robin_v2";
+        let currentUser = null;
+        let currentTournamentId = "";
         let tournamentState = {
+            title: "",
             players: [],
             matches: []
         };
@@ -393,6 +467,21 @@ Daniel"></textarea>
             el.className = "message" + (type ? " " + type : "");
         }
 
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function parseNumber(value) {
+            if (value === "" || value === null || typeof value === "undefined") return null;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
         function normalizePlayers(rawText) {
             const values = String(rawText || "")
                 .split(/\n|;/)
@@ -400,7 +489,7 @@ Daniel"></textarea>
                 .filter(Boolean);
 
             const seen = new Set();
-            return values.filter(name => {
+            return values.filter((name) => {
                 const key = name.toLowerCase();
                 if (seen.has(key)) return false;
                 seen.add(key);
@@ -415,7 +504,8 @@ Daniel"></textarea>
             for (let i = 0; i < players.length; i += 1) {
                 for (let j = i + 1; j < players.length; j += 1) {
                     matches.push({
-                        id: "m" + id,
+                        client_id: "m" + id,
+                        sort_order: id,
                         playerA: players[i],
                         playerB: players[j],
                         scoreA: "",
@@ -432,44 +522,57 @@ Daniel"></textarea>
             return matches;
         }
 
-        function saveState() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(tournamentState));
-        }
-
-        function loadState() {
-            try {
-                const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-                if (raw && Array.isArray(raw.players) && Array.isArray(raw.matches)) {
-                    tournamentState = raw;
-                }
-            } catch (error) {
-                console.warn("Turnierstand konnte nicht geladen werden:", error);
-            }
-        }
-
-        function parseNumber(value) {
-            if (value === "" || value === null || typeof value === "undefined") return null;
-            const parsed = Number(value);
-            return Number.isFinite(parsed) ? parsed : null;
-        }
-
-        function escapeHtml(value) {
-            return String(value || "")
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#39;");
+        function getDefaultTitle() {
+            const now = new Date();
+            const date = now.toLocaleDateString("de-DE");
+            const time = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+            return "Turnier " + date + " " + time;
         }
 
         function isMatchComplete(match) {
             return [match.scoreA, match.scoreB, match.inningsA, match.inningsB, match.highRunA, match.highRunB]
-                .every(value => value !== "" && value !== null && typeof value !== "undefined");
+                .every((value) => value !== "" && value !== null && typeof value !== "undefined");
+        }
+
+        function saveLocalState() {
+            const snapshot = {
+                id: currentTournamentId,
+                title: tournamentState.title,
+                players: tournamentState.players,
+                matches: tournamentState.matches
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+        }
+
+        function loadLocalState() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+                if (!raw || !Array.isArray(raw.players) || !Array.isArray(raw.matches)) return false;
+                currentTournamentId = raw.id || "";
+                tournamentState = {
+                    title: raw.title || "",
+                    players: raw.players,
+                    matches: raw.matches
+                };
+                return true;
+            } catch (error) {
+                console.warn("Lokaler Turnierstand konnte nicht geladen werden:", error);
+                return false;
+            }
+        }
+
+        function clearLocalState() {
+            localStorage.removeItem(STORAGE_KEY);
         }
 
         function formatAverage(value) {
-            if (!Number.isFinite(value)) return "0,000";
+            if (!Number.isFinite(value)) return "-";
             return value.toFixed(3).replace(".", ",");
+        }
+
+        function getMatchAverage(score, innings) {
+            if (!Number.isFinite(score) || !Number.isFinite(innings) || innings <= 0) return null;
+            return score / innings;
         }
 
         function updateOverview() {
@@ -492,8 +595,15 @@ Daniel"></textarea>
             }
 
             schedule.innerHTML = tournamentState.matches.map((match, index) => {
+                const scoreA = parseNumber(match.scoreA);
+                const scoreB = parseNumber(match.scoreB);
+                const inningsA = parseNumber(match.inningsA);
+                const inningsB = parseNumber(match.inningsB);
+                const avgA = getMatchAverage(scoreA, inningsA);
+                const avgB = getMatchAverage(scoreB, inningsB);
                 const playerA = escapeHtml(match.playerA);
                 const playerB = escapeHtml(match.playerB);
+
                 return `
                 <div class="match-card">
                     <div class="match-head">
@@ -501,23 +611,29 @@ Daniel"></textarea>
                             <div class="match-title">${playerA} vs ${playerB}</div>
                             <div class="match-sub">Partie ${index + 1} von ${tournamentState.matches.length}</div>
                         </div>
-                        <div class="match-sub">${isMatchComplete(match) ? "Erfasst" : "Offen"}</div>
+                        <div class="match-sub" id="${match.client_id}_status">${isMatchComplete(match) ? "Erfasst" : "Offen"}</div>
                     </div>
                     <div class="match-grid">
                         <div class="player-box">
                             <h3>${playerA}</h3>
                             <div class="field-grid">
                                 <div class="field">
-                                    <label for="${match.id}_scoreA">Punkte</label>
-                                    <input id="${match.id}_scoreA" type="number" min="0" value="${match.scoreA}" oninput="updateMatch('${match.id}', 'scoreA', this.value)">
+                                    <label for="${match.client_id}_scoreA">Punkte</label>
+                                    <input id="${match.client_id}_scoreA" type="number" min="0" value="${match.scoreA}" oninput="updateMatch('${match.client_id}', 'scoreA', this.value)">
                                 </div>
                                 <div class="field">
-                                    <label for="${match.id}_inningsA">Aufnahmen</label>
-                                    <input id="${match.id}_inningsA" type="number" min="0" value="${match.inningsA}" oninput="updateMatch('${match.id}', 'inningsA', this.value)">
+                                    <label for="${match.client_id}_inningsA">Aufnahmen</label>
+                                    <input id="${match.client_id}_inningsA" type="number" min="0" value="${match.inningsA}" oninput="updateMatch('${match.client_id}', 'inningsA', this.value)">
                                 </div>
                                 <div class="field">
-                                    <label for="${match.id}_highRunA">Höchstserie</label>
-                                    <input id="${match.id}_highRunA" type="number" min="0" value="${match.highRunA}" oninput="updateMatch('${match.id}', 'highRunA', this.value)">
+                                    <label for="${match.client_id}_highRunA">Höchstserie</label>
+                                    <input id="${match.client_id}_highRunA" type="number" min="0" value="${match.highRunA}" oninput="updateMatch('${match.client_id}', 'highRunA', this.value)">
+                                </div>
+                                <div class="avg-box">
+                                    <div>
+                                        <div class="avg-label">GD Partie</div>
+                                        <div class="avg-value" id="${match.client_id}_avgA">${formatAverage(avgA)}</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -525,16 +641,22 @@ Daniel"></textarea>
                             <h3>${playerB}</h3>
                             <div class="field-grid">
                                 <div class="field">
-                                    <label for="${match.id}_scoreB">Punkte</label>
-                                    <input id="${match.id}_scoreB" type="number" min="0" value="${match.scoreB}" oninput="updateMatch('${match.id}', 'scoreB', this.value)">
+                                    <label for="${match.client_id}_scoreB">Punkte</label>
+                                    <input id="${match.client_id}_scoreB" type="number" min="0" value="${match.scoreB}" oninput="updateMatch('${match.client_id}', 'scoreB', this.value)">
                                 </div>
                                 <div class="field">
-                                    <label for="${match.id}_inningsB">Aufnahmen</label>
-                                    <input id="${match.id}_inningsB" type="number" min="0" value="${match.inningsB}" oninput="updateMatch('${match.id}', 'inningsB', this.value)">
+                                    <label for="${match.client_id}_inningsB">Aufnahmen</label>
+                                    <input id="${match.client_id}_inningsB" type="number" min="0" value="${match.inningsB}" oninput="updateMatch('${match.client_id}', 'inningsB', this.value)">
                                 </div>
                                 <div class="field">
-                                    <label for="${match.id}_highRunB">Höchstserie</label>
-                                    <input id="${match.id}_highRunB" type="number" min="0" value="${match.highRunB}" oninput="updateMatch('${match.id}', 'highRunB', this.value)">
+                                    <label for="${match.client_id}_highRunB">Höchstserie</label>
+                                    <input id="${match.client_id}_highRunB" type="number" min="0" value="${match.highRunB}" oninput="updateMatch('${match.client_id}', 'highRunB', this.value)">
+                                </div>
+                                <div class="avg-box">
+                                    <div>
+                                        <div class="avg-label">GD Partie</div>
+                                        <div class="avg-value" id="${match.client_id}_avgB">${formatAverage(avgB)}</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -558,7 +680,8 @@ Daniel"></textarea>
                     scoredPoints: 0,
                     concededPoints: 0,
                     innings: 0,
-                    bestSeries: 0
+                    bestSeries: 0,
+                    bestWinningAverage: null
                 };
             });
 
@@ -572,7 +695,7 @@ Daniel"></textarea>
                 const highRunA = parseNumber(match.highRunA);
                 const highRunB = parseNumber(match.highRunB);
 
-                if ([scoreA, scoreB, inningsA, inningsB, highRunA, highRunB].some(value => value === null)) return;
+                if ([scoreA, scoreB, inningsA, inningsB, highRunA, highRunB].some((value) => value === null)) return;
 
                 const a = statsMap[match.playerA];
                 const b = statsMap[match.playerB];
@@ -591,14 +714,23 @@ Daniel"></textarea>
                 b.innings += inningsB;
                 b.bestSeries = Math.max(b.bestSeries, highRunB);
 
+                const avgA = getMatchAverage(scoreA, inningsA);
+                const avgB = getMatchAverage(scoreB, inningsB);
+
                 if (scoreA > scoreB) {
                     a.wins += 1;
                     b.losses += 1;
                     a.tournamentPoints += 2;
+                    if (avgA !== null) {
+                        a.bestWinningAverage = a.bestWinningAverage === null ? avgA : Math.max(a.bestWinningAverage, avgA);
+                    }
                 } else if (scoreB > scoreA) {
                     b.wins += 1;
                     a.losses += 1;
                     b.tournamentPoints += 2;
+                    if (avgB !== null) {
+                        b.bestWinningAverage = b.bestWinningAverage === null ? avgB : Math.max(b.bestWinningAverage, avgB);
+                    }
                 } else {
                     a.draws += 1;
                     b.draws += 1;
@@ -611,11 +743,13 @@ Daniel"></textarea>
                 .map((entry) => ({
                     ...entry,
                     difference: entry.scoredPoints - entry.concededPoints,
-                    average: entry.innings > 0 ? entry.scoredPoints / entry.innings : 0
+                    average: entry.innings > 0 ? entry.scoredPoints / entry.innings : null
                 }))
                 .sort((left, right) => {
                     if (right.tournamentPoints !== left.tournamentPoints) return right.tournamentPoints - left.tournamentPoints;
-                    if (right.average !== left.average) return right.average - left.average;
+                    const rightAverage = right.average || 0;
+                    const leftAverage = left.average || 0;
+                    if (rightAverage !== leftAverage) return rightAverage - leftAverage;
                     if (right.difference !== left.difference) return right.difference - left.difference;
                     if (right.scoredPoints !== left.scoredPoints) return right.scoredPoints - left.scoredPoints;
                     return left.name.localeCompare(right.name, "de");
@@ -627,7 +761,7 @@ Daniel"></textarea>
             const rows = buildTableRows();
 
             if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="13" class="empty-state">Noch keine Daten vorhanden.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="14" class="empty-state">Noch keine Daten vorhanden.</td></tr>';
                 return;
             }
 
@@ -645,20 +779,96 @@ Daniel"></textarea>
                     <td>${row.difference}</td>
                     <td>${row.innings}</td>
                     <td>${formatAverage(row.average)}</td>
+                    <td>${formatAverage(row.bestWinningAverage)}</td>
                     <td>${row.bestSeries}</td>
                 </tr>
             `).join("");
         }
 
-        function renderAll() {
+        function syncFormFromState() {
             document.getElementById("playersInput").value = tournamentState.players.join("\n");
+            document.getElementById("tournamentTitle").value = tournamentState.title || "";
+            document.getElementById("savedTournamentSelect").value = currentTournamentId || "";
+        }
+
+        function renderAll() {
+            syncFormFromState();
             updateOverview();
             renderSchedule();
             renderTable();
         }
 
+        function updateMatchDisplay(match) {
+            if (!match) return;
+
+            const scoreA = parseNumber(match.scoreA);
+            const scoreB = parseNumber(match.scoreB);
+            const inningsA = parseNumber(match.inningsA);
+            const inningsB = parseNumber(match.inningsB);
+            const avgA = getMatchAverage(scoreA, inningsA);
+            const avgB = getMatchAverage(scoreB, inningsB);
+
+            const avgAEl = document.getElementById(match.client_id + "_avgA");
+            const avgBEl = document.getElementById(match.client_id + "_avgB");
+            const statusEl = document.getElementById(match.client_id + "_status");
+
+            if (avgAEl) avgAEl.textContent = formatAverage(avgA);
+            if (avgBEl) avgBEl.textContent = formatAverage(avgB);
+            if (statusEl) statusEl.textContent = isMatchComplete(match) ? "Erfasst" : "Offen";
+        }
+
+        function sanitizeNumberInput(value) {
+            if (value === "") return "";
+            const numericValue = Number(value);
+            return Number.isFinite(numericValue) ? String(Math.max(numericValue, 0)) : "";
+        }
+
+        function updateMatch(matchId, field, value) {
+            const match = tournamentState.matches.find((entry) => entry.client_id === matchId);
+            if (!match) return;
+
+            match[field] = sanitizeNumberInput(value);
+            saveLocalState();
+            updateOverview();
+            updateMatchDisplay(match);
+            renderTable();
+        }
+
+        function fillExample() {
+            document.getElementById("playersInput").value = "Anna\nBen\nChris\nDaniel";
+            if (!document.getElementById("tournamentTitle").value.trim()) {
+                document.getElementById("tournamentTitle").value = "Beispielturnier";
+            }
+            showMessage("Beispieldaten eingefügt.", "ok");
+        }
+
+        function startNewTournament() {
+            currentTournamentId = "";
+            tournamentState = {
+                title: "",
+                players: [],
+                matches: []
+            };
+            clearLocalState();
+            renderAll();
+            showMessage("Neues leeres Turnier gestartet.", "ok");
+        }
+
+        function resetTournament() {
+            currentTournamentId = "";
+            tournamentState = {
+                title: "",
+                players: [],
+                matches: []
+            };
+            clearLocalState();
+            renderAll();
+            showMessage("Lokale Turnierdaten wurden zurückgesetzt.", "ok");
+        }
+
         function generateTournament() {
             const players = normalizePlayers(document.getElementById("playersInput").value);
+            const title = document.getElementById("tournamentTitle").value.trim() || getDefaultTitle();
 
             if (players.length < 2) {
                 showMessage("Bitte mindestens zwei unterschiedliche Spielernamen eingeben.", "error");
@@ -666,45 +876,221 @@ Daniel"></textarea>
             }
 
             tournamentState = {
+                title,
                 players,
                 matches: createMatches(players)
             };
 
-            saveState();
+            saveLocalState();
             renderAll();
             showMessage("Turnier mit " + players.length + " Spielern wurde erzeugt.", "ok");
         }
 
-        function updateMatch(matchId, field, value) {
-            const match = tournamentState.matches.find(entry => entry.id === matchId);
-            if (!match) return;
+        async function loadTournamentOptions() {
+            if (!currentUser) return;
 
-            if (value === "") {
-                match[field] = "";
-            } else {
-                const numericValue = Number(value);
-                match[field] = Number.isFinite(numericValue) ? String(Math.max(numericValue, 0)) : "";
+            const select = document.getElementById("savedTournamentSelect");
+            select.innerHTML = '<option value="">Kein gespeichertes Turnier</option>';
+
+            const { data, error } = await supabaseClient
+                .from("tournaments")
+                .select("id,title,updated_at")
+                .eq("owner_user_id", currentUser.id)
+                .order("updated_at", { ascending: false });
+
+            if (error) {
+                console.warn("Gespeicherte Turniere konnten nicht geladen werden:", error);
+                showMessage("Gespeicherte Turniere konnten nicht geladen werden. Bitte SQL in Supabase ausführen.", "error");
+                return;
             }
-            saveState();
-            updateOverview();
-            renderTable();
+
+            (data || []).forEach((row) => {
+                const option = document.createElement("option");
+                option.value = row.id;
+                const dateLabel = row.updated_at
+                    ? new Date(row.updated_at).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })
+                    : "";
+                option.textContent = row.title + (dateLabel ? " (" + dateLabel + ")" : "");
+                select.appendChild(option);
+            });
+
+            if (currentTournamentId) {
+                select.value = currentTournamentId;
+            }
         }
 
-        function fillExample() {
-            document.getElementById("playersInput").value = "Anna\nBen\nChris\nDaniel";
-            showMessage("Beispielnamen eingefügt.", "ok");
-        }
+        function applyLoadedTournament(tournamentRow, matchRows) {
+            currentTournamentId = tournamentRow.id;
+            tournamentState = {
+                title: tournamentRow.title || "",
+                players: Array.isArray(tournamentRow.players) ? tournamentRow.players : [],
+                matches: (matchRows || []).map((row, index) => ({
+                    client_id: row.client_id || "m" + (index + 1),
+                    sort_order: row.sort_order || index + 1,
+                    playerA: row.player_a,
+                    playerB: row.player_b,
+                    scoreA: row.score_a === null ? "" : String(row.score_a),
+                    scoreB: row.score_b === null ? "" : String(row.score_b),
+                    inningsA: row.innings_a === null ? "" : String(row.innings_a),
+                    inningsB: row.innings_b === null ? "" : String(row.innings_b),
+                    highRunA: row.high_run_a === null ? "" : String(row.high_run_a),
+                    highRunB: row.high_run_b === null ? "" : String(row.high_run_b)
+                }))
+            };
 
-        function resetTournament() {
-            tournamentState = { players: [], matches: [] };
-            localStorage.removeItem(STORAGE_KEY);
+            saveLocalState();
             renderAll();
-            showMessage("Turnierdaten wurden zurückgesetzt.", "ok");
         }
 
-        loadState();
-        renderAll();
-        requireAuth();
+        async function loadTournamentById(tournamentId) {
+            if (!tournamentId) return;
+
+            const { data: tournamentRow, error: tournamentError } = await supabaseClient
+                .from("tournaments")
+                .select("id,title,players")
+                .eq("id", tournamentId)
+                .maybeSingle();
+
+            if (tournamentError || !tournamentRow) {
+                console.warn("Turnier konnte nicht geladen werden:", tournamentError);
+                showMessage("Turnier konnte nicht geladen werden.", "error");
+                return;
+            }
+
+            const { data: matchRows, error: matchesError } = await supabaseClient
+                .from("tournament_matches")
+                .select("client_id,sort_order,player_a,player_b,score_a,score_b,innings_a,innings_b,high_run_a,high_run_b")
+                .eq("tournament_id", tournamentId)
+                .order("sort_order", { ascending: true });
+
+            if (matchesError) {
+                console.warn("Turnier-Partien konnten nicht geladen werden:", matchesError);
+                showMessage("Turnier-Partien konnten nicht geladen werden.", "error");
+                return;
+            }
+
+            applyLoadedTournament(tournamentRow, matchRows || []);
+            showMessage("Turnier wurde aus der DB geladen.", "ok");
+        }
+
+        async function loadSelectedTournament() {
+            const selected = document.getElementById("savedTournamentSelect").value;
+            if (!selected) {
+                showMessage("Bitte ein gespeichertes Turnier auswählen.", "error");
+                return;
+            }
+            await loadTournamentById(selected);
+        }
+
+        async function saveTournament() {
+            if (!currentUser) {
+                showMessage("Bitte zuerst anmelden.", "error");
+                return;
+            }
+
+            const players = normalizePlayers(document.getElementById("playersInput").value);
+            const title = document.getElementById("tournamentTitle").value.trim() || tournamentState.title || getDefaultTitle();
+
+            if (players.length < 2) {
+                showMessage("Bitte zuerst ein Turnier mit mindestens zwei Spielern erzeugen.", "error");
+                return;
+            }
+
+            if (
+                !tournamentState.matches.length ||
+                players.length !== tournamentState.players.length ||
+                players.some((player, index) => player !== tournamentState.players[index])
+            ) {
+                tournamentState.matches = createMatches(players);
+            }
+
+            tournamentState.players = players;
+            tournamentState.title = title;
+
+            const tournamentPayload = {
+                id: currentTournamentId || undefined,
+                owner_user_id: currentUser.id,
+                title,
+                players
+            };
+
+            const { data: savedTournament, error: tournamentError } = await supabaseClient
+                .from("tournaments")
+                .upsert(tournamentPayload, { onConflict: "id" })
+                .select("id,title,players")
+                .single();
+
+            if (tournamentError || !savedTournament) {
+                console.warn("Turnier konnte nicht gespeichert werden:", tournamentError);
+                showMessage("Speichern fehlgeschlagen. Bitte SQL für die Turnier-Tabellen in Supabase ausführen.", "error");
+                return;
+            }
+
+            currentTournamentId = savedTournament.id;
+
+            const { error: deleteError } = await supabaseClient
+                .from("tournament_matches")
+                .delete()
+                .eq("tournament_id", currentTournamentId);
+
+            if (deleteError) {
+                console.warn("Alte Turnier-Partien konnten nicht ersetzt werden:", deleteError);
+                showMessage("Vorherige Partien konnten nicht aktualisiert werden.", "error");
+                return;
+            }
+
+            const matchPayload = tournamentState.matches.map((match, index) => ({
+                tournament_id: currentTournamentId,
+                client_id: match.client_id || "m" + (index + 1),
+                sort_order: match.sort_order || index + 1,
+                player_a: match.playerA,
+                player_b: match.playerB,
+                score_a: parseNumber(match.scoreA),
+                score_b: parseNumber(match.scoreB),
+                innings_a: parseNumber(match.inningsA),
+                innings_b: parseNumber(match.inningsB),
+                high_run_a: parseNumber(match.highRunA),
+                high_run_b: parseNumber(match.highRunB)
+            }));
+
+            if (matchPayload.length > 0) {
+                const { error: insertError } = await supabaseClient
+                    .from("tournament_matches")
+                    .insert(matchPayload);
+
+                if (insertError) {
+                    console.warn("Turnier-Partien konnten nicht gespeichert werden:", insertError);
+                    showMessage("Partien konnten nicht gespeichert werden.", "error");
+                    return;
+                }
+            }
+
+            saveLocalState();
+            await loadTournamentOptions();
+            renderAll();
+            showMessage("Turnier wurde in der DB gespeichert.", "ok");
+        }
+
+        async function initPage() {
+            currentUser = await requireAuth();
+            if (!currentUser) return;
+
+            const restoredLocal = loadLocalState();
+            renderAll();
+            await loadTournamentOptions();
+
+            if (!restoredLocal) {
+                const select = document.getElementById("savedTournamentSelect");
+                if (select.options.length > 1) {
+                    select.selectedIndex = 1;
+                    await loadSelectedTournament();
+                } else {
+                    document.getElementById("tournamentTitle").value = getDefaultTitle();
+                }
+            }
+        }
+
+        initPage();
     </script>
 </body>
 
