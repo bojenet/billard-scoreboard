@@ -310,6 +310,18 @@
             color: #667085;
         }
 
+        .match-head-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+        }
+
         .match-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -971,7 +983,10 @@
                             <div class="match-title">Tisch ${match.table_number || "-"}: ${playerA} vs ${playerB}</div>
                             <div class="match-sub">Setzplatz ${seedA} gegen ${seedB}</div>
                         </div>
-                        <div class="match-sub" id="${match.client_id}_status">${isMatchComplete(match) ? "Erfasst" : "Offen"}</div>
+                        <div class="match-head-right">
+                            <button class="btn btn-save btn-small" type="button" onclick="saveSingleMatch('${match.client_id}')">Speichern</button>
+                            <div class="match-sub" id="${match.client_id}_status">${isMatchComplete(match) ? "Erfasst" : "Offen"}</div>
+                        </div>
                     </div>
                     <div class="match-grid">
                         <div class="player-box">
@@ -1481,6 +1496,75 @@
             await loadTournamentOptions();
             renderAll();
             showMessage("Turnier wurde in der DB gespeichert.", "ok");
+        }
+
+        async function saveSingleMatch(matchId) {
+            const match = tournamentState.matches.find((entry) => entry.client_id === matchId);
+            if (!match) {
+                showMessage("Partie wurde nicht gefunden.", "error");
+                return;
+            }
+
+            if (!currentUser) {
+                showMessage("Bitte zuerst anmelden.", "error");
+                return;
+            }
+
+            if (!currentTournamentId) {
+                await saveTournament();
+                return;
+            }
+
+            const players = getPlayersFromSeedInputs();
+            const playerCount = Number(document.getElementById("playerCount").value || 4);
+            if (players.length !== playerCount) {
+                showMessage("Bitte zuerst die Setzliste vollständig eintragen.", "error");
+                return;
+            }
+
+            const title = document.getElementById("tournamentTitle").value.trim() || tournamentState.title || getDefaultTitle();
+
+            const { error: tournamentError } = await supabaseClient
+                .from("tournaments")
+                .update({ title, players })
+                .eq("id", currentTournamentId);
+
+            if (tournamentError) {
+                console.warn("Turnierkopf konnte vor dem Speichern der Partie nicht aktualisiert werden:", tournamentError);
+                showMessage("Turnierdaten konnten nicht aktualisiert werden.", "error");
+                return;
+            }
+
+            const payload = {
+                tournament_id: currentTournamentId,
+                client_id: match.client_id,
+                sort_order: match.sort_order || 1,
+                round_number: match.round_number || 1,
+                table_number: match.table_number || 1,
+                player_a: match.playerA,
+                player_b: match.playerB,
+                score_a: parseNumber(match.scoreA),
+                score_b: parseNumber(match.scoreB),
+                innings_a: parseNumber(match.inningsA),
+                innings_b: parseNumber(match.inningsB),
+                high_run_a: parseNumber(match.highRunA),
+                high_run_b: parseNumber(match.highRunB)
+            };
+
+            const { error } = await supabaseClient
+                .from("tournament_matches")
+                .upsert(payload, { onConflict: "tournament_id,client_id" });
+
+            if (error) {
+                console.warn("Partie konnte nicht gespeichert werden:", error);
+                showMessage("Einzelergebnis konnte nicht gespeichert werden.", "error");
+                return;
+            }
+
+            tournamentState.title = title;
+            tournamentState.players = players;
+            saveLocalState();
+            showMessage("Einzelergebnis wurde gespeichert.", "ok");
         }
 
         async function initPage() {
