@@ -310,18 +310,6 @@
             color: #667085;
         }
 
-        .match-head-right {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-small {
-            padding: 5px 10px;
-            font-size: 12px;
-            border-radius: 4px;
-        }
-
         .match-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -365,6 +353,11 @@
             color: #10131c;
             font-weight: 400;
             border: 1px solid #bfc7d2;
+        }
+
+        .field input.auto-filled {
+            background: #f8fafc;
+            color: #475467;
         }
 
         .table-wrap {
@@ -651,6 +644,8 @@
         const MAX_TABLES = 2;
         let currentUser = null;
         let currentTournamentId = "";
+        const lastSavedMatchSignature = new Map();
+        const savingMatchIds = new Set();
         let tournamentState = {
             title: "",
             players: [],
@@ -895,6 +890,17 @@
             return score / innings;
         }
 
+        function getMatchSignature(match) {
+            return [
+                match.scoreA || "",
+                match.scoreB || "",
+                match.inningsA || "",
+                match.inningsB || "",
+                match.highRunA || "",
+                match.highRunB || ""
+            ].join("|");
+        }
+
         function updateOverview() {
             const playersCount = tournamentState.players.length;
             const matchesCount = tournamentState.matches.length;
@@ -981,10 +987,7 @@
                             <div class="match-title">Tisch ${match.table_number || "-"}: ${playerA} vs ${playerB}</div>
                             <div class="match-sub">Setzplatz ${seedA} gegen ${seedB}</div>
                         </div>
-                        <div class="match-head-right">
-                            <button class="btn btn-save btn-small" type="button" onclick="saveSingleMatch('${match.client_id}')">Speichern</button>
-                            <div class="match-sub" id="${match.client_id}_status">${isMatchComplete(match) ? "Erfasst" : "Offen"}</div>
-                        </div>
+                        <div class="match-sub" id="${match.client_id}_status">${isMatchComplete(match) ? "Erfasst" : "Offen"}</div>
                     </div>
                     <div class="match-grid">
                         <div class="player-box">
@@ -1017,7 +1020,7 @@
                                 </div>
                                 <div class="field">
                                     <label for="${match.client_id}_inningsB">Aufnahmen</label>
-                                    <input id="${match.client_id}_inningsB" type="number" min="0" value="${match.inningsB}" oninput="updateMatch('${match.client_id}', 'inningsB', this.value)">
+                                    <input id="${match.client_id}_inningsB" class="auto-filled" type="number" min="0" value="${match.inningsB}" readonly tabindex="-1">
                                 </div>
                                 <div class="field">
                                     <label for="${match.client_id}_highRunB">Höchstserie</label>
@@ -1226,10 +1229,12 @@
 
             const avgAEl = document.getElementById(match.client_id + "_avgA");
             const avgBEl = document.getElementById(match.client_id + "_avgB");
+            const inningsBEl = document.getElementById(match.client_id + "_inningsB");
             const statusEl = document.getElementById(match.client_id + "_status");
 
             if (avgAEl) avgAEl.value = formatAverage(avgA);
             if (avgBEl) avgBEl.value = formatAverage(avgB);
+            if (inningsBEl) inningsBEl.value = match.inningsB || "";
             if (statusEl) statusEl.textContent = isMatchComplete(match) ? "Erfasst" : "Offen";
         }
 
@@ -1239,15 +1244,19 @@
             return Number.isFinite(numericValue) ? String(Math.max(numericValue, 0)) : "";
         }
 
-        function updateMatch(matchId, field, value) {
+        async function updateMatch(matchId, field, value) {
             const match = tournamentState.matches.find((entry) => entry.client_id === matchId);
             if (!match) return;
 
             match[field] = sanitizeNumberInput(value);
+            if (field === "inningsA") {
+                match.inningsB = match.inningsA;
+            }
             saveLocalState();
             updateOverview();
             updateMatchDisplay(match);
             renderTable();
+            await autoSaveMatchIfComplete(match);
         }
 
         function fillExample() {
