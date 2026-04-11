@@ -417,12 +417,6 @@
             display: none;
         }
 
-        .print-actions {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 14px;
-        }
-
         @media (max-width: 1280px) {
             .setup-grid,
             .summary-grid,
@@ -537,10 +531,6 @@
     <div class="sub">Jeder gegen jeden mit DB-Speicherung, Live-Auswertung und Tabelle</div>
 
     <div class="page">
-        <div class="print-actions">
-            <button class="btn btn-secondary" type="button" onclick="window.print()">PDF Export</button>
-        </div>
-
         <div class="panel">
             <h2>Setup</h2>
             <div class="panel-sub">Setzliste eintragen, Teilnehmerzahl wählen und daraus den Turnierablauf erzeugen.</div>
@@ -643,6 +633,7 @@
             <div class="button-row">
                 <button class="btn btn-primary" type="button" onclick="generateTournament()">Turnier erzeugen</button>
                 <button class="btn btn-save" type="button" onclick="saveTournament()">In DB speichern</button>
+                <button class="btn btn-secondary" type="button" onclick="window.print()">PDF Export</button>
                 <button class="btn btn-secondary" type="button" onclick="startNewTournament()">Neues Turnier</button>
                 <button class="btn btn-secondary" type="button" onclick="fillExample()">Beispiel laden</button>
                 <button class="btn btn-danger" type="button" onclick="resetTournament()">Alles zurücksetzen</button>
