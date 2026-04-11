@@ -195,6 +195,64 @@
             gap: 10px;
         }
 
+        .seed-table,
+        .round-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+        }
+
+        .seed-wrap,
+        .round-wrap {
+            border: 1px solid #d7dde5;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .seed-table th,
+        .seed-table td,
+        .round-table th,
+        .round-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #dde3ea;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        .seed-table th,
+        .round-table th {
+            background: #e9eef5;
+            color: #334155;
+            font-size: 12px;
+        }
+
+        .round-block {
+            border: 1px solid #d6dde6;
+            border-radius: 4px;
+            background: #fbfcfe;
+            overflow: hidden;
+        }
+
+        .round-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: #f1f5f9;
+            border-bottom: 1px solid #dde3ea;
+        }
+
+        .round-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #24364d;
+        }
+
+        .round-sub {
+            font-size: 12px;
+            color: #667085;
+        }
+
         .match-card {
             background: #fbfcfe;
             border: 1px solid #d6dde6;
@@ -439,6 +497,32 @@ Daniel"></textarea>
         </div>
 
         <div class="panel">
+            <h2>Setzliste</h2>
+            <div id="seedList" class="seed-wrap">
+                <table class="seed-table">
+                    <tbody>
+                        <tr>
+                            <td class="empty-state">Noch keine Setzliste vorhanden.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Turnierablauf</h2>
+            <div id="roundOverview" class="round-wrap">
+                <table class="round-table">
+                    <tbody>
+                        <tr>
+                            <td class="empty-state">Noch kein Spielplan erzeugt.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
             <h2>Spielplan</h2>
             <div id="schedule" class="schedule">
                 <div class="empty-state">Noch kein Turnier erzeugt.</div>
@@ -485,7 +569,8 @@ Daniel"></textarea>
     <script src="js/auth.js"></script>
     <script src="js/user_menu.js"></script>
     <script>
-        const STORAGE_KEY = "tournament_round_robin_v2";
+        const STORAGE_KEY = "tournament_round_robin_v3";
+        const MAX_TABLES = 2;
         let currentUser = null;
         let currentTournamentId = "";
         let tournamentState = {
@@ -531,16 +616,30 @@ Daniel"></textarea>
         }
 
         function createMatches(players) {
+            const working = players.slice();
+            if (working.length % 2 === 1) {
+                working.push(null);
+            }
+
             const matches = [];
             let id = 1;
 
-            for (let i = 0; i < players.length; i += 1) {
-                for (let j = i + 1; j < players.length; j += 1) {
+            for (let roundIndex = 0; roundIndex < working.length - 1; roundIndex += 1) {
+                let tableNumber = 1;
+
+                for (let pairIndex = 0; pairIndex < working.length / 2; pairIndex += 1) {
+                    const playerA = working[pairIndex];
+                    const playerB = working[working.length - 1 - pairIndex];
+
+                    if (!playerA || !playerB) continue;
+
                     matches.push({
                         client_id: "m" + id,
                         sort_order: id,
-                        playerA: players[i],
-                        playerB: players[j],
+                        round_number: roundIndex + 1,
+                        table_number: tableNumber,
+                        playerA,
+                        playerB,
                         scoreA: "",
                         scoreB: "",
                         inningsA: "",
@@ -549,10 +648,49 @@ Daniel"></textarea>
                         highRunB: ""
                     });
                     id += 1;
+                    tableNumber += 1;
                 }
+
+                const fixed = working[0];
+                const rotating = working.slice(1);
+                rotating.unshift(rotating.pop());
+                working.splice(0, working.length, fixed, ...rotating);
             }
 
             return matches;
+        }
+
+        function groupMatchesByRound(matches) {
+            const roundMap = new Map();
+
+            matches.forEach((match) => {
+                const roundNumber = Number(match.round_number) || 1;
+                if (!roundMap.has(roundNumber)) {
+                    roundMap.set(roundNumber, []);
+                }
+                roundMap.get(roundNumber).push(match);
+            });
+
+            return Array.from(roundMap.entries())
+                .sort((left, right) => left[0] - right[0])
+                .map(([roundNumber, roundMatches]) => ({
+                    round_number: roundNumber,
+                    matches: roundMatches.sort((left, right) => {
+                        const leftTable = Number(left.table_number) || 0;
+                        const rightTable = Number(right.table_number) || 0;
+                        return leftTable - rightTable;
+                    })
+                }));
+        }
+
+        function getByePlayerForRound(roundMatches) {
+            const activePlayers = new Set();
+            roundMatches.forEach((match) => {
+                if (match.playerA) activePlayers.add(match.playerA);
+                if (match.playerB) activePlayers.add(match.playerB);
+            });
+
+            return tournamentState.players.find((player) => !activePlayers.has(player)) || "";
         }
 
         function getDefaultTitle() {
@@ -619,30 +757,114 @@ Daniel"></textarea>
             document.getElementById("openCount").textContent = String(Math.max(matchesCount - completedCount, 0));
         }
 
+        function renderSeedList() {
+            const container = document.getElementById("seedList");
+
+            if (!tournamentState.players.length) {
+                container.innerHTML = `
+                    <table class="seed-table">
+                        <tbody>
+                            <tr><td class="empty-state">Noch keine Setzliste vorhanden.</td></tr>
+                        </tbody>
+                    </table>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="seed-table">
+                    <thead>
+                        <tr>
+                            <th style="width:90px;">Setzplatz</th>
+                            <th>Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tournamentState.players.map((player, index) => `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${escapeHtml(player)}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderRoundOverview() {
+            const container = document.getElementById("roundOverview");
+            const roundGroups = groupMatchesByRound(tournamentState.matches);
+
+            if (!roundGroups.length) {
+                container.innerHTML = `
+                    <table class="round-table">
+                        <tbody>
+                            <tr><td class="empty-state">Noch kein Spielplan erzeugt.</td></tr>
+                        </tbody>
+                    </table>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="round-table">
+                    <thead>
+                        <tr>
+                            <th style="width:110px;">Runde</th>
+                            <th style="width:110px;">Tisch</th>
+                            <th>Paarung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${roundGroups.map((group) => {
+                            const byePlayer = getByePlayerForRound(group.matches);
+                            return group.matches.map((match, index) => `
+                            <tr>
+                                <td>${index === 0 ? group.round_number : ""}</td>
+                                <td>Tisch ${match.table_number || "-"}</td>
+                                <td>${escapeHtml(match.playerA)} - ${escapeHtml(match.playerB)}${index === 0 && byePlayer ? ' · spielfrei: ' + escapeHtml(byePlayer) : ""}</td>
+                            </tr>
+                        `).join("");
+                        }).join("")}
+                    </tbody>
+                </table>
+            `;
+        }
+
         function renderSchedule() {
             const schedule = document.getElementById("schedule");
+            const roundGroups = groupMatchesByRound(tournamentState.matches);
 
-            if (!tournamentState.matches.length) {
+            if (!roundGroups.length) {
                 schedule.innerHTML = '<div class="empty-state">Noch kein Turnier erzeugt.</div>';
                 return;
             }
 
-            schedule.innerHTML = tournamentState.matches.map((match, index) => {
-                const scoreA = parseNumber(match.scoreA);
-                const scoreB = parseNumber(match.scoreB);
-                const inningsA = parseNumber(match.inningsA);
-                const inningsB = parseNumber(match.inningsB);
-                const avgA = getMatchAverage(scoreA, inningsA);
-                const avgB = getMatchAverage(scoreB, inningsB);
-                const playerA = escapeHtml(match.playerA);
-                const playerB = escapeHtml(match.playerB);
+            schedule.innerHTML = roundGroups.map((group) => `
+                <div class="round-block">
+                    <div class="round-head">
+                        <div class="round-title">Spielrunde ${group.round_number}</div>
+                        <div class="round-sub">${group.matches.length} Partie${group.matches.length === 1 ? "" : "n"} auf ${MAX_TABLES} Tischen</div>
+                    </div>
+                    <div style="padding:10px; display:grid; gap:10px;">
+                        ${group.matches.map((match) => {
+                            const scoreA = parseNumber(match.scoreA);
+                            const scoreB = parseNumber(match.scoreB);
+                            const inningsA = parseNumber(match.inningsA);
+                            const inningsB = parseNumber(match.inningsB);
+                            const avgA = getMatchAverage(scoreA, inningsA);
+                            const avgB = getMatchAverage(scoreB, inningsB);
+                            const playerA = escapeHtml(match.playerA);
+                            const playerB = escapeHtml(match.playerB);
+                            const seedA = tournamentState.players.indexOf(match.playerA) + 1;
+                            const seedB = tournamentState.players.indexOf(match.playerB) + 1;
 
-                return `
+                            return `
                 <div class="match-card">
                     <div class="match-head">
                         <div>
-                            <div class="match-title">${playerA} vs ${playerB}</div>
-                            <div class="match-sub">Partie ${index + 1} von ${tournamentState.matches.length}</div>
+                            <div class="match-title">Tisch ${match.table_number || "-"}: ${playerA} vs ${playerB}</div>
+                            <div class="match-sub">Setzplatz ${seedA} gegen ${seedB}</div>
                         </div>
                         <div class="match-sub" id="${match.client_id}_status">${isMatchComplete(match) ? "Erfasst" : "Offen"}</div>
                     </div>
@@ -696,7 +918,11 @@ Daniel"></textarea>
                     </div>
                 </div>
             `;
-            }).join("");
+                        }).join("")}
+                        ${getByePlayerForRound(group.matches) ? `<div class="match-sub" style="padding:0 2px 2px;">Spielfrei: ${escapeHtml(getByePlayerForRound(group.matches))}</div>` : ""}
+                    </div>
+                </div>
+            `).join("");
         }
 
         function buildTableRows() {
@@ -827,6 +1053,8 @@ Daniel"></textarea>
         function renderAll() {
             syncFormFromState();
             updateOverview();
+            renderSeedList();
+            renderRoundOverview();
             renderSchedule();
             renderTable();
         }
@@ -868,7 +1096,7 @@ Daniel"></textarea>
         }
 
         function fillExample() {
-            document.getElementById("playersInput").value = "Anna\nBen\nChris\nDaniel";
+            document.getElementById("playersInput").value = "Anna\nBen\nChris\nDaniel\nErik";
             if (!document.getElementById("tournamentTitle").value.trim()) {
                 document.getElementById("tournamentTitle").value = "Beispielturnier";
             }
@@ -903,8 +1131,8 @@ Daniel"></textarea>
             const players = normalizePlayers(document.getElementById("playersInput").value);
             const title = document.getElementById("tournamentTitle").value.trim() || getDefaultTitle();
 
-            if (players.length < 2) {
-                showMessage("Bitte mindestens zwei unterschiedliche Spielernamen eingeben.", "error");
+            if (players.length !== 4 && players.length !== 5) {
+                showMessage("Bitte genau 4 oder 5 Spieler in Setzlisten-Reihenfolge eingeben.", "error");
                 return;
             }
 
@@ -960,6 +1188,8 @@ Daniel"></textarea>
                 matches: (matchRows || []).map((row, index) => ({
                     client_id: row.client_id || "m" + (index + 1),
                     sort_order: row.sort_order || index + 1,
+                    round_number: row.round_number || 1,
+                    table_number: row.table_number || 1,
                     playerA: row.player_a,
                     playerB: row.player_b,
                     scoreA: row.score_a === null ? "" : String(row.score_a),
@@ -992,7 +1222,7 @@ Daniel"></textarea>
 
             const { data: matchRows, error: matchesError } = await supabaseClient
                 .from("tournament_matches")
-                .select("client_id,sort_order,player_a,player_b,score_a,score_b,innings_a,innings_b,high_run_a,high_run_b")
+                .select("client_id,sort_order,round_number,table_number,player_a,player_b,score_a,score_b,innings_a,innings_b,high_run_a,high_run_b")
                 .eq("tournament_id", tournamentId)
                 .order("sort_order", { ascending: true });
 
@@ -1024,8 +1254,8 @@ Daniel"></textarea>
             const players = normalizePlayers(document.getElementById("playersInput").value);
             const title = document.getElementById("tournamentTitle").value.trim() || tournamentState.title || getDefaultTitle();
 
-            if (players.length < 2) {
-                showMessage("Bitte zuerst ein Turnier mit mindestens zwei Spielern erzeugen.", "error");
+            if (players.length !== 4 && players.length !== 5) {
+                showMessage("Bitte genau 4 oder 5 Spieler in Setzlisten-Reihenfolge eingeben.", "error");
                 return;
             }
 
@@ -1076,6 +1306,8 @@ Daniel"></textarea>
                 tournament_id: currentTournamentId,
                 client_id: match.client_id || "m" + (index + 1),
                 sort_order: match.sort_order || index + 1,
+                round_number: match.round_number || 1,
+                table_number: match.table_number || 1,
                 player_a: match.playerA,
                 player_b: match.playerB,
                 score_a: parseNumber(match.scoreA),

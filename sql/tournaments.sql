@@ -14,6 +14,8 @@ create table if not exists public.tournament_matches (
   tournament_id uuid not null references public.tournaments(id) on delete cascade,
   client_id text not null default '',
   sort_order integer not null default 1,
+  round_number integer not null default 1,
+  table_number integer not null default 1,
   player_a text not null default '',
   player_b text not null default '',
   score_a integer,
@@ -27,6 +29,9 @@ create table if not exists public.tournament_matches (
   constraint tournament_matches_unique_client unique (tournament_id, client_id),
   constraint tournament_matches_unique_sort unique (tournament_id, sort_order)
 );
+
+alter table public.tournament_matches add column if not exists round_number integer not null default 1;
+alter table public.tournament_matches add column if not exists table_number integer not null default 1;
 
 create index if not exists idx_tournaments_owner_updated on public.tournaments(owner_user_id, updated_at desc);
 create index if not exists idx_tournament_matches_tournament_sort on public.tournament_matches(tournament_id, sort_order);
