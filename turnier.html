@@ -620,11 +620,9 @@
                             <th>Sp</th>
                             <th>S</th>
                             <th>U</th>
-                            <th>N</th>
+                            <th>V</th>
                             <th>Turnierpkt.</th>
                             <th>Erzielte Pkt.</th>
-                            <th>Gegenpkt.</th>
-                            <th>Diff.</th>
                             <th>Aufnahmen</th>
                             <th>GD</th>
                             <th>BED</th>
@@ -1117,7 +1115,6 @@
             return Object.values(statsMap)
                 .map((entry) => ({
                     ...entry,
-                    difference: entry.scoredPoints - entry.concededPoints,
                     average: entry.innings > 0 ? entry.scoredPoints / entry.innings : null
                 }))
                 .sort((left, right) => {
@@ -1125,7 +1122,6 @@
                     const rightAverage = right.average || 0;
                     const leftAverage = left.average || 0;
                     if (rightAverage !== leftAverage) return rightAverage - leftAverage;
-                    if (right.difference !== left.difference) return right.difference - left.difference;
                     if (right.scoredPoints !== left.scoredPoints) return right.scoredPoints - left.scoredPoints;
                     return left.name.localeCompare(right.name, "de");
                 });
@@ -1150,8 +1146,6 @@
                     <td>${row.losses}</td>
                     <td>${row.tournamentPoints}</td>
                     <td>${row.scoredPoints}</td>
-                    <td>${row.concededPoints}</td>
-                    <td>${row.difference}</td>
                     <td>${row.innings}</td>
                     <td>${formatAverage(row.average)}</td>
                     <td>${formatAverage(row.bestWinningAverage)}</td>
