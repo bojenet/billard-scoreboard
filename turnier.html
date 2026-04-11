@@ -542,7 +542,7 @@
                     </div>
                     <div>
                         <div class="field-title">Gespeichertes Turnier laden</div>
-                        <select id="savedTournamentSelect">
+                        <select id="savedTournamentSelect" onchange="loadSelectedTournament(true)">
                             <option value="">Kein gespeichertes Turnier</option>
                         </select>
                     </div>
@@ -551,7 +551,6 @@
             <div class="button-row">
                 <button class="btn btn-primary" type="button" onclick="generateTournament()">Turnier erzeugen</button>
                 <button class="btn btn-save" type="button" onclick="saveTournament()">In DB speichern</button>
-                <button class="btn btn-secondary" type="button" onclick="loadSelectedTournament()">Auswahl laden</button>
                 <button class="btn btn-secondary" type="button" onclick="startNewTournament()">Neues Turnier</button>
                 <button class="btn btn-secondary" type="button" onclick="fillExample()">Beispiel laden</button>
                 <button class="btn btn-danger" type="button" onclick="resetTournament()">Alles zurücksetzen</button>
@@ -987,7 +986,7 @@
                             <div class="match-title">Tisch ${match.table_number || "-"}: ${playerA} vs ${playerB}</div>
                             <div class="match-sub">Setzplatz ${seedA} gegen ${seedB}</div>
                         </div>
-                        <div class="match-sub" id="${match.client_id}_status">${isMatchComplete(match) ? "Erfasst" : "Offen"}</div>
+                        <div class="match-sub" id="${match.client_id}_status">${match.saveState || (isMatchComplete(match) ? "Erfasst" : "Offen")}</div>
                     </div>
                     <div class="match-grid">
                         <div class="player-box">
@@ -1235,7 +1234,7 @@
             if (avgAEl) avgAEl.value = formatAverage(avgA);
             if (avgBEl) avgBEl.value = formatAverage(avgB);
             if (inningsBEl) inningsBEl.value = match.inningsB || "";
-            if (statusEl) statusEl.textContent = isMatchComplete(match) ? "Erfasst" : "Offen";
+            if (statusEl) statusEl.textContent = match.saveState || (isMatchComplete(match) ? "Erfasst" : "Offen");
         }
 
         function sanitizeNumberInput(value) {
@@ -1252,6 +1251,7 @@
             if (field === "inningsA") {
                 match.inningsB = match.inningsA;
             }
+            match.saveState = "";
             saveLocalState();
             updateOverview();
             updateMatchDisplay(match);
@@ -1275,6 +1275,8 @@
 
         function startNewTournament() {
             currentTournamentId = "";
+            lastSavedMatchSignature.clear();
+            savingMatchIds.clear();
             tournamentState = {
                 title: "",
                 players: [],
@@ -1287,6 +1289,8 @@
 
         function resetTournament() {
             currentTournamentId = "";
+            lastSavedMatchSignature.clear();
+            savingMatchIds.clear();
             tournamentState = {
                 title: "",
                 players: [],
@@ -1343,6 +1347,42 @@
             }
         }
 
+        async function ensureTournamentExists() {
+            if (currentTournamentId) return currentTournamentId;
+            if (!currentUser) return "";
+
+            const playerCount = Number(document.getElementById("playerCount").value || 4);
+            const players = getPlayersFromSeedInputs();
+            const title = document.getElementById("tournamentTitle").value.trim() || tournamentState.title || getDefaultTitle();
+
+            if (players.length !== playerCount) {
+                return "";
+            }
+
+            tournamentState.title = title;
+            tournamentState.players = players;
+
+            const { data, error } = await supabaseClient
+                .from("tournaments")
+                .insert({
+                    owner_user_id: currentUser.id,
+                    title,
+                    players
+                })
+                .select("id")
+                .single();
+
+            if (error || !data?.id) {
+                console.warn("Turnier konnte nicht initial angelegt werden:", error);
+                return "";
+            }
+
+            currentTournamentId = data.id;
+            saveLocalState();
+            await loadTournamentOptions();
+            return currentTournamentId;
+        }
+
         function applyLoadedTournament(tournamentRow, matchRows) {
             currentTournamentId = tournamentRow.id;
             tournamentState = {
@@ -1363,6 +1403,16 @@
                     highRunB: row.high_run_b === null ? "" : String(row.high_run_b)
                 }))
             };
+
+            lastSavedMatchSignature.clear();
+            tournamentState.matches.forEach((match) => {
+                if (isMatchComplete(match)) {
+                    lastSavedMatchSignature.set(match.client_id, getMatchSignature(match));
+                    match.saveState = "Automatisch gespeichert";
+                } else {
+                    match.saveState = "";
+                }
+            });
 
             saveLocalState();
             renderAll();
@@ -1399,10 +1449,10 @@
             showMessage("Turnier wurde aus der DB geladen.", "ok");
         }
 
-        async function loadSelectedTournament() {
+        async function loadSelectedTournament(silent = false) {
             const selected = document.getElementById("savedTournamentSelect").value;
             if (!selected) {
-                showMessage("Bitte ein gespeichertes Turnier auswählen.", "error");
+                if (!silent) showMessage("Bitte ein gespeichertes Turnier auswählen.", "error");
                 return;
             }
             await loadTournamentById(selected);
@@ -1494,33 +1544,58 @@
                 }
             }
 
+            tournamentState.matches.forEach((match) => {
+                if (isMatchComplete(match)) {
+                    lastSavedMatchSignature.set(match.client_id, getMatchSignature(match));
+                }
+            });
+
             saveLocalState();
             await loadTournamentOptions();
             renderAll();
             showMessage("Turnier wurde in der DB gespeichert.", "ok");
         }
 
-        async function saveSingleMatch(matchId) {
+        async function autoSaveMatchIfComplete(match) {
+            if (!match || !isMatchComplete(match)) return;
+
+            const signature = getMatchSignature(match);
+            if (lastSavedMatchSignature.get(match.client_id) === signature) return;
+            if (savingMatchIds.has(match.client_id)) return;
+
+            savingMatchIds.add(match.client_id);
+            try {
+                await saveSingleMatch(match.client_id, true);
+                lastSavedMatchSignature.set(match.client_id, signature);
+            } finally {
+                savingMatchIds.delete(match.client_id);
+            }
+        }
+
+        async function saveSingleMatch(matchId, silent = false) {
             const match = tournamentState.matches.find((entry) => entry.client_id === matchId);
             if (!match) {
-                showMessage("Partie wurde nicht gefunden.", "error");
+                if (!silent) showMessage("Partie wurde nicht gefunden.", "error");
                 return;
             }
 
             if (!currentUser) {
-                showMessage("Bitte zuerst anmelden.", "error");
+                if (!silent) showMessage("Bitte zuerst anmelden.", "error");
                 return;
             }
 
             if (!currentTournamentId) {
-                await saveTournament();
-                return;
+                const createdId = await ensureTournamentExists();
+                if (!createdId) {
+                    if (!silent) showMessage("Turnier konnte nicht automatisch angelegt werden.", "error");
+                    return;
+                }
             }
 
             const players = getPlayersFromSeedInputs();
             const playerCount = Number(document.getElementById("playerCount").value || 4);
             if (players.length !== playerCount) {
-                showMessage("Bitte zuerst die Setzliste vollständig eintragen.", "error");
+                if (!silent) showMessage("Bitte zuerst die Setzliste vollständig eintragen.", "error");
                 return;
             }
 
@@ -1533,7 +1608,7 @@
 
             if (tournamentError) {
                 console.warn("Turnierkopf konnte vor dem Speichern der Partie nicht aktualisiert werden:", tournamentError);
-                showMessage("Turnierdaten konnten nicht aktualisiert werden.", "error");
+                if (!silent) showMessage("Turnierdaten konnten nicht aktualisiert werden.", "error");
                 return;
             }
 
@@ -1559,14 +1634,14 @@
 
             if (error) {
                 console.warn("Partie konnte nicht gespeichert werden:", error);
-                showMessage("Einzelergebnis konnte nicht gespeichert werden.", "error");
+                if (!silent) showMessage("Einzelergebnis konnte nicht gespeichert werden.", "error");
                 return;
             }
 
             tournamentState.title = title;
             tournamentState.players = players;
             saveLocalState();
-            showMessage("Einzelergebnis wurde gespeichert.", "ok");
+            if (!silent) showMessage("Einzelergebnis wurde gespeichert.", "ok");
         }
 
         async function initPage() {
