@@ -62,7 +62,6 @@
             color: #6b7280;
         }
 
-        textarea,
         input,
         select {
             box-sizing: border-box;
@@ -73,13 +72,6 @@
             font-size: 14px;
             background: #ffffff;
             color: #10131c;
-        }
-
-        textarea {
-            min-height: 180px;
-            resize: vertical;
-            font-family: Arial, sans-serif;
-            line-height: 1.4;
         }
 
         .setup-grid {
@@ -195,22 +187,22 @@
             gap: 10px;
         }
 
-        .seed-table,
+        .seed-entry-table,
         .round-table {
             width: 100%;
             border-collapse: collapse;
             background: #ffffff;
         }
 
-        .seed-wrap,
+        .seed-entry-wrap,
         .round-wrap {
             border: 1px solid #d7dde5;
             border-radius: 4px;
             overflow: hidden;
         }
 
-        .seed-table th,
-        .seed-table td,
+        .seed-entry-table th,
+        .seed-entry-table td,
         .round-table th,
         .round-table td {
             padding: 8px 10px;
@@ -219,11 +211,16 @@
             text-align: left;
         }
 
-        .seed-table th,
+        .seed-entry-table th,
         .round-table th {
             background: #e9eef5;
             color: #334155;
             font-size: 12px;
+        }
+
+        .seed-entry-table td input {
+            padding: 6px 8px;
+            font-size: 13px;
         }
 
         .round-block {
@@ -320,32 +317,16 @@
             font-size: 14px;
         }
 
-        .avg-box {
+        .avg-field {
             display: flex;
-            align-items: end;
-            justify-content: center;
-            height: 100%;
-            min-height: 62px;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .avg-field input[readonly] {
             background: #f8fafc;
-            border: 1px solid #d7dde5;
-            border-radius: 4px;
-            text-align: center;
-            padding: 8px;
-        }
-
-        .avg-label {
-            font-size: 11px;
-            opacity: 1;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            color: #6b7280;
-        }
-
-        .avg-value {
-            font-size: 18px;
-            font-weight: 700;
             color: #1f2937;
+            font-weight: 700;
         }
 
         .table-wrap {
@@ -439,17 +420,36 @@
     <div class="page">
         <div class="panel">
             <h2>Setup</h2>
-            <div class="panel-sub">Spieler frei eingeben, Turnier speichern und später wieder laden.</div>
+            <div class="panel-sub">Setzliste eintragen, Teilnehmerzahl wählen und daraus den Turnierablauf erzeugen.</div>
             <div class="setup-grid">
                 <div>
-                    <div class="field-title">Spieler</div>
-                    <textarea id="playersInput" placeholder="Beispiel:
-Anna
-Ben
-Chris
-Daniel"></textarea>
+                    <div class="field-title">Setzliste</div>
+                    <div class="seed-entry-wrap">
+                        <table class="seed-entry-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:110px;">Setzplatz</th>
+                                    <th>Name</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>1</td><td><input id="seedPlayer1" type="text" placeholder="Spieler 1"></td></tr>
+                                <tr><td>2</td><td><input id="seedPlayer2" type="text" placeholder="Spieler 2"></td></tr>
+                                <tr><td>3</td><td><input id="seedPlayer3" type="text" placeholder="Spieler 3"></td></tr>
+                                <tr><td>4</td><td><input id="seedPlayer4" type="text" placeholder="Spieler 4"></td></tr>
+                                <tr><td>5</td><td><input id="seedPlayer5" type="text" placeholder="Spieler 5"></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 <div class="side-stack">
+                    <div>
+                        <div class="field-title">Teilnehmer</div>
+                        <select id="playerCount" onchange="updateSeedInputAvailability()">
+                            <option value="4">4 Spieler</option>
+                            <option value="5">5 Spieler</option>
+                        </select>
+                    </div>
                     <div>
                         <div class="field-title">Turniername</div>
                         <input id="tournamentTitle" type="text" placeholder="z. B. Vereinsabend April">
@@ -493,19 +493,6 @@ Daniel"></textarea>
                     <div class="summary-title">Offen</div>
                     <div id="openCount" class="summary-value">0</div>
                 </div>
-            </div>
-        </div>
-
-        <div class="panel">
-            <h2>Setzliste</h2>
-            <div id="seedList" class="seed-wrap">
-                <table class="seed-table">
-                    <tbody>
-                        <tr>
-                            <td class="empty-state">Noch keine Setzliste vorhanden.</td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
         </div>
 
@@ -600,19 +587,29 @@ Daniel"></textarea>
             return Number.isFinite(parsed) ? parsed : null;
         }
 
-        function normalizePlayers(rawText) {
-            const values = String(rawText || "")
-                .split(/\n|;/)
-                .map(value => value.trim())
-                .filter(Boolean);
-
+        function normalizePlayers(values) {
             const seen = new Set();
-            return values.filter((name) => {
+            return (values || [])
+                .map((value) => String(value || "").trim())
+                .filter(Boolean)
+                .filter((name) => {
                 const key = name.toLowerCase();
                 if (seen.has(key)) return false;
                 seen.add(key);
                 return true;
             });
+        }
+
+        function getPlayersFromSeedInputs() {
+            const count = Number(document.getElementById("playerCount").value || 4);
+            const values = [];
+
+            for (let i = 1; i <= count; i += 1) {
+                const input = document.getElementById("seedPlayer" + i);
+                values.push(input ? input.value : "");
+            }
+
+            return normalizePlayers(values);
         }
 
         function createMatches(players) {
@@ -757,40 +754,6 @@ Daniel"></textarea>
             document.getElementById("openCount").textContent = String(Math.max(matchesCount - completedCount, 0));
         }
 
-        function renderSeedList() {
-            const container = document.getElementById("seedList");
-
-            if (!tournamentState.players.length) {
-                container.innerHTML = `
-                    <table class="seed-table">
-                        <tbody>
-                            <tr><td class="empty-state">Noch keine Setzliste vorhanden.</td></tr>
-                        </tbody>
-                    </table>
-                `;
-                return;
-            }
-
-            container.innerHTML = `
-                <table class="seed-table">
-                    <thead>
-                        <tr>
-                            <th style="width:90px;">Setzplatz</th>
-                            <th>Name</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tournamentState.players.map((player, index) => `
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td>${escapeHtml(player)}</td>
-                            </tr>
-                        `).join("")}
-                    </tbody>
-                </table>
-            `;
-        }
-
         function renderRoundOverview() {
             const container = document.getElementById("roundOverview");
             const roundGroups = groupMatchesByRound(tournamentState.matches);
@@ -884,11 +847,9 @@ Daniel"></textarea>
                                     <label for="${match.client_id}_highRunA">Höchstserie</label>
                                     <input id="${match.client_id}_highRunA" type="number" min="0" value="${match.highRunA}" oninput="updateMatch('${match.client_id}', 'highRunA', this.value)">
                                 </div>
-                                <div class="avg-box">
-                                    <div>
-                                        <div class="avg-label">GD Partie</div>
-                                        <div class="avg-value" id="${match.client_id}_avgA">${formatAverage(avgA)}</div>
-                                    </div>
+                                <div class="avg-field">
+                                    <label for="${match.client_id}_avgA">GD</label>
+                                    <input id="${match.client_id}_avgA" type="text" value="${formatAverage(avgA)}" readonly>
                                 </div>
                             </div>
                         </div>
@@ -907,11 +868,9 @@ Daniel"></textarea>
                                     <label for="${match.client_id}_highRunB">Höchstserie</label>
                                     <input id="${match.client_id}_highRunB" type="number" min="0" value="${match.highRunB}" oninput="updateMatch('${match.client_id}', 'highRunB', this.value)">
                                 </div>
-                                <div class="avg-box">
-                                    <div>
-                                        <div class="avg-label">GD Partie</div>
-                                        <div class="avg-value" id="${match.client_id}_avgB">${formatAverage(avgB)}</div>
-                                    </div>
+                                <div class="avg-field">
+                                    <label for="${match.client_id}_avgB">GD</label>
+                                    <input id="${match.client_id}_avgB" type="text" value="${formatAverage(avgB)}" readonly>
                                 </div>
                             </div>
                         </div>
@@ -1045,15 +1004,32 @@ Daniel"></textarea>
         }
 
         function syncFormFromState() {
-            document.getElementById("playersInput").value = tournamentState.players.join("\n");
             document.getElementById("tournamentTitle").value = tournamentState.title || "";
             document.getElementById("savedTournamentSelect").value = currentTournamentId || "";
+            document.getElementById("playerCount").value = String(tournamentState.players.length === 5 ? 5 : 4);
+            updateSeedInputAvailability();
+
+            for (let i = 1; i <= 5; i += 1) {
+                const input = document.getElementById("seedPlayer" + i);
+                if (input) {
+                    input.value = tournamentState.players[i - 1] || "";
+                }
+            }
+        }
+
+        function updateSeedInputAvailability() {
+            const count = Number(document.getElementById("playerCount").value || 4);
+            for (let i = 1; i <= 5; i += 1) {
+                const input = document.getElementById("seedPlayer" + i);
+                if (!input) continue;
+                input.disabled = i > count;
+                if (i > count) input.value = "";
+            }
         }
 
         function renderAll() {
             syncFormFromState();
             updateOverview();
-            renderSeedList();
             renderRoundOverview();
             renderSchedule();
             renderTable();
@@ -1073,8 +1049,8 @@ Daniel"></textarea>
             const avgBEl = document.getElementById(match.client_id + "_avgB");
             const statusEl = document.getElementById(match.client_id + "_status");
 
-            if (avgAEl) avgAEl.textContent = formatAverage(avgA);
-            if (avgBEl) avgBEl.textContent = formatAverage(avgB);
+            if (avgAEl) avgAEl.value = formatAverage(avgA);
+            if (avgBEl) avgBEl.value = formatAverage(avgB);
             if (statusEl) statusEl.textContent = isMatchComplete(match) ? "Erfasst" : "Offen";
         }
 
@@ -1096,10 +1072,16 @@ Daniel"></textarea>
         }
 
         function fillExample() {
-            document.getElementById("playersInput").value = "Anna\nBen\nChris\nDaniel\nErik";
+            document.getElementById("playerCount").value = "5";
+            document.getElementById("seedPlayer1").value = "Anna";
+            document.getElementById("seedPlayer2").value = "Ben";
+            document.getElementById("seedPlayer3").value = "Chris";
+            document.getElementById("seedPlayer4").value = "Daniel";
+            document.getElementById("seedPlayer5").value = "Erik";
             if (!document.getElementById("tournamentTitle").value.trim()) {
                 document.getElementById("tournamentTitle").value = "Beispielturnier";
             }
+            updateSeedInputAvailability();
             showMessage("Beispieldaten eingefügt.", "ok");
         }
 
@@ -1128,7 +1110,7 @@ Daniel"></textarea>
         }
 
         function generateTournament() {
-            const players = normalizePlayers(document.getElementById("playersInput").value);
+            const players = getPlayersFromSeedInputs();
             const title = document.getElementById("tournamentTitle").value.trim() || getDefaultTitle();
 
             if (players.length !== 4 && players.length !== 5) {
@@ -1251,7 +1233,7 @@ Daniel"></textarea>
                 return;
             }
 
-            const players = normalizePlayers(document.getElementById("playersInput").value);
+            const players = getPlayersFromSeedInputs();
             const title = document.getElementById("tournamentTitle").value.trim() || tournamentState.title || getDefaultTitle();
 
             if (players.length !== 4 && players.length !== 5) {
