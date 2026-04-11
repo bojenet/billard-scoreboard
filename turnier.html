@@ -224,7 +224,7 @@
             height: 34px;
         }
 
-        .seed-rank-cell {
+        .seed-rank-wrap {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -460,50 +460,60 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td class="seed-rank-cell">
-                                        <span class="seed-rank-label">1</span>
-                                        <button class="seed-move-btn" id="seedUp1" type="button" onclick="moveSeedPlayer(1, -1)">↑</button>
-                                        <button class="seed-move-btn" id="seedDown1" type="button" onclick="moveSeedPlayer(1, 1)">↓</button>
+                                    <td>
+                                        <div class="seed-rank-wrap">
+                                            <span class="seed-rank-label">1</span>
+                                            <button class="seed-move-btn" id="seedUp1" type="button" onclick="moveSeedPlayer(1, -1)">↑</button>
+                                            <button class="seed-move-btn" id="seedDown1" type="button" onclick="moveSeedPlayer(1, 1)">↓</button>
+                                        </div>
                                     </td>
                                     <td class="seed-name-cell">
                                         <input id="seedPlayer1" type="text" placeholder="Spieler 1">
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="seed-rank-cell">
-                                        <span class="seed-rank-label">2</span>
-                                        <button class="seed-move-btn" id="seedUp2" type="button" onclick="moveSeedPlayer(2, -1)">↑</button>
-                                        <button class="seed-move-btn" id="seedDown2" type="button" onclick="moveSeedPlayer(2, 1)">↓</button>
+                                    <td>
+                                        <div class="seed-rank-wrap">
+                                            <span class="seed-rank-label">2</span>
+                                            <button class="seed-move-btn" id="seedUp2" type="button" onclick="moveSeedPlayer(2, -1)">↑</button>
+                                            <button class="seed-move-btn" id="seedDown2" type="button" onclick="moveSeedPlayer(2, 1)">↓</button>
+                                        </div>
                                     </td>
                                     <td class="seed-name-cell">
                                         <input id="seedPlayer2" type="text" placeholder="Spieler 2">
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="seed-rank-cell">
-                                        <span class="seed-rank-label">3</span>
-                                        <button class="seed-move-btn" id="seedUp3" type="button" onclick="moveSeedPlayer(3, -1)">↑</button>
-                                        <button class="seed-move-btn" id="seedDown3" type="button" onclick="moveSeedPlayer(3, 1)">↓</button>
+                                    <td>
+                                        <div class="seed-rank-wrap">
+                                            <span class="seed-rank-label">3</span>
+                                            <button class="seed-move-btn" id="seedUp3" type="button" onclick="moveSeedPlayer(3, -1)">↑</button>
+                                            <button class="seed-move-btn" id="seedDown3" type="button" onclick="moveSeedPlayer(3, 1)">↓</button>
+                                        </div>
                                     </td>
                                     <td class="seed-name-cell">
                                         <input id="seedPlayer3" type="text" placeholder="Spieler 3">
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="seed-rank-cell">
-                                        <span class="seed-rank-label">4</span>
-                                        <button class="seed-move-btn" id="seedUp4" type="button" onclick="moveSeedPlayer(4, -1)">↑</button>
-                                        <button class="seed-move-btn" id="seedDown4" type="button" onclick="moveSeedPlayer(4, 1)">↓</button>
+                                    <td>
+                                        <div class="seed-rank-wrap">
+                                            <span class="seed-rank-label">4</span>
+                                            <button class="seed-move-btn" id="seedUp4" type="button" onclick="moveSeedPlayer(4, -1)">↑</button>
+                                            <button class="seed-move-btn" id="seedDown4" type="button" onclick="moveSeedPlayer(4, 1)">↓</button>
+                                        </div>
                                     </td>
                                     <td class="seed-name-cell">
                                         <input id="seedPlayer4" type="text" placeholder="Spieler 4">
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="seed-rank-cell">
-                                        <span class="seed-rank-label">5</span>
-                                        <button class="seed-move-btn" id="seedUp5" type="button" onclick="moveSeedPlayer(5, -1)">↑</button>
-                                        <button class="seed-move-btn" id="seedDown5" type="button" onclick="moveSeedPlayer(5, 1)">↓</button>
+                                    <td>
+                                        <div class="seed-rank-wrap">
+                                            <span class="seed-rank-label">5</span>
+                                            <button class="seed-move-btn" id="seedUp5" type="button" onclick="moveSeedPlayer(5, -1)">↑</button>
+                                            <button class="seed-move-btn" id="seedDown5" type="button" onclick="moveSeedPlayer(5, 1)">↓</button>
+                                        </div>
                                     </td>
                                     <td class="seed-name-cell">
                                         <input id="seedPlayer5" type="text" placeholder="Spieler 5">
