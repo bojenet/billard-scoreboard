@@ -223,6 +223,31 @@
             font-size: 13px;
         }
 
+        .seed-move-cell {
+            white-space: nowrap;
+            width: 120px;
+        }
+
+        .seed-move-btn {
+            padding: 4px 8px;
+            font-size: 12px;
+            border: 1px solid #bfc7d2;
+            background: #f8fafc;
+            color: #334155;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 4px;
+        }
+
+        .seed-move-btn:last-child {
+            margin-right: 0;
+        }
+
+        .seed-move-btn:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
         .round-block {
             border: 1px solid #d6dde6;
             border-radius: 4px;
@@ -425,14 +450,50 @@
                                 <tr>
                                     <th style="width:110px;">Setzplatz</th>
                                     <th>Name</th>
+                                    <th style="width:120px;">Aktion</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td>1</td><td><input id="seedPlayer1" type="text" placeholder="Spieler 1"></td></tr>
-                                <tr><td>2</td><td><input id="seedPlayer2" type="text" placeholder="Spieler 2"></td></tr>
-                                <tr><td>3</td><td><input id="seedPlayer3" type="text" placeholder="Spieler 3"></td></tr>
-                                <tr><td>4</td><td><input id="seedPlayer4" type="text" placeholder="Spieler 4"></td></tr>
-                                <tr><td>5</td><td><input id="seedPlayer5" type="text" placeholder="Spieler 5"></td></tr>
+                                <tr>
+                                    <td>1</td>
+                                    <td><input id="seedPlayer1" type="text" placeholder="Spieler 1"></td>
+                                    <td class="seed-move-cell">
+                                        <button class="seed-move-btn" id="seedUp1" type="button" onclick="moveSeedPlayer(1, -1)">↑</button>
+                                        <button class="seed-move-btn" id="seedDown1" type="button" onclick="moveSeedPlayer(1, 1)">↓</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2</td>
+                                    <td><input id="seedPlayer2" type="text" placeholder="Spieler 2"></td>
+                                    <td class="seed-move-cell">
+                                        <button class="seed-move-btn" id="seedUp2" type="button" onclick="moveSeedPlayer(2, -1)">↑</button>
+                                        <button class="seed-move-btn" id="seedDown2" type="button" onclick="moveSeedPlayer(2, 1)">↓</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>3</td>
+                                    <td><input id="seedPlayer3" type="text" placeholder="Spieler 3"></td>
+                                    <td class="seed-move-cell">
+                                        <button class="seed-move-btn" id="seedUp3" type="button" onclick="moveSeedPlayer(3, -1)">↑</button>
+                                        <button class="seed-move-btn" id="seedDown3" type="button" onclick="moveSeedPlayer(3, 1)">↓</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>4</td>
+                                    <td><input id="seedPlayer4" type="text" placeholder="Spieler 4"></td>
+                                    <td class="seed-move-cell">
+                                        <button class="seed-move-btn" id="seedUp4" type="button" onclick="moveSeedPlayer(4, -1)">↑</button>
+                                        <button class="seed-move-btn" id="seedDown4" type="button" onclick="moveSeedPlayer(4, 1)">↓</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>5</td>
+                                    <td><input id="seedPlayer5" type="text" placeholder="Spieler 5"></td>
+                                    <td class="seed-move-cell">
+                                        <button class="seed-move-btn" id="seedUp5" type="button" onclick="moveSeedPlayer(5, -1)">↑</button>
+                                        <button class="seed-move-btn" id="seedDown5" type="button" onclick="moveSeedPlayer(5, 1)">↓</button>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -440,7 +501,7 @@
                 <div class="side-stack">
                     <div>
                         <div class="field-title">Teilnehmer</div>
-                        <select id="playerCount" onchange="updateSeedInputAvailability()">
+                        <select id="playerCount" onchange="handlePlayerCountChange()">
                             <option value="4">4 Spieler</option>
                             <option value="5">5 Spieler</option>
                         </select>
@@ -605,6 +666,67 @@
             }
 
             return normalizePlayers(values);
+        }
+
+        function getSeedInputValues() {
+            const values = [];
+            for (let i = 1; i <= 5; i += 1) {
+                const input = document.getElementById("seedPlayer" + i);
+                values.push(input ? input.value : "");
+            }
+            return values;
+        }
+
+        function setSeedInputValues(values) {
+            for (let i = 1; i <= 5; i += 1) {
+                const input = document.getElementById("seedPlayer" + i);
+                if (input) input.value = values[i - 1] || "";
+            }
+        }
+
+        function getPairKey(playerA, playerB) {
+            return [String(playerA || ""), String(playerB || "")].sort((left, right) => left.localeCompare(right, "de")).join("::");
+        }
+
+        function rebuildTournamentFromSeedInputs(preserveResults) {
+            const players = getPlayersFromSeedInputs();
+            const title = document.getElementById("tournamentTitle").value.trim() || tournamentState.title || getDefaultTitle();
+
+            if (players.length !== 4 && players.length !== 5) {
+                return false;
+            }
+
+            const oldMatchesByPair = new Map();
+            if (preserveResults) {
+                tournamentState.matches.forEach((match) => {
+                    oldMatchesByPair.set(getPairKey(match.playerA, match.playerB), match);
+                });
+            }
+
+            const rebuiltMatches = createMatches(players).map((match) => {
+                const previous = oldMatchesByPair.get(getPairKey(match.playerA, match.playerB));
+                if (!previous) return match;
+                const sameOrientation = previous.playerA === match.playerA && previous.playerB === match.playerB;
+                return {
+                    ...match,
+                    scoreA: sameOrientation ? (previous.scoreA || "") : (previous.scoreB || ""),
+                    scoreB: sameOrientation ? (previous.scoreB || "") : (previous.scoreA || ""),
+                    inningsA: sameOrientation ? (previous.inningsA || "") : (previous.inningsB || ""),
+                    inningsB: sameOrientation ? (previous.inningsB || "") : (previous.inningsA || ""),
+                    highRunA: sameOrientation ? (previous.highRunA || "") : (previous.highRunB || ""),
+                    highRunB: sameOrientation ? (previous.highRunB || "") : (previous.highRunA || "")
+                };
+            });
+
+            tournamentState = {
+                title,
+                players,
+                matches: rebuiltMatches
+            };
+
+            saveLocalState();
+            renderAll();
+            return true;
         }
 
         function createMatches(players) {
@@ -1016,9 +1138,38 @@
             const count = Number(document.getElementById("playerCount").value || 4);
             for (let i = 1; i <= 5; i += 1) {
                 const input = document.getElementById("seedPlayer" + i);
+                const upBtn = document.getElementById("seedUp" + i);
+                const downBtn = document.getElementById("seedDown" + i);
                 if (!input) continue;
                 input.disabled = i > count;
                 if (i > count) input.value = "";
+                if (upBtn) upBtn.disabled = i === 1 || i > count;
+                if (downBtn) downBtn.disabled = i >= count;
+            }
+        }
+
+        function handlePlayerCountChange() {
+            updateSeedInputAvailability();
+            if (tournamentState.matches.length > 0) {
+                rebuildTournamentFromSeedInputs(true);
+            }
+        }
+
+        function moveSeedPlayer(index, direction) {
+            const count = Number(document.getElementById("playerCount").value || 4);
+            const targetIndex = index + direction;
+            if (index < 1 || index > count || targetIndex < 1 || targetIndex > count) return;
+
+            const values = getSeedInputValues();
+            const current = values[index - 1];
+            values[index - 1] = values[targetIndex - 1];
+            values[targetIndex - 1] = current;
+            setSeedInputValues(values);
+            updateSeedInputAvailability();
+
+            if (tournamentState.matches.length > 0) {
+                rebuildTournamentFromSeedInputs(true);
+                showMessage("Setzliste verschoben, Turnierablauf wurde angepasst.", "ok");
             }
         }
 
@@ -1105,22 +1256,15 @@
         }
 
         function generateTournament() {
+            const playerCount = Number(document.getElementById("playerCount").value || 4);
             const players = getPlayersFromSeedInputs();
-            const title = document.getElementById("tournamentTitle").value.trim() || getDefaultTitle();
 
-            if (players.length !== 4 && players.length !== 5) {
+            if (players.length !== playerCount) {
                 showMessage("Bitte genau 4 oder 5 Spieler in Setzlisten-Reihenfolge eingeben.", "error");
                 return;
             }
 
-            tournamentState = {
-                title,
-                players,
-                matches: createMatches(players)
-            };
-
-            saveLocalState();
-            renderAll();
+            rebuildTournamentFromSeedInputs(true);
             showMessage("Turnier mit " + players.length + " Spielern wurde erzeugt.", "ok");
         }
 
@@ -1228,10 +1372,11 @@
                 return;
             }
 
+            const playerCount = Number(document.getElementById("playerCount").value || 4);
             const players = getPlayersFromSeedInputs();
             const title = document.getElementById("tournamentTitle").value.trim() || tournamentState.title || getDefaultTitle();
 
-            if (players.length !== 4 && players.length !== 5) {
+            if (players.length !== playerCount) {
                 showMessage("Bitte genau 4 oder 5 Spieler in Setzlisten-Reihenfolge eingeben.", "error");
                 return;
             }
