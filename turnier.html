@@ -413,6 +413,16 @@
             color: #6b7280;
         }
 
+        .print-sheet {
+            display: none;
+        }
+
+        .print-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 14px;
+        }
+
         @media (max-width: 1280px) {
             .setup-grid,
             .summary-grid,
@@ -441,6 +451,84 @@
                 width: 100%;
             }
         }
+
+        @media print {
+            html,
+            body {
+                background: #ffffff;
+                color: #000000;
+            }
+
+            body * {
+                visibility: hidden;
+            }
+
+            .print-sheet,
+            .print-sheet * {
+                visibility: visible;
+            }
+
+            .print-sheet {
+                display: block;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 0;
+                margin: 0;
+                font-family: Arial, sans-serif;
+                color: #000;
+            }
+
+            .print-page {
+                padding: 18mm 14mm;
+            }
+
+            .print-title {
+                font-size: 24px;
+                font-weight: 700;
+                margin-bottom: 6px;
+            }
+
+            .print-sub {
+                font-size: 12px;
+                margin-bottom: 14px;
+                color: #333;
+            }
+
+            .print-block {
+                margin-bottom: 16px;
+            }
+
+            .print-block h3 {
+                margin: 0 0 8px;
+                font-size: 15px;
+            }
+
+            .print-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 11px;
+            }
+
+            .print-table th,
+            .print-table td {
+                border: 1px solid #777;
+                padding: 5px 6px;
+                text-align: left;
+                vertical-align: top;
+            }
+
+            .print-table th {
+                background: #f1f1f1;
+            }
+
+            .page,
+            .header,
+            .sub {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 
@@ -449,6 +537,10 @@
     <div class="sub">Jeder gegen jeden mit DB-Speicherung, Live-Auswertung und Tabelle</div>
 
     <div class="page">
+        <div class="print-actions">
+            <button class="btn btn-secondary" type="button" onclick="window.print()">PDF Export</button>
+        </div>
+
         <div class="panel">
             <h2>Setup</h2>
             <div class="panel-sub">Setzliste eintragen, Teilnehmerzahl wählen und daraus den Turnierablauf erzeugen.</div>
@@ -633,6 +725,8 @@
             </div>
         </div>
     </div>
+
+    <div id="printSheet" class="print-sheet"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
@@ -1155,6 +1249,117 @@
             `).join("");
         }
 
+        function renderPrintSheet() {
+            const container = document.getElementById("printSheet");
+            if (!container) return;
+
+            const rows = buildTableRows();
+            const roundGroups = groupMatchesByRound(tournamentState.matches);
+            const title = escapeHtml(tournamentState.title || "Turnier");
+            const playerCount = tournamentState.players.length;
+            const dateLabel = new Date().toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
+
+            const standingsHtml = rows.length ? `
+                <table class="print-table">
+                    <thead>
+                        <tr>
+                            <th>Platz</th>
+                            <th>Spieler</th>
+                            <th>Sp</th>
+                            <th>S</th>
+                            <th>U</th>
+                            <th>V</th>
+                            <th>Punkte</th>
+                            <th>Bälle</th>
+                            <th>Aufnahmen</th>
+                            <th>GD</th>
+                            <th>BED</th>
+                            <th>HS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map((row, index) => `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${escapeHtml(row.name)}</td>
+                                <td>${row.matches}</td>
+                                <td>${row.wins}</td>
+                                <td>${row.draws}</td>
+                                <td>${row.losses}</td>
+                                <td>${row.tournamentPoints}</td>
+                                <td>${row.scoredPoints}</td>
+                                <td>${row.innings}</td>
+                                <td>${formatAverage(row.average)}</td>
+                                <td>${formatAverage(row.bestWinningAverage)}</td>
+                                <td>${row.bestSeries}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            ` : `<div>Keine Tabellendaten vorhanden.</div>`;
+
+            const matches = roundGroups.flatMap((group) => group.matches.map((match) => {
+                const scoreA = parseNumber(match.scoreA);
+                const scoreB = parseNumber(match.scoreB);
+                const innings = parseNumber(match.inningsA);
+                const avgA = getMatchAverage(scoreA, innings);
+                const avgB = getMatchAverage(scoreB, innings);
+                return `
+                    <tr>
+                        <td>${group.round_number}</td>
+                        <td>${match.table_number || "-"}</td>
+                        <td>${escapeHtml(match.playerA)}</td>
+                        <td>${scoreA ?? "-"}</td>
+                        <td>${innings ?? "-"}</td>
+                        <td>${parseNumber(match.highRunA) ?? "-"}</td>
+                        <td>${formatAverage(avgA)}</td>
+                        <td>${escapeHtml(match.playerB)}</td>
+                        <td>${scoreB ?? "-"}</td>
+                        <td>${innings ?? "-"}</td>
+                        <td>${parseNumber(match.highRunB) ?? "-"}</td>
+                        <td>${formatAverage(avgB)}</td>
+                    </tr>
+                `;
+            })).join("");
+
+            container.innerHTML = `
+                <div class="print-page">
+                    <div class="print-title">${title}</div>
+                    <div class="print-sub">${playerCount} Spieler · 2 Tische · Export ${dateLabel}</div>
+
+                    <div class="print-block">
+                        <h3>Tabelle</h3>
+                        ${standingsHtml}
+                    </div>
+
+                    <div class="print-block">
+                        <h3>Einzelergebnisse</h3>
+                        <table class="print-table">
+                            <thead>
+                                <tr>
+                                    <th>Rd.</th>
+                                    <th>Tisch</th>
+                                    <th>Spieler 1</th>
+                                    <th>Bälle</th>
+                                    <th>Aufn.</th>
+                                    <th>HS</th>
+                                    <th>GD</th>
+                                    <th>Spieler 2</th>
+                                    <th>Bälle</th>
+                                    <th>Aufn.</th>
+                                    <th>HS</th>
+                                    <th>GD</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${matches || '<tr><td colspan="12">Keine Einzelergebnisse vorhanden.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
         function syncFormFromState() {
             document.getElementById("tournamentTitle").value = tournamentState.title || "";
             document.getElementById("savedTournamentSelect").value = currentTournamentId || "";
@@ -1214,6 +1419,7 @@
             renderRoundOverview();
             renderSchedule();
             renderTable();
+            renderPrintSheet();
         }
 
         function updateMatchDisplay(match) {
@@ -1547,6 +1753,7 @@
             tournamentState.matches.forEach((match) => {
                 if (isMatchComplete(match)) {
                     lastSavedMatchSignature.set(match.client_id, getMatchSignature(match));
+                    match.saveState = "Gespeichert";
                 }
             });
 
@@ -1567,6 +1774,8 @@
             try {
                 await saveSingleMatch(match.client_id, true);
                 lastSavedMatchSignature.set(match.client_id, signature);
+                match.saveState = "Automatisch gespeichert";
+                updateMatchDisplay(match);
             } finally {
                 savingMatchIds.delete(match.client_id);
             }
@@ -1640,7 +1849,9 @@
 
             tournamentState.title = title;
             tournamentState.players = players;
+            match.saveState = silent ? "Automatisch gespeichert" : "Gespeichert";
             saveLocalState();
+            updateMatchDisplay(match);
             if (!silent) showMessage("Einzelergebnis wurde gespeichert.", "ok");
         }
 
