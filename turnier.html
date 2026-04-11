@@ -621,8 +621,8 @@
                             <th>S</th>
                             <th>U</th>
                             <th>V</th>
-                            <th>Turnierpkt.</th>
-                            <th>Erzielte Pkt.</th>
+                            <th>Punkte</th>
+                            <th>Bälle</th>
                             <th>Aufnahmen</th>
                             <th>GD</th>
                             <th>BED</th>
@@ -1122,7 +1122,6 @@
                     const rightAverage = right.average || 0;
                     const leftAverage = left.average || 0;
                     if (rightAverage !== leftAverage) return rightAverage - leftAverage;
-                    if (right.scoredPoints !== left.scoredPoints) return right.scoredPoints - left.scoredPoints;
                     return left.name.localeCompare(right.name, "de");
                 });
         }
