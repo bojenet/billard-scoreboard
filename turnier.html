@@ -317,13 +317,7 @@
             font-size: 14px;
         }
 
-        .avg-field {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .avg-field input[readonly] {
+        .field input[readonly] {
             background: #ffffff;
             color: #10131c;
             font-weight: 400;
@@ -848,7 +842,7 @@
                                     <label for="${match.client_id}_highRunA">Höchstserie</label>
                                     <input id="${match.client_id}_highRunA" type="number" min="0" value="${match.highRunA}" oninput="updateMatch('${match.client_id}', 'highRunA', this.value)">
                                 </div>
-                                <div class="avg-field">
+                                <div class="field">
                                     <label for="${match.client_id}_avgA">Durchschnitt</label>
                                     <input id="${match.client_id}_avgA" type="text" value="${formatAverage(avgA)}" readonly>
                                 </div>
@@ -869,7 +863,7 @@
                                     <label for="${match.client_id}_highRunB">Höchstserie</label>
                                     <input id="${match.client_id}_highRunB" type="number" min="0" value="${match.highRunB}" oninput="updateMatch('${match.client_id}', 'highRunB', this.value)">
                                 </div>
-                                <div class="avg-field">
+                                <div class="field">
                                     <label for="${match.client_id}_avgB">Durchschnitt</label>
                                     <input id="${match.client_id}_avgB" type="text" value="${formatAverage(avgB)}" readonly>
                                 </div>
