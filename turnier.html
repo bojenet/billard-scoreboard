@@ -324,9 +324,10 @@
         }
 
         .avg-field input[readonly] {
-            background: #f8fafc;
-            color: #1f2937;
-            font-weight: 700;
+            background: #ffffff;
+            color: #10131c;
+            font-weight: 400;
+            border: 1px solid #bfc7d2;
         }
 
         .table-wrap {
@@ -848,7 +849,7 @@
                                     <input id="${match.client_id}_highRunA" type="number" min="0" value="${match.highRunA}" oninput="updateMatch('${match.client_id}', 'highRunA', this.value)">
                                 </div>
                                 <div class="avg-field">
-                                    <label for="${match.client_id}_avgA">GD</label>
+                                    <label for="${match.client_id}_avgA">Durchschnitt</label>
                                     <input id="${match.client_id}_avgA" type="text" value="${formatAverage(avgA)}" readonly>
                                 </div>
                             </div>
@@ -869,7 +870,7 @@
                                     <input id="${match.client_id}_highRunB" type="number" min="0" value="${match.highRunB}" oninput="updateMatch('${match.client_id}', 'highRunB', this.value)">
                                 </div>
                                 <div class="avg-field">
-                                    <label for="${match.client_id}_avgB">GD</label>
+                                    <label for="${match.client_id}_avgB">Durchschnitt</label>
                                     <input id="${match.client_id}_avgB" type="text" value="${formatAverage(avgB)}" readonly>
                                 </div>
                             </div>
