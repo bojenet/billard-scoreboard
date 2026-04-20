@@ -32,6 +32,18 @@
         .train-box { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:16px; border:1px solid #3a60bf; background:rgba(17,38,89,.72); }
         .train-box input { width:22px; height:22px; }
         .train-label { font-size:20px; font-weight:800; }
+        .table-card { padding:16px; border-radius:18px; border:1px solid #3a60bf; background:rgba(11,25,61,.76); display:grid; gap:12px; }
+        .table-head { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+        .table-title { font-size:18px; font-weight:800; }
+        .table-sub { font-size:13px; opacity:.78; }
+        .table-btn { border:none; border-radius:10px; padding:10px 12px; background:#2143a1; border:1px solid #4d70d5; color:white; font-size:13px; font-weight:700; cursor:pointer; }
+        .table-wrap { position:relative; border-radius:24px; overflow:hidden; background:#2b1809; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio: 2 / 1; }
+        .table-svg { width:100%; height:100%; display:block; }
+        .table-ball { cursor:grab; touch-action:none; }
+        .table-ball:active { cursor:grabbing; }
+        .table-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:13px; opacity:.82; }
+        .legend-item { display:flex; align-items:center; gap:8px; }
+        .legend-dot { width:12px; height:12px; border-radius:999px; box-shadow:0 0 0 1px rgba(255,255,255,.25); }
         .field label { display:block; font-size:13px; opacity:.8; margin-bottom:6px; }
         .field textarea { width:100%; box-sizing:border-box; border:1px solid #3959ab; border-radius:12px; padding:14px 14px; color:white; background:#112659; min-height:640px; resize:vertical; font-size:18px; line-height:1.55; }
         .hint { font-size:13px; opacity:.74; line-height:1.5; }
@@ -71,6 +83,61 @@
                     <div class="meta">
                         <div class="pill" id="qualityPill">Quelle</div>
                     </div>
+                    <div class="table-card">
+                        <div class="table-head">
+                            <div>
+                                <div class="table-title">Billardtisch</div>
+                                <div class="table-sub">Ziehe die drei Bälle per Hand an die gewünschte Position.</div>
+                            </div>
+                            <button class="table-btn" type="button" onclick="resetTableBalls()">Zurücksetzen</button>
+                        </div>
+                        <div class="table-wrap">
+                            <svg id="trainingTable" class="table-svg" viewBox="0 0 1000 500" aria-label="Interaktiver Billardtisch">
+                                <defs>
+                                    <radialGradient id="clothGlow" cx="50%" cy="42%" r="72%">
+                                        <stop offset="0%" stop-color="#3cbf8e"></stop>
+                                        <stop offset="100%" stop-color="#15724f"></stop>
+                                    </radialGradient>
+                                    <radialGradient id="redBallFill" cx="35%" cy="30%" r="70%">
+                                        <stop offset="0%" stop-color="#ffd8d8"></stop>
+                                        <stop offset="30%" stop-color="#ff7d7d"></stop>
+                                        <stop offset="100%" stop-color="#ba2020"></stop>
+                                    </radialGradient>
+                                    <radialGradient id="yellowBallFill" cx="35%" cy="30%" r="70%">
+                                        <stop offset="0%" stop-color="#fff7cf"></stop>
+                                        <stop offset="30%" stop-color="#ffe87e"></stop>
+                                        <stop offset="100%" stop-color="#d3a200"></stop>
+                                    </radialGradient>
+                                    <radialGradient id="whiteBallFill" cx="35%" cy="30%" r="70%">
+                                        <stop offset="0%" stop-color="#ffffff"></stop>
+                                        <stop offset="100%" stop-color="#d7dce9"></stop>
+                                    </radialGradient>
+                                </defs>
+                                <rect x="18" y="18" width="964" height="464" rx="34" fill="#4b2d12"></rect>
+                                <rect x="58" y="58" width="884" height="384" rx="20" fill="url(#clothGlow)" stroke="#7be0bf" stroke-opacity="0.22" stroke-width="4"></rect>
+                                <line x1="500" y1="58" x2="500" y2="442" stroke="#dff8ec" stroke-opacity="0.25" stroke-width="3"></line>
+                                <circle cx="500" cy="250" r="72" fill="none" stroke="#dff8ec" stroke-opacity="0.25" stroke-width="3"></circle>
+                                <circle cx="500" cy="250" r="6" fill="#e6fff4" fill-opacity="0.45"></circle>
+                                <g id="ball-red" class="table-ball" data-ball="red">
+                                    <circle r="20" fill="url(#redBallFill)" stroke="#ffffff" stroke-opacity="0.45" stroke-width="2"></circle>
+                                    <circle r="7" cx="-6" cy="-6" fill="#ffffff" fill-opacity="0.42"></circle>
+                                </g>
+                                <g id="ball-yellow" class="table-ball" data-ball="yellow">
+                                    <circle r="20" fill="url(#yellowBallFill)" stroke="#ffffff" stroke-opacity="0.45" stroke-width="2"></circle>
+                                    <circle r="7" cx="-6" cy="-6" fill="#ffffff" fill-opacity="0.42"></circle>
+                                </g>
+                                <g id="ball-white" class="table-ball" data-ball="white">
+                                    <circle r="20" fill="url(#whiteBallFill)" stroke="#394461" stroke-opacity="0.4" stroke-width="2"></circle>
+                                    <circle r="7" cx="-6" cy="-6" fill="#ffffff" fill-opacity="0.72"></circle>
+                                </g>
+                            </svg>
+                        </div>
+                        <div class="table-legend">
+                            <div class="legend-item"><span class="legend-dot" style="background:#cf2e2e;"></span><span>Rot</span></div>
+                            <div class="legend-item"><span class="legend-dot" style="background:#e0bb20;"></span><span>Gelb</span></div>
+                            <div class="legend-item"><span class="legend-dot" style="background:#eef2fb;"></span><span>Weiß</span></div>
+                        </div>
+                    </div>
                     <label class="train-box">
                         <input id="trainedCheckbox" type="checkbox">
                         <span class="train-label">Trainiert</span>
@@ -100,6 +167,16 @@
         let saveInProgress = false;
         let savedPulseTimeout = null;
         const localCollectionCache = {};
+        const TABLE_DEFAULT_LAYOUT = {
+            red: { x: 300, y: 250 },
+            yellow: { x: 700, y: 185 },
+            white: { x: 700, y: 315 }
+        };
+        const TABLE_BOUNDS = { minX: 78, maxX: 922, minY: 78, maxY: 422, radius: 20 };
+        let tableBallLayout = { ...TABLE_DEFAULT_LAYOUT };
+        let activeBallDrag = null;
+        let activeBallElement = null;
+        let activePointerId = null;
         function updateFullscreenButton() {
             const btn = document.getElementById("fullscreenBtn");
             if (!btn) return;
@@ -126,6 +203,101 @@
             const el = document.getElementById("noticeBox");
             el.style.display = text ? "block" : "none";
             el.innerText = text || "";
+        }
+        function tableStorageKey() {
+            return "position_training_table_" + String(currentUser?.id || "guest") + "_" + String(currentPosition?.id || "unknown");
+        }
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+        function getDefaultTableLayout() {
+            return {
+                red: { ...TABLE_DEFAULT_LAYOUT.red },
+                yellow: { ...TABLE_DEFAULT_LAYOUT.yellow },
+                white: { ...TABLE_DEFAULT_LAYOUT.white }
+            };
+        }
+        function persistTableLayout() {
+            if (!currentPosition) return;
+            localStorage.setItem(tableStorageKey(), JSON.stringify(tableBallLayout));
+        }
+        function loadTableLayout() {
+            tableBallLayout = getDefaultTableLayout();
+            if (!currentPosition) return;
+            try {
+                const raw = JSON.parse(localStorage.getItem(tableStorageKey()) || "null");
+                ["red", "yellow", "white"].forEach((key) => {
+                    if (!raw || !raw[key]) return;
+                    tableBallLayout[key] = {
+                        x: clamp(Number(raw[key].x) || TABLE_DEFAULT_LAYOUT[key].x, TABLE_BOUNDS.minX, TABLE_BOUNDS.maxX),
+                        y: clamp(Number(raw[key].y) || TABLE_DEFAULT_LAYOUT[key].y, TABLE_BOUNDS.minY, TABLE_BOUNDS.maxY)
+                    };
+                });
+            } catch (_) {
+                tableBallLayout = getDefaultTableLayout();
+            }
+        }
+        function renderTableBalls() {
+            ["red", "yellow", "white"].forEach((key) => {
+                const el = document.getElementById("ball-" + key);
+                const pos = tableBallLayout[key];
+                if (el && pos) el.setAttribute("transform", "translate(" + pos.x + " " + pos.y + ")");
+            });
+        }
+        function updateBallPosition(ballKey, x, y) {
+            tableBallLayout[ballKey] = {
+                x: clamp(x, TABLE_BOUNDS.minX, TABLE_BOUNDS.maxX),
+                y: clamp(y, TABLE_BOUNDS.minY, TABLE_BOUNDS.maxY)
+            };
+            renderTableBalls();
+            persistTableLayout();
+        }
+        function getSvgPoint(event) {
+            const svg = document.getElementById("trainingTable");
+            const rect = svg.getBoundingClientRect();
+            const clientX = event.clientX ?? (event.touches && event.touches[0] && event.touches[0].clientX) ?? 0;
+            const clientY = event.clientY ?? (event.touches && event.touches[0] && event.touches[0].clientY) ?? 0;
+            const x = ((clientX - rect.left) / rect.width) * 1000;
+            const y = ((clientY - rect.top) / rect.height) * 500;
+            return { x, y };
+        }
+        function handleBallPointerMove(event) {
+            if (!activeBallDrag) return;
+            event.preventDefault();
+            const point = getSvgPoint(event);
+            updateBallPosition(activeBallDrag, point.x, point.y);
+        }
+        function stopBallDrag() {
+            if (activeBallElement && activeBallElement.releasePointerCapture) {
+                try { activeBallElement.releasePointerCapture(activePointerId); } catch (_) {}
+            }
+            activeBallDrag = null;
+            activeBallElement = null;
+            activePointerId = null;
+        }
+        function startBallDrag(event) {
+            const ballKey = event.currentTarget.dataset.ball;
+            if (!ballKey) return;
+            activeBallDrag = ballKey;
+            activeBallElement = event.currentTarget;
+            activePointerId = event.pointerId;
+            if (activeBallElement.setPointerCapture) {
+                try { activeBallElement.setPointerCapture(event.pointerId); } catch (_) {}
+            }
+            event.preventDefault();
+        }
+        function bindTableEvents() {
+            document.querySelectorAll(".table-ball").forEach((el) => {
+                el.addEventListener("pointerdown", startBallDrag);
+            });
+            window.addEventListener("pointermove", handleBallPointerMove);
+            window.addEventListener("pointerup", stopBallDrag);
+            window.addEventListener("pointercancel", stopBallDrag);
+        }
+        function resetTableBalls() {
+            tableBallLayout = getDefaultTableLayout();
+            renderTableBalls();
+            persistTableLayout();
         }
         function setSaveButtonState(label, disabled) {
             const btn = document.getElementById("saveBtn");
@@ -165,6 +337,8 @@
         function renderState() {
             document.getElementById("trainedCheckbox").checked = Boolean(entry?.trained);
             document.getElementById("notesInput").value = getDefaultNotes();
+            loadTableLayout();
+            renderTableBalls();
             if (!saveInProgress) {
                 setSaveButtonState("Speichern", false);
             }
@@ -260,6 +434,7 @@
             updateFullscreenButton();
             try { await loadPositionAndCollectionFromDb(); } catch (error) { console.warn("Positionstraining DB-Fallback aktiv:", error); setNotice("Datenbanktabellen für Positionstraining noch nicht aktiv. JSON/localStorage-Fallback läuft. SQL aus sql/training_positions.sql in Supabase ausführen."); await loadFallback(); }
             if (!currentPosition) return;
+            bindTableEvents();
             renderMeta(); renderViewer(); renderState();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
