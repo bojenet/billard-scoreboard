@@ -20,6 +20,7 @@
         .duel { display:grid; grid-template-columns:1fr 1fr; border-bottom:1px solid #27417f; }
         .player-col { border-right:1px solid #27417f; }
         .player-col:last-child { border-right:none; }
+        .player-col.flash-update { background:linear-gradient(180deg, rgba(255,216,74,.16), rgba(255,216,74,.04)); }
         .player-head { padding:12px 14px; border-bottom:1px solid #27417f; background:rgba(8,16,44,.42); }
         .player-name { font-size:24px; font-weight:800; }
         .player-disc { font-size:14px; opacity:.76; margin-top:2px; }
@@ -28,6 +29,7 @@
         .stat:last-child { border-right:none; }
         .stat-label { font-size:12px; opacity:.72; margin-bottom:4px; }
         .stat-value { font-size:34px; font-weight:800; }
+        .flash-value { animation: remoteValueFlash 1.3s ease-out; }
         .history { padding:12px 14px 14px; min-height:58px; }
         .history-title { font-size:13px; opacity:.74; margin-bottom:6px; }
         .history-value { font-size:17px; line-height:1.4; word-break:break-word; }
@@ -49,6 +51,10 @@
         .chat-input { display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:8px; }
         .chat-input input { border:1px solid #3959ab; border-radius:10px; padding:10px 12px; font-size:14px; color:#fff; background:#112659; }
         .chat-send { border:none; border-radius:10px; background:#2f4fe0; border:1px solid #5572f0; color:#fff; font-size:14px; font-weight:700; padding:0 14px; cursor:pointer; }
+        .live-pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; background:rgba(14,28,68,.72); border:1px solid #3458b8; font-size:13px; font-weight:700; }
+        .live-dot { width:10px; height:10px; border-radius:50%; background:#9aa8d8; box-shadow:0 0 0 0 rgba(154,168,216,.45); transition:background .15s ease; }
+        .live-dot.online { background:#58d06f; box-shadow:0 0 0 8px rgba(88,208,111,.08); }
+        .live-dot.fallback { background:#ffd84a; box-shadow:0 0 0 8px rgba(255,216,74,.08); }
         .position-modal { position: fixed; inset: 0; z-index: 1450; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(3,8,22,.78); backdrop-filter:blur(6px); }
         .position-modal.open { display:flex; }
         .position-dialog { width:min(1240px,98vw); max-height:96vh; border-radius:24px; border:1px solid #3557b7; background:linear-gradient(180deg,#162b66,#0f1c3f); box-shadow:0 32px 70px rgba(0,0,0,.55); overflow:hidden; display:grid; grid-template-rows:auto 1fr; }
@@ -63,6 +69,11 @@
         .position-table-wrap { position:relative; width:674px; border-radius:18px; overflow:hidden; background:#f7f7f4; aspect-ratio:674/1200; box-shadow:0 18px 38px rgba(0,0,0,.28); }
         .position-table-bg { width:100%; height:100%; display:block; object-fit:cover; }
         .position-table-overlay { position:absolute; inset:0; width:100%; height:100%; display:block; }
+        @keyframes remoteValueFlash {
+            0% { color:#ffe27a; text-shadow:0 0 0 rgba(255,226,122,0); transform:scale(1); }
+            25% { color:#fff8c7; text-shadow:0 0 18px rgba(255,226,122,.55); transform:scale(1.05); }
+            100% { color:inherit; text-shadow:0 0 0 rgba(255,226,122,0); transform:scale(1); }
+        }
         @media (max-width: 980px) { .meta { grid-template-columns:1fr 1fr; } .duel { grid-template-columns:1fr; } .player-col { border-right:none; border-bottom:1px solid #27417f; } .player-col:last-child { border-bottom:none; } .input-section { grid-template-columns:1fr; } .series-input { font-size:34px; padding:16px; } .action-btn { font-size:18px; padding:14px 18px; } .action-btn.primary { min-width:0; } }
     </style>
 </head>
@@ -71,6 +82,7 @@
     <div class="page">
         <div class="topbar">
             <button class="btn" onclick="window.location.href='training_remote_match.html'">Zurück zum Setup</button>
+            <div class="live-pill"><span class="live-dot" id="liveDot"></span><span id="liveStatus">Verbinde…</span></div>
             <button class="btn" onclick="showCurrentPosition(true)">Position zeigen</button>
             <button class="btn danger" onclick="finishRemoteMatch()">Beenden</button>
         </div>
@@ -82,7 +94,7 @@
                 <div class="meta-item"><div class="meta-label">Distanz</div><div class="meta-value" id="targetValue">-</div></div>
             </div>
             <div class="duel">
-                <div class="player-col">
+                <div class="player-col" id="p1Col">
                     <div class="player-head"><div class="player-name" id="p1Name">Spieler 1</div><div class="player-disc" id="p1Disc">-</div></div>
                     <div class="stats">
                         <div class="stat"><div class="stat-label">Punkte</div><div class="stat-value" id="p1Score">0</div></div>
@@ -92,7 +104,7 @@
                     </div>
                     <div class="history"><div class="history-title">Serien</div><div class="history-value" id="p1History">-</div></div>
                 </div>
-                <div class="player-col">
+                <div class="player-col" id="p2Col">
                     <div class="player-head"><div class="player-name" id="p2Name">Spieler 2</div><div class="player-disc" id="p2Disc">-</div></div>
                     <div class="stats">
                         <div class="stat"><div class="stat-label">Punkte</div><div class="stat-value" id="p2Score">0</div></div>
@@ -173,8 +185,54 @@
         let isHost = false;
         let lastShownPositionIndex = null;
         let currentPositionZoom = 1;
+        let sessionPollTimer = null;
+        let chatPollTimer = null;
+        let realtimeHealthy = false;
+        let highlightTimer = null;
 
         function setText(id, value) { const el = document.getElementById(id); if (el) el.innerText = value; }
+        function setLiveState(mode, text) {
+            const dot = document.getElementById("liveDot");
+            if (dot) dot.className = "live-dot" + (mode ? " " + mode : "");
+            setText("liveStatus", text || "Offline");
+        }
+        function triggerOpponentHighlight(fieldIds, columnId) {
+            fieldIds.forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.classList.remove("flash-value");
+                void el.offsetWidth;
+                el.classList.add("flash-value");
+            });
+            const col = document.getElementById(columnId);
+            if (!col) return;
+            col.classList.add("flash-update");
+            if (highlightTimer) window.clearTimeout(highlightTimer);
+            highlightTimer = window.setTimeout(() => { col.classList.remove("flash-update"); }, 1400);
+        }
+        function maybeHighlightOpponentChanges(previousState, nextState) {
+            if (!previousState || !nextState) return;
+            const watchList = isHost
+                ? [
+                    ["guest_score", "p2Score"],
+                    ["guest_innings", "p2Innings"],
+                    ["guest_high", "p2High"],
+                    ["guest_series", "p2History"],
+                    ["guest_position_index", "p2Disc"]
+                ]
+                : [
+                    ["host_score", "p1Score"],
+                    ["host_innings", "p1Innings"],
+                    ["host_high", "p1High"],
+                    ["host_series", "p1History"],
+                    ["host_position_index", "p1Disc"]
+                ];
+            const changedIds = watchList
+                .filter(([key]) => JSON.stringify(previousState[key] ?? null) !== JSON.stringify(nextState[key] ?? null))
+                .map(([, id]) => id);
+            if (!changedIds.length) return;
+            triggerOpponentHighlight(changedIds, isHost ? "p2Col" : "p1Col");
+        }
         function parseSeries(value) { return Array.isArray(value) ? value.map((x) => Number(x)).filter((x) => Number.isFinite(x) && x >= 0) : []; }
         function avg(score, innings) { return innings > 0 ? (score / innings).toFixed(3) : "0.000"; }
         function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/grosser-tisch-47-2.png"; }
@@ -214,7 +272,14 @@
         function openPositionModal(positionId) { currentPositionZoom = 1; renderPositionModal(positionId); updatePositionZoomStage(); document.getElementById("positionModal").classList.add("open"); }
         function closePositionModal() { document.getElementById("positionModal").classList.remove("open"); }
         function showCurrentPosition(force = false) { if (!sessionData || sessionData.status === "finished") return; const index = getCurrentPositionIndex(); if (!force && lastShownPositionIndex === index) return; lastShownPositionIndex = index; openPositionModal(index); }
-        function applyIncomingSession(next) { if (!next) return; sessionData = next; renderSession(); showCurrentPosition(); }
+        function applyIncomingSession(next) {
+            if (!next) return;
+            const previous = sessionData;
+            sessionData = next;
+            renderSession();
+            maybeHighlightOpponentChanges(previous, next);
+            showCurrentPosition();
+        }
         function renderSession() {
             const p1Series = parseSeries(sessionData.host_series), p2Series = parseSeries(sessionData.guest_series);
             setText("sessionValue", sessionData.id ? sessionData.id.slice(0, 8) : "-");
@@ -267,6 +332,11 @@
             chatMessages = data || [];
             renderChat();
         }
+        async function refreshSessionSilently() {
+            if (!sessionData?.id) return;
+            const { data, error } = await supabaseClient.from("training_remote_match_sessions").select("*").eq("id", sessionData.id).single();
+            if (!error && data) applyIncomingSession(data);
+        }
         function adjustSeries(delta) { const input = document.getElementById("seriesInput"); let value = Number(input.value || 0); value += delta; if (value < 0) value = 0; input.value = value; }
         async function commitInning() {
             if (!sessionData?.id || sessionData.status === "finished") return;
@@ -313,11 +383,43 @@
             showCurrentPosition(true);
             return true;
         }
+        function startFallbackPolling() {
+            stopFallbackPolling();
+            sessionPollTimer = window.setInterval(() => { refreshSessionSilently(); }, 2000);
+            chatPollTimer = window.setInterval(() => { loadChatMessages(); }, 2500);
+            setLiveState("fallback", "Live-Fallback aktiv");
+        }
+        function stopFallbackPolling() {
+            if (sessionPollTimer) { window.clearInterval(sessionPollTimer); sessionPollTimer = null; }
+            if (chatPollTimer) { window.clearInterval(chatPollTimer); chatPollTimer = null; }
+        }
         function bindRealtime() {
+            if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
             realtimeChannel = supabaseClient.channel("remote_match_" + sessionData.id)
-                .on("postgres_changes", { event: "UPDATE", schema: "public", table: "training_remote_match_sessions", filter: "id=eq." + sessionData.id }, (payload) => { applyIncomingSession(payload.new); })
-                .on("postgres_changes", { event: "*", schema: "public", table: "training_remote_match_messages", filter: "session_id=eq." + sessionData.id }, () => { loadChatMessages(); })
-                .subscribe();
+                .on("postgres_changes", { event: "*", schema: "public", table: "training_remote_match_sessions", filter: "id=eq." + sessionData.id }, (payload) => {
+                    realtimeHealthy = true;
+                    stopFallbackPolling();
+                    setLiveState("online", "Live verbunden");
+                    applyIncomingSession(payload.new || payload.old);
+                })
+                .on("postgres_changes", { event: "*", schema: "public", table: "training_remote_match_messages", filter: "session_id=eq." + sessionData.id }, () => {
+                    realtimeHealthy = true;
+                    stopFallbackPolling();
+                    setLiveState("online", "Live verbunden");
+                    loadChatMessages();
+                })
+                .subscribe((status) => {
+                    if (status === "SUBSCRIBED") {
+                        realtimeHealthy = true;
+                        stopFallbackPolling();
+                        setLiveState("online", "Live verbunden");
+                        return;
+                    }
+                    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+                        realtimeHealthy = false;
+                        startFallbackPolling();
+                    }
+                });
         }
         async function init() {
             currentUser = await requireAuth();
@@ -326,12 +428,22 @@
             if (!sessionId) { window.location.href = "training_remote_match.html"; return; }
             const ok = await loadSession();
             if (!ok) return;
+            setLiveState("", "Verbinde…");
             bindRealtime();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
-        document.addEventListener("visibilitychange", () => { if (!document.hidden && sessionData?.id) loadChatMessages(); });
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden && sessionData?.id) {
+                refreshSessionSilently();
+                loadChatMessages();
+                if (!realtimeHealthy) bindRealtime();
+            }
+        });
         window.addEventListener("keydown", (event) => { if (event.key === "Enter") commitInning(); if (event.key === "Escape") closePositionModal(); });
-        window.addEventListener("beforeunload", () => { if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel); });
+        window.addEventListener("beforeunload", () => {
+            stopFallbackPolling();
+            if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+        });
         init();
     </script>
 </body>
