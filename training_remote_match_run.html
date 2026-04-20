@@ -189,6 +189,8 @@
         let chatPollTimer = null;
         let realtimeHealthy = false;
         let highlightTimer = null;
+        let nextPositionTimer = null;
+        let suppressAutoPositionUntil = 0;
 
         function setText(id, value) { const el = document.getElementById(id); if (el) el.innerText = value; }
         function getOwnScore() { return Number(isHost ? sessionData?.host_score || 0 : sessionData?.guest_score || 0); }
@@ -282,6 +284,19 @@
         function resetPositionZoom() { currentPositionZoom = 1; updatePositionZoomStage(); }
         function openPositionModal(positionId) { currentPositionZoom = 1; renderPositionModal(positionId); updatePositionZoomStage(); document.getElementById("positionModal").classList.add("open"); }
         function closePositionModal() { document.getElementById("positionModal").classList.remove("open"); }
+        function clearNextPositionTimer() {
+            if (nextPositionTimer) {
+                window.clearTimeout(nextPositionTimer);
+                nextPositionTimer = null;
+            }
+        }
+        function scheduleNextPositionDisplay(delayMs = 900) {
+            clearNextPositionTimer();
+            nextPositionTimer = window.setTimeout(() => {
+                nextPositionTimer = null;
+                showCurrentPosition(true);
+            }, delayMs);
+        }
         function showCurrentPosition(force = false) { if (!sessionData || sessionData.status === "finished") return; const index = getCurrentPositionIndex(); if (!force && lastShownPositionIndex === index) return; lastShownPositionIndex = index; openPositionModal(index); }
         function applyIncomingSession(next) {
             if (!next) return;
@@ -289,6 +304,7 @@
             sessionData = next;
             renderSession();
             maybeHighlightOpponentChanges(previous, next);
+            if (Date.now() < suppressAutoPositionUntil) return;
             showCurrentPosition();
         }
         function renderSession() {
@@ -381,7 +397,8 @@
             sessionData = { ...sessionData, ...updateObj };
             document.getElementById("seriesInput").value = 0;
             renderSession();
-            showCurrentPosition(true);
+            suppressAutoPositionUntil = Date.now() + 1400;
+            scheduleNextPositionDisplay(updateObj.status === "finished" ? 0 : 900);
         }
         async function finishRemoteMatch() { if (!sessionData?.id || sessionData.status === "finished") return; await supabaseClient.from("training_remote_match_sessions").update({ status: "finished" }).eq("id", sessionData.id); sessionData.status = "finished"; renderSession(); }
         async function claimGuestSeatIfNeeded(data) {
@@ -405,11 +422,10 @@
             showCurrentPosition(true);
             return true;
         }
-        function startFallbackPolling() {
+        function startBackgroundSync() {
             stopFallbackPolling();
             sessionPollTimer = window.setInterval(() => { refreshSessionSilently(); }, 2000);
             chatPollTimer = window.setInterval(() => { loadChatMessages(); }, 2500);
-            setLiveState("fallback", "Live-Fallback aktiv");
         }
         function stopFallbackPolling() {
             if (sessionPollTimer) { window.clearInterval(sessionPollTimer); sessionPollTimer = null; }
@@ -418,28 +434,33 @@
         function bindRealtime() {
             if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
             realtimeChannel = supabaseClient.channel("remote_match_" + sessionData.id)
-                .on("postgres_changes", { event: "*", schema: "public", table: "training_remote_match_sessions", filter: "id=eq." + sessionData.id }, (payload) => {
+                .on("postgres_changes", { event: "UPDATE", schema: "public", table: "training_remote_match_sessions", filter: "id=eq." + sessionData.id }, (payload) => {
                     realtimeHealthy = true;
-                    stopFallbackPolling();
                     setLiveState("online", "Live verbunden");
-                    applyIncomingSession(payload.new || payload.old);
+                    applyIncomingSession(payload.new);
                 })
-                .on("postgres_changes", { event: "*", schema: "public", table: "training_remote_match_messages", filter: "session_id=eq." + sessionData.id }, () => {
+                .on("postgres_changes", { event: "INSERT", schema: "public", table: "training_remote_match_messages", filter: "session_id=eq." + sessionData.id }, (payload) => {
                     realtimeHealthy = true;
-                    stopFallbackPolling();
                     setLiveState("online", "Live verbunden");
-                    loadChatMessages();
+                    if (payload?.new) {
+                        const exists = chatMessages.some((msg) => Number(msg.id) === Number(payload.new.id));
+                        if (!exists) {
+                            chatMessages.push(payload.new);
+                            renderChat();
+                        }
+                    } else {
+                        loadChatMessages();
+                    }
                 })
                 .subscribe((status) => {
                     if (status === "SUBSCRIBED") {
                         realtimeHealthy = true;
-                        stopFallbackPolling();
                         setLiveState("online", "Live verbunden");
                         return;
                     }
                     if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
                         realtimeHealthy = false;
-                        startFallbackPolling();
+                        setLiveState("fallback", "Autom. Sync aktiv");
                     }
                 });
         }
@@ -450,6 +471,7 @@
             if (!sessionId) { window.location.href = "training_remote_match.html"; return; }
             const ok = await loadSession();
             if (!ok) return;
+            startBackgroundSync();
             setLiveState("", "Verbinde…");
             bindRealtime();
         }
@@ -467,6 +489,7 @@
         });
         window.addEventListener("keydown", (event) => { if (event.key === "Enter") commitInning(); if (event.key === "Escape") closePositionModal(); });
         window.addEventListener("beforeunload", () => {
+            clearNextPositionTimer();
             stopFallbackPolling();
             if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
         });
