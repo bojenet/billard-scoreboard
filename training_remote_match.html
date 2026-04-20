@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Remote Match Setup</title>
+    <style>
+        html { min-height: 100%; background: linear-gradient(180deg, #0f1c3f, #0a122b); }
+        body { margin: 0; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(180deg, #0f1c3f, #0a122b); color: white; }
+        .fullscreen-btn { position: fixed; top: 10px; right: 10px; z-index: 1200; width: 34px; height: 34px; border: 1px solid #3659bb; border-radius: 10px; background: rgba(28, 51, 128, 0.92); color: white; font-size: 16px; font-weight: 700; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .page { width: min(1100px, 94%); margin: 18px auto 28px; }
+        .header { text-align: center; margin-bottom: 12px; }
+        .header h1 { margin: 0; font-size: 42px; }
+        .header p { margin: 6px 0 0; opacity: .76; font-size: 16px; }
+        .card { background: linear-gradient(180deg, #162b66, #0f1c3f); border: 1px solid #2d488f; border-radius: 28px; padding: 18px; box-shadow: 0 28px 60px rgba(0,0,0,.5); }
+        .section { margin-bottom: 16px; }
+        .section-title { margin: 0; font-size: 22px; font-weight: 700; }
+        .section-sub { margin: 4px 0 10px; opacity: .74; font-size: 14px; }
+        .grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+        .panel { border: 1px solid #2f4ea0; border-radius: 14px; padding: 12px; background: rgba(8, 20, 54, 0.42); min-width: 0; overflow: hidden; }
+        .panel-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; opacity: .92; }
+        .field { margin-bottom: 8px; }
+        .field label { display: block; font-size: 14px; opacity: .84; margin-bottom: 6px; }
+        .field input { width: 100%; box-sizing: border-box; border: 1px solid #3959ab; border-radius: 10px; padding: 10px 12px; font-size: 15px; color: #fff; background: #112659; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .chip { padding: 10px 14px; border: none; border-radius: 12px; background: #1c3380; color: white; font-size: 16px; font-weight: 700; cursor: pointer; border: 1px solid #2f4ea0; }
+        .chip.active { background: #ffd84a; color: #101420; border-color: #ffe27a; }
+        .user-results, .invite-list { margin-top: 10px; border: 1px solid #2f4ea0; border-radius: 12px; overflow: hidden; background: rgba(8, 20, 54, 0.35); }
+        .user-row, .invite-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid #27417f; }
+        .user-row:last-child, .invite-row:last-child { border-bottom: none; }
+        .user-main, .invite-main { font-size: 14px; font-weight: 700; }
+        .user-sub, .invite-sub { margin-top: 2px; font-size: 12px; opacity: .72; }
+        .user-btn, .invite-btn, .small-btn { border: none; border-radius: 10px; background: #2f4fe0; color: #fff; font-size: 14px; font-weight: 700; padding: 8px 12px; cursor: pointer; }
+        .empty { padding: 12px; font-size: 14px; opacity: .7; }
+        .selected-user { display:none; margin-bottom: 10px; padding: 10px 12px; border:1px solid #4d71d4; border-radius:12px; background:rgba(24,45,110,.62); }
+        .selected-user.active { display:block; }
+        .selected-user-name { font-size: 15px; font-weight: 700; }
+        .selected-user-meta { margin-top: 3px; font-size: 13px; opacity: .76; }
+        .positions-panel { border: 1px solid #2f4ea0; border-radius: 16px; background: rgba(8, 20, 54, 0.42); overflow: hidden; }
+        .positions-toggle { width: 100%; border: none; border-bottom: 1px solid #27417f; background: rgba(22, 43, 102, 0.9); color: white; padding: 14px 16px; display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer; text-align:left; }
+        .positions-body { display:none; padding: 14px; }
+        .positions-body.open { display:block; }
+        .positions-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+        .position-card { border: 1px solid #3557b7; border-radius: 16px; background: rgba(12, 28, 72, 0.74); padding: 12px; box-shadow: 0 14px 28px rgba(0,0,0,.24); }
+        .position-card-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
+        .position-card-title { font-size: 15px; font-weight: 700; }
+        .position-zoom-btn { border: none; border-radius: 10px; background: #2746aa; color: white; font-size: 12px; font-weight: 700; padding: 8px 10px; cursor: pointer; }
+        .position-table-wrap { position: relative; border-radius: 14px; overflow: hidden; background: #f7f7f4; aspect-ratio: 674 / 1200; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+        .position-table-bg { width:100%; height:100%; display:block; object-fit:cover; }
+        .position-table-overlay { position:absolute; inset:0; width:100%; height:100%; display:block; }
+        .challenge-ball { cursor: grab; touch-action: none; }
+        .challenge-ball:active { cursor: grabbing; }
+        .zoom-modal { position: fixed; inset: 0; z-index: 1500; display: none; align-items:center; justify-content:center; padding:18px; background: rgba(3,8,22,.82); backdrop-filter: blur(8px); }
+        .zoom-modal.open { display:flex; }
+        .zoom-dialog { width:min(1100px,96vw); max-height:94vh; border-radius:22px; border:1px solid #3557b7; background:linear-gradient(180deg,#162b66,#0f1c3f); box-shadow:0 32px 70px rgba(0,0,0,.55); overflow:hidden; display:grid; grid-template-rows:auto 1fr; }
+        .zoom-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #27417f; }
+        .zoom-title { font-size:18px; font-weight:700; }
+        .zoom-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+        .zoom-btn { border:none; border-radius:10px; background:#2746aa; color:white; font-size:14px; font-weight:700; padding:10px 12px; cursor:pointer; }
+        .zoom-close { background:#6c2d4f; }
+        .zoom-body { overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; }
+        .zoom-stage { transform-origin: top center; transition: transform .12s ease-out; }
+        .zoom-table-wrap { position:relative; width:min(674px,86vw); border-radius:18px; overflow:hidden; background:#f7f7f4; aspect-ratio:674/1200; box-shadow:0 18px 38px rgba(0,0,0,.28); }
+        .actions { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-top: 10px; }
+        .btn { padding:14px; border:none; border-radius:14px; color:white; font-size:18px; font-weight:700; cursor:pointer; }
+        .btn-start { background: linear-gradient(180deg, #2f4fe0, #1c3380); }
+        .btn-back { background: #233a8f; }
+        @media (max-width: 760px) { .grid-2, .positions-grid, .actions { grid-template-columns:1fr; } .header h1 { font-size: 36px; } }
+    </style>
+</head>
+<body>
+    <button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()">⛶</button>
+    <div class="page">
+        <div class="header">
+            <h1>Remote Match</h1>
+            <p>2 Spieler, Distanz und Positionsgrafiken</p>
+        </div>
+        <div class="card">
+            <div class="section">
+                <div class="panel">
+                    <div class="panel-title">Registrierten Spieler auswählen</div>
+                    <div id="selectedGuestBox" class="selected-user">
+                        <div id="selectedGuestName" class="selected-user-name"></div>
+                        <div id="selectedGuestMeta" class="selected-user-meta"></div>
+                    </div>
+                    <div class="field">
+                        <label for="guestUserSearch">Spieler suchen</label>
+                        <input id="guestUserSearch" type="text" placeholder="Name oder E-Mail">
+                    </div>
+                    <div class="user-results" id="guestUserResults"></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Disziplinen</h2>
+                <div class="section-sub">Jeder Spieler kann eine eigene Disziplin haben</div>
+                <div class="grid-2">
+                    <div class="panel"><div class="panel-title">Spieler 1 (du)</div><div id="disciplineButtonsHost" class="btn-group"></div></div>
+                    <div class="panel"><div class="panel-title">Spieler 2</div><div id="disciplineButtonsGuest" class="btn-group"></div></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Distanz</h2>
+                <div class="section-sub">Remote-Match endet über Zielpunkte, nicht über Zeit</div>
+                <div class="panel">
+                    <div class="field">
+                        <label for="targetPointsInput">Zielpunkte</label>
+                        <input id="targetPointsInput" type="number" min="1" value="50">
+                    </div>
+                    <div class="btn-group">
+                        <button class="chip" type="button" onclick="setTargetPoints(25)">25</button>
+                        <button class="chip" type="button" onclick="setTargetPoints(50)">50</button>
+                        <button class="chip" type="button" onclick="setTargetPoints(100)">100</button>
+                        <button class="chip" type="button" onclick="setTargetPoints(150)">150</button>
+                        <button class="chip" type="button" onclick="setTargetPoints(200)">200</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="positions-panel">
+                    <button class="positions-toggle" type="button" onclick="togglePositions()">
+                        <div>
+                            <div style="font-size:17px;font-weight:700;">Positionen 1-6</div>
+                            <div style="margin-top:4px;font-size:13px;opacity:.75;">Diese sechs Stellungen rotieren später im Remote-Match durch.</div>
+                        </div>
+                        <span id="positionsToggleIcon" style="font-size:20px;font-weight:700;line-height:1;">+</span>
+                    </button>
+                    <div class="positions-body" id="positionsBody">
+                        <div class="positions-grid" id="positionsGrid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Meine Einladungen</h2>
+                <div class="section-sub">Aktive Remote-Matches, in die du eingeladen wurdest</div>
+                <div class="invite-list" id="invitesList"></div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-start" onclick="startRemoteMatch()">Starten</button>
+                <button class="btn btn-back" onclick="window.location.href='training.html'">Zurück</button>
+                <button class="btn btn-back" onclick="window.location.href='index.html'">Home</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="zoom-modal" id="positionZoomModal">
+        <div class="zoom-dialog">
+            <div class="zoom-head">
+                <div class="zoom-title" id="positionZoomTitle">Position</div>
+                <div class="zoom-actions">
+                    <button class="zoom-btn" type="button" onclick="changePositionZoom(-0.5)">−</button>
+                    <button class="zoom-btn" type="button" onclick="changePositionZoom(0.5)">+</button>
+                    <button class="zoom-btn" type="button" onclick="resetPositionZoom()">100%</button>
+                    <button class="zoom-btn zoom-close" type="button" onclick="closePositionZoom()">Schließen</button>
+                </div>
+            </div>
+            <div class="zoom-body">
+                <div class="zoom-stage" id="positionZoomStage">
+                    <div class="zoom-table-wrap" id="positionZoomContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/user_menu.js"></script>
+    <script>
+        const disciplines = ["Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
+        const TABLE_VIEWBOX = { width: 674, height: 1200 };
+        const CHALLENGE_BOUNDS = { minX: 70, maxX: 605, minY: 58, maxY: 1143 };
+        const DISCIPLINE_TEMPLATES = { "Cadre 47/2": "assets/grosser-tisch-47-2.png", "Cadre 71/2": "assets/mb-71-2.png" };
+        const positionDefaults = [
+            { id: 1, red: { x: 236, y: 166 }, yellow: { x: 259, y: 214 }, white: { x: 232, y: 201 } },
+            { id: 2, red: { x: 288, y: 262 }, yellow: { x: 316, y: 305 }, white: { x: 272, y: 323 } },
+            { id: 3, red: { x: 411, y: 438 }, yellow: { x: 378, y: 485 }, white: { x: 441, y: 478 } },
+            { id: 4, red: { x: 492, y: 696 }, yellow: { x: 455, y: 738 }, white: { x: 524, y: 756 } },
+            { id: 5, red: { x: 332, y: 882 }, yellow: { x: 360, y: 928 }, white: { x: 306, y: 939 } },
+            { id: 6, red: { x: 237, y: 1038 }, yellow: { x: 275, y: 1078 }, white: { x: 221, y: 1091 } }
+        ];
+        let currentUser = null;
+        let selectedHostDiscipline = "";
+        let selectedGuestDiscipline = "";
+        let selectedGuestUser = null;
+        let positionsOpen = false;
+        let challengePositions = [];
+        let activeChallengeDrag = null;
+        let currentPositionZoom = 1;
+
+        function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+        function getDefaultChallengePositions() { return positionDefaults.map((x) => ({ id: x.id, red: { ...x.red }, yellow: { ...x.yellow }, white: { ...x.white } })); }
+        function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/grosser-tisch-47-2.png"; }
+        function getActiveDiscipline() { return selectedHostDiscipline || selectedGuestDiscipline || "Cadre 47/2"; }
+        function serializeChallengePositions() { return challengePositions.map((x) => ({ id: x.id, red: { ...x.red }, yellow: { ...x.yellow }, white: { ...x.white } })); }
+        function updateFullscreenButton() { const btn = document.getElementById("fullscreenBtn"); if (!btn) return; const active = !!document.fullscreenElement; btn.innerText = active ? "×" : "⛶"; }
+        async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (_) {} finally { updateFullscreenButton(); } }
+        function setTargetPoints(value) { document.getElementById("targetPointsInput").value = value; }
+        function setSelectedGuestUser(user) {
+            selectedGuestUser = user || null;
+            const box = document.getElementById("selectedGuestBox");
+            const name = document.getElementById("selectedGuestName");
+            const meta = document.getElementById("selectedGuestMeta");
+            if (!selectedGuestUser) { box.classList.remove("active"); name.innerText = ""; meta.innerText = ""; return; }
+            box.classList.add("active"); name.innerText = selectedGuestUser.display_name || selectedGuestUser.email || "User"; meta.innerText = selectedGuestUser.email || "";
+        }
+        function renderGuestUserResults(users, errorText = "") {
+            const wrap = document.getElementById("guestUserResults");
+            if (errorText) { wrap.innerHTML = `<div class="empty">${errorText}</div>`; return; }
+            if (!users || !users.length) { wrap.innerHTML = `<div class="empty">Kein passender registrierter User gefunden.</div>`; return; }
+            wrap.innerHTML = "";
+            users.forEach((user) => {
+                const row = document.createElement("div");
+                row.className = "user-row";
+                row.innerHTML = `<div><div class="user-main">${user.display_name || user.email || "User"}</div><div class="user-sub">${user.email || ""}</div></div><button class="user-btn" type="button">Auswählen</button>`;
+                row.querySelector(".user-btn").onclick = () => setSelectedGuestUser(user);
+                wrap.appendChild(row);
+            });
+        }
+        async function loadChallengeUsers(searchTerm = "") {
+            const { data, error } = await supabaseClient.rpc("search_challenge_users", { search_term: String(searchTerm || "").trim(), limit_count: 12 });
+            if (error) { renderGuestUserResults([], "Registrierte User konnten nicht geladen werden. Bitte SQL aus sql/training_challenge_user_directory.sql ausführen."); return; }
+            const users = (data || []).filter((row) => String(row.user_id || "") !== String(currentUser?.id || "")).map((row) => ({ user_id: row.user_id, display_name: row.display_name || row.email || "User", email: row.email || "" }));
+            renderGuestUserResults(users);
+        }
+        function buildDisciplineButtons(containerId, onSelect) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = "";
+            disciplines.forEach((discipline) => {
+                const btn = document.createElement("button");
+                btn.className = "chip";
+                btn.innerText = discipline;
+                btn.onclick = () => {
+                    container.querySelectorAll(".chip").forEach((x) => x.classList.remove("active"));
+                    btn.classList.add("active");
+                    onSelect(discipline);
+                    renderPositions();
+                };
+                container.appendChild(btn);
+            });
+        }
+        function renderChallengePositionSvg(layout) {
+            return `<svg class="position-table-overlay" viewBox="0 0 ${TABLE_VIEWBOX.width} ${TABLE_VIEWBOX.height}" aria-label="Position ${layout.id}">
+                <g class="challenge-ball" data-position-id="${layout.id}" data-ball="red" transform="translate(${layout.red.x} ${layout.red.y})"><circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle><circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle></g>
+                <g class="challenge-ball" data-position-id="${layout.id}" data-ball="yellow" transform="translate(${layout.yellow.x} ${layout.yellow.y})"><circle r="12" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle><circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle></g>
+                <g class="challenge-ball" data-position-id="${layout.id}" data-ball="white" transform="translate(${layout.white.x} ${layout.white.y})"><circle r="12" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="1.5"></circle><circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.72"></circle></g>
+            </svg>`;
+        }
+        function renderSingleChallengePosition(container, positionId) {
+            const layout = challengePositions.find((item) => Number(item.id) === Number(positionId));
+            if (!container || !layout) return;
+            container.innerHTML = `<img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}`;
+            bindChallengePositionDrag(container);
+        }
+        function renderPositions() {
+            const grid = document.getElementById("positionsGrid");
+            grid.innerHTML = "";
+            challengePositions.forEach((layout) => {
+                const card = document.createElement("div");
+                card.className = "position-card";
+                card.innerHTML = `<div class="position-card-head"><div class="position-card-title">Position ${layout.id}</div><button class="position-zoom-btn" type="button" data-position-zoom="${layout.id}">Groß</button></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}</div>`;
+                grid.appendChild(card);
+            });
+            bindChallengePositionDrag(grid);
+            grid.querySelectorAll("[data-position-zoom]").forEach((btn) => { btn.onclick = () => openPositionZoom(Number(btn.dataset.positionZoom || 0)); });
+        }
+        function togglePositions() { positionsOpen = !positionsOpen; document.getElementById("positionsBody").classList.toggle("open", positionsOpen); document.getElementById("positionsToggleIcon").innerText = positionsOpen ? "−" : "+"; }
+        function getChallengeSvgPoint(event) { const svg = activeChallengeDrag?.svg; if (!svg) return null; const rect = svg.getBoundingClientRect(); return { x: ((event.clientX - rect.left) / rect.width) * TABLE_VIEWBOX.width, y: ((event.clientY - rect.top) / rect.height) * TABLE_VIEWBOX.height }; }
+        function updateChallengeBallPosition(positionId, ballKey, x, y) {
+            const layout = challengePositions.find((item) => Number(item.id) === Number(positionId));
+            if (!layout || !layout[ballKey]) return;
+            layout[ballKey] = { x: clamp(x, CHALLENGE_BOUNDS.minX, CHALLENGE_BOUNDS.maxX), y: clamp(y, CHALLENGE_BOUNDS.minY, CHALLENGE_BOUNDS.maxY) };
+            document.querySelectorAll(`.challenge-ball[data-position-id="${positionId}"][data-ball="${ballKey}"]`).forEach((ball) => { ball.setAttribute("transform", `translate(${layout[ballKey].x} ${layout[ballKey].y})`); });
+        }
+        function handleChallengePointerMove(event) { if (!activeChallengeDrag) return; event.preventDefault(); const point = getChallengeSvgPoint(event); if (!point) return; updateChallengeBallPosition(activeChallengeDrag.positionId, activeChallengeDrag.ballKey, point.x, point.y); }
+        function stopChallengePointerDrag() { if (activeChallengeDrag?.element?.releasePointerCapture) { try { activeChallengeDrag.element.releasePointerCapture(activeChallengeDrag.pointerId); } catch (_) {} } activeChallengeDrag = null; }
+        function startChallengePointerDrag(event) {
+            const positionId = Number(event.currentTarget.dataset.positionId || 0);
+            const ballKey = event.currentTarget.dataset.ball || "";
+            const svg = event.currentTarget.ownerSVGElement;
+            if (!positionId || !ballKey || !svg) return;
+            activeChallengeDrag = { positionId, ballKey, svg, element: event.currentTarget, pointerId: event.pointerId };
+            if (event.currentTarget.setPointerCapture) { try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) {} }
+            event.preventDefault();
+        }
+        function bindChallengePositionDrag(root = document) { root.querySelectorAll(".challenge-ball").forEach((ball) => { ball.addEventListener("pointerdown", startChallengePointerDrag); }); }
+        function updatePositionZoomStage() { const stage = document.getElementById("positionZoomStage"); if (stage) stage.style.transform = `scale(${currentPositionZoom})`; }
+        function openPositionZoom(positionId) { currentPositionZoom = 2; document.getElementById("positionZoomTitle").innerText = `Position ${positionId}`; renderSingleChallengePosition(document.getElementById("positionZoomContent"), positionId); updatePositionZoomStage(); document.getElementById("positionZoomModal").classList.add("open"); }
+        function closePositionZoom() { document.getElementById("positionZoomModal").classList.remove("open"); }
+        function changePositionZoom(delta) { currentPositionZoom = clamp(Number((currentPositionZoom + delta).toFixed(2)), 1, 5); updatePositionZoomStage(); }
+        function resetPositionZoom() { currentPositionZoom = 1; updatePositionZoomStage(); }
+        async function loadIncomingInvites() {
+            const email = String(currentUser?.email || "").trim().toLowerCase();
+            if (!email) return;
+            const { data, error } = await supabaseClient.from("training_remote_match_sessions").select("id,host_name,host_discipline,guest_discipline,target_points,status").eq("status", "active").or(`guest_user_id.eq.${currentUser.id},guest_email.eq.${email}`).order("created_at", { ascending: false }).limit(10);
+            const wrap = document.getElementById("invitesList");
+            if (error) { wrap.innerHTML = `<div class="empty">Einladungen konnten nicht geladen werden (${error.message}).</div>`; return; }
+            if (!data || !data.length) { wrap.innerHTML = `<div class="empty">Keine offenen Remote-Einladungen.</div>`; return; }
+            wrap.innerHTML = "";
+            data.forEach((session) => {
+                const row = document.createElement("div");
+                row.className = "invite-row";
+                row.innerHTML = `<div><div class="invite-main">${session.host_name || "Spieler 1"} vs ${session.guest_name || "du"}</div><div class="invite-sub">${session.host_discipline || "-"} vs ${session.guest_discipline || "-"} • ${session.target_points || 0} Punkte</div></div><button class="invite-btn" type="button">Beitreten</button>`;
+                row.querySelector(".invite-btn").onclick = () => { window.location.href = "training_remote_match_run.html?session=" + session.id; };
+                wrap.appendChild(row);
+            });
+        }
+        async function startRemoteMatch() {
+            if (!selectedGuestUser?.user_id) { alert("Bitte einen registrierten User für Spieler 2 auswählen."); return; }
+            if (!selectedHostDiscipline || !selectedGuestDiscipline) { alert("Bitte für beide Spieler eine Disziplin wählen."); return; }
+            const targetPoints = Number(document.getElementById("targetPointsInput").value || 0);
+            if (!Number.isInteger(targetPoints) || targetPoints < 1) { alert("Bitte gültige Zielpunkte eingeben."); return; }
+            const payload = {
+                host_user_id: currentUser.id,
+                host_name: getDisplayName(currentUser),
+                host_discipline: selectedHostDiscipline,
+                guest_user_id: selectedGuestUser.user_id,
+                guest_email: selectedGuestUser.email || null,
+                guest_name: selectedGuestUser.display_name || selectedGuestUser.email || "Spieler 2",
+                guest_discipline: selectedGuestDiscipline,
+                target_points: targetPoints,
+                active_player: 1,
+                challenge_positions: serializeChallengePositions(),
+                position_index: 1,
+                status: "active"
+            };
+            const { data, error } = await supabaseClient.from("training_remote_match_sessions").insert(payload).select("id").single();
+            if (error || !data?.id) { alert("Remote-Match konnte nicht gestartet werden: " + (error?.message || "Unbekannter Fehler")); return; }
+            window.location.href = "training_remote_match_run.html?session=" + data.id;
+        }
+        async function init() {
+            currentUser = await requireAuth();
+            if (!currentUser) return;
+            updateFullscreenButton();
+            challengePositions = getDefaultChallengePositions();
+            buildDisciplineButtons("disciplineButtonsHost", (value) => { selectedHostDiscipline = value; });
+            buildDisciplineButtons("disciplineButtonsGuest", (value) => { selectedGuestDiscipline = value; });
+            renderPositions();
+            document.getElementById("guestUserSearch").addEventListener("input", () => loadChallengeUsers(document.getElementById("guestUserSearch").value || ""));
+            await loadChallengeUsers("");
+            await loadIncomingInvites();
+        }
+        document.addEventListener("fullscreenchange", updateFullscreenButton);
+        window.addEventListener("pointermove", handleChallengePointerMove);
+        window.addEventListener("pointerup", stopChallengePointerDrag);
+        window.addEventListener("pointercancel", stopChallengePointerDrag);
+        window.addEventListener("keydown", (event) => { if (event.key === "Escape") closePositionZoom(); });
+        init();
+    </script>
+</body>
+</html>

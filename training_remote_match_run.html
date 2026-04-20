@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Remote Match</title>
+    <style>
+        html { min-height: 100%; background: linear-gradient(180deg, #0f1c3f, #0a122b); }
+        body { margin: 0; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(180deg, #0f1c3f, #0a122b); color: white; }
+        .fullscreen-btn { position: fixed; top: 10px; right: 10px; z-index: 1300; width: 34px; height: 34px; border: 1px solid #3458b8; border-radius: 10px; background: rgba(28, 51, 128, 0.92); color: white; font-size: 16px; font-weight: 700; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .page { width: min(1160px, 94%); margin: 28px auto 32px; }
+        .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2c4688; border-radius:20px; padding:12px 14px; box-shadow:0 16px 34px rgba(0,0,0,.38); gap:8px; flex-wrap:wrap; }
+        .btn { border:none; border-radius:12px; padding:11px 17px; font-size:16px; font-weight:700; color:white; background:#1c3380; cursor:pointer; border:1px solid #3458b8; }
+        .btn.danger { background:#9f3434; border-color:#be5757; }
+        .board { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:30px; overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,.5); }
+        .meta { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid #27417f; }
+        .meta-item { padding:14px 16px; border-right:1px solid #27417f; }
+        .meta-item:last-child { border-right:none; }
+        .meta-label { font-size:13px; opacity:.72; margin-bottom:4px; letter-spacing:1px; }
+        .meta-value { font-size:20px; font-weight:700; }
+        .duel { display:grid; grid-template-columns:1fr 1fr; border-bottom:1px solid #27417f; }
+        .player-col { border-right:1px solid #27417f; }
+        .player-col:last-child { border-right:none; }
+        .player-head { padding:12px 14px; border-bottom:1px solid #27417f; background:rgba(8,16,44,.42); }
+        .player-name { font-size:24px; font-weight:800; }
+        .player-disc { font-size:14px; opacity:.76; margin-top:2px; }
+        .stats { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid #27417f; }
+        .stat { padding:14px 10px; text-align:center; border-right:1px solid #27417f; }
+        .stat:last-child { border-right:none; }
+        .stat-label { font-size:12px; opacity:.72; margin-bottom:4px; }
+        .stat-value { font-size:34px; font-weight:800; }
+        .history { padding:12px 14px 14px; min-height:58px; }
+        .history-title { font-size:13px; opacity:.74; margin-bottom:6px; }
+        .history-value { font-size:17px; line-height:1.4; word-break:break-word; }
+        .input-section { padding:18px; display:grid; grid-template-columns:260px 1fr; gap:16px; align-items:center; }
+        .series-input { width:100%; box-sizing:border-box; font-size:42px; font-weight:700; border:none; border-radius:16px; padding:18px; background:#f4f7ff; color:#1a1d2c; box-shadow:inset 0 0 0 2px #dce6ff; }
+        .controls { display:flex; gap:12px; flex-wrap:wrap; }
+        .action-btn { border:none; border-radius:16px; padding:16px 22px; font-size:22px; font-weight:700; color:white; background:#1c3380; cursor:pointer; border:1px solid #3458b8; }
+        .action-btn.primary { background:#2f4fe0; border-color:#5572f0; min-width:300px; }
+        .readonly { opacity:.72; margin-top:8px; font-size:15px; }
+        .chat { border-top:1px solid #27417f; padding:12px 14px 14px; }
+        .chat-head { font-size:14px; font-weight:700; opacity:.9; margin-bottom:8px; }
+        .chat-list { min-height:80px; max-height:210px; overflow-y:auto; border:1px solid #2e4a92; border-radius:12px; padding:8px; background:rgba(9,18,45,.55); }
+        .chat-empty { font-size:13px; opacity:.68; padding:6px 4px; }
+        .chat-row { margin:5px 0; display:flex; }
+        .chat-row.mine { justify-content:flex-end; }
+        .chat-bubble { max-width:82%; padding:7px 10px; border-radius:10px; border:1px solid #3659bb; background:#163071; font-size:14px; line-height:1.35; word-break:break-word; }
+        .chat-row.mine .chat-bubble { background:#2a4ce0; border-color:#5d79f3; }
+        .chat-meta { font-size:11px; opacity:.72; margin-bottom:2px; }
+        .chat-input { display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:8px; }
+        .chat-input input { border:1px solid #3959ab; border-radius:10px; padding:10px 12px; font-size:14px; color:#fff; background:#112659; }
+        .chat-send { border:none; border-radius:10px; background:#2f4fe0; border:1px solid #5572f0; color:#fff; font-size:14px; font-weight:700; padding:0 14px; cursor:pointer; }
+        .position-modal { position: fixed; inset: 0; z-index: 1450; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(3,8,22,.78); backdrop-filter:blur(6px); }
+        .position-modal.open { display:flex; }
+        .position-dialog { width:min(980px,96vw); max-height:94vh; border-radius:24px; border:1px solid #3557b7; background:linear-gradient(180deg,#162b66,#0f1c3f); box-shadow:0 32px 70px rgba(0,0,0,.55); overflow:hidden; display:grid; grid-template-rows:auto 1fr; }
+        .position-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #27417f; }
+        .position-title { font-size:20px; font-weight:800; }
+        .position-sub { margin-top:4px; font-size:13px; opacity:.76; }
+        .position-close { border:none; border-radius:10px; background:#6c2d4f; color:white; font-size:14px; font-weight:700; padding:10px 12px; cursor:pointer; }
+        .position-body { padding:16px; overflow:auto; display:flex; justify-content:center; }
+        .position-table-wrap { position:relative; width:min(674px,88vw); border-radius:18px; overflow:hidden; background:#f7f7f4; aspect-ratio:674/1200; box-shadow:0 18px 38px rgba(0,0,0,.28); }
+        .position-table-bg { width:100%; height:100%; display:block; object-fit:cover; }
+        .position-table-overlay { position:absolute; inset:0; width:100%; height:100%; display:block; }
+        @media (max-width: 980px) { .meta { grid-template-columns:1fr 1fr; } .duel { grid-template-columns:1fr; } .player-col { border-right:none; border-bottom:1px solid #27417f; } .player-col:last-child { border-bottom:none; } .input-section { grid-template-columns:1fr; } .series-input { font-size:34px; padding:16px; } .action-btn { font-size:18px; padding:14px 18px; } .action-btn.primary { min-width:0; } }
+    </style>
+</head>
+<body>
+    <button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()">⛶</button>
+    <div class="page">
+        <div class="topbar">
+            <button class="btn" onclick="window.location.href='training_remote_match.html'">Zurück zum Setup</button>
+            <button class="btn" onclick="showCurrentPosition(true)">Position zeigen</button>
+            <button class="btn danger" onclick="finishRemoteMatch()">Beenden</button>
+        </div>
+        <div class="board">
+            <div class="meta">
+                <div class="meta-item"><div class="meta-label">Modus</div><div class="meta-value">Remote Match</div></div>
+                <div class="meta-item"><div class="meta-label">Session</div><div class="meta-value" id="sessionValue">-</div></div>
+                <div class="meta-item"><div class="meta-label">Status</div><div class="meta-value" id="statusValue">Aktiv</div></div>
+                <div class="meta-item"><div class="meta-label">Distanz</div><div class="meta-value" id="targetValue">-</div></div>
+            </div>
+            <div class="duel">
+                <div class="player-col">
+                    <div class="player-head"><div class="player-name" id="p1Name">Spieler 1</div><div class="player-disc" id="p1Disc">-</div></div>
+                    <div class="stats">
+                        <div class="stat"><div class="stat-label">Punkte</div><div class="stat-value" id="p1Score">0</div></div>
+                        <div class="stat"><div class="stat-label">Aufnahmen</div><div class="stat-value" id="p1Innings">0</div></div>
+                        <div class="stat"><div class="stat-label">HS</div><div class="stat-value" id="p1High">0</div></div>
+                        <div class="stat"><div class="stat-label">DS</div><div class="stat-value" id="p1Avg">0.000</div></div>
+                    </div>
+                    <div class="history"><div class="history-title">Serien</div><div class="history-value" id="p1History">-</div></div>
+                </div>
+                <div class="player-col">
+                    <div class="player-head"><div class="player-name" id="p2Name">Spieler 2</div><div class="player-disc" id="p2Disc">-</div></div>
+                    <div class="stats">
+                        <div class="stat"><div class="stat-label">Punkte</div><div class="stat-value" id="p2Score">0</div></div>
+                        <div class="stat"><div class="stat-label">Aufnahmen</div><div class="stat-value" id="p2Innings">0</div></div>
+                        <div class="stat"><div class="stat-label">HS</div><div class="stat-value" id="p2High">0</div></div>
+                        <div class="stat"><div class="stat-label">DS</div><div class="stat-value" id="p2Avg">0.000</div></div>
+                    </div>
+                    <div class="history"><div class="history-title">Serien</div><div class="history-value" id="p2History">-</div></div>
+                </div>
+            </div>
+            <div class="input-section">
+                <input id="seriesInput" class="series-input" type="number" min="0" value="0">
+                <div>
+                    <div class="controls">
+                        <button class="action-btn primary" onclick="commitInning()">Meine Aufnahme zählen</button>
+                        <button class="action-btn" onclick="adjustSeries(1)">+1</button>
+                        <button class="action-btn" onclick="adjustSeries(5)">+5</button>
+                        <button class="action-btn" onclick="adjustSeries(10)">+10</button>
+                        <button class="action-btn" onclick="adjustSeries(-1)">-1</button>
+                    </div>
+                    <div class="readonly" id="readonlyInfo"></div>
+                </div>
+            </div>
+            <div class="chat">
+                <div class="chat-head">Session-Chat</div>
+                <div class="chat-list" id="chatList"></div>
+                <div class="chat-input">
+                    <input id="chatInput" type="text" maxlength="500" placeholder="Nachricht eingeben...">
+                    <button class="chat-send" onclick="sendChatMessage()">Senden</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="position-modal" id="positionModal">
+        <div class="position-dialog">
+            <div class="position-head">
+                <div>
+                    <div class="position-title" id="positionTitle">Position 1</div>
+                    <div class="position-sub" id="positionSub">Nächste Ausgangsstellung</div>
+                </div>
+                <button class="position-close" type="button" onclick="closePositionModal()">Schließen</button>
+            </div>
+            <div class="position-body">
+                <div class="position-table-wrap" id="positionContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/user_menu.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const sessionId = params.get("session") || "";
+        const TABLE_VIEWBOX = { width: 674, height: 1200 };
+        const DISCIPLINE_TEMPLATES = { "Cadre 47/2": "assets/grosser-tisch-47-2.png", "Cadre 71/2": "assets/mb-71-2.png" };
+        const DEFAULT_POSITIONS = [
+            { id: 1, red: { x: 236, y: 166 }, yellow: { x: 259, y: 214 }, white: { x: 232, y: 201 } },
+            { id: 2, red: { x: 288, y: 262 }, yellow: { x: 316, y: 305 }, white: { x: 272, y: 323 } },
+            { id: 3, red: { x: 411, y: 438 }, yellow: { x: 378, y: 485 }, white: { x: 441, y: 478 } },
+            { id: 4, red: { x: 492, y: 696 }, yellow: { x: 455, y: 738 }, white: { x: 524, y: 756 } },
+            { id: 5, red: { x: 332, y: 882 }, yellow: { x: 360, y: 928 }, white: { x: 306, y: 939 } },
+            { id: 6, red: { x: 237, y: 1038 }, yellow: { x: 275, y: 1078 }, white: { x: 221, y: 1091 } }
+        ];
+        let currentUser = null;
+        let sessionData = null;
+        let realtimeChannel = null;
+        let chatMessages = [];
+        let isHost = false;
+        let lastShownPositionIndex = null;
+
+        function setText(id, value) { const el = document.getElementById(id); if (el) el.innerText = value; }
+        function parseSeries(value) { return Array.isArray(value) ? value.map((x) => Number(x)).filter((x) => Number.isFinite(x) && x >= 0) : []; }
+        function avg(score, innings) { return innings > 0 ? (score / innings).toFixed(3) : "0.000"; }
+        function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/grosser-tisch-47-2.png"; }
+        function getCurrentPlayerDiscipline() { return isHost ? (sessionData?.host_discipline || "Cadre 47/2") : (sessionData?.guest_discipline || sessionData?.host_discipline || "Cadre 47/2"); }
+        function getPositions() { return Array.isArray(sessionData?.challenge_positions) && sessionData.challenge_positions.length ? sessionData.challenge_positions : DEFAULT_POSITIONS; }
+        function getCurrentPositionIndex() { const raw = Number(sessionData?.position_index || 1); return !Number.isFinite(raw) || raw < 1 ? 1 : ((raw - 1) % 6) + 1; }
+        function getMyPlayerIndex() { return isHost ? 1 : 2; }
+        function isMyTurn() { return Number(sessionData?.active_player || 1) === getMyPlayerIndex(); }
+        function updateFullscreenButton() { const btn = document.getElementById("fullscreenBtn"); if (!btn) return; const active = !!document.fullscreenElement; btn.innerText = active ? "×" : "⛶"; }
+        async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (_) {} finally { updateFullscreenButton(); } }
+        function escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
+        function formatTimeShort(iso) { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+        function detectWinner(state) {
+            const score1 = Number(state.host_score || 0), score2 = Number(state.guest_score || 0), inn1 = Number(state.host_innings || 0), inn2 = Number(state.guest_innings || 0), target = Number(state.target_points || 0);
+            if (inn1 === inn2 && target > 0 && (score1 >= target || score2 >= target)) { if (score1 > score2) return 1; if (score2 > score1) return 2; if (score1 === score2 && score1 >= target) return 0; }
+            return null;
+        }
+        function renderPositionSvg(layout) {
+            return `<svg class="position-table-overlay" viewBox="0 0 ${TABLE_VIEWBOX.width} ${TABLE_VIEWBOX.height}" aria-label="Position ${layout.id}">
+                <g transform="translate(${layout.red.x} ${layout.red.y})"><circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle><circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle></g>
+                <g transform="translate(${layout.yellow.x} ${layout.yellow.y})"><circle r="12" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle><circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle></g>
+                <g transform="translate(${layout.white.x} ${layout.white.y})"><circle r="12" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="1.5"></circle><circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.72"></circle></g>
+            </svg>`;
+        }
+        function renderPositionModal(positionId) {
+            const positions = getPositions();
+            const layout = positions.find((item) => Number(item.id) === Number(positionId)) || positions[0];
+            const content = document.getElementById("positionContent");
+            content.innerHTML = `<img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getCurrentPlayerDiscipline())}" alt="Position ${layout.id}">${renderPositionSvg(layout)}`;
+            setText("positionTitle", "Position " + layout.id);
+            setText("positionSub", (getCurrentPlayerDiscipline() || "Disziplin") + " • nächste Ausgangsstellung");
+        }
+        function openPositionModal(positionId) { renderPositionModal(positionId); document.getElementById("positionModal").classList.add("open"); }
+        function closePositionModal() { document.getElementById("positionModal").classList.remove("open"); }
+        function showCurrentPosition(force = false) { if (!sessionData || sessionData.status === "finished") return; const index = getCurrentPositionIndex(); if (!force && lastShownPositionIndex === index) return; lastShownPositionIndex = index; openPositionModal(index); }
+        function applyIncomingSession(next) { if (!next) return; sessionData = next; renderSession(); showCurrentPosition(); }
+        function renderSession() {
+            const p1Series = parseSeries(sessionData.host_series), p2Series = parseSeries(sessionData.guest_series);
+            setText("sessionValue", sessionData.id ? sessionData.id.slice(0, 8) : "-");
+            setText("statusValue", sessionData.status === "finished" ? "Beendet" : "Aktiv");
+            setText("targetValue", String(sessionData.target_points || 0) + " Punkte");
+            setText("p1Name", sessionData.host_name || "Spieler 1");
+            setText("p1Disc", sessionData.host_discipline || "-");
+            setText("p1Score", String(sessionData.host_score || 0));
+            setText("p1Innings", String(sessionData.host_innings || 0));
+            setText("p1High", String(sessionData.host_high || 0));
+            setText("p1Avg", avg(Number(sessionData.host_score || 0), Number(sessionData.host_innings || 0)));
+            setText("p1History", p1Series.length ? p1Series.join(", ") : "-");
+            setText("p2Name", sessionData.guest_name || "Spieler 2");
+            setText("p2Disc", sessionData.guest_discipline || "-");
+            setText("p2Score", String(sessionData.guest_score || 0));
+            setText("p2Innings", String(sessionData.guest_innings || 0));
+            setText("p2High", String(sessionData.guest_high || 0));
+            setText("p2Avg", avg(Number(sessionData.guest_score || 0), Number(sessionData.guest_innings || 0)));
+            setText("p2History", p2Series.length ? p2Series.join(", ") : "-");
+            if (sessionData.status === "finished") {
+                setText("readonlyInfo", "Remote-Match beendet.");
+            } else if (isMyTurn()) {
+                setText("readonlyInfo", isHost ? "Du bist dran als Spieler 1." : "Du bist dran als Spieler 2.");
+            } else {
+                setText("readonlyInfo", isHost ? "Warte auf Spieler 2." : "Warte auf Spieler 1.");
+            }
+            const seriesInput = document.getElementById("seriesInput");
+            const commitBtn = document.querySelector(".action-btn.primary");
+            const disabled = sessionData.status === "finished" || !isMyTurn();
+            if (seriesInput) seriesInput.disabled = disabled;
+            if (commitBtn) commitBtn.disabled = disabled;
+            if (sessionData.status === "finished") closePositionModal();
+            renderChat();
+        }
+        async function sendChatMessage() {
+            const input = document.getElementById("chatInput");
+            const message = String(input.value || "").trim();
+            if (!message || !sessionData?.id) return;
+            const { error } = await supabaseClient.from("training_remote_match_messages").insert({ session_id: sessionData.id, sender_user_id: currentUser.id, sender_name: getDisplayName(currentUser), message });
+            if (!error) input.value = "";
+        }
+        function renderChat() {
+            const list = document.getElementById("chatList");
+            if (!chatMessages.length) { list.innerHTML = '<div class="chat-empty">Noch keine Nachrichten.</div>'; return; }
+            list.innerHTML = chatMessages.map((msg) => {
+                const mine = String(msg.sender_user_id || "") === String(currentUser?.id || "");
+                return `<div class="chat-row ${mine ? "mine" : "other"}"><div class="chat-bubble"><div class="chat-meta">${escapeHtml(msg.sender_name || "User")} • ${escapeHtml(formatTimeShort(msg.created_at))}</div><div>${escapeHtml(msg.message || "")}</div></div></div>`;
+            }).join("");
+            list.scrollTop = list.scrollHeight;
+        }
+        async function loadChatMessages() {
+            if (!sessionData?.id) return;
+            const { data } = await supabaseClient.from("training_remote_match_messages").select("*").eq("session_id", sessionData.id).order("created_at", { ascending: true }).limit(100);
+            chatMessages = data || [];
+            renderChat();
+        }
+        function adjustSeries(delta) { const input = document.getElementById("seriesInput"); let value = Number(input.value || 0); value += delta; if (value < 0) value = 0; input.value = value; }
+        async function commitInning() {
+            if (!sessionData?.id || sessionData.status === "finished") return;
+            if (!isMyTurn()) { alert("Du bist gerade nicht am Zug."); return; }
+            const series = Number(document.getElementById("seriesInput").value || 0);
+            if (!Number.isFinite(series) || series < 0) { alert("Bitte eine gültige Serie eingeben."); return; }
+            const nextSeries = isHost ? parseSeries(sessionData.host_series) : parseSeries(sessionData.guest_series);
+            nextSeries.push(series);
+            const updateObj = isHost
+                ? { host_series: nextSeries, host_score: Number(sessionData.host_score || 0) + series, host_innings: Number(sessionData.host_innings || 0) + 1, host_high: Math.max(Number(sessionData.host_high || 0), series) }
+                : { guest_series: nextSeries, guest_score: Number(sessionData.guest_score || 0) + series, guest_innings: Number(sessionData.guest_innings || 0) + 1, guest_high: Math.max(Number(sessionData.guest_high || 0), series) };
+            updateObj.active_player = isHost ? 2 : 1;
+            updateObj.position_index = (getCurrentPositionIndex() % 6) + 1;
+            const winner = detectWinner({ ...sessionData, ...updateObj });
+            if (winner !== null) updateObj.status = "finished";
+            const { error } = await supabaseClient.from("training_remote_match_sessions").update(updateObj).eq("id", sessionData.id);
+            if (error) { alert("Aufnahme konnte nicht gespeichert werden: " + error.message); return; }
+            sessionData = { ...sessionData, ...updateObj };
+            document.getElementById("seriesInput").value = 0;
+            renderSession();
+            showCurrentPosition(true);
+        }
+        async function finishRemoteMatch() { if (!sessionData?.id || sessionData.status === "finished") return; await supabaseClient.from("training_remote_match_sessions").update({ status: "finished" }).eq("id", sessionData.id); sessionData.status = "finished"; renderSession(); }
+        async function claimGuestSeatIfNeeded(data) {
+            const myEmail = String(currentUser?.email || "").trim().toLowerCase();
+            const guestEmail = String(data?.guest_email || "").trim().toLowerCase();
+            if (!myEmail || myEmail !== guestEmail || data.guest_user_id) return data;
+            const { data: updated } = await supabaseClient.from("training_remote_match_sessions").update({ guest_user_id: currentUser.id, guest_name: data.guest_name || getDisplayName(currentUser) }).eq("id", data.id).is("guest_user_id", null).select("*").single();
+            return updated || data;
+        }
+        async function loadSession() {
+            const { data, error } = await supabaseClient.from("training_remote_match_sessions").select("*").eq("id", sessionId).single();
+            if (error || !data) { alert("Session konnte nicht geladen werden."); window.location.href = "training_remote_match.html"; return false; }
+            sessionData = await claimGuestSeatIfNeeded(data);
+            const myEmail = String(currentUser?.email || "").trim().toLowerCase();
+            const allowed = String(sessionData.host_user_id || "") === String(currentUser.id) || String(sessionData.guest_user_id || "") === String(currentUser.id) || (myEmail && myEmail === String(sessionData.guest_email || "").trim().toLowerCase());
+            if (!allowed) { alert("Kein Zugriff auf diese Session."); window.location.href = "training_remote_match.html"; return false; }
+            isHost = String(sessionData.host_user_id || "") === String(currentUser.id);
+            renderSession();
+            await loadChatMessages();
+            lastShownPositionIndex = null;
+            showCurrentPosition(true);
+            return true;
+        }
+        function bindRealtime() {
+            realtimeChannel = supabaseClient.channel("remote_match_" + sessionData.id)
+                .on("postgres_changes", { event: "UPDATE", schema: "public", table: "training_remote_match_sessions", filter: "id=eq." + sessionData.id }, (payload) => { applyIncomingSession(payload.new); })
+                .on("postgres_changes", { event: "*", schema: "public", table: "training_remote_match_messages", filter: "session_id=eq." + sessionData.id }, () => { loadChatMessages(); })
+                .subscribe();
+        }
+        async function init() {
+            currentUser = await requireAuth();
+            if (!currentUser) return;
+            updateFullscreenButton();
+            if (!sessionId) { window.location.href = "training_remote_match.html"; return; }
+            const ok = await loadSession();
+            if (!ok) return;
+            bindRealtime();
+        }
+        document.addEventListener("fullscreenchange", updateFullscreenButton);
+        document.addEventListener("visibilitychange", () => { if (!document.hidden && sessionData?.id) loadChatMessages(); });
+        window.addEventListener("keydown", (event) => { if (event.key === "Enter") commitInning(); if (event.key === "Escape") closePositionModal(); });
+        window.addEventListener("beforeunload", () => { if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel); });
+        init();
+    </script>
+</body>
+</html>
