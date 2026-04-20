@@ -240,6 +240,10 @@
             margin-top: 4px;
         }
 
+        .drafts-wrap {
+            margin-top: 4px;
+        }
+
         .invite-list {
             border: 1px solid #2f4ea0;
             border-radius: 12px;
@@ -280,6 +284,49 @@
             font-weight: 700;
             padding: 8px 12px;
             cursor: pointer;
+        }
+
+        .draft-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid #27417f;
+            background: rgba(10, 18, 46, 0.45);
+        }
+
+        .draft-row:last-child {
+            border-bottom: none;
+        }
+
+        .draft-main {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .draft-sub {
+            font-size: 12px;
+            opacity: 0.75;
+            margin-top: 2px;
+        }
+
+        .draft-btn {
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .draft-btn.load {
+            background: #2f4fe0;
+        }
+
+        .draft-btn.delete {
+            background: #6c2d4f;
         }
 
         .empty {
@@ -386,9 +433,18 @@
             display: block;
         }
 
+        .challenge-ball {
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .challenge-ball:active {
+            cursor: grabbing;
+        }
+
         .actions {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
             gap: 12px;
             margin-top: 10px;
         }
@@ -415,6 +471,10 @@
 
         .btn-back {
             background: #233a8f;
+        }
+
+        .btn-save {
+            background: linear-gradient(180deg, #3b60d7, #2844a8);
         }
 
         @media (max-width: 760px) {
@@ -511,7 +571,14 @@
                 <div class="invite-list" id="invitesList"></div>
             </div>
 
+            <div class="section drafts-wrap" id="draftsSection">
+                <h2 class="section-title">Gespeicherte Challenges</h2>
+                <div class="section-sub">Entwürfe vor dem Start inklusive der sechs Positionsgrafiken.</div>
+                <div class="invite-list" id="draftsList"></div>
+            </div>
+
             <div class="actions">
+                <button class="btn btn-save" onclick="saveChallengeDraft()">Speichern</button>
                 <button class="btn btn-start" onclick="startCountdownTraining()">Starten</button>
                 <button class="btn btn-back" onclick="window.location.href='challenge_history.html'">Historie</button>
                 <button class="btn btn-back" onclick="window.location.href='training.html'">Zurück</button>
@@ -543,7 +610,8 @@
         let selectedGuestUser = null;
         let duelPositionsOpen = false;
         const TABLE_VIEWBOX = { width: 674, height: 1200 };
-        const challengePositions = [
+        const CHALLENGE_BOUNDS = { minX: 70, maxX: 605, minY: 58, maxY: 1143 };
+        const challengePositionDefaults = [
             { id: 1, red: { x: 236, y: 166 }, yellow: { x: 259, y: 214 }, white: { x: 232, y: 201 } },
             { id: 2, red: { x: 288, y: 262 }, yellow: { x: 316, y: 305 }, white: { x: 272, y: 323 } },
             { id: 3, red: { x: 411, y: 438 }, yellow: { x: 378, y: 485 }, white: { x: 441, y: 478 } },
@@ -551,12 +619,221 @@
             { id: 5, red: { x: 332, y: 882 }, yellow: { x: 360, y: 928 }, white: { x: 306, y: 939 } },
             { id: 6, red: { x: 237, y: 1038 }, yellow: { x: 275, y: 1078 }, white: { x: 221, y: 1091 } }
         ];
+        let challengePositions = [];
+        let activeChallengeDrag = null;
+        let challengeDrafts = [];
 
         function createRunId() {
             if (window.crypto && typeof window.crypto.randomUUID === "function") {
                 return window.crypto.randomUUID();
             }
             return "run-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
+        }
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function formatSavedAt(value) {
+            if (!value) return "";
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return "";
+            return date.toLocaleString();
+        }
+
+        function getChallengePositionsStorageKey() {
+            return "challenge_duel_positions_" + String(currentUser?.id || "guest");
+        }
+
+        function getChallengeDraftsStorageKey() {
+            return "challenge_setup_drafts_" + String(currentUser?.id || "guest");
+        }
+
+        function getDefaultChallengePositions() {
+            return challengePositionDefaults.map((layout) => ({
+                id: layout.id,
+                red: { ...layout.red },
+                yellow: { ...layout.yellow },
+                white: { ...layout.white }
+            }));
+        }
+
+        function saveChallengePositions() {
+            localStorage.setItem(getChallengePositionsStorageKey(), JSON.stringify(challengePositions));
+        }
+
+        function loadChallengePositions() {
+            challengePositions = getDefaultChallengePositions();
+            try {
+                const raw = JSON.parse(localStorage.getItem(getChallengePositionsStorageKey()) || "null");
+                if (!Array.isArray(raw)) return;
+                const rawMap = new Map(raw.map((item) => [Number(item.id), item]));
+                challengePositions = challengePositions.map((layout) => {
+                    const saved = rawMap.get(layout.id);
+                    if (!saved) return layout;
+                    ["red", "yellow", "white"].forEach((ballKey) => {
+                        if (!saved[ballKey]) return;
+                        layout[ballKey] = {
+                            x: clamp(Number(saved[ballKey].x) || layout[ballKey].x, CHALLENGE_BOUNDS.minX, CHALLENGE_BOUNDS.maxX),
+                            y: clamp(Number(saved[ballKey].y) || layout[ballKey].y, CHALLENGE_BOUNDS.minY, CHALLENGE_BOUNDS.maxY)
+                        };
+                    });
+                    return layout;
+                });
+            } catch (_) {
+                challengePositions = getDefaultChallengePositions();
+            }
+        }
+
+        function syncModeButtons() {
+            document.querySelectorAll("#modeButtons .chip").forEach((btn) => {
+                btn.classList.toggle("active", btn.dataset.mode === selectedMode);
+            });
+            document.getElementById("guestPanel").style.display = selectedMode === "duel" ? "block" : "none";
+            document.getElementById("guestInvitePanel").style.display = selectedMode === "duel" ? "block" : "none";
+            syncDuelPositionsVisibility();
+        }
+
+        function syncDisciplineButtons(containerId, selectedValue) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.querySelectorAll(".chip").forEach((btn) => {
+                btn.classList.toggle("active", btn.innerText === selectedValue);
+            });
+        }
+
+        function syncTimeButtons() {
+            document.querySelectorAll("#timeButtons .chip").forEach((btn) => {
+                btn.classList.toggle("active", Number(btn.dataset.minutes || 0) === Number(selectedMinutes || 0));
+            });
+        }
+
+        function serializeChallengePositions() {
+            return challengePositions.map((layout) => ({
+                id: layout.id,
+                red: { ...layout.red },
+                yellow: { ...layout.yellow },
+                white: { ...layout.white }
+            }));
+        }
+
+        function buildDraftLabel(draft) {
+            if (draft.mode === "duel") {
+                return `${draft.hostDiscipline || "-"} vs ${draft.guestDiscipline || "-"} • ${draft.guestUser?.display_name || draft.guestUser?.email || "Spieler 2"}`;
+            }
+            return `${draft.hostDiscipline || "-"} • Solo`;
+        }
+
+        function createDraftSnapshot() {
+            return {
+                id: "draft-" + Date.now(),
+                savedAt: new Date().toISOString(),
+                mode: selectedMode,
+                hostDiscipline: selectedHostDiscipline,
+                guestDiscipline: selectedGuestDiscipline,
+                minutes: selectedMinutes,
+                guestUser: selectedGuestUser ? {
+                    user_id: selectedGuestUser.user_id,
+                    display_name: selectedGuestUser.display_name,
+                    email: selectedGuestUser.email
+                } : null,
+                positionsOpen: duelPositionsOpen,
+                challengePositions: serializeChallengePositions()
+            };
+        }
+
+        function loadChallengeDrafts() {
+            challengeDrafts = [];
+            try {
+                const raw = JSON.parse(localStorage.getItem(getChallengeDraftsStorageKey()) || "[]");
+                if (Array.isArray(raw)) {
+                    challengeDrafts = raw;
+                }
+            } catch (_) {
+                challengeDrafts = [];
+            }
+        }
+
+        function persistChallengeDrafts() {
+            localStorage.setItem(getChallengeDraftsStorageKey(), JSON.stringify(challengeDrafts));
+        }
+
+        function renderChallengeDrafts() {
+            const wrap = document.getElementById("draftsList");
+            if (!wrap) return;
+            if (!challengeDrafts.length) {
+                wrap.innerHTML = `<div class="empty">Noch keine Challenge gespeichert.</div>`;
+                return;
+            }
+            wrap.innerHTML = "";
+            challengeDrafts
+                .slice()
+                .sort((a, b) => new Date(b.savedAt || 0).getTime() - new Date(a.savedAt || 0).getTime())
+                .forEach((draft) => {
+                    const row = document.createElement("div");
+                    row.className = "draft-row";
+                    row.innerHTML = `
+                        <div>
+                            <div class="draft-main">${escapeHtml(buildDraftLabel(draft))}</div>
+                            <div class="draft-sub">${escapeHtml((draft.mode === "duel" ? "2 Spieler" : "Solo") + " • " + (draft.minutes ? `${draft.minutes} min` : "ohne Zeit") + " • gespeichert " + formatSavedAt(draft.savedAt))}</div>
+                        </div>
+                        <button class="draft-btn load" type="button">Laden</button>
+                        <button class="draft-btn delete" type="button">Löschen</button>
+                    `;
+                    row.querySelector(".draft-btn.load").onclick = () => applyChallengeDraft(draft.id);
+                    row.querySelector(".draft-btn.delete").onclick = () => deleteChallengeDraft(draft.id);
+                    wrap.appendChild(row);
+                });
+        }
+
+        function applyChallengeDraft(draftId) {
+            const draft = challengeDrafts.find((item) => item.id === draftId);
+            if (!draft) return;
+            selectedMode = draft.mode === "duel" ? "duel" : "solo";
+            selectedHostDiscipline = draft.hostDiscipline || "";
+            selectedGuestDiscipline = draft.guestDiscipline || "";
+            selectedMinutes = Number(draft.minutes || 0);
+            selectedGuestUser = draft.guestUser || null;
+            duelPositionsOpen = Boolean(draft.positionsOpen);
+            setSelectedGuestUser(selectedGuestUser);
+            challengePositions = getDefaultChallengePositions();
+            if (Array.isArray(draft.challengePositions) && draft.challengePositions.length) {
+                const savedMap = new Map(draft.challengePositions.map((item) => [Number(item.id), item]));
+                challengePositions = challengePositions.map((layout) => {
+                    const saved = savedMap.get(layout.id);
+                    if (!saved) return layout;
+                    ["red", "yellow", "white"].forEach((ballKey) => {
+                        if (!saved[ballKey]) return;
+                        layout[ballKey] = {
+                            x: clamp(Number(saved[ballKey].x) || layout[ballKey].x, CHALLENGE_BOUNDS.minX, CHALLENGE_BOUNDS.maxX),
+                            y: clamp(Number(saved[ballKey].y) || layout[ballKey].y, CHALLENGE_BOUNDS.minY, CHALLENGE_BOUNDS.maxY)
+                        };
+                    });
+                    return layout;
+                });
+            }
+            saveChallengePositions();
+            syncModeButtons();
+            syncDisciplineButtons("disciplineButtonsHost", selectedHostDiscipline);
+            syncDisciplineButtons("disciplineButtonsGuest", selectedGuestDiscipline);
+            syncTimeButtons();
+            renderDuelPositions();
+            loadChallengeUsers(document.getElementById("guestUserSearch")?.value || "");
+        }
+
+        function deleteChallengeDraft(draftId) {
+            challengeDrafts = challengeDrafts.filter((item) => item.id !== draftId);
+            persistChallengeDrafts();
+            renderChallengeDrafts();
+        }
+
+        function saveChallengeDraft() {
+            const draft = createDraftSnapshot();
+            challengeDrafts = challengeDrafts.filter((item) => item.id !== draft.id);
+            challengeDrafts.unshift(draft);
+            persistChallengeDrafts();
+            renderChallengeDrafts();
+            alert("Challenge gespeichert.");
         }
 
         function buildDisciplineButtons(containerId, onSelect) {
@@ -580,11 +857,7 @@
             buttons.forEach((btn) => {
                 btn.onclick = () => {
                     selectedMode = btn.dataset.mode;
-                    buttons.forEach((x) => x.classList.remove("active"));
-                    btn.classList.add("active");
-                    document.getElementById("guestPanel").style.display = selectedMode === "duel" ? "block" : "none";
-                    document.getElementById("guestInvitePanel").style.display = selectedMode === "duel" ? "block" : "none";
-                    syncDuelPositionsVisibility();
+                    syncModeButtons();
                 };
             });
         }
@@ -592,15 +865,15 @@
         function renderChallengePositionSvg(layout) {
             return `
                 <svg class="position-table-overlay" viewBox="0 0 ${TABLE_VIEWBOX.width} ${TABLE_VIEWBOX.height}" aria-label="Challenge Position ${layout.id}">
-                    <g transform="translate(${layout.red.x} ${layout.red.y})">
+                    <g class="challenge-ball" data-position-id="${layout.id}" data-ball="red" transform="translate(${layout.red.x} ${layout.red.y})">
                         <circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
                         <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
                     </g>
-                    <g transform="translate(${layout.yellow.x} ${layout.yellow.y})">
+                    <g class="challenge-ball" data-position-id="${layout.id}" data-ball="yellow" transform="translate(${layout.yellow.x} ${layout.yellow.y})">
                         <circle r="12" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
                         <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
                     </g>
-                    <g transform="translate(${layout.white.x} ${layout.white.y})">
+                    <g class="challenge-ball" data-position-id="${layout.id}" data-ball="white" transform="translate(${layout.white.x} ${layout.white.y})">
                         <circle r="12" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="1.5"></circle>
                         <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.72"></circle>
                     </g>
@@ -623,6 +896,72 @@
                     </div>
                 `;
                 grid.appendChild(card);
+            });
+            bindChallengePositionDrag();
+        }
+
+        function getChallengeSvgPoint(event) {
+            const svg = activeChallengeDrag?.svg;
+            if (!svg) return null;
+            const rect = svg.getBoundingClientRect();
+            const clientX = event.clientX ?? 0;
+            const clientY = event.clientY ?? 0;
+            return {
+                x: ((clientX - rect.left) / rect.width) * TABLE_VIEWBOX.width,
+                y: ((clientY - rect.top) / rect.height) * TABLE_VIEWBOX.height
+            };
+        }
+
+        function updateChallengeBallPosition(positionId, ballKey, x, y) {
+            const layout = challengePositions.find((item) => Number(item.id) === Number(positionId));
+            if (!layout || !layout[ballKey]) return;
+            layout[ballKey] = {
+                x: clamp(x, CHALLENGE_BOUNDS.minX, CHALLENGE_BOUNDS.maxX),
+                y: clamp(y, CHALLENGE_BOUNDS.minY, CHALLENGE_BOUNDS.maxY)
+            };
+            const ball = document.querySelector(`.challenge-ball[data-position-id="${positionId}"][data-ball="${ballKey}"]`);
+            if (ball) {
+                ball.setAttribute("transform", `translate(${layout[ballKey].x} ${layout[ballKey].y})`);
+            }
+            saveChallengePositions();
+        }
+
+        function handleChallengePointerMove(event) {
+            if (!activeChallengeDrag) return;
+            event.preventDefault();
+            const point = getChallengeSvgPoint(event);
+            if (!point) return;
+            updateChallengeBallPosition(activeChallengeDrag.positionId, activeChallengeDrag.ballKey, point.x, point.y);
+        }
+
+        function stopChallengePointerDrag() {
+            if (activeChallengeDrag?.element?.releasePointerCapture) {
+                try { activeChallengeDrag.element.releasePointerCapture(activeChallengeDrag.pointerId); } catch (_) {}
+            }
+            activeChallengeDrag = null;
+        }
+
+        function startChallengePointerDrag(event) {
+            const positionId = Number(event.currentTarget.dataset.positionId || 0);
+            const ballKey = event.currentTarget.dataset.ball || "";
+            const svg = event.currentTarget.ownerSVGElement;
+            if (!positionId || !ballKey || !svg) return;
+            activeChallengeDrag = {
+                positionId,
+                ballKey,
+                svg,
+                element: event.currentTarget,
+                pointerId: event.pointerId
+            };
+            if (event.currentTarget.setPointerCapture) {
+                try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) {}
+            }
+            event.preventDefault();
+        }
+
+        function bindChallengePositionDrag() {
+            document.querySelectorAll(".challenge-ball").forEach((ball) => {
+                ball.addEventListener("pointerdown", startChallengePointerDrag);
             });
         }
 
@@ -901,17 +1240,24 @@
             buildDisciplineButtons("disciplineButtonsGuest", (value) => {
                 selectedGuestDiscipline = value;
             });
+            loadChallengePositions();
+            loadChallengeDrafts();
             renderDuelPositions();
+            renderChallengeDrafts();
             bindModeButtons();
             bindTimeButtons();
             bindGuestUserSearch();
             setSelectedGuestUser(null);
-            syncDuelPositionsVisibility();
+            syncModeButtons();
+            syncTimeButtons();
             loadChallengeUsers("");
             loadIncomingInvites();
         }
 
         document.addEventListener("fullscreenchange", updateFullscreenButton);
+        window.addEventListener("pointermove", handleChallengePointerMove);
+        window.addEventListener("pointerup", stopChallengePointerDrag);
+        window.addEventListener("pointercancel", stopChallengePointerDrag);
         init();
     </script>
 </body>
