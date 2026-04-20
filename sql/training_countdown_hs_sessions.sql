@@ -23,6 +23,8 @@ create table if not exists public.training_countdown_hs_sessions (
   guest_innings int not null default 0,
   host_high int not null default 0,
   guest_high int not null default 0,
+  challenge_positions jsonb not null default '[]'::jsonb,
+  position_index int not null default 1,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -31,10 +33,22 @@ alter table public.training_countdown_hs_sessions
   add column if not exists countdown_started_at timestamptz;
 
 alter table public.training_countdown_hs_sessions
+  add column if not exists challenge_positions jsonb not null default '[]'::jsonb;
+
+alter table public.training_countdown_hs_sessions
+  add column if not exists position_index int not null default 1;
+
+alter table public.training_countdown_hs_sessions
   drop constraint if exists training_countdown_hs_sessions_duration_minutes_check;
 alter table public.training_countdown_hs_sessions
   add constraint training_countdown_hs_sessions_duration_minutes_check
   check (duration_minutes in (30,45,60));
+
+alter table public.training_countdown_hs_sessions
+  drop constraint if exists training_countdown_hs_sessions_position_index_check;
+alter table public.training_countdown_hs_sessions
+  add constraint training_countdown_hs_sessions_position_index_check
+  check (position_index between 1 and 6);
 
 create index if not exists idx_countdown_hs_host on public.training_countdown_hs_sessions(host_user_id);
 create index if not exists idx_countdown_hs_guest_user on public.training_countdown_hs_sessions(guest_user_id);
