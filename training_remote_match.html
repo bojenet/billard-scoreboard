@@ -29,7 +29,9 @@
         .user-row:last-child, .invite-row:last-child { border-bottom: none; }
         .user-main, .invite-main { font-size: 14px; font-weight: 700; }
         .user-sub, .invite-sub { margin-top: 2px; font-size: 12px; opacity: .72; }
+        .invite-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
         .user-btn, .invite-btn, .small-btn { border: none; border-radius: 10px; background: #2f4fe0; color: #fff; font-size: 14px; font-weight: 700; padding: 8px 12px; cursor: pointer; }
+        .invite-btn.cancel { background:#9f3434; }
         .empty { padding: 12px; font-size: 14px; opacity: .7; }
         .selected-user { display:none; margin-bottom: 10px; padding: 10px 12px; border:1px solid #4d71d4; border-radius:12px; background:rgba(24,45,110,.62); }
         .selected-user.active { display:block; }
@@ -51,15 +53,15 @@
         .challenge-ball:active { cursor: grabbing; }
         .zoom-modal { position: fixed; inset: 0; z-index: 1500; display: none; align-items:center; justify-content:center; padding:18px; background: rgba(3,8,22,.82); backdrop-filter: blur(8px); }
         .zoom-modal.open { display:flex; }
-        .zoom-dialog { width:min(1100px,96vw); max-height:94vh; border-radius:22px; border:1px solid #3557b7; background:linear-gradient(180deg,#162b66,#0f1c3f); box-shadow:0 32px 70px rgba(0,0,0,.55); overflow:hidden; display:grid; grid-template-rows:auto 1fr; }
+        .zoom-dialog { width:min(1240px,98vw); max-height:96vh; border-radius:22px; border:1px solid #3557b7; background:linear-gradient(180deg,#162b66,#0f1c3f); box-shadow:0 32px 70px rgba(0,0,0,.55); overflow:hidden; display:grid; grid-template-rows:auto 1fr; }
         .zoom-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #27417f; }
         .zoom-title { font-size:18px; font-weight:700; }
         .zoom-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
         .zoom-btn { border:none; border-radius:10px; background:#2746aa; color:white; font-size:14px; font-weight:700; padding:10px 12px; cursor:pointer; }
         .zoom-close { background:#6c2d4f; }
-        .zoom-body { overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; }
-        .zoom-stage { transform-origin: top center; transition: transform .12s ease-out; }
-        .zoom-table-wrap { position:relative; width:min(674px,86vw); border-radius:18px; overflow:hidden; background:#f7f7f4; aspect-ratio:674/1200; box-shadow:0 18px 38px rgba(0,0,0,.28); }
+        .zoom-body { overflow:auto; padding:16px; display:block; }
+        .zoom-stage { width:max-content; margin:0 auto; transform-origin: top left; transition: transform .12s ease-out; }
+        .zoom-table-wrap { position:relative; width:674px; border-radius:18px; overflow:hidden; background:#f7f7f4; aspect-ratio:674/1200; box-shadow:0 18px 38px rgba(0,0,0,.28); }
         .actions { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-top: 10px; }
         .btn { padding:14px; border:none; border-radius:14px; color:white; font-size:18px; font-weight:700; cursor:pointer; }
         .btn-start { background: linear-gradient(180deg, #2f4fe0, #1c3380); }
@@ -288,23 +290,34 @@
         }
         function bindChallengePositionDrag(root = document) { root.querySelectorAll(".challenge-ball").forEach((ball) => { ball.addEventListener("pointerdown", startChallengePointerDrag); }); }
         function updatePositionZoomStage() { const stage = document.getElementById("positionZoomStage"); if (stage) stage.style.transform = `scale(${currentPositionZoom})`; }
-        function openPositionZoom(positionId) { currentPositionZoom = 2; document.getElementById("positionZoomTitle").innerText = `Position ${positionId}`; renderSingleChallengePosition(document.getElementById("positionZoomContent"), positionId); updatePositionZoomStage(); document.getElementById("positionZoomModal").classList.add("open"); }
+        function openPositionZoom(positionId) { currentPositionZoom = 1; document.getElementById("positionZoomTitle").innerText = `Position ${positionId}`; renderSingleChallengePosition(document.getElementById("positionZoomContent"), positionId); updatePositionZoomStage(); document.getElementById("positionZoomModal").classList.add("open"); }
         function closePositionZoom() { document.getElementById("positionZoomModal").classList.remove("open"); }
-        function changePositionZoom(delta) { currentPositionZoom = clamp(Number((currentPositionZoom + delta).toFixed(2)), 1, 5); updatePositionZoomStage(); }
+        function changePositionZoom(delta) { currentPositionZoom = clamp(Number((currentPositionZoom + delta).toFixed(2)), 0.5, 5); updatePositionZoomStage(); }
         function resetPositionZoom() { currentPositionZoom = 1; updatePositionZoomStage(); }
+        async function cancelInvite(sessionId) {
+            if (!sessionId) return;
+            const { error } = await supabaseClient.from("training_remote_match_sessions").update({ status: "cancelled" }).eq("id", sessionId).eq("host_user_id", currentUser.id).eq("status", "active");
+            if (error) { alert("Einladung konnte nicht abgebrochen werden: " + error.message); return; }
+            await loadIncomingInvites();
+        }
         async function loadIncomingInvites() {
             const email = String(currentUser?.email || "").trim().toLowerCase();
             if (!email) return;
-            const { data, error } = await supabaseClient.from("training_remote_match_sessions").select("id,host_name,host_discipline,guest_discipline,target_points,status").eq("status", "active").or(`guest_user_id.eq.${currentUser.id},guest_email.eq.${email}`).order("created_at", { ascending: false }).limit(10);
+            const { data, error } = await supabaseClient.from("training_remote_match_sessions").select("id,host_user_id,guest_user_id,host_name,guest_name,host_discipline,guest_discipline,target_points,status").eq("status", "active").or(`host_user_id.eq.${currentUser.id},guest_user_id.eq.${currentUser.id},guest_email.eq.${email}`).order("created_at", { ascending: false }).limit(20);
             const wrap = document.getElementById("invitesList");
             if (error) { wrap.innerHTML = `<div class="empty">Einladungen konnten nicht geladen werden (${error.message}).</div>`; return; }
             if (!data || !data.length) { wrap.innerHTML = `<div class="empty">Keine offenen Remote-Einladungen.</div>`; return; }
             wrap.innerHTML = "";
             data.forEach((session) => {
+                const isHostInvite = String(session.host_user_id || "") === String(currentUser?.id || "");
+                const opponentName = isHostInvite ? (session.guest_name || "Spieler 2") : (session.host_name || "Spieler 1");
+                const inviteMode = isHostInvite ? "Deine Einladung" : "Eingeladen von";
                 const row = document.createElement("div");
                 row.className = "invite-row";
-                row.innerHTML = `<div><div class="invite-main">${session.host_name || "Spieler 1"} vs ${session.guest_name || "du"}</div><div class="invite-sub">${session.host_discipline || "-"} vs ${session.guest_discipline || "-"} • ${session.target_points || 0} Punkte</div></div><button class="invite-btn" type="button">Beitreten</button>`;
-                row.querySelector(".invite-btn").onclick = () => { window.location.href = "training_remote_match_run.html?session=" + session.id; };
+                row.innerHTML = `<div><div class="invite-main">${inviteMode}: ${opponentName}</div><div class="invite-sub">${session.host_discipline || "-"} vs ${session.guest_discipline || "-"} • ${session.target_points || 0} Punkte</div></div><div class="invite-actions"><button class="invite-btn" type="button">${isHostInvite ? "Öffnen" : "Beitreten"}</button>${isHostInvite ? '<button class="invite-btn cancel" type="button">Abbrechen</button>' : ''}</div>`;
+                const buttons = row.querySelectorAll(".invite-btn");
+                buttons[0].onclick = () => { window.location.href = "training_remote_match_run.html?session=" + session.id; };
+                if (isHostInvite && buttons[1]) buttons[1].onclick = () => cancelInvite(session.id);
                 wrap.appendChild(row);
             });
         }
