@@ -345,8 +345,25 @@
             const input = document.getElementById("chatInput");
             const message = String(input.value || "").trim();
             if (!message || !sessionData?.id) return;
-            const { error } = await supabaseClient.from("training_remote_match_messages").insert({ session_id: sessionData.id, sender_user_id: currentUser.id, sender_name: getDisplayName(currentUser), message });
-            if (!error) input.value = "";
+            const { data, error } = await supabaseClient
+                .from("training_remote_match_messages")
+                .insert({ session_id: sessionData.id, sender_user_id: currentUser.id, sender_name: getDisplayName(currentUser), message })
+                .select("*")
+                .single();
+            if (error) {
+                alert("Chat-Nachricht konnte nicht gesendet werden: " + error.message);
+                return;
+            }
+            input.value = "";
+            if (data) {
+                const exists = chatMessages.some((msg) => Number(msg.id) === Number(data.id));
+                if (!exists) {
+                    chatMessages.push(data);
+                    renderChat();
+                }
+            } else {
+                loadChatMessages();
+            }
         }
         function renderChat() {
             const list = document.getElementById("chatList");
@@ -487,7 +504,19 @@
             if (event.target?.id !== "seriesInput") return;
             event.target.value = String(clampSeriesInputValue(event.target.value));
         });
-        window.addEventListener("keydown", (event) => { if (event.key === "Enter") commitInning(); if (event.key === "Escape") closePositionModal(); });
+        document.getElementById("chatInput")?.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            sendChatMessage();
+        });
+        window.addEventListener("keydown", (event) => {
+            const activeId = document.activeElement?.id || "";
+            if (event.key === "Escape") {
+                closePositionModal();
+                return;
+            }
+            if (event.key === "Enter" && activeId !== "chatInput") commitInning();
+        });
         window.addEventListener("beforeunload", () => {
             clearNextPositionTimer();
             stopFallbackPolling();
