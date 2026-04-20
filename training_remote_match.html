@@ -24,7 +24,7 @@
         .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
         .chip { padding: 10px 14px; border: none; border-radius: 12px; background: #1c3380; color: white; font-size: 16px; font-weight: 700; cursor: pointer; border: 1px solid #2f4ea0; }
         .chip.active { background: #ffd84a; color: #101420; border-color: #ffe27a; }
-        .user-results, .invite-list { margin-top: 10px; border: 1px solid #2f4ea0; border-radius: 12px; overflow: hidden; background: rgba(8, 20, 54, 0.35); }
+        .user-results, .invite-list, .draft-list { margin-top: 10px; border: 1px solid #2f4ea0; border-radius: 12px; overflow: hidden; background: rgba(8, 20, 54, 0.35); }
         .user-row, .invite-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid #27417f; }
         .user-row:last-child, .invite-row:last-child { border-bottom: none; }
         .user-main, .invite-main { font-size: 14px; font-weight: 700; }
@@ -135,12 +135,19 @@
             </div>
 
             <div class="section">
+                <h2 class="section-title">Gespeicherter Entwurf</h2>
+                <div class="section-sub">`Speichern` überschreibt deinen vorhandenen Setup-Stand statt einen neuen anzulegen.</div>
+                <div class="draft-list" id="draftList"></div>
+            </div>
+
+            <div class="section">
                 <h2 class="section-title">Meine Einladungen</h2>
                 <div class="section-sub">Aktive Remote-Matches, in die du eingeladen wurdest</div>
                 <div class="invite-list" id="invitesList"></div>
             </div>
 
             <div class="actions">
+                <button class="btn btn-back" onclick="saveRemoteMatchDraft()">Speichern</button>
                 <button class="btn btn-start" onclick="startRemoteMatch()">Starten</button>
                 <button class="btn btn-back" onclick="window.location.href='training.html'">Zurück</button>
                 <button class="btn btn-back" onclick="window.location.href='index.html'">Home</button>
@@ -192,6 +199,7 @@
         let challengePositions = [];
         let activeChallengeDrag = null;
         let currentPositionZoom = 1;
+        const REMOTE_MATCH_DRAFT_KEY = "training_remote_match_setup_draft_v1";
 
         function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
         function getDefaultChallengePositions() { return positionDefaults.map((x) => ({ id: x.id, red: { ...x.red }, yellow: { ...x.yellow }, white: { ...x.white } })); }
@@ -208,6 +216,63 @@
             const meta = document.getElementById("selectedGuestMeta");
             if (!selectedGuestUser) { box.classList.remove("active"); name.innerText = ""; meta.innerText = ""; return; }
             box.classList.add("active"); name.innerText = selectedGuestUser.display_name || selectedGuestUser.email || "User"; meta.innerText = selectedGuestUser.email || "";
+        }
+        function syncDisciplineButtons(containerId, selectedValue) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.querySelectorAll(".chip").forEach((btn) => btn.classList.toggle("active", btn.innerText === selectedValue));
+        }
+        function getRemoteMatchDraftPayload() {
+            return {
+                hostDiscipline: selectedHostDiscipline,
+                guestDiscipline: selectedGuestDiscipline,
+                guestUser: selectedGuestUser ? {
+                    user_id: selectedGuestUser.user_id,
+                    display_name: selectedGuestUser.display_name || "",
+                    email: selectedGuestUser.email || ""
+                } : null,
+                targetPoints: Number(document.getElementById("targetPointsInput").value || 50),
+                challengePositions: serializeChallengePositions(),
+                updatedAt: new Date().toISOString()
+            };
+        }
+        function renderDraftCard() {
+            const wrap = document.getElementById("draftList");
+            const raw = localStorage.getItem(REMOTE_MATCH_DRAFT_KEY);
+            if (!raw) { wrap.innerHTML = `<div class="empty">Kein gespeicherter Entwurf vorhanden.</div>`; return; }
+            let draft = null;
+            try { draft = JSON.parse(raw); } catch (_) {}
+            if (!draft) { wrap.innerHTML = `<div class="empty">Kein gespeicherter Entwurf vorhanden.</div>`; return; }
+            const updated = draft.updatedAt ? new Date(draft.updatedAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : "";
+            wrap.innerHTML = `<div class="invite-row"><div><div class="invite-main">${draft.guestUser?.display_name || draft.guestUser?.email || "Ohne Gegner"}</div><div class="invite-sub">${draft.hostDiscipline || "-"} vs ${draft.guestDiscipline || "-"} • ${draft.targetPoints || 0} Punkte • zuletzt ${updated}</div></div><div class="invite-actions"><button class="invite-btn" type="button">Laden</button><button class="invite-btn cancel" type="button">Löschen</button></div></div>`;
+            const buttons = wrap.querySelectorAll(".invite-btn");
+            buttons[0].onclick = () => loadRemoteMatchDraft();
+            buttons[1].onclick = () => { localStorage.removeItem(REMOTE_MATCH_DRAFT_KEY); renderDraftCard(); };
+        }
+        function loadRemoteMatchDraft() {
+            const raw = localStorage.getItem(REMOTE_MATCH_DRAFT_KEY);
+            if (!raw) return;
+            let draft = null;
+            try { draft = JSON.parse(raw); } catch (_) {}
+            if (!draft) return;
+            selectedHostDiscipline = draft.hostDiscipline || "";
+            selectedGuestDiscipline = draft.guestDiscipline || "";
+            syncDisciplineButtons("disciplineButtonsHost", selectedHostDiscipline);
+            syncDisciplineButtons("disciplineButtonsGuest", selectedGuestDiscipline);
+            setSelectedGuestUser(draft.guestUser || null);
+            document.getElementById("targetPointsInput").value = draft.targetPoints || 50;
+            challengePositions = Array.isArray(draft.challengePositions) && draft.challengePositions.length
+                ? draft.challengePositions.map((x) => ({ id: x.id, red: { ...x.red }, yellow: { ...x.yellow }, white: { ...x.white } }))
+                : getDefaultChallengePositions();
+            renderPositions();
+        }
+        function saveRemoteMatchDraft() {
+            if (!selectedHostDiscipline || !selectedGuestDiscipline) { alert("Bitte für beide Spieler eine Disziplin wählen."); return; }
+            const targetPoints = Number(document.getElementById("targetPointsInput").value || 0);
+            if (!Number.isInteger(targetPoints) || targetPoints < 1) { alert("Bitte gültige Zielpunkte eingeben."); return; }
+            localStorage.setItem(REMOTE_MATCH_DRAFT_KEY, JSON.stringify(getRemoteMatchDraftPayload()));
+            renderDraftCard();
+            alert("Setup überschrieben.");
         }
         function renderGuestUserResults(users, errorText = "") {
             const wrap = document.getElementById("guestUserResults");
@@ -352,6 +417,7 @@
             buildDisciplineButtons("disciplineButtonsHost", (value) => { selectedHostDiscipline = value; });
             buildDisciplineButtons("disciplineButtonsGuest", (value) => { selectedGuestDiscipline = value; });
             renderPositions();
+            renderDraftCard();
             document.getElementById("guestUserSearch").addEventListener("input", () => loadChallengeUsers(document.getElementById("guestUserSearch").value || ""));
             await loadChallengeUsers("");
             await loadIncomingInvites();
