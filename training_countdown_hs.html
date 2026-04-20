@@ -409,6 +409,25 @@
             margin-bottom: 10px;
         }
 
+        .position-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .position-zoom-btn {
+            border: none;
+            border-radius: 10px;
+            background: #2746aa;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 8px 10px;
+            cursor: pointer;
+        }
+
         .position-table-wrap {
             position: relative;
             border-radius: 14px;
@@ -440,6 +459,99 @@
 
         .challenge-ball:active {
             cursor: grabbing;
+        }
+
+        .zoom-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: rgba(3, 8, 22, 0.82);
+            backdrop-filter: blur(8px);
+        }
+
+        .zoom-modal.open {
+            display: flex;
+        }
+
+        .zoom-dialog {
+            width: min(1100px, 96vw);
+            max-height: 94vh;
+            border-radius: 22px;
+            border: 1px solid #3557b7;
+            background: linear-gradient(180deg, #162b66, #0f1c3f);
+            box-shadow: 0 32px 70px rgba(0, 0, 0, 0.55);
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: auto 1fr;
+        }
+
+        .zoom-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid #27417f;
+        }
+
+        .zoom-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .zoom-sub {
+            margin-top: 4px;
+            font-size: 13px;
+            opacity: 0.76;
+        }
+
+        .zoom-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .zoom-btn {
+            border: none;
+            border-radius: 10px;
+            background: #2746aa;
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 10px 12px;
+            cursor: pointer;
+        }
+
+        .zoom-close {
+            background: #6c2d4f;
+        }
+
+        .zoom-body {
+            overflow: auto;
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .zoom-stage {
+            transform-origin: top center;
+            transition: transform .12s ease-out;
+        }
+
+        .zoom-table-wrap {
+            position: relative;
+            width: min(674px, 86vw);
+            border-radius: 18px;
+            overflow: hidden;
+            background: #f7f7f4;
+            aspect-ratio: 674 / 1200;
+            box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
         }
 
         .actions {
@@ -586,6 +698,28 @@
         </div>
     </div>
 
+    <div class="zoom-modal" id="positionZoomModal">
+        <div class="zoom-dialog">
+            <div class="zoom-head">
+                <div>
+                    <div class="zoom-title" id="positionZoomTitle">Position</div>
+                    <div class="zoom-sub">Große Präzisionsansicht zum exakten Platzieren der Bälle.</div>
+                </div>
+                <div class="zoom-actions">
+                    <button class="zoom-btn" type="button" onclick="changePositionZoom(-0.5)">−</button>
+                    <button class="zoom-btn" type="button" onclick="changePositionZoom(0.5)">+</button>
+                    <button class="zoom-btn" type="button" onclick="resetPositionZoom()">100%</button>
+                    <button class="zoom-btn zoom-close" type="button" onclick="closePositionZoom()">Schließen</button>
+                </div>
+            </div>
+            <div class="zoom-body">
+                <div class="zoom-stage" id="positionZoomStage">
+                    <div class="zoom-table-wrap" id="positionZoomContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
@@ -611,6 +745,10 @@
         let duelPositionsOpen = false;
         const TABLE_VIEWBOX = { width: 674, height: 1200 };
         const CHALLENGE_BOUNDS = { minX: 70, maxX: 605, minY: 58, maxY: 1143 };
+        const DISCIPLINE_TEMPLATES = {
+            "Cadre 47/2": "assets/grosser-tisch-47-2.png",
+            "Cadre 71/2": "assets/mb-71-2.png"
+        };
         const challengePositionDefaults = [
             { id: 1, red: { x: 236, y: 166 }, yellow: { x: 259, y: 214 }, white: { x: 232, y: 201 } },
             { id: 2, red: { x: 288, y: 262 }, yellow: { x: 316, y: 305 }, white: { x: 272, y: 323 } },
@@ -622,6 +760,8 @@
         let challengePositions = [];
         let activeChallengeDrag = null;
         let challengeDrafts = [];
+        let activeZoomPositionId = null;
+        let currentPositionZoom = 1;
 
         function createRunId() {
             if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -717,6 +857,21 @@
             }));
         }
 
+        function getActiveChallengeDiscipline() {
+            if (selectedMode === "duel") {
+                return selectedHostDiscipline || selectedGuestDiscipline || "Cadre 47/2";
+            }
+            return selectedHostDiscipline || "Cadre 47/2";
+        }
+
+        function getChallengeTemplateForDiscipline(discipline) {
+            return DISCIPLINE_TEMPLATES[discipline] || "assets/grosser-tisch-47-2.png";
+        }
+
+        function getChallengePositionLayout(positionId) {
+            return challengePositions.find((item) => Number(item.id) === Number(positionId)) || null;
+        }
+
         function buildDraftLabel(draft) {
             if (draft.mode === "duel") {
                 return `${draft.hostDiscipline || "-"} vs ${draft.guestDiscipline || "-"} • ${draft.guestUser?.display_name || draft.guestUser?.email || "Spieler 2"}`;
@@ -737,6 +892,7 @@
                     display_name: selectedGuestUser.display_name,
                     email: selectedGuestUser.email
                 } : null,
+                templateDiscipline: getActiveChallengeDiscipline(),
                 positionsOpen: duelPositionsOpen,
                 challengePositions: serializeChallengePositions()
             };
@@ -847,6 +1003,7 @@
                     container.querySelectorAll(".chip").forEach((x) => x.classList.remove("active"));
                     btn.classList.add("active");
                     onSelect(discipline);
+                    renderDuelPositions();
                 };
                 container.appendChild(btn);
             });
@@ -881,6 +1038,16 @@
             `;
         }
 
+        function renderSingleChallengePosition(container, positionId) {
+            const layout = getChallengePositionLayout(positionId);
+            if (!container || !layout) return;
+            container.innerHTML = `
+                <img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveChallengeDiscipline())}" alt="Challenge Position ${layout.id}">
+                ${renderChallengePositionSvg(layout)}
+            `;
+            bindChallengePositionDrag(container);
+        }
+
         function renderDuelPositions() {
             const grid = document.getElementById("duelPositionsGrid");
             if (!grid) return;
@@ -889,15 +1056,21 @@
                 const card = document.createElement("div");
                 card.className = "position-card";
                 card.innerHTML = `
-                    <div class="position-card-title">Position ${layout.id}</div>
-                    <div class="position-table-wrap">
-                        <img class="position-table-bg" src="assets/grosser-tisch-47-2.png" alt="Challenge Position ${layout.id}">
+                    <div class="position-card-head">
+                        <div class="position-card-title">Position ${layout.id}</div>
+                        <button class="position-zoom-btn" type="button" data-position-zoom="${layout.id}">Groß</button>
+                    </div>
+                    <div class="position-table-wrap" data-position-preview="${layout.id}">
+                        <img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveChallengeDiscipline())}" alt="Challenge Position ${layout.id}">
                         ${renderChallengePositionSvg(layout)}
                     </div>
                 `;
                 grid.appendChild(card);
             });
-            bindChallengePositionDrag();
+            bindChallengePositionDrag(grid);
+            grid.querySelectorAll("[data-position-zoom]").forEach((btn) => {
+                btn.onclick = () => openPositionZoom(Number(btn.dataset.positionZoom || 0));
+            });
         }
 
         function getChallengeSvgPoint(event) {
@@ -919,10 +1092,9 @@
                 x: clamp(x, CHALLENGE_BOUNDS.minX, CHALLENGE_BOUNDS.maxX),
                 y: clamp(y, CHALLENGE_BOUNDS.minY, CHALLENGE_BOUNDS.maxY)
             };
-            const ball = document.querySelector(`.challenge-ball[data-position-id="${positionId}"][data-ball="${ballKey}"]`);
-            if (ball) {
+            document.querySelectorAll(`.challenge-ball[data-position-id="${positionId}"][data-ball="${ballKey}"]`).forEach((ball) => {
                 ball.setAttribute("transform", `translate(${layout[ballKey].x} ${layout[ballKey].y})`);
-            }
+            });
             saveChallengePositions();
         }
 
@@ -959,10 +1131,46 @@
             event.preventDefault();
         }
 
-        function bindChallengePositionDrag() {
-            document.querySelectorAll(".challenge-ball").forEach((ball) => {
+        function bindChallengePositionDrag(root = document) {
+            root.querySelectorAll(".challenge-ball").forEach((ball) => {
                 ball.addEventListener("pointerdown", startChallengePointerDrag);
             });
+        }
+
+        function updatePositionZoomStage() {
+            const stage = document.getElementById("positionZoomStage");
+            if (!stage) return;
+            stage.style.transform = `scale(${currentPositionZoom})`;
+        }
+
+        function openPositionZoom(positionId) {
+            if (!positionId) return;
+            activeZoomPositionId = positionId;
+            currentPositionZoom = 2;
+            const modal = document.getElementById("positionZoomModal");
+            const title = document.getElementById("positionZoomTitle");
+            const content = document.getElementById("positionZoomContent");
+            if (!modal || !title || !content) return;
+            title.innerText = `Position ${positionId}`;
+            renderSingleChallengePosition(content, positionId);
+            updatePositionZoomStage();
+            modal.classList.add("open");
+        }
+
+        function closePositionZoom() {
+            const modal = document.getElementById("positionZoomModal");
+            if (modal) modal.classList.remove("open");
+            activeZoomPositionId = null;
+        }
+
+        function changePositionZoom(delta) {
+            currentPositionZoom = clamp(Number((currentPositionZoom + delta).toFixed(2)), 1, 5);
+            updatePositionZoomStage();
+        }
+
+        function resetPositionZoom() {
+            currentPositionZoom = 1;
+            updatePositionZoomStage();
         }
 
         function syncDuelPositionsVisibility() {
@@ -1258,6 +1466,9 @@
         window.addEventListener("pointermove", handleChallengePointerMove);
         window.addEventListener("pointerup", stopChallengePointerDrag);
         window.addEventListener("pointercancel", stopChallengePointerDrag);
+        window.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") closePositionZoom();
+        });
         init();
     </script>
 </body>
