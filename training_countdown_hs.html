@@ -288,6 +288,104 @@
             opacity: 0.7;
         }
 
+        .positions-panel {
+            display: none;
+            margin-bottom: 16px;
+            border: 1px solid #2f4ea0;
+            border-radius: 16px;
+            background: rgba(8, 20, 54, 0.42);
+            overflow: hidden;
+        }
+
+        .positions-panel.active {
+            display: block;
+        }
+
+        .positions-toggle {
+            width: 100%;
+            border: none;
+            border-bottom: 1px solid #27417f;
+            background: rgba(22, 43, 102, 0.9);
+            color: white;
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .positions-toggle-main {
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .positions-toggle-sub {
+            margin-top: 4px;
+            font-size: 13px;
+            opacity: 0.75;
+        }
+
+        .positions-toggle-icon {
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .positions-body {
+            display: none;
+            padding: 14px;
+        }
+
+        .positions-body.open {
+            display: block;
+        }
+
+        .positions-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .position-card {
+            border: 1px solid #3557b7;
+            border-radius: 16px;
+            background: rgba(12, 28, 72, 0.74);
+            padding: 12px;
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+        }
+
+        .position-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .position-table-wrap {
+            position: relative;
+            border-radius: 14px;
+            overflow: hidden;
+            background: #f7f7f4;
+            aspect-ratio: 674 / 1200;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+        }
+
+        .position-table-bg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+        }
+
+        .position-table-overlay {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
         .actions {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -328,6 +426,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .positions-grid {
+                grid-template-columns: 1fr;
+            }
+
             .header h1 {
                 font-size: 36px;
             }
@@ -364,6 +466,19 @@
                     </div>
                     <div class="hint">F&uuml;r Online-Challenges muss der Gegner einen Account haben.</div>
                     <div class="user-results" id="guestUserResults"></div>
+                </div>
+
+                <div class="positions-panel" id="duelPositionsPanel">
+                    <button class="positions-toggle" type="button" onclick="toggleDuelPositions()">
+                        <div>
+                            <div class="positions-toggle-main">Challenge-Positionen 1-6</div>
+                            <div class="positions-toggle-sub">Aufklappen, um die sechs Einzelgrafiken f&uuml;r den 2-Spieler-Modus zu sehen.</div>
+                        </div>
+                        <span class="positions-toggle-icon" id="duelPositionsToggleIcon">+</span>
+                    </button>
+                    <div class="positions-body" id="duelPositionsBody">
+                        <div class="positions-grid" id="duelPositionsGrid"></div>
+                    </div>
                 </div>
 
                 <h2 class="section-title">Disziplinen</h2>
@@ -426,6 +541,16 @@
         let selectedGuestDiscipline = "";
         let selectedMinutes = 0;
         let selectedGuestUser = null;
+        let duelPositionsOpen = false;
+        const TABLE_VIEWBOX = { width: 674, height: 1200 };
+        const challengePositions = [
+            { id: 1, red: { x: 236, y: 166 }, yellow: { x: 259, y: 214 }, white: { x: 232, y: 201 } },
+            { id: 2, red: { x: 288, y: 262 }, yellow: { x: 316, y: 305 }, white: { x: 272, y: 323 } },
+            { id: 3, red: { x: 411, y: 438 }, yellow: { x: 378, y: 485 }, white: { x: 441, y: 478 } },
+            { id: 4, red: { x: 492, y: 696 }, yellow: { x: 455, y: 738 }, white: { x: 524, y: 756 } },
+            { id: 5, red: { x: 332, y: 882 }, yellow: { x: 360, y: 928 }, white: { x: 306, y: 939 } },
+            { id: 6, red: { x: 237, y: 1038 }, yellow: { x: 275, y: 1078 }, white: { x: 221, y: 1091 } }
+        ];
 
         function createRunId() {
             if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -459,8 +584,66 @@
                     btn.classList.add("active");
                     document.getElementById("guestPanel").style.display = selectedMode === "duel" ? "block" : "none";
                     document.getElementById("guestInvitePanel").style.display = selectedMode === "duel" ? "block" : "none";
+                    syncDuelPositionsVisibility();
                 };
             });
+        }
+
+        function renderChallengePositionSvg(layout) {
+            return `
+                <svg class="position-table-overlay" viewBox="0 0 ${TABLE_VIEWBOX.width} ${TABLE_VIEWBOX.height}" aria-label="Challenge Position ${layout.id}">
+                    <g transform="translate(${layout.red.x} ${layout.red.y})">
+                        <circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
+                        <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
+                    </g>
+                    <g transform="translate(${layout.yellow.x} ${layout.yellow.y})">
+                        <circle r="12" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
+                        <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
+                    </g>
+                    <g transform="translate(${layout.white.x} ${layout.white.y})">
+                        <circle r="12" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="1.5"></circle>
+                        <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.72"></circle>
+                    </g>
+                </svg>
+            `;
+        }
+
+        function renderDuelPositions() {
+            const grid = document.getElementById("duelPositionsGrid");
+            if (!grid) return;
+            grid.innerHTML = "";
+            challengePositions.forEach((layout) => {
+                const card = document.createElement("div");
+                card.className = "position-card";
+                card.innerHTML = `
+                    <div class="position-card-title">Position ${layout.id}</div>
+                    <div class="position-table-wrap">
+                        <img class="position-table-bg" src="assets/grosser-tisch-47-2.png" alt="Challenge Position ${layout.id}">
+                        ${renderChallengePositionSvg(layout)}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function syncDuelPositionsVisibility() {
+            const panel = document.getElementById("duelPositionsPanel");
+            const body = document.getElementById("duelPositionsBody");
+            const icon = document.getElementById("duelPositionsToggleIcon");
+            const duelActive = selectedMode === "duel";
+            if (!panel || !body || !icon) return;
+            panel.classList.toggle("active", duelActive);
+            if (!duelActive) {
+                duelPositionsOpen = false;
+            }
+            body.classList.toggle("open", duelActive && duelPositionsOpen);
+            icon.innerText = duelActive && duelPositionsOpen ? "−" : "+";
+        }
+
+        function toggleDuelPositions() {
+            if (selectedMode !== "duel") return;
+            duelPositionsOpen = !duelPositionsOpen;
+            syncDuelPositionsVisibility();
         }
 
         function bindTimeButtons() {
@@ -718,10 +901,12 @@
             buildDisciplineButtons("disciplineButtonsGuest", (value) => {
                 selectedGuestDiscipline = value;
             });
+            renderDuelPositions();
             bindModeButtons();
             bindTimeButtons();
             bindGuestUserSearch();
             setSelectedGuestUser(null);
+            syncDuelPositionsVisibility();
             loadChallengeUsers("");
             loadIncomingInvites();
         }
