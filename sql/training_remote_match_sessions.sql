@@ -12,9 +12,9 @@ create table if not exists public.training_remote_match_sessions (
   guest_discipline text,
   target_points int not null check (target_points > 0),
   status text not null default 'active' check (status in ('active','finished','cancelled')),
-  active_player int not null default 1,
   challenge_positions jsonb not null default '[]'::jsonb,
-  position_index int not null default 1,
+  host_position_index int not null default 1,
+  guest_position_index int not null default 1,
   host_series jsonb not null default '[]'::jsonb,
   guest_series jsonb not null default '[]'::jsonb,
   host_score int not null default 0,
@@ -28,25 +28,25 @@ create table if not exists public.training_remote_match_sessions (
 );
 
 alter table public.training_remote_match_sessions
-  add column if not exists active_player int not null default 1;
-
-alter table public.training_remote_match_sessions
   add column if not exists challenge_positions jsonb not null default '[]'::jsonb;
 
 alter table public.training_remote_match_sessions
-  add column if not exists position_index int not null default 1;
+  add column if not exists host_position_index int not null default 1;
 
 alter table public.training_remote_match_sessions
-  drop constraint if exists training_remote_match_sessions_active_player_check;
-alter table public.training_remote_match_sessions
-  add constraint training_remote_match_sessions_active_player_check
-  check (active_player in (1,2));
+  add column if not exists guest_position_index int not null default 1;
 
 alter table public.training_remote_match_sessions
-  drop constraint if exists training_remote_match_sessions_position_index_check;
+  drop constraint if exists training_remote_match_sessions_host_position_index_check;
 alter table public.training_remote_match_sessions
-  add constraint training_remote_match_sessions_position_index_check
-  check (position_index between 1 and 6);
+  add constraint training_remote_match_sessions_host_position_index_check
+  check (host_position_index between 1 and 6);
+
+alter table public.training_remote_match_sessions
+  drop constraint if exists training_remote_match_sessions_guest_position_index_check;
+alter table public.training_remote_match_sessions
+  add constraint training_remote_match_sessions_guest_position_index_check
+  check (guest_position_index between 1 and 6);
 
 create index if not exists idx_remote_match_host on public.training_remote_match_sessions(host_user_id);
 create index if not exists idx_remote_match_guest_user on public.training_remote_match_sessions(guest_user_id);

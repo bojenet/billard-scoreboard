@@ -322,9 +322,9 @@
                 guest_name: selectedGuestUser.display_name || selectedGuestUser.email || "Spieler 2",
                 guest_discipline: selectedGuestDiscipline,
                 target_points: targetPoints,
-                active_player: 1,
                 challenge_positions: serializeChallengePositions(),
-                position_index: 1,
+                host_position_index: 1,
+                guest_position_index: 1,
                 status: "active"
             };
             const { data, error } = await supabaseClient.from("training_remote_match_sessions").insert(payload).select("id").single();

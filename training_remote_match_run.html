@@ -169,9 +169,10 @@
         function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/grosser-tisch-47-2.png"; }
         function getCurrentPlayerDiscipline() { return isHost ? (sessionData?.host_discipline || "Cadre 47/2") : (sessionData?.guest_discipline || sessionData?.host_discipline || "Cadre 47/2"); }
         function getPositions() { return Array.isArray(sessionData?.challenge_positions) && sessionData.challenge_positions.length ? sessionData.challenge_positions : DEFAULT_POSITIONS; }
-        function getCurrentPositionIndex() { const raw = Number(sessionData?.position_index || 1); return !Number.isFinite(raw) || raw < 1 ? 1 : ((raw - 1) % 6) + 1; }
-        function getMyPlayerIndex() { return isHost ? 1 : 2; }
-        function isMyTurn() { return Number(sessionData?.active_player || 1) === getMyPlayerIndex(); }
+        function getCurrentPositionIndex() {
+            const raw = Number(isHost ? sessionData?.host_position_index : sessionData?.guest_position_index) || 1;
+            return !Number.isFinite(raw) || raw < 1 ? 1 : ((raw - 1) % 6) + 1;
+        }
         function updateFullscreenButton() { const btn = document.getElementById("fullscreenBtn"); if (!btn) return; const active = !!document.fullscreenElement; btn.innerText = active ? "×" : "⛶"; }
         async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (_) {} finally { updateFullscreenButton(); } }
         function escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
@@ -219,16 +220,12 @@
             setText("p2High", String(sessionData.guest_high || 0));
             setText("p2Avg", avg(Number(sessionData.guest_score || 0), Number(sessionData.guest_innings || 0)));
             setText("p2History", p2Series.length ? p2Series.join(", ") : "-");
-            if (sessionData.status === "finished") {
-                setText("readonlyInfo", "Remote-Match beendet.");
-            } else if (isMyTurn()) {
-                setText("readonlyInfo", isHost ? "Du bist dran als Spieler 1." : "Du bist dran als Spieler 2.");
-            } else {
-                setText("readonlyInfo", isHost ? "Warte auf Spieler 2." : "Warte auf Spieler 1.");
-            }
+            setText("readonlyInfo", sessionData.status === "finished"
+                ? "Remote-Match beendet."
+                : (isHost ? "Du erfasst deine eigenen Aufnahmen als Spieler 1." : "Du erfasst deine eigenen Aufnahmen als Spieler 2."));
             const seriesInput = document.getElementById("seriesInput");
             const commitBtn = document.querySelector(".action-btn.primary");
-            const disabled = sessionData.status === "finished" || !isMyTurn();
+            const disabled = sessionData.status === "finished";
             if (seriesInput) seriesInput.disabled = disabled;
             if (commitBtn) commitBtn.disabled = disabled;
             if (sessionData.status === "finished") closePositionModal();
@@ -259,7 +256,6 @@
         function adjustSeries(delta) { const input = document.getElementById("seriesInput"); let value = Number(input.value || 0); value += delta; if (value < 0) value = 0; input.value = value; }
         async function commitInning() {
             if (!sessionData?.id || sessionData.status === "finished") return;
-            if (!isMyTurn()) { alert("Du bist gerade nicht am Zug."); return; }
             const series = Number(document.getElementById("seriesInput").value || 0);
             if (!Number.isFinite(series) || series < 0) { alert("Bitte eine gültige Serie eingeben."); return; }
             const nextSeries = isHost ? parseSeries(sessionData.host_series) : parseSeries(sessionData.guest_series);
@@ -267,8 +263,11 @@
             const updateObj = isHost
                 ? { host_series: nextSeries, host_score: Number(sessionData.host_score || 0) + series, host_innings: Number(sessionData.host_innings || 0) + 1, host_high: Math.max(Number(sessionData.host_high || 0), series) }
                 : { guest_series: nextSeries, guest_score: Number(sessionData.guest_score || 0) + series, guest_innings: Number(sessionData.guest_innings || 0) + 1, guest_high: Math.max(Number(sessionData.guest_high || 0), series) };
-            updateObj.active_player = isHost ? 2 : 1;
-            updateObj.position_index = (getCurrentPositionIndex() % 6) + 1;
+            if (isHost) {
+                updateObj.host_position_index = (getCurrentPositionIndex() % 6) + 1;
+            } else {
+                updateObj.guest_position_index = (getCurrentPositionIndex() % 6) + 1;
+            }
             const winner = detectWinner({ ...sessionData, ...updateObj });
             if (winner !== null) updateObj.status = "finished";
             const { error } = await supabaseClient.from("training_remote_match_sessions").update(updateObj).eq("id", sessionData.id);
