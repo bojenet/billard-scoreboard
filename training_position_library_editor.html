@@ -86,6 +86,7 @@
                         <button class="btn primary" type="button" onclick="savePosition()">Speichern</button>
                         <button class="btn" type="button" onclick="resetBallLayout()">Bälle zurücksetzen</button>
                         <button class="btn" id="drawToggleBtn" type="button" onclick="toggleDrawMode()">Linien zeichnen: Aus</button>
+                        <button class="btn" id="finishLineBtn" type="button" onclick="finishActiveLineDraft()" style="display:none;">Linie beenden</button>
                         <button class="btn" type="button" onclick="clearLines()">Linien löschen</button>
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                     </div>
@@ -95,7 +96,7 @@
             <div class="card">
                 <div class="section">
                     <h2 class="section-title">Billardtisch</h2>
-                    <div class="section-sub">Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben.</div>
+                    <div class="section-sub" id="tableHelpText">Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben.</div>
                     <div class="table-toolbar">
                         <div class="section-sub" style="margin:0;">100% zeigt den Tisch in voller Arbeitsgröße. Danach kannst du per Scrollen sehr genau positionieren.</div>
                         <div class="table-zoom-actions">
@@ -193,9 +194,17 @@
         }
         function updateDrawModeUi() {
             const btn = document.getElementById("drawToggleBtn");
+            const finishBtn = document.getElementById("finishLineBtn");
             const wrap = document.getElementById("tableWrap");
+            const helpText = document.getElementById("tableHelpText");
             if (btn) btn.innerText = "Linien zeichnen: " + (drawMode ? "An" : "Aus");
+            if (finishBtn) finishBtn.style.display = drawMode && activeLineDraft ? "inline-flex" : "none";
             if (wrap) wrap.classList.toggle("draw-mode", drawMode);
+            if (helpText) {
+                helpText.innerText = drawMode && activeLineDraft
+                    ? "Linie aktiv. Mit jedem Klick kommt ein weiterer Punkt dazu. `Linie beenden` oder Doppelklick schließt den Pfad ab."
+                    : "Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben. Doppelklick auf einen Punkt löscht ihn.";
+            }
         }
         function updateFullscreenButton() {
             const btn = document.getElementById("fullscreenBtn");
@@ -264,7 +273,26 @@
             });
             svg.querySelectorAll("[data-line-point]").forEach((node) => {
                 node.addEventListener("pointerdown", startLinePointDrag);
+                node.addEventListener("dblclick", (event) => {
+                    if (!drawMode) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const raw = String(node.dataset.linePoint || "");
+                    const parts = raw.split(":");
+                    const lineIndex = Number(parts[0]);
+                    const pointIndex = Number(parts[1]);
+                    deleteLinePoint(lineIndex, pointIndex);
+                });
             });
+        }
+        function deleteLinePoint(lineIndex, pointIndex) {
+            if (!Number.isFinite(lineIndex) || !Number.isFinite(pointIndex)) return;
+            const line = linePaths[lineIndex];
+            if (!line?.points?.[pointIndex]) return;
+            line.points.splice(pointIndex, 1);
+            if (line.points.length < 2) linePaths.splice(lineIndex, 1);
+            stopLineEdit();
+            renderLines();
         }
         function normalizeLinePoints(points) {
             const source = Array.isArray(points) ? points : [];
@@ -285,6 +313,7 @@
             const points = normalizeLinePoints(activeLineDraft.points);
             if (points.length >= 2) linePaths.push({ points });
             activeLineDraft = null;
+            updateDrawModeUi();
             renderLines();
         }
         function getPortraitPoint(event) {
@@ -435,6 +464,7 @@
             }
             event.preventDefault();
             event.stopPropagation();
+            updateDrawModeUi();
             renderLines();
         }
         function handleTablePointerUp() {
@@ -542,6 +572,12 @@
         window.addEventListener("pointermove", handlePointerMove);
         window.addEventListener("pointerup", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); });
         window.addEventListener("pointercancel", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); });
+        window.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && activeLineDraft) {
+                event.preventDefault();
+                finishActiveLineDraft();
+            }
+        });
         document.querySelectorAll(".table-ball").forEach((ball) => ball.addEventListener("pointerdown", startBallDrag));
         document.getElementById("tableStage").addEventListener("pointerdown", handleTablePointerDown);
         document.getElementById("tableStage").addEventListener("dblclick", handleTableDoubleClick);
