@@ -32,7 +32,7 @@
         .table-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
         .table-zoom-actions { display:flex; gap:8px; flex-wrap:wrap; }
         .zoom-btn { border:none; border-radius:10px; background:#2746aa; color:#fff; font-size:14px; font-weight:700; padding:10px 12px; cursor:pointer; }
-        .table-viewport { overflow:auto; padding-bottom:6px; }
+        .table-viewport { overflow:auto; padding-bottom:6px; display:flex; justify-content:center; align-items:flex-start; }
         .table-zoom-stage { width:max-content; transform-origin:top left; transition:transform .12s ease-out; }
         .table-wrap { position:relative; width:1200px; border-radius:24px; overflow:hidden; background:#f7f7f4; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio:1200/674; }
         .table-wrap.draw-mode { box-shadow: inset 0 0 0 3px rgba(255,216,74,.7), 0 18px 34px rgba(0,0,0,.28); }
@@ -179,6 +179,15 @@
             const stage = document.getElementById("tableZoomStage");
             if (!stage) return;
             stage.style.transform = `scale(${currentEditorZoom})`;
+        }
+        function fitEditorToViewport() {
+            const viewport = document.getElementById("tableViewport");
+            if (!viewport) return;
+            const fitZoom = Math.min(1, Number((viewport.clientWidth / 1200).toFixed(3)) || 1);
+            currentEditorZoom = fitZoom > 0 ? fitZoom : 1;
+            updateEditorZoomStage();
+            viewport.scrollLeft = 0;
+            viewport.scrollTop = 0;
         }
         function changeEditorZoom(delta) {
             currentEditorZoom = clamp(Number((currentEditorZoom + delta).toFixed(2)), 0.5, 4);
@@ -566,10 +575,11 @@
             renderBalls();
             renderLines();
             updateDrawModeUi();
-            updateEditorZoomStage();
+            fitEditorToViewport();
             await loadPosition();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
+        window.addEventListener("resize", fitEditorToViewport);
         window.addEventListener("pointermove", handlePointerMove);
         window.addEventListener("pointerup", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); });
         window.addEventListener("pointercancel", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); });
