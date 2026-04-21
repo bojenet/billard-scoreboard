@@ -39,8 +39,8 @@
         .table-stage { position:absolute; inset:0; }
         .table-bg, .table-lines, .table-overlay { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
         .table-bg { display:block; object-fit:cover; }
-        .table-lines { display:block; }
-        .table-overlay { display:block; }
+        .table-lines { display:block; z-index:3; }
+        .table-overlay { display:block; z-index:2; }
         .table-ball { cursor:grab; touch-action:none; }
         .table-ball:active { cursor:grabbing; }
         .line-hit-area { pointer-events:auto; cursor:move; }
@@ -95,7 +95,7 @@
             <div class="card">
                 <div class="section">
                     <h2 class="section-title">Billardtisch</h2>
-                    <div class="section-sub">Bälle verschieben oder im Zeichenmodus Linien für Laufwege setzen. Linienpunkte lassen sich ziehen, ganze Linien verschieben und per Doppelklick auf die Linie löschen.</div>
+                    <div class="section-sub">Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben.</div>
                     <div class="table-toolbar">
                         <div class="section-sub" style="margin:0;">100% zeigt den Tisch in voller Arbeitsgröße. Danach kannst du per Scrollen sehr genau positionieren.</div>
                         <div class="table-zoom-actions">
@@ -109,7 +109,6 @@
                             <div class="table-wrap" id="tableWrap">
                                 <div class="table-stage" id="tableStage">
                                     <img id="tableBackground" class="table-bg" src="assets/grosser-tisch-47-2.png" alt="Tischvorlage">
-                                    <svg id="lineLayer" class="table-lines" viewBox="0 0 674 1200" aria-hidden="true"></svg>
                                     <svg id="positionTable" class="table-overlay" viewBox="0 0 674 1200" aria-label="Interaktiver Billardtisch">
                                         <g id="ball-red" class="table-ball" data-ball="red">
                                             <circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
@@ -124,6 +123,7 @@
                                             <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.72"></circle>
                                         </g>
                                     </svg>
+                                    <svg id="lineLayer" class="table-lines" viewBox="0 0 674 1200" aria-hidden="true"></svg>
                                 </div>
                             </div>
                         </div>
@@ -266,6 +266,27 @@
                 node.addEventListener("pointerdown", startLinePointDrag);
             });
         }
+        function normalizeLinePoints(points) {
+            const source = Array.isArray(points) ? points : [];
+            const normalized = [];
+            source.forEach((pt) => {
+                if (!pt || !Number.isFinite(pt.x) || !Number.isFinite(pt.y)) return;
+                const prev = normalized[normalized.length - 1];
+                if (prev && Math.hypot(prev.x - pt.x, prev.y - pt.y) < 4) return;
+                normalized.push({
+                    x: clamp(pt.x, bounds.minX, bounds.maxX),
+                    y: clamp(pt.y, bounds.minY, bounds.maxY)
+                });
+            });
+            return normalized;
+        }
+        function finishActiveLineDraft() {
+            if (!activeLineDraft) return;
+            const points = normalizeLinePoints(activeLineDraft.points);
+            if (points.length >= 2) linePaths.push({ points });
+            activeLineDraft = null;
+            renderLines();
+        }
         function getPortraitPoint(event) {
             const stage = document.getElementById("tableStage");
             const rect = stage.getBoundingClientRect();
@@ -386,8 +407,8 @@
             renderBalls();
         }
         function toggleDrawMode() {
+            if (drawMode && activeLineDraft) finishActiveLineDraft();
             drawMode = !drawMode;
-            activeLineDraft = null;
             stopLineEdit();
             updateDrawModeUi();
             renderLines();
@@ -407,21 +428,24 @@
             if (!drawMode) return;
             if (event.target.closest(".table-ball") || event.target.closest(".line-hit-area") || event.target.closest(".line-point-handle")) return;
             const point = getPortraitPoint(event);
-            activeLineDraft = { points: [point, point] };
+            if (!activeLineDraft) activeLineDraft = { points: [point, point] };
+            else {
+                activeLineDraft.points[activeLineDraft.points.length - 1] = point;
+                activeLineDraft.points.push(point);
+            }
             event.preventDefault();
+            event.stopPropagation();
             renderLines();
         }
         function handleTablePointerUp() {
-            if (!activeLineDraft) return;
-            const points = activeLineDraft.points || [];
-            if (points.length > 1) {
-                const first = points[0];
-                const last = points[points.length - 1];
-                const distance = Math.hypot(last.x - first.x, last.y - first.y);
-                if (distance >= 10) linePaths.push({ points: points.map((pt) => ({ x: pt.x, y: pt.y })) });
-            }
-            activeLineDraft = null;
-            renderLines();
+            if (!activeLineDraft || activeLineEdit || activeDrag) return;
+        }
+        function handleTableDoubleClick(event) {
+            if (!drawMode) return;
+            if (event.target.closest(".table-ball") || event.target.closest(".line-hit-area") || event.target.closest(".line-point-handle")) return;
+            event.preventDefault();
+            event.stopPropagation();
+            finishActiveLineDraft();
         }
         function serializeLayout() {
             return {
@@ -440,6 +464,7 @@
             setSelectedDiscipline(selectedDiscipline);
             resetBallLayout();
             clearLines();
+            activeLineDraft = null;
             if (positionId) history.replaceState({}, "", "training_position_library_editor.html");
         }
         async function loadPosition() {
@@ -470,6 +495,7 @@
             const title = String(document.getElementById("titleInput").value || "").trim();
             const description = String(document.getElementById("descriptionInput").value || "").trim();
             if (!title) { alert("Bitte einen Titel eingeben."); return; }
+            if (activeLineDraft) finishActiveLineDraft();
             const payload = {
                 user_id: currentUser.id,
                 title,
@@ -518,6 +544,7 @@
         window.addEventListener("pointercancel", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); });
         document.querySelectorAll(".table-ball").forEach((ball) => ball.addEventListener("pointerdown", startBallDrag));
         document.getElementById("tableStage").addEventListener("pointerdown", handleTablePointerDown);
+        document.getElementById("tableStage").addEventListener("dblclick", handleTableDoubleClick);
         updateFullscreenButton();
         init();
     </script>
