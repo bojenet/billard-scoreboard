@@ -7,37 +7,38 @@
         html { min-height:100%; background:linear-gradient(180deg,#0f1c3f,#0a122b); }
         body { margin:0; min-height:100vh; font-family:Arial,sans-serif; background:linear-gradient(180deg,#0f1c3f,#0a122b); color:#fff; }
         .fullscreen-btn { position:fixed; top:10px; right:10px; z-index:1200; width:34px; height:34px; border:1px solid #3659bb; border-radius:10px; background:rgba(28,51,128,.92); color:#fff; font-size:16px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; }
-        .page { width:min(1440px,95%); margin:20px auto 28px; }
-        .topbar { display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
+        .page { width:min(1500px,96%); margin:16px auto 24px; }
+        .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
         .title { font-size:46px; font-weight:700; margin:0; }
-        .sub { margin-top:8px; opacity:.76; font-size:17px; }
-        .actions { display:flex; gap:10px; flex-wrap:wrap; }
-        .btn { border:none; border-radius:12px; padding:12px 16px; background:#1c3380; border:1px solid #3659bb; color:#fff; font-size:16px; font-weight:700; cursor:pointer; }
+        .sub { margin-top:6px; opacity:.76; font-size:16px; }
+        .actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .btn { border:none; border-radius:10px; padding:10px 13px; background:#1c3380; border:1px solid #3659bb; color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
         .btn.primary { background:#2f4fe0; }
         .btn.danger { background:#9f3434; border-color:#be5757; }
         .card { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:22px; box-shadow:0 24px 56px rgba(0,0,0,.45); overflow:hidden; }
-        .section { padding:16px; border-bottom:1px solid #27417f; }
+        .section { padding:14px; border-bottom:1px solid #27417f; }
         .section:last-child { border-bottom:none; }
-        .section-title { font-size:20px; font-weight:800; margin:0 0 8px; }
-        .section-sub { font-size:13px; opacity:.76; margin-bottom:12px; }
+        .section-title { font-size:18px; font-weight:800; margin:0 0 6px; }
+        .section-sub { font-size:12px; opacity:.76; margin-bottom:10px; }
         .notice { padding:12px 14px; border-radius:14px; border:1px solid #556db2; background:rgba(20,38,89,.78); font-size:14px; line-height:1.5; margin-bottom:12px; display:none; }
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
-        .chip { padding:10px 14px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:14px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
+        .chip { padding:8px 11px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:13px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
-        .list { display:grid; gap:12px; }
-        .item { border:1px solid #3557b7; border-radius:18px; background:rgba(12,28,72,.72); padding:14px; display:grid; gap:12px; }
-        .item-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
-        .item-title { font-size:18px; font-weight:800; }
-        .item-sub { font-size:13px; opacity:.76; margin-top:4px; }
-        .item-actions { display:flex; gap:8px; flex-wrap:wrap; }
-        .item-body { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:14px; align-items:start; }
-        .thumb-wrap { position:relative; width:280px; min-width:280px; border-radius:16px; overflow:hidden; background:#f7f7f4; aspect-ratio:1200/674; box-shadow:0 10px 24px rgba(0,0,0,.18); }
+        .list { display:grid; gap:10px; }
+        .item { border:1px solid #3557b7; border-radius:16px; background:rgba(12,28,72,.72); padding:12px; display:grid; gap:10px; }
+        .item-top { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+        .item-title { font-size:16px; font-weight:800; }
+        .item-sub { font-size:12px; opacity:.76; margin-top:3px; }
+        .item-actions { display:flex; gap:6px; flex-wrap:wrap; }
+        .item-body { display:grid; grid-template-columns:minmax(0,1fr) 220px; gap:12px; align-items:start; }
+        .item-text { font-size:13px; line-height:1.42; opacity:.92; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+        .thumb-wrap { position:relative; width:220px; min-width:220px; border-radius:14px; overflow:hidden; background:#f7f7f4; aspect-ratio:1200/674; box-shadow:0 8px 18px rgba(0,0,0,.16); }
         .thumb-stage { position:absolute; inset:0; }
         .thumb-bg, .thumb-lines, .thumb-balls { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
         .thumb-bg { object-fit:cover; display:block; }
         .thumb-lines, .thumb-balls { display:block; }
         .empty { padding:14px; border-radius:14px; border:1px dashed rgba(255,255,255,.18); opacity:.74; }
-        @media (max-width: 980px) { .item-body { grid-template-columns:1fr; } .thumb-wrap { width:100%; min-width:0; } }
+        @media (max-width: 980px) { .item-body { grid-template-columns:1fr; } .thumb-wrap { width:100%; min-width:0; } .item-text { -webkit-line-clamp:5; } }
     </style>
 </head>
 <body>
@@ -57,8 +58,6 @@
         <div class="card">
             <div class="section">
                 <div id="noticeBox" class="notice"></div>
-                <h2 class="section-title">Filter</h2>
-                <div class="section-sub">Die Library startet jetzt ohne parallelen Editor. `Neu` oder `Bearbeiten` öffnet die eigene Anlegeseite.</div>
                 <div class="chips" id="filterButtons"></div>
             </div>
             <div class="section">
@@ -146,7 +145,7 @@
                 const lines = Array.isArray(item.line_paths) ? item.line_paths : [];
                 const card = document.createElement("div");
                 card.className = "item";
-                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}${lines.length ? " • " + lines.length + " Linie" + (lines.length === 1 ? "" : "n") : ""}</div></div><div class="item-actions"><button class="btn" type="button" data-edit="${item.id}">Bearbeiten</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button></div></div><div class="item-body"><div>${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div><div class="thumb-wrap"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout)}</svg></div></div></div>`;
+                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}${lines.length ? " • " + lines.length + " Linie" + (lines.length === 1 ? "" : "n") : ""}</div></div><div class="item-actions"><button class="btn" type="button" data-edit="${item.id}">Bearbeiten</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button></div></div><div class="item-body"><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div><div class="thumb-wrap"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout)}</svg></div></div></div>`;
                 card.querySelector("[data-edit]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
                 card.querySelector("[data-delete]").onclick = () => deletePosition(item.id);
                 wrap.appendChild(card);
