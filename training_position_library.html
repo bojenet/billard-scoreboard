@@ -24,21 +24,22 @@
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:8px 11px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:13px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
-        .list { display:grid; gap:10px; }
-        .item { border:1px solid #3557b7; border-radius:16px; background:rgba(12,28,72,.72); padding:12px; display:grid; gap:10px; }
-        .item-top { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+        .list { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px; }
+        .item { border:1px solid #3557b7; border-radius:16px; background:rgba(12,28,72,.72); padding:10px; display:grid; gap:8px; }
+        .item-top { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
         .item-title { font-size:16px; font-weight:800; }
         .item-sub { font-size:12px; opacity:.76; margin-top:3px; }
         .item-actions { display:flex; gap:6px; flex-wrap:wrap; }
-        .item-body { display:grid; grid-template-columns:minmax(0,1fr) 220px; gap:12px; align-items:start; }
-        .item-text { font-size:13px; line-height:1.42; opacity:.92; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
-        .thumb-wrap { position:relative; width:220px; min-width:220px; border-radius:14px; overflow:hidden; background:#f7f7f4; aspect-ratio:1200/674; box-shadow:0 8px 18px rgba(0,0,0,.16); }
+        .item-body { display:grid; gap:8px; align-items:start; }
+        .item-text { font-size:12px; line-height:1.35; opacity:.9; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; min-height:49px; }
+        .thumb-wrap { position:relative; width:100%; min-width:0; border-radius:12px; overflow:hidden; background:#f7f7f4; aspect-ratio:1200/674; box-shadow:0 8px 18px rgba(0,0,0,.16); cursor:pointer; }
+        .thumb-wrap:hover { box-shadow:0 12px 24px rgba(0,0,0,.24); }
         .thumb-stage { position:absolute; inset:0; }
         .thumb-bg, .thumb-lines, .thumb-balls { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
         .thumb-bg { object-fit:cover; display:block; }
         .thumb-lines, .thumb-balls { display:block; }
         .empty { padding:14px; border-radius:14px; border:1px dashed rgba(255,255,255,.18); opacity:.74; }
-        @media (max-width: 980px) { .item-body { grid-template-columns:1fr; } .thumb-wrap { width:100%; min-width:0; } .item-text { -webkit-line-clamp:5; } }
+        @media (max-width: 980px) { .list { grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); } .item-text { -webkit-line-clamp:4; } }
     </style>
 </head>
 <body>
@@ -47,7 +48,6 @@
         <div class="topbar">
             <div>
                 <h1 class="title">Positions Library</h1>
-                <div class="sub">Deine gespeicherten Positionen mit Disziplin-Filter, Beschreibung und Vorschau.</div>
             </div>
             <div class="actions">
                 <button class="btn primary" type="button" onclick="window.location.href='training_position_library_editor.html'">Neu</button>
@@ -145,7 +145,8 @@
                 const lines = Array.isArray(item.line_paths) ? item.line_paths : [];
                 const card = document.createElement("div");
                 card.className = "item";
-                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}${lines.length ? " • " + lines.length + " Linie" + (lines.length === 1 ? "" : "n") : ""}</div></div><div class="item-actions"><button class="btn" type="button" data-edit="${item.id}">Bearbeiten</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button></div></div><div class="item-body"><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div><div class="thumb-wrap"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout)}</svg></div></div></div>`;
+                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}</div></div><div class="item-actions"><button class="btn" type="button" data-edit="${item.id}">Bearbeiten</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button></div></div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
+                card.querySelector("[data-open]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
                 card.querySelector("[data-edit]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
                 card.querySelector("[data-delete]").onclick = () => deletePosition(item.id);
                 wrap.appendChild(card);
