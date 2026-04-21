@@ -29,16 +29,22 @@
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:10px 14px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:14px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
-        .table-wrap { position:relative; border-radius:24px; overflow:hidden; background:#f7f7f4; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio:1200/674; }
+        .table-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+        .table-zoom-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .zoom-btn { border:none; border-radius:10px; background:#2746aa; color:#fff; font-size:14px; font-weight:700; padding:10px 12px; cursor:pointer; }
+        .table-viewport { overflow:auto; padding-bottom:6px; }
+        .table-zoom-stage { width:max-content; transform-origin:top left; transition:transform .12s ease-out; }
+        .table-wrap { position:relative; width:1200px; border-radius:24px; overflow:hidden; background:#f7f7f4; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio:1200/674; }
         .table-wrap.draw-mode { box-shadow: inset 0 0 0 3px rgba(255,216,74,.7), 0 18px 34px rgba(0,0,0,.28); }
         .table-stage { position:absolute; inset:0; }
         .table-bg, .table-lines, .table-overlay { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
         .table-bg { display:block; object-fit:cover; }
-        .table-lines { display:block; pointer-events:none; }
+        .table-lines { display:block; }
         .table-overlay { display:block; }
         .table-ball { cursor:grab; touch-action:none; }
         .table-ball:active { cursor:grabbing; }
-        .line-hit-area { pointer-events:auto; cursor:pointer; }
+        .line-hit-area { pointer-events:auto; cursor:move; }
+        .line-point-handle { pointer-events:auto; cursor:pointer; }
         .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:13px; opacity:.82; margin-top:10px; }
         .legend-item { display:flex; align-items:center; gap:8px; }
         .legend-dot { width:12px; height:12px; border-radius:999px; box-shadow:0 0 0 1px rgba(255,255,255,.25); }
@@ -89,25 +95,37 @@
             <div class="card">
                 <div class="section">
                     <h2 class="section-title">Billardtisch</h2>
-                    <div class="section-sub">Bälle verschieben oder im Zeichenmodus Linien für Laufwege setzen. Im Zeichenmodus löscht ein Klick auf eine Linie diese wieder.</div>
-                    <div class="table-wrap" id="tableWrap">
-                        <div class="table-stage" id="tableStage">
-                            <img id="tableBackground" class="table-bg" src="assets/grosser-tisch-47-2.png" alt="Tischvorlage">
-                            <svg id="lineLayer" class="table-lines" viewBox="0 0 674 1200" aria-hidden="true"></svg>
-                            <svg id="positionTable" class="table-overlay" viewBox="0 0 674 1200" aria-label="Interaktiver Billardtisch">
-                                <g id="ball-red" class="table-ball" data-ball="red">
-                                    <circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
-                                    <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
-                                </g>
-                                <g id="ball-yellow" class="table-ball" data-ball="yellow">
-                                    <circle r="12" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
-                                    <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
-                                </g>
-                                <g id="ball-white" class="table-ball" data-ball="white">
-                                    <circle r="12" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="1.5"></circle>
-                                    <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.72"></circle>
-                                </g>
-                            </svg>
+                    <div class="section-sub">Bälle verschieben oder im Zeichenmodus Linien für Laufwege setzen. Linienpunkte lassen sich ziehen, ganze Linien verschieben und per Doppelklick auf die Linie löschen.</div>
+                    <div class="table-toolbar">
+                        <div class="section-sub" style="margin:0;">100% zeigt den Tisch in voller Arbeitsgröße. Danach kannst du per Scrollen sehr genau positionieren.</div>
+                        <div class="table-zoom-actions">
+                            <button class="zoom-btn" type="button" onclick="changeEditorZoom(-0.25)">−</button>
+                            <button class="zoom-btn" type="button" onclick="changeEditorZoom(0.25)">+</button>
+                            <button class="zoom-btn" type="button" onclick="resetEditorZoom()">100%</button>
+                        </div>
+                    </div>
+                    <div class="table-viewport" id="tableViewport">
+                        <div class="table-zoom-stage" id="tableZoomStage">
+                            <div class="table-wrap" id="tableWrap">
+                                <div class="table-stage" id="tableStage">
+                                    <img id="tableBackground" class="table-bg" src="assets/grosser-tisch-47-2.png" alt="Tischvorlage">
+                                    <svg id="lineLayer" class="table-lines" viewBox="0 0 674 1200" aria-hidden="true"></svg>
+                                    <svg id="positionTable" class="table-overlay" viewBox="0 0 674 1200" aria-label="Interaktiver Billardtisch">
+                                        <g id="ball-red" class="table-ball" data-ball="red">
+                                            <circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
+                                            <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
+                                        </g>
+                                        <g id="ball-yellow" class="table-ball" data-ball="yellow">
+                                            <circle r="12" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
+                                            <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
+                                        </g>
+                                        <g id="ball-white" class="table-ball" data-ball="white">
+                                            <circle r="12" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="1.5"></circle>
+                                            <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.72"></circle>
+                                        </g>
+                                    </svg>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="legend">
@@ -144,6 +162,8 @@
         let linePaths = [];
         let drawMode = false;
         let activeLineDraft = null;
+        let activeLineEdit = null;
+        let currentEditorZoom = 1;
 
         function getDefaultLayout() {
             return {
@@ -153,6 +173,19 @@
             };
         }
         function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+        function updateEditorZoomStage() {
+            const stage = document.getElementById("tableZoomStage");
+            if (!stage) return;
+            stage.style.transform = `scale(${currentEditorZoom})`;
+        }
+        function changeEditorZoom(delta) {
+            currentEditorZoom = clamp(Number((currentEditorZoom + delta).toFixed(2)), 0.5, 4);
+            updateEditorZoomStage();
+        }
+        function resetEditorZoom() {
+            currentEditorZoom = 1;
+            updateEditorZoomStage();
+        }
         function setNotice(text) {
             const box = document.getElementById("noticeBox");
             box.style.display = text ? "block" : "none";
@@ -209,23 +242,28 @@
                 const points = Array.isArray(line.points) ? line.points : [];
                 if (points.length < 2) return "";
                 const polyline = points.map((pt) => `${pt.x},${pt.y}`).join(" ");
-                return `<g data-line-index="${index}"><polyline points="${polyline}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"></polyline><polyline class="line-hit-area" points="${polyline}" fill="none" stroke="transparent" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"></polyline></g>`;
+                const handles = drawMode ? points.map((pt, pointIndex) => `<circle class="line-point-handle" data-line-point="${index}:${pointIndex}" cx="${pt.x}" cy="${pt.y}" r="9" fill="#ffd84a" stroke="#173168" stroke-width="3"></circle>`).join("") : "";
+                return `<g data-line-index="${index}"><polyline points="${polyline}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"></polyline><polyline class="line-hit-area" data-line-move="${index}" points="${polyline}" fill="none" stroke="transparent" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"></polyline>${handles}</g>`;
             }).join("");
             const draftMarkup = activeLineDraft && activeLineDraft.points.length > 1
                 ? `<polyline points="${activeLineDraft.points.map((pt) => `${pt.x},${pt.y}`).join(" ")}" fill="none" stroke="#ffd84a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10 8"></polyline>`
                 : "";
             svg.innerHTML = linesMarkup + draftMarkup;
-            svg.querySelectorAll("[data-line-index]").forEach((node) => {
-                node.addEventListener("click", (event) => {
+            svg.querySelectorAll("[data-line-move]").forEach((node) => {
+                node.addEventListener("pointerdown", startLineMove);
+                node.addEventListener("dblclick", (event) => {
                     if (!drawMode) return;
                     event.preventDefault();
                     event.stopPropagation();
-                    const index = Number(node.dataset.lineIndex);
+                    const index = Number(node.dataset.lineMove);
                     if (Number.isFinite(index)) {
                         linePaths.splice(index, 1);
                         renderLines();
                     }
                 });
+            });
+            svg.querySelectorAll("[data-line-point]").forEach((node) => {
+                node.addEventListener("pointerdown", startLinePointDrag);
             });
         }
         function getPortraitPoint(event) {
@@ -258,12 +296,84 @@
             }
             activeDrag = null;
         }
+        function stopLineEdit() {
+            if (activeLineEdit?.element?.releasePointerCapture) {
+                try { activeLineEdit.element.releasePointerCapture(activeLineEdit.pointerId); } catch (_) {}
+            }
+            activeLineEdit = null;
+        }
+        function startLineMove(event) {
+            if (!drawMode) return;
+            const lineIndex = Number(event.currentTarget.dataset.lineMove);
+            if (!Number.isFinite(lineIndex) || !linePaths[lineIndex]) return;
+            activeLineEdit = {
+                type: "line",
+                lineIndex,
+                element: event.currentTarget,
+                pointerId: event.pointerId,
+                lastPoint: getPortraitPoint(event)
+            };
+            if (event.currentTarget.setPointerCapture) {
+                try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) {}
+            }
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        function startLinePointDrag(event) {
+            if (!drawMode) return;
+            const raw = String(event.currentTarget.dataset.linePoint || "");
+            const parts = raw.split(":");
+            const lineIndex = Number(parts[0]);
+            const pointIndex = Number(parts[1]);
+            if (!Number.isFinite(lineIndex) || !Number.isFinite(pointIndex) || !linePaths[lineIndex]?.points?.[pointIndex]) return;
+            activeLineEdit = {
+                type: "point",
+                lineIndex,
+                pointIndex,
+                element: event.currentTarget,
+                pointerId: event.pointerId
+            };
+            if (event.currentTarget.setPointerCapture) {
+                try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) {}
+            }
+            event.preventDefault();
+            event.stopPropagation();
+        }
         function handlePointerMove(event) {
             const point = getPortraitPoint(event);
             if (activeDrag) {
                 event.preventDefault();
                 updateBallPosition(activeDrag.ballKey, point.x, point.y);
                 return;
+            }
+            if (activeLineEdit) {
+                event.preventDefault();
+                if (activeLineEdit.type === "point") {
+                    const line = linePaths[activeLineEdit.lineIndex];
+                    if (line?.points?.[activeLineEdit.pointIndex]) {
+                        line.points[activeLineEdit.pointIndex] = point;
+                        renderLines();
+                    }
+                    return;
+                }
+                if (activeLineEdit.type === "line") {
+                    const line = linePaths[activeLineEdit.lineIndex];
+                    if (line?.points?.length) {
+                        const dx = point.x - activeLineEdit.lastPoint.x;
+                        const dy = point.y - activeLineEdit.lastPoint.y;
+                        const xs = line.points.map((pt) => pt.x);
+                        const ys = line.points.map((pt) => pt.y);
+                        const safeDx = clamp(dx, bounds.minX - Math.min(...xs), bounds.maxX - Math.max(...xs));
+                        const safeDy = clamp(dy, bounds.minY - Math.min(...ys), bounds.maxY - Math.max(...ys));
+                        line.points = line.points.map((pt) => ({
+                            x: pt.x + safeDx,
+                            y: pt.y + safeDy
+                        }));
+                        activeLineEdit.lastPoint = { x: activeLineEdit.lastPoint.x + safeDx, y: activeLineEdit.lastPoint.y + safeDy };
+                        renderLines();
+                    }
+                    return;
+                }
             }
             if (activeLineDraft) {
                 event.preventDefault();
@@ -278,12 +388,14 @@
         function toggleDrawMode() {
             drawMode = !drawMode;
             activeLineDraft = null;
+            stopLineEdit();
             updateDrawModeUi();
             renderLines();
         }
         function clearLines() {
             linePaths = [];
             activeLineDraft = null;
+            stopLineEdit();
             renderLines();
         }
         function serializeLines() {
@@ -293,7 +405,7 @@
         }
         function handleTablePointerDown(event) {
             if (!drawMode) return;
-            if (event.target.closest(".table-ball")) return;
+            if (event.target.closest(".table-ball") || event.target.closest(".line-hit-area") || event.target.closest(".line-point-handle")) return;
             const point = getPortraitPoint(event);
             activeLineDraft = { points: [point, point] };
             event.preventDefault();
@@ -349,6 +461,7 @@
             } : getDefaultLayout();
             linePaths = Array.isArray(data.line_paths) ? data.line_paths.map((line) => ({ points: (line.points || []).map((pt) => ({ x: pt.x, y: pt.y })) })) : [];
             activeLineDraft = null;
+            stopLineEdit();
             renderBalls();
             renderLines();
             document.getElementById("deleteBtn").style.display = "inline-flex";
@@ -396,12 +509,13 @@
             renderBalls();
             renderLines();
             updateDrawModeUi();
+            updateEditorZoomStage();
             await loadPosition();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
         window.addEventListener("pointermove", handlePointerMove);
-        window.addEventListener("pointerup", () => { stopBallDrag(); handleTablePointerUp(); });
-        window.addEventListener("pointercancel", () => { stopBallDrag(); handleTablePointerUp(); });
+        window.addEventListener("pointerup", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); });
+        window.addEventListener("pointercancel", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); });
         document.querySelectorAll(".table-ball").forEach((ball) => ball.addEventListener("pointerdown", startBallDrag));
         document.getElementById("tableStage").addEventListener("pointerdown", handleTablePointerDown);
         updateFullscreenButton();
