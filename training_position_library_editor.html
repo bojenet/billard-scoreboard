@@ -39,7 +39,8 @@
         .table-stage { position:absolute; inset:0; }
         .table-bg, .table-lines, .table-overlay { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
         .table-bg { display:block; object-fit:cover; }
-        .table-lines { display:block; z-index:3; }
+        .table-lines { display:block; z-index:3; pointer-events:none; }
+        .table-wrap.draw-mode .table-lines { pointer-events:auto; }
         .table-overlay { display:block; z-index:2; }
         .table-ball { cursor:grab; touch-action:none; }
         .table-ball:active { cursor:grabbing; }
