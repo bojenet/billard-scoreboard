@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Position Editor</title>
+    <style>
+        html { min-height:100%; background:linear-gradient(180deg,#0f1c3f,#0a122b); }
+        body { margin:0; min-height:100vh; font-family:Arial,sans-serif; background:linear-gradient(180deg,#0f1c3f,#0a122b); color:#fff; }
+        .fullscreen-btn { position:fixed; top:10px; right:10px; z-index:1200; width:34px; height:34px; border:1px solid #3659bb; border-radius:10px; background:rgba(28,51,128,.92); color:#fff; font-size:16px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .page { width:min(1460px,95%); margin:20px auto 28px; }
+        .topbar { display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
+        .title { font-size:46px; font-weight:700; margin:0; }
+        .sub { margin-top:8px; opacity:.76; font-size:17px; }
+        .actions { display:flex; gap:10px; flex-wrap:wrap; }
+        .btn { border:none; border-radius:12px; padding:12px 16px; background:#1c3380; border:1px solid #3659bb; color:#fff; font-size:16px; font-weight:700; cursor:pointer; }
+        .btn.primary { background:#2f4fe0; }
+        .btn.danger { background:#9f3434; border-color:#be5757; }
+        .layout { display:grid; grid-template-columns:minmax(360px,.86fr) minmax(0,1.34fr); gap:18px; }
+        .card { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:22px; box-shadow:0 24px 56px rgba(0,0,0,.45); overflow:hidden; }
+        .section { padding:16px; border-bottom:1px solid #27417f; }
+        .section:last-child { border-bottom:none; }
+        .section-title { font-size:20px; font-weight:800; margin:0 0 8px; }
+        .section-sub { font-size:13px; opacity:.76; margin-bottom:12px; }
+        .notice { padding:12px 14px; border-radius:14px; border:1px solid #556db2; background:rgba(20,38,89,.78); font-size:14px; line-height:1.5; margin-bottom:12px; display:none; }
+        .field { margin-bottom:12px; }
+        .field label { display:block; font-size:13px; opacity:.82; margin-bottom:6px; }
+        .field input, .field textarea { width:100%; box-sizing:border-box; border:1px solid #3959ab; border-radius:12px; padding:12px 14px; color:#fff; background:#112659; font-size:15px; }
+        .field textarea { min-height:180px; resize:vertical; }
+        .chips { display:flex; gap:8px; flex-wrap:wrap; }
+        .chip { padding:10px 14px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:14px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
+        .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
+        .table-wrap { position:relative; border-radius:24px; overflow:hidden; background:#f7f7f4; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio:1200/674; }
+        .table-wrap.draw-mode { box-shadow: inset 0 0 0 3px rgba(255,216,74,.7), 0 18px 34px rgba(0,0,0,.28); }
+        .table-stage { position:absolute; inset:0; }
+        .table-bg, .table-lines, .table-overlay { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
+        .table-bg { display:block; object-fit:cover; }
+        .table-lines { display:block; pointer-events:none; }
+        .table-overlay { display:block; }
+        .table-ball { cursor:grab; touch-action:none; }
+        .table-ball:active { cursor:grabbing; }
+        .line-hit-area { pointer-events:auto; cursor:pointer; }
+        .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:13px; opacity:.82; margin-top:10px; }
+        .legend-item { display:flex; align-items:center; gap:8px; }
+        .legend-dot { width:12px; height:12px; border-radius:999px; box-shadow:0 0 0 1px rgba(255,255,255,.25); }
+        @media (max-width: 980px) { .layout { grid-template-columns:1fr; } }
+    </style>
+</head>
+<body>
+    <button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()">⛶</button>
+    <div class="page">
+        <div class="topbar">
+            <div>
+                <h1 class="title" id="pageTitle">Neue Position</h1>
+                <div class="sub">Eigene Seite zum Anlegen und Bearbeiten. Der Tisch ist jetzt im Querformat für mehr Platz.</div>
+            </div>
+            <div class="actions">
+                <button class="btn" type="button" onclick="resetForm()">Neu</button>
+                <button class="btn" type="button" onclick="window.location.href='training_position_library.html'">Library</button>
+            </div>
+        </div>
+
+        <div class="layout">
+            <div class="card">
+                <div class="section">
+                    <div id="noticeBox" class="notice"></div>
+                    <h2 class="section-title">Position</h2>
+                    <div class="field">
+                        <label for="titleInput">Titel</label>
+                        <input id="titleInput" type="text" maxlength="120" placeholder="z. B. Anker am kurzen Cadre">
+                    </div>
+                    <div class="field">
+                        <label>Disziplin</label>
+                        <div class="chips" id="disciplineButtons"></div>
+                    </div>
+                    <div class="field">
+                        <label for="descriptionInput">Beschreibung</label>
+                        <textarea id="descriptionInput" placeholder="Worum geht es in der Position, worauf soll man achten, welche Lösungsidee steckt dahinter?"></textarea>
+                    </div>
+                    <div class="actions">
+                        <button class="btn primary" type="button" onclick="savePosition()">Speichern</button>
+                        <button class="btn" type="button" onclick="resetBallLayout()">Bälle zurücksetzen</button>
+                        <button class="btn" id="drawToggleBtn" type="button" onclick="toggleDrawMode()">Linien zeichnen: Aus</button>
+                        <button class="btn" type="button" onclick="clearLines()">Linien löschen</button>
+                        <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section">
+                    <h2 class="section-title">Billardtisch</h2>
+                    <div class="section-sub">Bälle verschieben oder im Zeichenmodus Linien für Laufwege setzen. Im Zeichenmodus löscht ein Klick auf eine Linie diese wieder.</div>
+                    <div class="table-wrap" id="tableWrap">
+                        <div class="table-stage" id="tableStage">
+                            <img id="tableBackground" class="table-bg" src="assets/grosser-tisch-47-2.png" alt="Tischvorlage">
+                            <svg id="lineLayer" class="table-lines" viewBox="0 0 674 1200" aria-hidden="true"></svg>
+                            <svg id="positionTable" class="table-overlay" viewBox="0 0 674 1200" aria-label="Interaktiver Billardtisch">
+                                <g id="ball-red" class="table-ball" data-ball="red">
+                                    <circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
+                                    <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
+                                </g>
+                                <g id="ball-yellow" class="table-ball" data-ball="yellow">
+                                    <circle r="12" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
+                                    <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
+                                </g>
+                                <g id="ball-white" class="table-ball" data-ball="white">
+                                    <circle r="12" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="1.5"></circle>
+                                    <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.72"></circle>
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="legend">
+                        <div class="legend-item"><span class="legend-dot" style="background:#cf2e2e;"></span><span>Rot</span></div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#e0bb20;"></span><span>Gelb</span></div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#eef2fb;"></span><span>Weiß</span></div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#7fd8ff;"></span><span>Linien</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/user_menu.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const positionId = params.get("id") || "";
+        const disciplines = ["Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
+        const tableTemplates = { "Cadre 47/2": "assets/grosser-tisch-47-2.png", "Cadre 71/2": "assets/mb-71-2.png" };
+        const bounds = { minX: 70, maxX: 605, minY: 58, maxY: 1143 };
+        const defaultLayout = {
+            red: { x: 236, y: 166 },
+            yellow: { x: 259, y: 214 },
+            white: { x: 232, y: 201 }
+        };
+        let currentUser = null;
+        let selectedDiscipline = "Cadre 47/2";
+        let activeDrag = null;
+        let editingId = null;
+        let ballLayout = getDefaultLayout();
+        let linePaths = [];
+        let drawMode = false;
+        let activeLineDraft = null;
+
+        function getDefaultLayout() {
+            return {
+                red: { ...defaultLayout.red },
+                yellow: { ...defaultLayout.yellow },
+                white: { ...defaultLayout.white }
+            };
+        }
+        function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+        function setNotice(text) {
+            const box = document.getElementById("noticeBox");
+            box.style.display = text ? "block" : "none";
+            box.innerText = text || "";
+        }
+        function updateDrawModeUi() {
+            const btn = document.getElementById("drawToggleBtn");
+            const wrap = document.getElementById("tableWrap");
+            if (btn) btn.innerText = "Linien zeichnen: " + (drawMode ? "An" : "Aus");
+            if (wrap) wrap.classList.toggle("draw-mode", drawMode);
+        }
+        function updateFullscreenButton() {
+            const btn = document.getElementById("fullscreenBtn");
+            if (!btn) return;
+            btn.innerText = document.fullscreenElement ? "×" : "⛶";
+        }
+        async function toggleFullscreen() {
+            try {
+                if (document.fullscreenElement) await document.exitFullscreen();
+                else await document.documentElement.requestFullscreen();
+            } catch (_) {}
+            updateFullscreenButton();
+        }
+        function getTemplateForDiscipline(discipline) { return tableTemplates[discipline] || "assets/grosser-tisch-47-2.png"; }
+        function setSelectedDiscipline(value) {
+            selectedDiscipline = value || "Cadre 47/2";
+            document.getElementById("tableBackground").src = getTemplateForDiscipline(selectedDiscipline);
+            document.querySelectorAll("#disciplineButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === selectedDiscipline));
+        }
+        function buildDisciplineButtons() {
+            const wrap = document.getElementById("disciplineButtons");
+            wrap.innerHTML = "";
+            disciplines.forEach((discipline) => {
+                const btn = document.createElement("button");
+                btn.className = "chip";
+                btn.dataset.value = discipline;
+                btn.innerText = discipline;
+                btn.onclick = () => setSelectedDiscipline(discipline);
+                wrap.appendChild(btn);
+            });
+            setSelectedDiscipline(selectedDiscipline);
+        }
+        function renderBalls() {
+            ["red", "yellow", "white"].forEach((key) => {
+                const el = document.getElementById("ball-" + key);
+                const pos = ballLayout[key];
+                if (el && pos) el.setAttribute("transform", "translate(" + pos.x + " " + pos.y + ")");
+            });
+        }
+        function renderLines() {
+            const svg = document.getElementById("lineLayer");
+            if (!svg) return;
+            const linesMarkup = linePaths.map((line, index) => {
+                const points = Array.isArray(line.points) ? line.points : [];
+                if (points.length < 2) return "";
+                const polyline = points.map((pt) => `${pt.x},${pt.y}`).join(" ");
+                return `<g data-line-index="${index}"><polyline points="${polyline}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"></polyline><polyline class="line-hit-area" points="${polyline}" fill="none" stroke="transparent" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"></polyline></g>`;
+            }).join("");
+            const draftMarkup = activeLineDraft && activeLineDraft.points.length > 1
+                ? `<polyline points="${activeLineDraft.points.map((pt) => `${pt.x},${pt.y}`).join(" ")}" fill="none" stroke="#ffd84a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10 8"></polyline>`
+                : "";
+            svg.innerHTML = linesMarkup + draftMarkup;
+            svg.querySelectorAll("[data-line-index]").forEach((node) => {
+                node.addEventListener("click", (event) => {
+                    if (!drawMode) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const index = Number(node.dataset.lineIndex);
+                    if (Number.isFinite(index)) {
+                        linePaths.splice(index, 1);
+                        renderLines();
+                    }
+                });
+            });
+        }
+        function getPortraitPoint(event) {
+            const stage = document.getElementById("tableStage");
+            const rect = stage.getBoundingClientRect();
+            const landscapeX = ((event.clientX - rect.left) / rect.width) * 1200;
+            const landscapeY = ((event.clientY - rect.top) / rect.height) * 674;
+            return {
+                x: clamp(landscapeY, bounds.minX, bounds.maxX),
+                y: clamp(1200 - landscapeX, bounds.minY, bounds.maxY)
+            };
+        }
+        function updateBallPosition(ballKey, x, y) {
+            ballLayout[ballKey] = { x: clamp(x, bounds.minX, bounds.maxX), y: clamp(y, bounds.minY, bounds.maxY) };
+            renderBalls();
+        }
+        function startBallDrag(event) {
+            if (drawMode) return;
+            const ballKey = event.currentTarget.dataset.ball;
+            if (!ballKey) return;
+            activeDrag = { ballKey, element: event.currentTarget, pointerId: event.pointerId };
+            if (event.currentTarget.setPointerCapture) {
+                try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) {}
+            }
+            event.preventDefault();
+        }
+        function stopBallDrag() {
+            if (activeDrag?.element?.releasePointerCapture) {
+                try { activeDrag.element.releasePointerCapture(activeDrag.pointerId); } catch (_) {}
+            }
+            activeDrag = null;
+        }
+        function handlePointerMove(event) {
+            const point = getPortraitPoint(event);
+            if (activeDrag) {
+                event.preventDefault();
+                updateBallPosition(activeDrag.ballKey, point.x, point.y);
+                return;
+            }
+            if (activeLineDraft) {
+                event.preventDefault();
+                activeLineDraft.points[activeLineDraft.points.length - 1] = point;
+                renderLines();
+            }
+        }
+        function resetBallLayout() {
+            ballLayout = getDefaultLayout();
+            renderBalls();
+        }
+        function toggleDrawMode() {
+            drawMode = !drawMode;
+            activeLineDraft = null;
+            updateDrawModeUi();
+            renderLines();
+        }
+        function clearLines() {
+            linePaths = [];
+            activeLineDraft = null;
+            renderLines();
+        }
+        function serializeLines() {
+            return linePaths.map((line) => ({
+                points: (line.points || []).map((pt) => ({ x: pt.x, y: pt.y }))
+            }));
+        }
+        function handleTablePointerDown(event) {
+            if (!drawMode) return;
+            if (event.target.closest(".table-ball")) return;
+            const point = getPortraitPoint(event);
+            activeLineDraft = { points: [point, point] };
+            event.preventDefault();
+            renderLines();
+        }
+        function handleTablePointerUp() {
+            if (!activeLineDraft) return;
+            const points = activeLineDraft.points || [];
+            if (points.length > 1) {
+                const first = points[0];
+                const last = points[points.length - 1];
+                const distance = Math.hypot(last.x - first.x, last.y - first.y);
+                if (distance >= 10) linePaths.push({ points: points.map((pt) => ({ x: pt.x, y: pt.y })) });
+            }
+            activeLineDraft = null;
+            renderLines();
+        }
+        function serializeLayout() {
+            return {
+                red: { ...ballLayout.red },
+                yellow: { ...ballLayout.yellow },
+                white: { ...ballLayout.white }
+            };
+        }
+        function resetForm() {
+            editingId = null;
+            document.getElementById("pageTitle").innerText = "Neue Position";
+            document.getElementById("titleInput").value = "";
+            document.getElementById("descriptionInput").value = "";
+            document.getElementById("deleteBtn").style.display = "none";
+            selectedDiscipline = "Cadre 47/2";
+            setSelectedDiscipline(selectedDiscipline);
+            resetBallLayout();
+            clearLines();
+            if (positionId) history.replaceState({}, "", "training_position_library_editor.html");
+        }
+        async function loadPosition() {
+            if (!positionId) return;
+            const { data, error } = await supabaseClient.from("training_position_library").select("*").eq("id", positionId).eq("user_id", currentUser.id).maybeSingle();
+            if (error || !data) {
+                setNotice("Position konnte nicht geladen werden.");
+                return;
+            }
+            editingId = data.id;
+            document.getElementById("pageTitle").innerText = "Position bearbeiten";
+            document.getElementById("titleInput").value = data.title || "";
+            document.getElementById("descriptionInput").value = data.description || "";
+            setSelectedDiscipline(data.discipline || "Cadre 47/2");
+            ballLayout = data.ball_layout && data.ball_layout.red ? {
+                red: { ...data.ball_layout.red },
+                yellow: { ...data.ball_layout.yellow },
+                white: { ...data.ball_layout.white }
+            } : getDefaultLayout();
+            linePaths = Array.isArray(data.line_paths) ? data.line_paths.map((line) => ({ points: (line.points || []).map((pt) => ({ x: pt.x, y: pt.y })) })) : [];
+            activeLineDraft = null;
+            renderBalls();
+            renderLines();
+            document.getElementById("deleteBtn").style.display = "inline-flex";
+        }
+        async function savePosition() {
+            const title = String(document.getElementById("titleInput").value || "").trim();
+            const description = String(document.getElementById("descriptionInput").value || "").trim();
+            if (!title) { alert("Bitte einen Titel eingeben."); return; }
+            const payload = {
+                user_id: currentUser.id,
+                title,
+                discipline: selectedDiscipline,
+                description,
+                ball_layout: serializeLayout(),
+                line_paths: serializeLines()
+            };
+            let result;
+            if (editingId) {
+                result = await supabaseClient.from("training_position_library").update(payload).eq("id", editingId).eq("user_id", currentUser.id);
+            } else {
+                result = await supabaseClient.from("training_position_library").insert(payload).select("id").single();
+            }
+            if (result.error) {
+                alert("Position konnte nicht gespeichert werden: " + result.error.message);
+                return;
+            }
+            const id = editingId || result.data?.id;
+            window.location.href = "training_position_library.html";
+        }
+        async function deletePosition() {
+            if (!editingId) return;
+            if (!confirm("Diese Position wirklich löschen?")) return;
+            const { error } = await supabaseClient.from("training_position_library").delete().eq("id", editingId).eq("user_id", currentUser.id);
+            if (error) {
+                alert("Position konnte nicht gelöscht werden: " + error.message);
+                return;
+            }
+            window.location.href = "training_position_library.html";
+        }
+        async function init() {
+            currentUser = await requireAuth();
+            if (!currentUser) return;
+            buildDisciplineButtons();
+            resetBallLayout();
+            renderBalls();
+            renderLines();
+            updateDrawModeUi();
+            await loadPosition();
+        }
+        document.addEventListener("fullscreenchange", updateFullscreenButton);
+        window.addEventListener("pointermove", handlePointerMove);
+        window.addEventListener("pointerup", () => { stopBallDrag(); handleTablePointerUp(); });
+        window.addEventListener("pointercancel", () => { stopBallDrag(); handleTablePointerUp(); });
+        document.querySelectorAll(".table-ball").forEach((ball) => ball.addEventListener("pointerdown", startBallDrag));
+        document.getElementById("tableStage").addEventListener("pointerdown", handleTablePointerDown);
+        updateFullscreenButton();
+        init();
+    </script>
+</body>
+</html>

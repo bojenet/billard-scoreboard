@@ -15,41 +15,29 @@
         .btn { border:none; border-radius:12px; padding:12px 16px; background:#1c3380; border:1px solid #3659bb; color:#fff; font-size:16px; font-weight:700; cursor:pointer; }
         .btn.primary { background:#2f4fe0; }
         .btn.danger { background:#9f3434; border-color:#be5757; }
-        .layout { display:grid; grid-template-columns:minmax(360px,.92fr) minmax(0,1.25fr); gap:18px; }
         .card { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:22px; box-shadow:0 24px 56px rgba(0,0,0,.45); overflow:hidden; }
         .section { padding:16px; border-bottom:1px solid #27417f; }
         .section:last-child { border-bottom:none; }
         .section-title { font-size:20px; font-weight:800; margin:0 0 8px; }
         .section-sub { font-size:13px; opacity:.76; margin-bottom:12px; }
         .notice { padding:12px 14px; border-radius:14px; border:1px solid #556db2; background:rgba(20,38,89,.78); font-size:14px; line-height:1.5; margin-bottom:12px; display:none; }
-        .field { margin-bottom:12px; }
-        .field label { display:block; font-size:13px; opacity:.82; margin-bottom:6px; }
-        .field input, .field textarea { width:100%; box-sizing:border-box; border:1px solid #3959ab; border-radius:12px; padding:12px 14px; color:#fff; background:#112659; font-size:15px; }
-        .field textarea { min-height:150px; resize:vertical; }
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:10px 14px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:14px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
-        .table-wrap { position:relative; border-radius:24px; overflow:hidden; background:#f7f7f4; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio:674/1200; }
-        .table-background { width:100%; height:100%; display:block; object-fit:cover; }
-        .table-overlay { position:absolute; inset:0; width:100%; height:100%; display:block; }
-        .table-ball { cursor:grab; touch-action:none; }
-        .table-ball:active { cursor:grabbing; }
-        .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:13px; opacity:.82; margin-top:10px; }
-        .legend-item { display:flex; align-items:center; gap:8px; }
-        .legend-dot { width:12px; height:12px; border-radius:999px; box-shadow:0 0 0 1px rgba(255,255,255,.25); }
-        .library-head { display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
         .list { display:grid; gap:12px; }
         .item { border:1px solid #3557b7; border-radius:18px; background:rgba(12,28,72,.72); padding:14px; display:grid; gap:12px; }
         .item-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
         .item-title { font-size:18px; font-weight:800; }
         .item-sub { font-size:13px; opacity:.76; margin-top:4px; }
         .item-actions { display:flex; gap:8px; flex-wrap:wrap; }
-        .thumb-wrap { position:relative; width:140px; min-width:140px; border-radius:16px; overflow:hidden; background:#f7f7f4; aspect-ratio:674/1200; }
-        .thumb-bg { width:100%; height:100%; display:block; object-fit:cover; }
-        .thumb-overlay { position:absolute; inset:0; width:100%; height:100%; display:block; }
-        .item-body { display:grid; grid-template-columns:minmax(0,1fr) 140px; gap:12px; align-items:start; }
+        .item-body { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:14px; align-items:start; }
+        .thumb-wrap { position:relative; width:280px; min-width:280px; border-radius:16px; overflow:hidden; background:#f7f7f4; aspect-ratio:1200/674; box-shadow:0 10px 24px rgba(0,0,0,.18); }
+        .thumb-stage { position:absolute; inset:0; }
+        .thumb-bg, .thumb-lines, .thumb-balls { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
+        .thumb-bg { object-fit:cover; display:block; }
+        .thumb-lines, .thumb-balls { display:block; }
         .empty { padding:14px; border-radius:14px; border:1px dashed rgba(255,255,255,.18); opacity:.74; }
-        @media (max-width: 980px) { .layout { grid-template-columns:1fr; } .item-body { grid-template-columns:1fr; } .thumb-wrap { width:100%; max-width:220px; } }
+        @media (max-width: 980px) { .item-body { grid-template-columns:1fr; } .thumb-wrap { width:100%; min-width:0; } }
     </style>
 </head>
 <body>
@@ -58,77 +46,23 @@
         <div class="topbar">
             <div>
                 <h1 class="title">Positions Library</h1>
-                <div class="sub">Eigene Positionen einzeln speichern, beschreiben und nach Disziplin filtern.</div>
+                <div class="sub">Deine gespeicherten Positionen mit Disziplin-Filter, Beschreibung und Vorschau.</div>
             </div>
             <div class="actions">
-                <button class="btn" type="button" onclick="resetForm()">Neu</button>
+                <button class="btn primary" type="button" onclick="window.location.href='training_position_library_editor.html'">Neu</button>
                 <button class="btn" type="button" onclick="window.location.href='training.html'">Zurück</button>
             </div>
         </div>
 
-        <div class="layout">
-            <div class="card">
-                <div class="section">
-                    <div id="noticeBox" class="notice"></div>
-                    <h2 class="section-title">Position Editor</h2>
-                    <div class="section-sub">Titel, Disziplin, Beschreibung und die drei Ballpositionen werden gemeinsam gespeichert.</div>
-                    <div class="field">
-                        <label for="titleInput">Titel</label>
-                        <input id="titleInput" type="text" maxlength="120" placeholder="z. B. Anker am kurzen Cadre">
-                    </div>
-                    <div class="field">
-                        <label>Disziplin</label>
-                        <div class="chips" id="disciplineButtons"></div>
-                    </div>
-                    <div class="field">
-                        <label for="descriptionInput">Beschreibung</label>
-                        <textarea id="descriptionInput" placeholder="Worum geht es in der Position, worauf soll man achten, welche Lösungsidee steckt dahinter?"></textarea>
-                    </div>
-                    <div class="actions">
-                        <button class="btn primary" type="button" onclick="savePosition()">Speichern</button>
-                        <button class="btn" type="button" onclick="resetBallLayout()">Bälle zurücksetzen</button>
-                        <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
-                    </div>
-                </div>
-                <div class="section">
-                    <div class="table-wrap">
-                        <img id="tableBackground" class="table-background" src="assets/grosser-tisch-47-2.png" alt="Tischvorlage">
-                        <svg id="positionTable" class="table-overlay" viewBox="0 0 674 1200" aria-label="Interaktiver Billardtisch">
-                            <g id="ball-red" class="table-ball" data-ball="red">
-                                <circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
-                                <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
-                            </g>
-                            <g id="ball-yellow" class="table-ball" data-ball="yellow">
-                                <circle r="12" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
-                                <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
-                            </g>
-                            <g id="ball-white" class="table-ball" data-ball="white">
-                                <circle r="12" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="1.5"></circle>
-                                <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.72"></circle>
-                            </g>
-                        </svg>
-                    </div>
-                    <div class="legend">
-                        <div class="legend-item"><span class="legend-dot" style="background:#cf2e2e;"></span><span>Rot</span></div>
-                        <div class="legend-item"><span class="legend-dot" style="background:#e0bb20;"></span><span>Gelb</span></div>
-                        <div class="legend-item"><span class="legend-dot" style="background:#eef2fb;"></span><span>Weiß</span></div>
-                    </div>
-                </div>
+        <div class="card">
+            <div class="section">
+                <div id="noticeBox" class="notice"></div>
+                <h2 class="section-title">Filter</h2>
+                <div class="section-sub">Die Library startet jetzt ohne parallelen Editor. `Neu` oder `Bearbeiten` öffnet die eigene Anlegeseite.</div>
+                <div class="chips" id="filterButtons"></div>
             </div>
-
-            <div class="card">
-                <div class="section">
-                    <div class="library-head">
-                        <div>
-                            <h2 class="section-title">Library</h2>
-                            <div class="section-sub">Gespeicherte Positionen pro Benutzer, filterbar nach Disziplin.</div>
-                        </div>
-                    </div>
-                    <div class="chips" id="filterButtons"></div>
-                </div>
-                <div class="section">
-                    <div id="libraryList" class="list"></div>
-                </div>
+            <div class="section">
+                <div id="libraryList" class="list"></div>
             </div>
         </div>
     </div>
@@ -140,28 +74,15 @@
     <script>
         const disciplines = ["Alle", "Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
         const tableTemplates = { "Cadre 47/2": "assets/grosser-tisch-47-2.png", "Cadre 71/2": "assets/mb-71-2.png" };
-        const bounds = { minX: 70, maxX: 605, minY: 58, maxY: 1143 };
         const defaultLayout = {
             red: { x: 236, y: 166 },
             yellow: { x: 259, y: 214 },
             white: { x: 232, y: 201 }
         };
         let currentUser = null;
-        let selectedDiscipline = "Cadre 47/2";
         let activeFilter = "Alle";
-        let activeDrag = null;
         let libraryItems = [];
-        let editingId = null;
-        let ballLayout = getDefaultLayout();
 
-        function getDefaultLayout() {
-            return {
-                red: { ...defaultLayout.red },
-                yellow: { ...defaultLayout.yellow },
-                white: { ...defaultLayout.white }
-            };
-        }
-        function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
         function setNotice(text) {
             const box = document.getElementById("noticeBox");
             box.style.display = text ? "block" : "none";
@@ -180,100 +101,37 @@
             updateFullscreenButton();
         }
         function getTemplateForDiscipline(discipline) { return tableTemplates[discipline] || "assets/grosser-tisch-47-2.png"; }
-        function setSelectedDiscipline(value) {
-            selectedDiscipline = value || "Cadre 47/2";
-            document.getElementById("tableBackground").src = getTemplateForDiscipline(selectedDiscipline);
-            document.querySelectorAll("#disciplineButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === selectedDiscipline));
-        }
         function setFilter(value) {
             activeFilter = value || "Alle";
             document.querySelectorAll("#filterButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === activeFilter));
             renderLibrary();
         }
-        function buildDisciplineButtons() {
-            const editWrap = document.getElementById("disciplineButtons");
-            const filterWrap = document.getElementById("filterButtons");
-            editWrap.innerHTML = "";
-            filterWrap.innerHTML = "";
-            disciplines.filter((x) => x !== "Alle").forEach((discipline) => {
-                const btn = document.createElement("button");
-                btn.className = "chip";
-                btn.dataset.value = discipline;
-                btn.innerText = discipline;
-                btn.onclick = () => setSelectedDiscipline(discipline);
-                editWrap.appendChild(btn);
-            });
+        function buildFilterButtons() {
+            const wrap = document.getElementById("filterButtons");
+            wrap.innerHTML = "";
             disciplines.forEach((discipline) => {
                 const btn = document.createElement("button");
                 btn.className = "chip";
                 btn.dataset.value = discipline;
                 btn.innerText = discipline;
                 btn.onclick = () => setFilter(discipline);
-                filterWrap.appendChild(btn);
+                wrap.appendChild(btn);
             });
-            setSelectedDiscipline(selectedDiscipline);
             setFilter(activeFilter);
         }
-        function renderBalls() {
-            ["red", "yellow", "white"].forEach((key) => {
-                const el = document.getElementById("ball-" + key);
-                const pos = ballLayout[key];
-                if (el && pos) el.setAttribute("transform", "translate(" + pos.x + " " + pos.y + ")");
-            });
-        }
-        function getSvgPoint(event) {
-            const svg = document.getElementById("positionTable");
-            const rect = svg.getBoundingClientRect();
-            return {
-                x: ((event.clientX - rect.left) / rect.width) * 674,
-                y: ((event.clientY - rect.top) / rect.height) * 1200
-            };
-        }
-        function updateBallPosition(ballKey, x, y) {
-            ballLayout[ballKey] = {
-                x: clamp(x, bounds.minX, bounds.maxX),
-                y: clamp(y, bounds.minY, bounds.maxY)
-            };
-            renderBalls();
-        }
-        function startBallDrag(event) {
-            const ballKey = event.currentTarget.dataset.ball;
-            if (!ballKey) return;
-            activeDrag = { ballKey, element: event.currentTarget, pointerId: event.pointerId };
-            if (event.currentTarget.setPointerCapture) {
-                try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) {}
-            }
-            event.preventDefault();
-        }
-        function stopBallDrag() {
-            if (activeDrag?.element?.releasePointerCapture) {
-                try { activeDrag.element.releasePointerCapture(activeDrag.pointerId); } catch (_) {}
-            }
-            activeDrag = null;
-        }
-        function handlePointerMove(event) {
-            if (!activeDrag) return;
-            event.preventDefault();
-            const point = getSvgPoint(event);
-            updateBallPosition(activeDrag.ballKey, point.x, point.y);
-        }
-        function resetBallLayout() {
-            ballLayout = getDefaultLayout();
-            renderBalls();
-        }
-        function serializeLayout() {
-            return {
-                red: { ...ballLayout.red },
-                yellow: { ...ballLayout.yellow },
-                white: { ...ballLayout.white }
-            };
-        }
-        function renderThumbSvg(layout) {
-            return `<svg class="thumb-overlay" viewBox="0 0 674 1200" aria-label="Position">
+        function renderThumbBallMarkup(layout) {
+            return `
                 <g transform="translate(${layout.red.x} ${layout.red.y})"><circle r="12" fill="#e02f2f"></circle></g>
                 <g transform="translate(${layout.yellow.x} ${layout.yellow.y})"><circle r="12" fill="#ffe500"></circle></g>
                 <g transform="translate(${layout.white.x} ${layout.white.y})"><circle r="12" fill="#fbfbfb" stroke="#7d7d7d" stroke-width="1.2"></circle></g>
-            </svg>`;
+            `;
+        }
+        function escapeHtml(value) {
+            return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+        }
+        function formatDate(value) {
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
         }
         function renderLibrary() {
             const wrap = document.getElementById("libraryList");
@@ -284,21 +142,15 @@
             }
             wrap.innerHTML = "";
             visible.forEach((item) => {
-                const layout = item.ball_layout || getDefaultLayout();
+                const layout = item.ball_layout || defaultLayout;
+                const lines = Array.isArray(item.line_paths) ? item.line_paths : [];
                 const card = document.createElement("div");
                 card.className = "item";
-                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}</div></div><div class="item-actions"><button class="btn" type="button" data-load="${item.id}">Laden</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button></div></div><div class="item-body"><div>${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div><div class="thumb-wrap"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position">${renderThumbSvg(layout)}</div></div>`;
-                card.querySelector("[data-load]").onclick = () => loadPositionIntoEditor(item.id);
+                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}${lines.length ? " • " + lines.length + " Linie" + (lines.length === 1 ? "" : "n") : ""}</div></div><div class="item-actions"><button class="btn" type="button" data-edit="${item.id}">Bearbeiten</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button></div></div><div class="item-body"><div>${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div><div class="thumb-wrap"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout)}</svg></div></div></div>`;
+                card.querySelector("[data-edit]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
                 card.querySelector("[data-delete]").onclick = () => deletePosition(item.id);
                 wrap.appendChild(card);
             });
-        }
-        function escapeHtml(value) {
-            return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-        }
-        function formatDate(value) {
-            const date = new Date(value);
-            return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
         }
         async function loadLibrary() {
             const { data, error } = await supabaseClient
@@ -316,55 +168,7 @@
             libraryItems = data || [];
             renderLibrary();
         }
-        function resetForm() {
-            editingId = null;
-            document.getElementById("titleInput").value = "";
-            document.getElementById("descriptionInput").value = "";
-            document.getElementById("deleteBtn").style.display = "none";
-            selectedDiscipline = "Cadre 47/2";
-            setSelectedDiscipline(selectedDiscipline);
-            resetBallLayout();
-        }
-        function loadPositionIntoEditor(id) {
-            const item = libraryItems.find((entry) => entry.id === id);
-            if (!item) return;
-            editingId = item.id;
-            document.getElementById("titleInput").value = item.title || "";
-            document.getElementById("descriptionInput").value = item.description || "";
-            setSelectedDiscipline(item.discipline || "Cadre 47/2");
-            ballLayout = item.ball_layout && item.ball_layout.red ? {
-                red: { ...item.ball_layout.red },
-                yellow: { ...item.ball_layout.yellow },
-                white: { ...item.ball_layout.white }
-            } : getDefaultLayout();
-            renderBalls();
-            document.getElementById("deleteBtn").style.display = "inline-flex";
-        }
-        async function savePosition() {
-            const title = String(document.getElementById("titleInput").value || "").trim();
-            const description = String(document.getElementById("descriptionInput").value || "").trim();
-            if (!title) { alert("Bitte einen Titel eingeben."); return; }
-            const payload = {
-                user_id: currentUser.id,
-                title,
-                discipline: selectedDiscipline,
-                description,
-                ball_layout: serializeLayout()
-            };
-            let result;
-            if (editingId) {
-                result = await supabaseClient.from("training_position_library").update(payload).eq("id", editingId).eq("user_id", currentUser.id);
-            } else {
-                result = await supabaseClient.from("training_position_library").insert(payload);
-            }
-            if (result.error) {
-                alert("Position konnte nicht gespeichert werden: " + result.error.message);
-                return;
-            }
-            await loadLibrary();
-            if (!editingId) resetForm();
-        }
-        async function deletePosition(id = editingId) {
+        async function deletePosition(id) {
             if (!id) return;
             if (!confirm("Diese Position wirklich löschen?")) return;
             const { error } = await supabaseClient.from("training_position_library").delete().eq("id", id).eq("user_id", currentUser.id);
@@ -372,22 +176,15 @@
                 alert("Position konnte nicht gelöscht werden: " + error.message);
                 return;
             }
-            if (editingId === id) resetForm();
             await loadLibrary();
         }
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
-            buildDisciplineButtons();
-            resetForm();
-            renderBalls();
+            buildFilterButtons();
             await loadLibrary();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
-        window.addEventListener("pointermove", handlePointerMove);
-        window.addEventListener("pointerup", stopBallDrag);
-        window.addEventListener("pointercancel", stopBallDrag);
-        document.querySelectorAll(".table-ball").forEach((ball) => ball.addEventListener("pointerdown", startBallDrag));
         updateFullscreenButton();
         init();
     </script>

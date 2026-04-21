@@ -5,9 +5,13 @@ create table if not exists public.training_position_library (
   discipline text not null,
   description text not null default '',
   ball_layout jsonb not null default '{}'::jsonb,
+  line_paths jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.training_position_library
+  add column if not exists line_paths jsonb not null default '[]'::jsonb;
 
 create index if not exists idx_training_position_library_user on public.training_position_library(user_id, updated_at desc);
 create index if not exists idx_training_position_library_user_discipline on public.training_position_library(user_id, discipline);
