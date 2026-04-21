@@ -33,6 +33,8 @@
         .table-zoom-actions { display:flex; gap:8px; flex-wrap:wrap; }
         .zoom-btn { border:none; border-radius:10px; background:#2746aa; color:#fff; font-size:14px; font-weight:700; padding:10px 12px; cursor:pointer; }
         .table-viewport { overflow:auto; padding-bottom:6px; display:flex; justify-content:center; align-items:flex-start; }
+        .table-viewport.pannable { cursor:grab; }
+        .table-viewport.panning { cursor:grabbing; user-select:none; }
         .table-zoom-stage { width:max-content; }
         .table-wrap { position:relative; width:1200px; border-radius:24px; overflow:hidden; background:#f7f7f4; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio:1200/674; }
         .table-wrap.draw-mode { box-shadow: inset 0 0 0 3px rgba(255,216,74,.7), 0 18px 34px rgba(0,0,0,.28); }
@@ -176,6 +178,8 @@
         let activeLineDraft = null;
         let activeLineEdit = null;
         let currentEditorZoom = 1;
+        let fitEditorZoom = 1;
+        let activePan = null;
         let loupeEnabled = false;
         let lastPointerClient = null;
         const baseTableWidth = 1200;
@@ -204,18 +208,29 @@
             const viewport = document.getElementById("tableViewport");
             if (!viewport) return;
             const fitZoom = Math.min(1, Number((viewport.clientWidth / baseTableWidth).toFixed(3)) || 1);
+            fitEditorZoom = fitZoom > 0 ? fitZoom : 1;
             currentEditorZoom = fitZoom > 0 ? fitZoom : 1;
             updateEditorZoomStage();
             viewport.scrollLeft = 0;
             viewport.scrollTop = 0;
+            updatePanUi();
+        }
+        function updatePanUi() {
+            const viewport = document.getElementById("tableViewport");
+            if (!viewport) return;
+            const pannable = currentEditorZoom > fitEditorZoom + 0.01 && !drawMode;
+            viewport.classList.toggle("pannable", pannable);
+            viewport.classList.toggle("panning", !!activePan);
         }
         function changeEditorZoom(delta) {
             currentEditorZoom = clamp(Number((currentEditorZoom + delta).toFixed(2)), 0.5, 4);
             updateEditorZoomStage();
+            updatePanUi();
         }
         function resetEditorZoom() {
             currentEditorZoom = 1;
             updateEditorZoomStage();
+            updatePanUi();
         }
         function setNotice(text) {
             const box = document.getElementById("noticeBox");
@@ -286,6 +301,7 @@
             if (btn) btn.innerText = "Linien zeichnen: " + (drawMode ? "An" : "Aus");
             if (finishBtn) finishBtn.style.display = drawMode && activeLineDraft ? "inline-flex" : "none";
             if (wrap) wrap.classList.toggle("draw-mode", drawMode);
+            updatePanUi();
             if (helpText) {
                 helpText.innerText = drawMode && activeLineDraft
                     ? "Linie aktiv. Mit jedem Klick kommt ein weiterer Punkt dazu. `Linie beenden` oder Doppelklick schließt den Pfad ab."
@@ -434,6 +450,26 @@
             }
             activeDrag = null;
         }
+        function startViewportPan(event) {
+            if (drawMode || activeDrag || activeLineEdit || activeLineDraft) return;
+            if (currentEditorZoom <= fitEditorZoom + 0.01) return;
+            if (event.target.closest(".table-ball") || event.target.closest(".line-hit-area") || event.target.closest(".line-point-handle")) return;
+            const viewport = document.getElementById("tableViewport");
+            if (!viewport) return;
+            activePan = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                scrollLeft: viewport.scrollLeft,
+                scrollTop: viewport.scrollTop
+            };
+            updatePanUi();
+            event.preventDefault();
+        }
+        function stopViewportPan() {
+            activePan = null;
+            updatePanUi();
+        }
         function stopLineEdit() {
             if (activeLineEdit?.element?.releasePointerCapture) {
                 try { activeLineEdit.element.releasePointerCapture(activeLineEdit.pointerId); } catch (_) {}
@@ -480,6 +516,15 @@
         function handlePointerMove(event) {
             lastPointerClient = { x: event.clientX, y: event.clientY };
             updateLoupe(lastPointerClient);
+            if (activePan) {
+                const viewport = document.getElementById("tableViewport");
+                if (viewport) {
+                    viewport.scrollLeft = activePan.scrollLeft - (event.clientX - activePan.startX);
+                    viewport.scrollTop = activePan.scrollTop - (event.clientY - activePan.startY);
+                }
+                event.preventDefault();
+                return;
+            }
             const point = getPortraitPoint(event);
             if (activeDrag) {
                 event.preventDefault();
@@ -662,8 +707,8 @@
         document.addEventListener("fullscreenchange", updateFullscreenButton);
         window.addEventListener("resize", fitEditorToViewport);
         window.addEventListener("pointermove", handlePointerMove);
-        window.addEventListener("pointerup", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); });
-        window.addEventListener("pointercancel", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); hideLoupe(); });
+        window.addEventListener("pointerup", () => { stopBallDrag(); stopLineEdit(); stopViewportPan(); handleTablePointerUp(); });
+        window.addEventListener("pointercancel", () => { stopBallDrag(); stopLineEdit(); stopViewportPan(); handleTablePointerUp(); hideLoupe(); });
         window.addEventListener("keydown", (event) => {
             if (event.key === "Escape" && activeLineDraft) {
                 event.preventDefault();
@@ -674,6 +719,7 @@
         document.getElementById("tableStage").addEventListener("pointerdown", handleTablePointerDown);
         document.getElementById("tableStage").addEventListener("dblclick", handleTableDoubleClick);
         document.getElementById("tableStage").addEventListener("pointerleave", hideLoupe);
+        document.getElementById("tableViewport").addEventListener("pointerdown", startViewportPan);
         updateFullscreenButton();
         init();
     </script>
