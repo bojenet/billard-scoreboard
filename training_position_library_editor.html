@@ -33,7 +33,7 @@
         .table-zoom-actions { display:flex; gap:8px; flex-wrap:wrap; }
         .zoom-btn { border:none; border-radius:10px; background:#2746aa; color:#fff; font-size:14px; font-weight:700; padding:10px 12px; cursor:pointer; }
         .table-viewport { overflow:auto; padding-bottom:6px; display:flex; justify-content:center; align-items:flex-start; }
-        .table-zoom-stage { width:max-content; transform-origin:top left; transition:transform .12s ease-out; }
+        .table-zoom-stage { width:max-content; }
         .table-wrap { position:relative; width:1200px; border-radius:24px; overflow:hidden; background:#f7f7f4; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio:1200/674; }
         .table-wrap.draw-mode { box-shadow: inset 0 0 0 3px rgba(255,216,74,.7), 0 18px 34px rgba(0,0,0,.28); }
         .table-stage { position:absolute; inset:0; }
@@ -46,6 +46,12 @@
         .table-ball:active { cursor:grabbing; }
         .line-hit-area { pointer-events:auto; cursor:move; }
         .line-point-handle { pointer-events:auto; cursor:pointer; }
+        .table-loupe { position:absolute; width:190px; height:190px; border-radius:999px; overflow:hidden; border:3px solid rgba(255,216,74,.95); box-shadow:0 14px 30px rgba(0,0,0,.34); background:#f7f7f4; pointer-events:none; z-index:6; display:none; }
+        .table-loupe.visible { display:block; }
+        .table-loupe-content { position:absolute; inset:0; transform-origin:top left; }
+        .table-loupe-content .table-bg, .table-loupe-content .table-lines, .table-loupe-content .table-overlay { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
+        .table-loupe-content .table-bg { display:block; object-fit:cover; }
+        .table-loupe-content .table-lines, .table-loupe-content .table-overlay { display:block; }
         .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:13px; opacity:.82; margin-top:10px; }
         .legend-item { display:flex; align-items:center; gap:8px; }
         .legend-dot { width:12px; height:12px; border-radius:999px; box-shadow:0 0 0 1px rgba(255,255,255,.25); }
@@ -88,6 +94,7 @@
                         <button class="btn" type="button" onclick="resetBallLayout()">Bälle zurücksetzen</button>
                         <button class="btn" id="drawToggleBtn" type="button" onclick="toggleDrawMode()">Linien zeichnen: Aus</button>
                         <button class="btn" id="finishLineBtn" type="button" onclick="finishActiveLineDraft()" style="display:none;">Linie beenden</button>
+                        <button class="btn" id="loupeToggleBtn" type="button" onclick="toggleLoupe()">Lupe: Aus</button>
                         <button class="btn" type="button" onclick="clearLines()">Linien löschen</button>
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                     </div>
@@ -99,7 +106,7 @@
                     <h2 class="section-title">Billardtisch</h2>
                     <div class="section-sub" id="tableHelpText">Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben.</div>
                     <div class="table-toolbar">
-                        <div class="section-sub" style="margin:0;">100% zeigt den Tisch in voller Arbeitsgröße. Danach kannst du per Scrollen sehr genau positionieren.</div>
+                        <div class="section-sub" style="margin:0;">Der komplette Tisch zoomt jetzt als Einheit. Mit der Lupe kannst du lokal noch genauer arbeiten.</div>
                         <div class="table-zoom-actions">
                             <button class="zoom-btn" type="button" onclick="changeEditorZoom(-0.25)">−</button>
                             <button class="zoom-btn" type="button" onclick="changeEditorZoom(0.25)">+</button>
@@ -126,6 +133,9 @@
                                         </g>
                                     </svg>
                                     <svg id="lineLayer" class="table-lines" viewBox="0 0 674 1200" aria-hidden="true"></svg>
+                                    <div id="tableLoupe" class="table-loupe" aria-hidden="true">
+                                        <div id="tableLoupeContent" class="table-loupe-content"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -166,6 +176,11 @@
         let activeLineDraft = null;
         let activeLineEdit = null;
         let currentEditorZoom = 1;
+        let loupeEnabled = false;
+        let lastPointerClient = null;
+        const baseTableWidth = 1200;
+        const baseTableHeight = 674;
+        const loupeScale = 2.4;
 
         function getDefaultLayout() {
             return {
@@ -176,14 +191,19 @@
         }
         function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
         function updateEditorZoomStage() {
-            const stage = document.getElementById("tableZoomStage");
-            if (!stage) return;
-            stage.style.transform = `scale(${currentEditorZoom})`;
+            const wrap = document.getElementById("tableWrap");
+            const zoomStage = document.getElementById("tableZoomStage");
+            if (!wrap || !zoomStage) return;
+            const width = Math.round(baseTableWidth * currentEditorZoom);
+            wrap.style.width = width + "px";
+            zoomStage.style.width = width + "px";
+            syncLoupeContent();
+            if (lastPointerClient) updateLoupe(lastPointerClient);
         }
         function fitEditorToViewport() {
             const viewport = document.getElementById("tableViewport");
             if (!viewport) return;
-            const fitZoom = Math.min(1, Number((viewport.clientWidth / 1200).toFixed(3)) || 1);
+            const fitZoom = Math.min(1, Number((viewport.clientWidth / baseTableWidth).toFixed(3)) || 1);
             currentEditorZoom = fitZoom > 0 ? fitZoom : 1;
             updateEditorZoomStage();
             viewport.scrollLeft = 0;
@@ -201,6 +221,62 @@
             const box = document.getElementById("noticeBox");
             box.style.display = text ? "block" : "none";
             box.innerText = text || "";
+        }
+        function syncLoupeContent() {
+            const loupeContent = document.getElementById("tableLoupeContent");
+            const background = document.getElementById("tableBackground");
+            const lineLayer = document.getElementById("lineLayer");
+            const positionTable = document.getElementById("positionTable");
+            const tableWrap = document.getElementById("tableWrap");
+            if (!loupeContent || !background || !lineLayer || !positionTable || !tableWrap) return;
+            const wrapRect = tableWrap.getBoundingClientRect();
+            loupeContent.style.width = wrapRect.width + "px";
+            loupeContent.style.height = wrapRect.height + "px";
+            loupeContent.innerHTML = `
+                <img class="table-bg" src="${background.src}" alt="">
+                <svg class="table-overlay" viewBox="0 0 674 1200" aria-hidden="true">${positionTable.innerHTML}</svg>
+                <svg class="table-lines" viewBox="0 0 674 1200" aria-hidden="true">${lineLayer.innerHTML}</svg>
+            `;
+        }
+        function updateLoupeToggleUi() {
+            const btn = document.getElementById("loupeToggleBtn");
+            const loupe = document.getElementById("tableLoupe");
+            if (btn) btn.innerText = "Lupe: " + (loupeEnabled ? "An" : "Aus");
+            if (loupe) loupe.classList.toggle("visible", loupeEnabled && !!lastPointerClient);
+        }
+        function toggleLoupe() {
+            loupeEnabled = !loupeEnabled;
+            if (!loupeEnabled) lastPointerClient = null;
+            updateLoupeToggleUi();
+        }
+        function hideLoupe() {
+            lastPointerClient = null;
+            updateLoupeToggleUi();
+        }
+        function updateLoupe(clientPoint) {
+            if (!loupeEnabled || !clientPoint) return;
+            const tableWrap = document.getElementById("tableWrap");
+            const tableStage = document.getElementById("tableStage");
+            const loupe = document.getElementById("tableLoupe");
+            const loupeContent = document.getElementById("tableLoupeContent");
+            if (!tableWrap || !tableStage || !loupe || !loupeContent) return;
+            const rect = tableStage.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            const localX = clientPoint.x - rect.left;
+            const localY = clientPoint.y - rect.top;
+            if (localX < 0 || localY < 0 || localX > rect.width || localY > rect.height) {
+                hideLoupe();
+                return;
+            }
+            const lensSize = 190;
+            const wrapRect = tableWrap.getBoundingClientRect();
+            const lensLeft = clamp(localX - (lensSize / 2), 0, wrapRect.width - lensSize);
+            const lensTop = clamp(localY - (lensSize / 2), 0, wrapRect.height - lensSize);
+            loupe.style.left = lensLeft + "px";
+            loupe.style.top = lensTop + "px";
+            loupeContent.style.transform = `translate(${(lensSize / 2) - (localX * loupeScale)}px, ${(lensSize / 2) - (localY * loupeScale)}px) scale(${loupeScale})`;
+            lastPointerClient = clientPoint;
+            updateLoupeToggleUi();
         }
         function updateDrawModeUi() {
             const btn = document.getElementById("drawToggleBtn");
@@ -253,6 +329,7 @@
                 const pos = ballLayout[key];
                 if (el && pos) el.setAttribute("transform", "translate(" + pos.x + " " + pos.y + ")");
             });
+            syncLoupeContent();
         }
         function renderLines() {
             const svg = document.getElementById("lineLayer");
@@ -294,6 +371,7 @@
                     deleteLinePoint(lineIndex, pointIndex);
                 });
             });
+            syncLoupeContent();
         }
         function deleteLinePoint(lineIndex, pointIndex) {
             if (!Number.isFinite(lineIndex) || !Number.isFinite(pointIndex)) return;
@@ -400,6 +478,8 @@
             event.stopPropagation();
         }
         function handlePointerMove(event) {
+            lastPointerClient = { x: event.clientX, y: event.clientY };
+            updateLoupe(lastPointerClient);
             const point = getPortraitPoint(event);
             if (activeDrag) {
                 event.preventDefault();
@@ -529,6 +609,7 @@
             stopLineEdit();
             renderBalls();
             renderLines();
+            fitEditorToViewport();
             document.getElementById("deleteBtn").style.display = "inline-flex";
         }
         async function savePosition() {
@@ -582,7 +663,7 @@
         window.addEventListener("resize", fitEditorToViewport);
         window.addEventListener("pointermove", handlePointerMove);
         window.addEventListener("pointerup", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); });
-        window.addEventListener("pointercancel", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); });
+        window.addEventListener("pointercancel", () => { stopBallDrag(); stopLineEdit(); handleTablePointerUp(); hideLoupe(); });
         window.addEventListener("keydown", (event) => {
             if (event.key === "Escape" && activeLineDraft) {
                 event.preventDefault();
@@ -592,6 +673,7 @@
         document.querySelectorAll(".table-ball").forEach((ball) => ball.addEventListener("pointerdown", startBallDrag));
         document.getElementById("tableStage").addEventListener("pointerdown", handleTablePointerDown);
         document.getElementById("tableStage").addEventListener("dblclick", handleTableDoubleClick);
+        document.getElementById("tableStage").addEventListener("pointerleave", hideLoupe);
         updateFullscreenButton();
         init();
     </script>
