@@ -30,6 +30,35 @@
       overflow: hidden;
     }
 
+    .settings-card {
+      margin-bottom: 18px;
+      padding: 18px 20px;
+    }
+
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .settings-copy {
+      max-width: 680px;
+    }
+
+    .settings-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .settings-sub {
+      opacity: 0.8;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -112,6 +141,22 @@
 <body>
   <div class="page">
     <h1>Userverwaltung</h1>
+    <div class="card settings-card">
+      <div class="settings-row">
+        <div class="settings-copy">
+          <div class="settings-title">Positions Library Rechte</div>
+          <div class="settings-sub">Ausblenden entfernt den Einstieg komplett. Lesen zeigt nur die Library und bestehende Positionen. Editieren erlaubt Anlegen, Bearbeiten und Löschen.</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <select id="positionLibraryAccess">
+            <option value="hidden">ausblenden</option>
+            <option value="read">lesen</option>
+            <option value="edit">editieren</option>
+          </select>
+          <button class="save-btn" onclick="savePositionLibraryAccess()">Speichern</button>
+        </div>
+      </div>
+    </div>
     <div class="card">
       <table id="usersTable">
         <tr>
@@ -132,12 +177,33 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js"></script>
   <script src="js/auth.js"></script>
-    <script src="js/user_menu.js"></script>
+  <script src="js/position_library_access.js"></script>
+  <script src="js/user_menu.js"></script>
   <script>
     function setMsg(text, type) {
       const el = document.getElementById("msg");
       el.className = "msg " + (type || "");
       el.innerText = text || "";
+    }
+
+    async function loadPositionLibraryAccess() {
+      const admin = await requireAdmin();
+      if (!admin) return;
+      const accessMode = await getConfiguredPositionLibraryAccess();
+      document.getElementById("positionLibraryAccess").value = normalizePositionLibraryAccess(accessMode);
+    }
+
+    async function savePositionLibraryAccess() {
+      const admin = await requireAdmin();
+      if (!admin) return;
+      setMsg("", "");
+      const value = normalizePositionLibraryAccess(document.getElementById("positionLibraryAccess").value);
+      try {
+        await setAppSetting(POSITION_LIBRARY_ACCESS_KEY, value);
+        setMsg("Positions-Library-Rechte gespeichert.", "ok");
+      } catch (error) {
+        setMsg("Positions-Library-Rechte speichern fehlgeschlagen: " + error.message, "err");
+      }
     }
 
     async function loadUsers() {
@@ -216,6 +282,7 @@
       setMsg("Rolle gespeichert.", "ok");
     }
 
+    loadPositionLibraryAccess();
     loadUsers();
   </script>
 </body>

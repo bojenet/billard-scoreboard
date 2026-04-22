@@ -22,9 +22,11 @@
         .section-title { font-size:20px; font-weight:800; margin:0 0 8px; }
         .section-sub { font-size:13px; opacity:.76; margin-bottom:12px; }
         .notice { padding:12px 14px; border-radius:14px; border:1px solid #556db2; background:rgba(20,38,89,.78); font-size:14px; line-height:1.5; margin-bottom:12px; display:none; }
+        .notice.warn { border-color:#b89a35; background:rgba(94,73,10,.35); color:#ffe7a0; }
         .field { margin-bottom:12px; }
         .field label { display:block; font-size:13px; opacity:.82; margin-bottom:6px; }
         .field input, .field textarea { width:100%; box-sizing:border-box; border:1px solid #3959ab; border-radius:12px; padding:12px 14px; color:#fff; background:#112659; font-size:15px; }
+        .field input[readonly], .field textarea[readonly] { opacity:.78; cursor:default; }
         .field textarea { min-height:180px; resize:vertical; }
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:10px 14px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:14px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
@@ -115,11 +117,11 @@
                     <div class="icon-toolbar">
                         <button class="icon-btn" id="drawToggleBtn" type="button" onclick="toggleDrawMode()" title="Linien"><img class="icon-img" src="assets/icon-draw-line.png" alt="Linien"></button>
                         <button class="icon-btn" id="moveBallBtn" type="button" onclick="enableMoveMode()" title="Bälle verschieben"><img class="icon-img" src="assets/icon-move-ball.png" alt="Bälle verschieben"></button>
-                        <button class="icon-btn" type="button" onclick="clearLines()" title="Linien löschen"><img class="icon-img" src="assets/icon-delete-lines.png" alt="Linien löschen"></button>
-                        <button class="icon-btn" type="button" onclick="resetEditorZoom()" title="Zoom"><img class="icon-img" src="assets/icon-full-view.png" alt="Zoom"></button>
-                        <button class="icon-btn" type="button" onclick="changeEditorZoom(-0.25)" title="Zoom out"><img class="icon-img" src="assets/icon-zoom-out.png" alt="Zoom out"></button>
-                        <button class="icon-btn" type="button" onclick="changeEditorZoom(0.25)" title="Zoom in"><img class="icon-img" src="assets/icon-zoom-in.png" alt="Zoom in"></button>
-                        <button class="icon-btn" type="button" onclick="addPage()" title="Seite hinzufügen"><img class="icon-img" src="assets/icon-add-page.png" alt="Seite hinzufügen"></button>
+                        <button class="icon-btn" id="clearLinesBtn" type="button" onclick="clearLines()" title="Linien löschen"><img class="icon-img" src="assets/icon-delete-lines.png" alt="Linien löschen"></button>
+                        <button class="icon-btn" id="fullViewBtn" type="button" onclick="resetEditorZoom()" title="Zoom"><img class="icon-img" src="assets/icon-full-view.png" alt="Zoom"></button>
+                        <button class="icon-btn" id="zoomOutBtn" type="button" onclick="changeEditorZoom(-0.25)" title="Zoom out"><img class="icon-img" src="assets/icon-zoom-out.png" alt="Zoom out"></button>
+                        <button class="icon-btn" id="zoomInBtn" type="button" onclick="changeEditorZoom(0.25)" title="Zoom in"><img class="icon-img" src="assets/icon-zoom-in.png" alt="Zoom in"></button>
+                        <button class="icon-btn" id="addPageBtn" type="button" onclick="addPage()" title="Seite hinzufügen"><img class="icon-img" src="assets/icon-add-page.png" alt="Seite hinzufügen"></button>
                         <button class="icon-btn danger" id="deletePageBtn" type="button" onclick="deleteCurrentPage()" title="Seite löschen" style="display:none;"><img class="icon-img" src="assets/icon-delete-page.png" alt="Seite löschen"></button>
                         <button class="icon-btn" id="prevPageBtn" type="button" onclick="goToPreviousPage()" title="Vorherige Seite" style="display:none;">←</button>
                         <button class="icon-btn" id="nextPageBtn" type="button" onclick="goToNextPage()" title="Nächste Seite" style="display:none;">→</button>
@@ -166,6 +168,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/position_library_access.js"></script>
     <script src="js/user_menu.js"></script>
     <script>
         const params = new URLSearchParams(window.location.search);
@@ -208,6 +211,7 @@
         let activePan = null;
         let loupeEnabled = false;
         let lastPointerClient = null;
+        let positionLibraryAccessMode = "edit";
         const baseTableWidth = 1200;
         const baseTableHeight = 674;
         const loupeScale = 2.4;
@@ -318,10 +322,47 @@
             }
             updatePanUi();
         }
-        function setNotice(text) {
+        function setNotice(text, type) {
             const box = document.getElementById("noticeBox");
             box.style.display = text ? "block" : "none";
+            box.className = "notice" + (type ? " " + type : "");
             box.innerText = text || "";
+        }
+        function applyReadOnlyUi() {
+            const readOnly = !isPositionLibraryEditable(positionLibraryAccessMode);
+            const titleInput = document.getElementById("titleInput");
+            const descriptionInput = document.getElementById("descriptionInput");
+            const deleteBtn = document.getElementById("deleteBtn");
+            const saveBtn = document.querySelector(".actions .btn.primary");
+            const newBtn = document.querySelector(".topbar .actions .btn");
+            if (titleInput) titleInput.readOnly = readOnly;
+            if (descriptionInput) descriptionInput.readOnly = readOnly;
+            document.querySelectorAll("#disciplineButtons .chip").forEach((btn) => {
+                btn.style.display = readOnly ? "none" : "inline-flex";
+            });
+            const disciplineWrap = document.getElementById("disciplineButtons");
+            if (disciplineWrap) {
+                disciplineWrap.style.minHeight = readOnly ? "22px" : "";
+                if (readOnly) {
+                    disciplineWrap.innerHTML = `<div class="section-sub" style="margin:0;">${selectedDiscipline}</div>`;
+                }
+            }
+            if (saveBtn) saveBtn.style.display = readOnly ? "none" : "inline-flex";
+            if (deleteBtn) deleteBtn.style.display = readOnly ? "none" : deleteBtn.style.display;
+            if (newBtn) newBtn.style.display = readOnly ? "none" : "inline-flex";
+            document.querySelectorAll(".icon-toolbar .icon-btn").forEach((btn) => {
+                const id = btn.id || "";
+                const allowInReadOnly = id === "prevPageBtn" || id === "nextPageBtn" || id === "fullViewBtn" || id === "zoomOutBtn" || id === "zoomInBtn";
+                btn.style.display = readOnly && !allowInReadOnly ? "none" : btn.style.display;
+            });
+            if (readOnly) {
+                drawMode = false;
+                activeLineDraft = null;
+                stopLineEdit();
+                updateDrawModeUi();
+                renderLines();
+                setNotice("Positions Library ist aktuell nur im Lesemodus freigeschaltet.", "warn");
+            }
         }
         function syncLoupeContent() {
             const loupeContent = document.getElementById("tableLoupeContent");
@@ -420,13 +461,15 @@
             const prevBtn = document.getElementById("prevPageBtn");
             const nextBtn = document.getElementById("nextPageBtn");
             const hasMultiplePages = positionPages.length > 1;
+            const editable = isPositionLibraryEditable(positionLibraryAccessMode);
             if (indicator) indicator.innerText = `Seite ${currentPageIndex + 1} / ${Math.max(positionPages.length, 1)}`;
             if (indicator) indicator.style.display = hasMultiplePages ? "block" : "none";
-            if (deleteBtn) deleteBtn.style.display = hasMultiplePages ? "inline-flex" : "none";
+            if (deleteBtn) deleteBtn.style.display = hasMultiplePages && editable ? "inline-flex" : "none";
             if (prevBtn) prevBtn.style.display = hasMultiplePages ? "inline-flex" : "none";
             if (nextBtn) nextBtn.style.display = hasMultiplePages ? "inline-flex" : "none";
         }
         function enableMoveMode() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             if (drawMode && activeLineDraft) finishActiveLineDraft();
             drawMode = false;
             stopLineEdit();
@@ -442,6 +485,7 @@
             loadPage(currentPageIndex + 1);
         }
         function addPage() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             persistCurrentPageState();
             const current = positionPages[currentPageIndex] || createDefaultPage();
             positionPages.splice(currentPageIndex + 1, 0, {
@@ -451,6 +495,7 @@
             loadPage(currentPageIndex + 1);
         }
         function deleteCurrentPage() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             ensurePages();
             if (positionPages.length <= 1) return;
             if (!confirm("Diese Seite wirklich löschen?")) return;
@@ -594,6 +639,7 @@
             renderBalls();
         }
         function startBallDrag(event) {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             if (drawMode) return;
             const ballKey = event.currentTarget.dataset.ball;
             if (!ballKey) return;
@@ -636,6 +682,7 @@
             activeLineEdit = null;
         }
         function startLineMove(event) {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             if (!drawMode) return;
             const lineIndex = Number(event.currentTarget.dataset.lineMove);
             if (!Number.isFinite(lineIndex) || !linePaths[lineIndex]) return;
@@ -653,6 +700,7 @@
             event.stopPropagation();
         }
         function startLinePointDrag(event) {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             if (!drawMode) return;
             const raw = String(event.currentTarget.dataset.linePoint || "");
             const parts = raw.split(":");
@@ -727,11 +775,13 @@
             }
         }
         function resetBallLayout() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             ballLayout = getDefaultLayout();
             renderBalls();
             persistCurrentPageState();
         }
         function toggleDrawMode() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             if (drawMode && activeLineDraft) finishActiveLineDraft();
             drawMode = !drawMode;
             lastDraftTap = null;
@@ -740,6 +790,7 @@
             renderLines();
         }
         function clearLines() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             linePaths = [];
             activeLineDraft = null;
             lastDraftTap = null;
@@ -753,6 +804,7 @@
             }));
         }
         function handleTablePointerDown(event) {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             if (!drawMode) return;
             if (event.target.closest(".table-ball") || event.target.closest(".line-hit-area") || event.target.closest(".line-point-handle")) return;
             const point = getPortraitPoint(event);
@@ -785,6 +837,7 @@
             if (!activeLineDraft || activeLineEdit || activeDrag) return;
         }
         function handleTableDoubleClick(event) {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             if (!drawMode) return;
             if (event.target.closest(".table-ball") || event.target.closest(".line-hit-area") || event.target.closest(".line-point-handle")) return;
             event.preventDefault();
@@ -845,6 +898,7 @@
             document.getElementById("deleteBtn").style.display = "inline-flex";
         }
         async function savePosition() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             const title = String(document.getElementById("titleInput").value || "").trim();
             const description = String(document.getElementById("descriptionInput").value || "").trim();
             if (!title) { alert("Bitte einen Titel eingeben."); return; }
@@ -877,6 +931,7 @@
             window.location.href = "training_position_library.html";
         }
         async function deletePosition() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             if (!editingId) return;
             if (!confirm("Diese Position wirklich löschen?")) return;
             const { error } = await supabaseClient.from("training_position_library").delete().eq("id", editingId).eq("user_id", currentUser.id);
@@ -889,6 +944,15 @@
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
+            positionLibraryAccessMode = await getPositionLibraryAccess(currentUser);
+            if (!isPositionLibraryVisible(positionLibraryAccessMode)) {
+                window.location.href = "training.html";
+                return;
+            }
+            if (!isPositionLibraryEditable(positionLibraryAccessMode) && !positionId) {
+                window.location.href = "training_position_library.html";
+                return;
+            }
             buildDisciplineButtons();
             positionPages = [createDefaultPage()];
             currentPageIndex = 0;
@@ -901,6 +965,7 @@
             updatePageUi();
             fitEditorToViewport();
             await loadPosition();
+            applyReadOnlyUi();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
         window.addEventListener("resize", fitEditorToViewport);

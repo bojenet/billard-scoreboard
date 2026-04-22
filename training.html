@@ -156,7 +156,7 @@
             <div class="tile-sub">Roger Conti 1-62</div>
         </div>
 
-        <div class="tile" onclick="window.location.href='training_position_library.html'">
+        <div class="tile" id="positionLibraryTile" onclick="window.location.href='training_position_library.html'">
             <div class="tile-title">Positions Library</div>
             <div class="tile-sub">Eigene Positionen speichern und filtern</div>
         </div>
@@ -169,6 +169,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/position_library_access.js"></script>
 <script src="js/user_menu.js"></script>
 <script>
     function updateFullscreenButton() {
@@ -194,6 +195,13 @@
     }
     document.addEventListener("fullscreenchange", updateFullscreenButton);
     updateFullscreenButton();
+    async function applyPositionLibraryAccess() {
+        const tile = document.getElementById("positionLibraryTile");
+        if (!tile) return;
+        const user = await getCurrentUser();
+        const accessMode = await getPositionLibraryAccess(user);
+        tile.style.display = isPositionLibraryVisible(accessMode) ? "" : "none";
+    }
     async function loadRemoteMatchInvites(user) {
         if (!user?.email) return;
         const email = String(user.email).trim().toLowerCase();
@@ -223,6 +231,7 @@
             grid.prepend(tile);
         });
     }
+    applyPositionLibraryAccess();
 
     (async () => {
         const user = await requireAuth();

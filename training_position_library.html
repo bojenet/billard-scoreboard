@@ -21,6 +21,7 @@
         .section-title { font-size:18px; font-weight:800; margin:0 0 6px; }
         .section-sub { font-size:12px; opacity:.76; margin-bottom:10px; }
         .notice { padding:12px 14px; border-radius:14px; border:1px solid #556db2; background:rgba(20,38,89,.78); font-size:14px; line-height:1.5; margin-bottom:12px; display:none; }
+        .notice.warn { border-color:#b89a35; background:rgba(94,73,10,.35); color:#ffe7a0; }
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:8px 11px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:13px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
@@ -50,7 +51,7 @@
                 <h1 class="title">Positions Library</h1>
             </div>
             <div class="actions">
-                <button class="btn primary" type="button" onclick="window.location.href='training_position_library_editor.html'">Neu</button>
+                <button class="btn primary" id="newPositionBtn" type="button" onclick="window.location.href='training_position_library_editor.html'">Neu</button>
                 <button class="btn" type="button" onclick="window.location.href='training.html'">Zurück</button>
             </div>
         </div>
@@ -69,6 +70,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/position_library_access.js"></script>
     <script src="js/user_menu.js"></script>
     <script>
         const disciplines = ["Alle", "Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
@@ -94,10 +96,12 @@
         let currentUser = null;
         let activeFilter = "Alle";
         let libraryItems = [];
+        let positionLibraryAccessMode = "edit";
 
-        function setNotice(text) {
+        function setNotice(text, type) {
             const box = document.getElementById("noticeBox");
             box.style.display = text ? "block" : "none";
+            box.className = "notice" + (type ? " " + type : "");
             box.innerText = text || "";
         }
         function updateFullscreenButton() {
@@ -163,12 +167,20 @@
                 const layout = firstPage.ball_layout || item.ball_layout || defaultLayout;
                 const lines = Array.isArray(firstPage.line_paths) ? firstPage.line_paths : (Array.isArray(item.line_paths) ? item.line_paths : []);
                 const pageSuffix = pages.length > 1 ? ` • ${pages.length} Seiten` : "";
+                const canEdit = isPositionLibraryEditable(positionLibraryAccessMode);
+                const actionMarkup = canEdit
+                    ? `<button class="btn" type="button" data-edit="${item.id}">Bearbeiten</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button>`
+                    : `<button class="btn" type="button" data-open-btn="${item.id}">Öffnen</button>`;
                 const card = document.createElement("div");
                 card.className = "item";
-                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}${pageSuffix}</div></div><div class="item-actions"><button class="btn" type="button" data-edit="${item.id}">Bearbeiten</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button></div></div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
+                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}${pageSuffix}</div></div><div class="item-actions">${actionMarkup}</div></div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
                 card.querySelector("[data-open]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
-                card.querySelector("[data-edit]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
-                card.querySelector("[data-delete]").onclick = () => deletePosition(item.id);
+                const openBtn = card.querySelector("[data-open-btn]");
+                if (openBtn) openBtn.onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
+                const editBtn = card.querySelector("[data-edit]");
+                if (editBtn) editBtn.onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
+                const deleteBtn = card.querySelector("[data-delete]");
+                if (deleteBtn) deleteBtn.onclick = () => deletePosition(item.id);
                 wrap.appendChild(card);
             });
         }
@@ -184,11 +196,12 @@
                 renderLibrary();
                 return;
             }
-            setNotice("");
+            if (isPositionLibraryEditable(positionLibraryAccessMode)) setNotice("");
             libraryItems = data || [];
             renderLibrary();
         }
         async function deletePosition(id) {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             if (!id) return;
             if (!confirm("Diese Position wirklich löschen?")) return;
             const { error } = await supabaseClient.from("training_position_library").delete().eq("id", id).eq("user_id", currentUser.id);
@@ -201,6 +214,15 @@
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
+            positionLibraryAccessMode = await getPositionLibraryAccess(currentUser);
+            if (!isPositionLibraryVisible(positionLibraryAccessMode)) {
+                window.location.href = "training.html";
+                return;
+            }
+            document.getElementById("newPositionBtn").style.display = isPositionLibraryEditable(positionLibraryAccessMode) ? "inline-flex" : "none";
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) {
+                setNotice("Positions Library ist aktuell nur im Lesemodus freigeschaltet.", "warn");
+            }
             buildFilterButtons();
             await loadLibrary();
         }
