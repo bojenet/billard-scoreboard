@@ -29,6 +29,11 @@
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:10px 14px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:14px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
+        .icon-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+        .icon-btn { width:42px; height:42px; border:none; border-radius:12px; padding:0; background:#1c3380; border:1px solid #3659bb; color:#fff; font-size:18px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .icon-btn.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
+        .icon-btn.danger { background:#9f3434; border-color:#be5757; }
+        .icon-divider { width:1px; height:28px; background:rgba(255,255,255,.18); margin:0 2px; }
         .table-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
         .table-zoom-actions { display:flex; gap:8px; flex-wrap:wrap; }
         .zoom-btn { border:none; border-radius:10px; background:#2746aa; color:#fff; font-size:14px; font-weight:700; padding:10px 12px; cursor:pointer; }
@@ -93,11 +98,6 @@
                     </div>
                     <div class="actions">
                         <button class="btn primary" type="button" onclick="savePosition()">Speichern</button>
-                        <button class="btn" type="button" onclick="resetBallLayout()">Bälle zurücksetzen</button>
-                        <button class="btn" id="drawToggleBtn" type="button" onclick="toggleDrawMode()">Linien zeichnen: Aus</button>
-                        <button class="btn" id="finishLineBtn" type="button" onclick="finishActiveLineDraft()" style="display:none;">Linie beenden</button>
-                        <button class="btn" id="loupeToggleBtn" type="button" onclick="toggleLoupe()">Lupe: Aus</button>
-                        <button class="btn" type="button" onclick="clearLines()">Linien löschen</button>
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                     </div>
                 </div>
@@ -107,14 +107,19 @@
                 <div class="section">
                     <h2 class="section-title">Billardtisch</h2>
                     <div class="section-sub" id="tableHelpText">Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben.</div>
-                    <div class="table-toolbar" style="margin-bottom:10px;">
-                        <div class="actions" style="gap:8px;">
-                            <button class="btn" type="button" onclick="goToPreviousPage()">←</button>
-                            <div class="section-sub" id="pageIndicator" style="margin:0; min-width:110px;">Seite 1 / 1</div>
-                            <button class="btn" type="button" onclick="goToNextPage()">→</button>
-                            <button class="btn" type="button" onclick="addPage()">Seite hinzufügen</button>
-                            <button class="btn danger" id="deletePageBtn" type="button" onclick="deleteCurrentPage()" style="display:none;">Seite löschen</button>
-                        </div>
+                    <div class="icon-toolbar">
+                        <button class="icon-btn" id="drawToggleBtn" type="button" onclick="toggleDrawMode()" title="Linien">✎</button>
+                        <button class="icon-btn" id="loupeToggleBtn" type="button" onclick="toggleLoupe()" title="Lupe">⌕</button>
+                        <button class="icon-btn" type="button" onclick="resetBallLayout()" title="Bälle zurücksetzen">◯</button>
+                        <button class="icon-btn" type="button" onclick="clearLines()" title="Linien löschen">⌫</button>
+                        <div class="icon-divider"></div>
+                        <button class="icon-btn" type="button" onclick="resetEditorZoom()" title="Zoom">⌂</button>
+                        <button class="icon-btn" type="button" onclick="addPage()" title="Seite hinzufügen">＋</button>
+                        <button class="icon-btn danger" id="deletePageBtn" type="button" onclick="deleteCurrentPage()" title="Seite löschen" style="display:none;">−</button>
+                        <button class="icon-btn" id="finishLineBtn" type="button" onclick="finishActiveLineDraft()" title="Linie beenden" style="display:none;">✓</button>
+                        <button class="icon-btn" type="button" onclick="goToPreviousPage()" title="Vorherige Seite">←</button>
+                        <button class="icon-btn" type="button" onclick="goToNextPage()" title="Nächste Seite">→</button>
+                        <div class="section-sub" id="pageIndicator" style="margin:0 0 0 6px; min-width:110px;">Seite 1 / 1</div>
                     </div>
                     <div class="table-toolbar">
                         <div class="section-sub" style="margin:0;">Der komplette Tisch zoomt jetzt als Einheit. Mit der Lupe kannst du lokal noch genauer arbeiten.</div>
@@ -335,7 +340,7 @@
         function updateLoupeToggleUi() {
             const btn = document.getElementById("loupeToggleBtn");
             const loupe = document.getElementById("tableLoupe");
-            if (btn) btn.innerText = "Lupe: " + (loupeEnabled ? "An" : "Aus");
+            if (btn) btn.classList.toggle("active", loupeEnabled);
             if (loupe) loupe.classList.toggle("visible", loupeEnabled && !!lastPointerClient);
         }
         function toggleLoupe() {
@@ -377,7 +382,7 @@
             const finishBtn = document.getElementById("finishLineBtn");
             const wrap = document.getElementById("tableWrap");
             const helpText = document.getElementById("tableHelpText");
-            if (btn) btn.innerText = "Linien zeichnen: " + (drawMode ? "An" : "Aus");
+            if (btn) btn.classList.toggle("active", drawMode);
             if (finishBtn) finishBtn.style.display = drawMode && activeLineDraft ? "inline-flex" : "none";
             if (wrap) wrap.classList.toggle("draw-mode", drawMode);
             updatePanUi();
