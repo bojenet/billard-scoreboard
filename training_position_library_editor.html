@@ -873,7 +873,11 @@
         }
         async function loadPosition() {
             if (!positionId) return;
-            const { data, error } = await supabaseClient.from("training_position_library").select("*").eq("id", positionId).eq("user_id", currentUser.id).maybeSingle();
+            let query = supabaseClient.from("training_position_library").select("*").eq("id", positionId);
+            if (isPositionLibraryEditable(positionLibraryAccessMode)) {
+                query = query.eq("user_id", currentUser.id);
+            }
+            const { data, error } = await query.maybeSingle();
             if (error || !data) {
                 setNotice("Position konnte nicht geladen werden.");
                 return;

@@ -84,7 +84,14 @@ drop policy if exists "training_position_library_select_own" on public.training_
 create policy "training_position_library_select_own"
   on public.training_position_library
   for select
-  using ((auth.uid() = user_id or public.is_admin(auth.uid())) and public.position_library_can_view(auth.uid()));
+  using (
+    public.position_library_can_view(auth.uid())
+    and (
+      auth.uid() = user_id
+      or public.is_admin(auth.uid())
+      or public.position_library_access_mode(auth.uid()) = 'read'
+    )
+  );
 
 drop policy if exists "training_position_library_insert_own" on public.training_position_library;
 create policy "training_position_library_insert_own"

@@ -185,11 +185,14 @@
             });
         }
         async function loadLibrary() {
-            const { data, error } = await supabaseClient
+            let query = supabaseClient
                 .from("training_position_library")
                 .select("*")
-                .eq("user_id", currentUser.id)
                 .order("updated_at", { ascending: false });
+            if (isPositionLibraryEditable(positionLibraryAccessMode)) {
+                query = query.eq("user_id", currentUser.id);
+            }
+            const { data, error } = await query;
             if (error) {
                 setNotice("Die Positions-Library ist in Supabase noch nicht aktiv. Bitte SQL aus sql/training_position_library.sql ausführen.");
                 libraryItems = [];
