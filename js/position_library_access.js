@@ -1,4 +1,3 @@
-const POSITION_LIBRARY_ACCESS_KEY = "position_library_access";
 const POSITION_LIBRARY_ACCESS_VALUES = ["hidden", "read", "edit"];
 
 function normalizePositionLibraryAccess(value) {
@@ -6,37 +5,33 @@ function normalizePositionLibraryAccess(value) {
   return POSITION_LIBRARY_ACCESS_VALUES.includes(normalized) ? normalized : "edit";
 }
 
-async function getAppSetting(key) {
-  if (!key) return null;
+async function getUserPositionLibraryAccess(userId) {
+  if (!userId) return "edit";
   const { data, error } = await supabaseClient
-    .from("app_settings")
-    .select("value")
-    .eq("key", key)
+    .from("user_roles")
+    .select("position_library_access")
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (error) {
-    console.warn("App-Setting konnte nicht geladen werden:", key, error);
-    return null;
+    console.warn("Positions-Library-Recht konnte nicht geladen werden:", userId, error);
+    return "edit";
   }
-  return data ? data.value : null;
+  return normalizePositionLibraryAccess(data?.position_library_access);
 }
 
-async function setAppSetting(key, value) {
+async function setUserPositionLibraryAccess(userId, value) {
+  if (!userId) throw new Error("userId fehlt");
   const { error } = await supabaseClient
-    .from("app_settings")
-    .upsert([{ key, value }], { onConflict: "key" });
+    .from("user_roles")
+    .upsert([{ user_id: userId, position_library_access: normalizePositionLibraryAccess(value) }], { onConflict: "user_id" });
 
   if (error) throw error;
 }
 
 async function getPositionLibraryAccess(user) {
   if (user && await hasAdminAccess(user)) return "edit";
-  return getConfiguredPositionLibraryAccess();
-}
-
-async function getConfiguredPositionLibraryAccess() {
-  const value = await getAppSetting(POSITION_LIBRARY_ACCESS_KEY);
-  return normalizePositionLibraryAccess(value);
+  return getUserPositionLibraryAccess(user?.id);
 }
 
 function isPositionLibraryEditable(accessMode) {

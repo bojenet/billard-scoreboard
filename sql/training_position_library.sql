@@ -30,30 +30,27 @@ begin
 end;
 $$;
 
-create or replace function public.position_library_access_mode()
+create or replace function public.position_library_access_mode(uid uuid)
 returns text
-language plpgsql
+language sql
 stable
 as $$
-declare
-  configured_value text;
-begin
-  if to_regclass('public.app_settings') is null then
-    return 'edit';
-  end if;
-
-  select s.value
-    into configured_value
-    from public.app_settings s
-   where s.key = 'position_library_access'
-   limit 1;
-
-  configured_value := lower(coalesce(configured_value, 'edit'));
-  if configured_value not in ('hidden', 'read', 'edit') then
-    configured_value := 'edit';
-  end if;
-  return configured_value;
-end;
+  select case
+    when public.is_admin(uid) then 'edit'
+    else coalesce(
+      (
+        select case
+          when lower(coalesce(ur.position_library_access, 'edit')) in ('hidden', 'read', 'edit')
+            then lower(coalesce(ur.position_library_access, 'edit'))
+          else 'edit'
+        end
+        from public.user_roles ur
+        where ur.user_id = uid
+        limit 1
+      ),
+      'edit'
+    )
+  end;
 $$;
 
 create or replace function public.position_library_can_view(uid uuid)
@@ -61,7 +58,7 @@ returns boolean
 language sql
 stable
 as $$
-  select public.is_admin(uid) or public.position_library_access_mode() <> 'hidden';
+  select public.position_library_access_mode(uid) <> 'hidden';
 $$;
 
 create or replace function public.position_library_can_edit(uid uuid)
@@ -69,10 +66,10 @@ returns boolean
 language sql
 stable
 as $$
-  select public.is_admin(uid) or public.position_library_access_mode() = 'edit';
+  select public.position_library_access_mode(uid) = 'edit';
 $$;
 
-grant execute on function public.position_library_access_mode() to authenticated;
+grant execute on function public.position_library_access_mode(uuid) to authenticated;
 grant execute on function public.position_library_can_view(uuid) to authenticated;
 grant execute on function public.position_library_can_edit(uuid) to authenticated;
 

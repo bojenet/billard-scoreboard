@@ -10,8 +10,19 @@ create table if not exists public.profiles (
 create table if not exists public.user_roles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   role text not null default 'member' check (role in ('member', 'admin')),
+  position_library_access text not null default 'edit' check (position_library_access in ('hidden', 'read', 'edit')),
   created_at timestamptz not null default now()
 );
+
+alter table public.user_roles
+  add column if not exists position_library_access text not null default 'edit';
+
+alter table public.user_roles
+  drop constraint if exists user_roles_position_library_access_check;
+
+alter table public.user_roles
+  add constraint user_roles_position_library_access_check
+  check (position_library_access in ('hidden', 'read', 'edit'));
 
 create index if not exists idx_profiles_email on public.profiles(email);
 create index if not exists idx_user_roles_role on public.user_roles(role);
@@ -23,8 +34,8 @@ from auth.users
 on conflict (id) do update
 set email = excluded.email;
 
-insert into public.user_roles (user_id, role)
-select id, 'member'
+insert into public.user_roles (user_id, role, position_library_access)
+select id, 'member', 'edit'
 from auth.users
 on conflict (user_id) do nothing;
 
@@ -58,8 +69,8 @@ begin
   values (new.id, new.email)
   on conflict (id) do update set email = excluded.email;
 
-  insert into public.user_roles (user_id, role)
-  values (new.id, 'member')
+  insert into public.user_roles (user_id, role, position_library_access)
+  values (new.id, 'member', 'edit')
   on conflict (user_id) do nothing;
 
   return new;
