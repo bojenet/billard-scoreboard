@@ -16,6 +16,7 @@
         .btn { border:none; border-radius:12px; padding:12px 16px; background:#1c3380; border:1px solid #3659bb; color:#fff; font-size:16px; font-weight:700; cursor:pointer; }
         .btn.primary { background:#2f4fe0; }
         .btn.danger { background:#9f3434; border-color:#be5757; }
+        .btn.secondary { background:#17306f; }
         .layout { display:grid; grid-template-columns:minmax(360px,.86fr) minmax(0,1.34fr); gap:18px; }
         .card { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:22px; box-shadow:0 24px 56px rgba(0,0,0,.45); overflow:hidden; }
         .section { padding:16px; border-bottom:1px solid #27417f; }
@@ -72,6 +73,17 @@
         .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:13px; opacity:.82; margin-top:10px; }
         .legend-item { display:flex; align-items:center; gap:8px; }
         .legend-dot { width:12px; height:12px; border-radius:999px; box-shadow:0 0 0 1px rgba(255,255,255,.25); }
+        .photo-modal { position:fixed; inset:0; z-index:1600; background:rgba(4,8,19,.78); display:none; align-items:center; justify-content:center; padding:24px; }
+        .photo-modal.visible { display:flex; }
+        .photo-panel { width:min(1180px,96vw); max-height:92vh; overflow:auto; background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:24px; box-shadow:0 28px 60px rgba(0,0,0,.46); padding:18px; }
+        .photo-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:14px; }
+        .photo-title { font-size:26px; font-weight:800; }
+        .photo-copy { font-size:14px; line-height:1.45; opacity:.82; max-width:760px; }
+        .photo-tools { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+        .photo-status { margin:0 0 12px; font-size:14px; color:#ffe27a; min-height:20px; }
+        .photo-stage { position:relative; width:100%; background:#0b173a; border:1px solid #3557b7; border-radius:18px; overflow:hidden; }
+        .photo-canvas { display:block; width:100%; height:auto; cursor:crosshair; }
+        .photo-hint { margin-top:10px; font-size:13px; opacity:.8; }
         @media (max-width: 980px) { .layout { grid-template-columns:1fr; } }
     </style>
 </head>
@@ -107,6 +119,7 @@
                         <textarea id="descriptionInput" placeholder="Worum geht es in der Position, worauf soll man achten, welche Lösungsidee steckt dahinter?"></textarea>
                     </div>
                     <div class="actions">
+                        <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImport()">Foto importieren</button>
                         <button class="btn primary" type="button" onclick="savePosition()">Speichern</button>
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                     </div>
@@ -166,6 +179,28 @@
             </div>
         </div>
     </div>
+    <div class="photo-modal" id="photoImportModal" aria-hidden="true">
+        <div class="photo-panel">
+            <div class="photo-head">
+                <div>
+                    <div class="photo-title">Foto-Import</div>
+                    <div class="photo-copy">Foto laden, dann nacheinander die 4 Tischecken und die 3 Bälle setzen. Die Reihenfolge für die Bälle ist Rot, Gelb, Weiß. Danach wird die Position direkt in den Editor übernommen.</div>
+                </div>
+                <button class="btn" type="button" onclick="closePhotoImport()">Schließen</button>
+            </div>
+            <div class="photo-tools">
+                <input id="photoImportInput" type="file" accept="image/*" style="display:none;" onchange="handlePhotoImportFile(event)">
+                <button class="btn" type="button" onclick="document.getElementById('photoImportInput').click()">Foto wählen</button>
+                <button class="btn" type="button" onclick="resetPhotoImportPoints()">Punkte zurücksetzen</button>
+                <button class="btn primary" id="applyPhotoImportBtn" type="button" onclick="applyPhotoImport()" disabled>Position übernehmen</button>
+            </div>
+            <div class="photo-status" id="photoImportStatus">Noch kein Foto geladen.</div>
+            <div class="photo-stage">
+                <canvas id="photoImportCanvas" class="photo-canvas"></canvas>
+            </div>
+            <div class="photo-hint" id="photoImportHint">Tipp: möglichst von oben fotografieren und den ganzen Tisch sichtbar lassen.</div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
@@ -214,9 +249,19 @@
         let loupeEnabled = false;
         let lastPointerClient = null;
         let positionLibraryAccessMode = "edit";
+        let photoImportImage = null;
+        let photoImportCorners = [];
+        let photoImportBalls = [];
         const baseTableWidth = 1200;
         const baseTableHeight = 674;
         const loupeScale = 2.4;
+        const photoImportBallOrder = ["Rot", "Gelb", "Weiß"];
+        const photoImportTableCorners = [
+            { x: bounds.minX, y: bounds.minY },
+            { x: bounds.maxX, y: bounds.minY },
+            { x: bounds.maxX, y: bounds.maxY },
+            { x: bounds.minX, y: bounds.maxY }
+        ];
 
         function getDefaultLayout() {
             return {
@@ -330,6 +375,206 @@
             box.className = "notice" + (type ? " " + type : "");
             box.innerText = text || "";
         }
+        function getPhotoImportStatusText() {
+            if (!photoImportImage) return "Noch kein Foto geladen.";
+            if (photoImportCorners.length < 4) {
+                const labels = ["oben links", "oben rechts", "unten rechts", "unten links"];
+                return "Tischecke setzen: " + labels[photoImportCorners.length];
+            }
+            if (photoImportBalls.length < 3) {
+                return "Ball setzen: " + photoImportBallOrder[photoImportBalls.length];
+            }
+            return "Fertig. Du kannst die Position jetzt übernehmen.";
+        }
+        function updatePhotoImportUi() {
+            const modal = document.getElementById("photoImportModal");
+            const status = document.getElementById("photoImportStatus");
+            const applyBtn = document.getElementById("applyPhotoImportBtn");
+            if (modal) modal.setAttribute("aria-hidden", modal.classList.contains("visible") ? "false" : "true");
+            if (status) status.innerText = getPhotoImportStatusText();
+            if (applyBtn) applyBtn.disabled = !(photoImportImage && photoImportCorners.length === 4 && photoImportBalls.length === 3);
+            drawPhotoImportCanvas();
+        }
+        function openPhotoImport() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            document.getElementById("photoImportModal").classList.add("visible");
+            updatePhotoImportUi();
+        }
+        function closePhotoImport() {
+            document.getElementById("photoImportModal").classList.remove("visible");
+        }
+        function resetPhotoImportPoints() {
+            photoImportCorners = [];
+            photoImportBalls = [];
+            updatePhotoImportUi();
+        }
+        function handlePhotoImportFile(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const img = new Image();
+                img.onload = () => {
+                    photoImportImage = img;
+                    photoImportCorners = [];
+                    photoImportBalls = [];
+                    updatePhotoImportUi();
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        function getPhotoImportCanvasPoint(event) {
+            const canvas = document.getElementById("photoImportCanvas");
+            const rect = canvas.getBoundingClientRect();
+            if (!rect.width || !rect.height) return null;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (event.clientX - rect.left) * scaleX,
+                y: (event.clientY - rect.top) * scaleY
+            };
+        }
+        function drawPhotoImportCanvas() {
+            const canvas = document.getElementById("photoImportCanvas");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
+            if (!photoImportImage) {
+                canvas.width = 1200;
+                canvas.height = 700;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#0b173a";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "rgba(255,255,255,.72)";
+                ctx.font = "28px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText("Foto laden", canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            const maxWidth = 1400;
+            const scale = Math.min(1, maxWidth / photoImportImage.width);
+            canvas.width = Math.max(640, Math.round(photoImportImage.width * scale));
+            canvas.height = Math.max(360, Math.round(photoImportImage.height * scale));
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(photoImportImage, 0, 0, canvas.width, canvas.height);
+            if (photoImportCorners.length > 1) {
+                ctx.strokeStyle = "#ffd84a";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                photoImportCorners.forEach((pt, index) => {
+                    if (!index) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                });
+                ctx.stroke();
+            }
+            photoImportCorners.forEach((pt, index) => {
+                ctx.fillStyle = "#ffd84a";
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 9, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "#0f1c3f";
+                ctx.font = "bold 16px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText(String(index + 1), pt.x, pt.y + 5);
+            });
+            const ballColors = ["#cf2e2e", "#e0bb20", "#f3f5fb"];
+            photoImportBalls.forEach((pt, index) => {
+                ctx.fillStyle = ballColors[index] || "#ffffff";
+                ctx.strokeStyle = "#173168";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 11, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 16px Arial";
+                ctx.textAlign = "left";
+                ctx.fillText(photoImportBallOrder[index], pt.x + 16, pt.y + 5);
+            });
+        }
+        function solveLinearSystem(matrix, values) {
+            const n = values.length;
+            const a = matrix.map((row, rowIndex) => row.concat(values[rowIndex]));
+            for (let i = 0; i < n; i += 1) {
+                let maxRow = i;
+                for (let j = i + 1; j < n; j += 1) {
+                    if (Math.abs(a[j][i]) > Math.abs(a[maxRow][i])) maxRow = j;
+                }
+                if (Math.abs(a[maxRow][i]) < 1e-9) return null;
+                if (maxRow !== i) {
+                    const tmp = a[i];
+                    a[i] = a[maxRow];
+                    a[maxRow] = tmp;
+                }
+                const pivot = a[i][i];
+                for (let j = i; j <= n; j += 1) a[i][j] /= pivot;
+                for (let j = 0; j < n; j += 1) {
+                    if (j === i) continue;
+                    const factor = a[j][i];
+                    for (let k = i; k <= n; k += 1) a[j][k] -= factor * a[i][k];
+                }
+            }
+            return a.map((row) => row[n]);
+        }
+        function computeHomography(srcPoints, dstPoints) {
+            const matrix = [];
+            const values = [];
+            for (let i = 0; i < 4; i += 1) {
+                const src = srcPoints[i];
+                const dst = dstPoints[i];
+                matrix.push([src.x, src.y, 1, 0, 0, 0, -src.x * dst.x, -src.y * dst.x]);
+                values.push(dst.x);
+                matrix.push([0, 0, 0, src.x, src.y, 1, -src.x * dst.y, -src.y * dst.y]);
+                values.push(dst.y);
+            }
+            const solution = solveLinearSystem(matrix, values);
+            if (!solution) return null;
+            return [
+                [solution[0], solution[1], solution[2]],
+                [solution[3], solution[4], solution[5]],
+                [solution[6], solution[7], 1]
+            ];
+        }
+        function projectPoint(matrix, point) {
+            const denominator = (matrix[2][0] * point.x) + (matrix[2][1] * point.y) + matrix[2][2];
+            if (!denominator) return null;
+            return {
+                x: (((matrix[0][0] * point.x) + (matrix[0][1] * point.y) + matrix[0][2]) / denominator),
+                y: (((matrix[1][0] * point.x) + (matrix[1][1] * point.y) + matrix[1][2]) / denominator)
+            };
+        }
+        function applyPhotoImport() {
+            if (!photoImportImage || photoImportCorners.length !== 4 || photoImportBalls.length !== 3) return;
+            const homography = computeHomography(photoImportCorners, photoImportTableCorners);
+            if (!homography) {
+                alert("Das Foto konnte nicht auf die Tischgrafik umgerechnet werden.");
+                return;
+            }
+            const mapped = photoImportBalls.map((ballPoint) => projectPoint(homography, ballPoint));
+            if (mapped.some((pt) => !pt)) {
+                alert("Die Ballpositionen konnten nicht berechnet werden.");
+                return;
+            }
+            const currentBounds = getCurrentBounds();
+            ballLayout = {
+                red: {
+                    x: clamp(mapped[0].x, currentBounds.minX, currentBounds.maxX),
+                    y: clamp(mapped[0].y, currentBounds.minY, currentBounds.maxY)
+                },
+                yellow: {
+                    x: clamp(mapped[1].x, currentBounds.minX, currentBounds.maxX),
+                    y: clamp(mapped[1].y, currentBounds.minY, currentBounds.maxY)
+                },
+                white: {
+                    x: clamp(mapped[2].x, currentBounds.minX, currentBounds.maxX),
+                    y: clamp(mapped[2].y, currentBounds.minY, currentBounds.maxY)
+                }
+            };
+            renderBalls();
+            persistCurrentPageState();
+            closePhotoImport();
+        }
         function applyReadOnlyUi() {
             const readOnly = !isPositionLibraryEditable(positionLibraryAccessMode);
             const titleInput = document.getElementById("titleInput");
@@ -337,6 +582,7 @@
             const deleteBtn = document.getElementById("deleteBtn");
             const saveBtn = document.querySelector(".actions .btn.primary");
             const newBtn = document.querySelector(".topbar .actions .btn");
+            const photoImportBtn = document.getElementById("photoImportBtn");
             if (titleInput) {
                 titleInput.readOnly = readOnly;
                 titleInput.disabled = false;
@@ -355,6 +601,7 @@
                 }
             }
             if (saveBtn) saveBtn.style.display = readOnly ? "none" : "inline-flex";
+            if (photoImportBtn) photoImportBtn.style.display = readOnly ? "none" : "inline-flex";
             if (deleteBtn) deleteBtn.style.display = readOnly || !editingId ? "none" : "inline-flex";
             if (newBtn) newBtn.style.display = readOnly ? "none" : "inline-flex";
             document.querySelectorAll(".icon-toolbar .icon-btn").forEach((btn) => {
@@ -866,6 +1113,10 @@
                 creatorMeta.style.display = "none";
                 creatorMeta.innerText = "";
             }
+            closePhotoImport();
+            photoImportImage = null;
+            photoImportCorners = [];
+            photoImportBalls = [];
             document.getElementById("titleInput").value = "";
             document.getElementById("descriptionInput").value = "";
             document.getElementById("deleteBtn").style.display = "none";
@@ -990,6 +1241,7 @@
             fitEditorToViewport();
             await loadPosition();
             applyReadOnlyUi();
+            updatePhotoImportUi();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
         window.addEventListener("resize", fitEditorToViewport);
@@ -1007,6 +1259,14 @@
         document.getElementById("tableStage").addEventListener("dblclick", handleTableDoubleClick);
         document.getElementById("tableStage").addEventListener("pointerleave", hideLoupe);
         document.getElementById("tableViewport").addEventListener("pointerdown", startViewportPan);
+        document.getElementById("photoImportCanvas").addEventListener("pointerdown", (event) => {
+            if (!photoImportImage) return;
+            const point = getPhotoImportCanvasPoint(event);
+            if (!point) return;
+            if (photoImportCorners.length < 4) photoImportCorners.push(point);
+            else if (photoImportBalls.length < 3) photoImportBalls.push(point);
+            updatePhotoImportUi();
+        });
         updateFullscreenButton();
         init();
     </script>
