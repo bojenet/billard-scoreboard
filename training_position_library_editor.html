@@ -107,6 +107,15 @@
                 <div class="section">
                     <h2 class="section-title">Billardtisch</h2>
                     <div class="section-sub" id="tableHelpText">Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben.</div>
+                    <div class="table-toolbar" style="margin-bottom:10px;">
+                        <div class="actions" style="gap:8px;">
+                            <button class="btn" type="button" onclick="goToPreviousPage()">←</button>
+                            <div class="section-sub" id="pageIndicator" style="margin:0; min-width:110px;">Seite 1 / 1</div>
+                            <button class="btn" type="button" onclick="goToNextPage()">→</button>
+                            <button class="btn" type="button" onclick="addPage()">Seite hinzufügen</button>
+                            <button class="btn danger" id="deletePageBtn" type="button" onclick="deleteCurrentPage()" style="display:none;">Seite löschen</button>
+                        </div>
+                    </div>
                     <div class="table-toolbar">
                         <div class="section-sub" style="margin:0;">Der komplette Tisch zoomt jetzt als Einheit. Mit der Lupe kannst du lokal noch genauer arbeiten.</div>
                         <div class="table-zoom-actions">
@@ -187,6 +196,8 @@
         let editingId = null;
         let ballLayout = getDefaultLayout();
         let linePaths = [];
+        let positionPages = [];
+        let currentPageIndex = 0;
         let drawMode = false;
         let activeLineDraft = null;
         let activeLineEdit = null;
@@ -205,6 +216,27 @@
                 yellow: { ...defaultLayout.yellow },
                 white: { ...defaultLayout.white }
             };
+        }
+        function cloneLayout(layout) {
+            return layout && layout.red ? {
+                red: { ...layout.red },
+                yellow: { ...layout.yellow },
+                white: { ...layout.white }
+            } : getDefaultLayout();
+        }
+        function cloneLines(lines) {
+            return Array.isArray(lines) ? lines.map((line) => ({
+                points: Array.isArray(line.points) ? line.points.map((pt) => ({ x: pt.x, y: pt.y })) : []
+            })) : [];
+        }
+        function createDefaultPage() {
+            return { ball_layout: getDefaultLayout(), line_paths: [] };
+        }
+        function ensurePages() {
+            if (!Array.isArray(positionPages) || !positionPages.length) {
+                positionPages = [createDefaultPage()];
+                currentPageIndex = 0;
+            }
         }
         function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
         function getTableTypeForDiscipline(discipline) {
@@ -354,6 +386,55 @@
                     ? "Linie aktiv. Mit jedem Klick kommt ein weiterer Punkt dazu. `Linie beenden` oder Doppelklick schließt den Pfad ab."
                     : "Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben. Doppelklick auf einen Punkt löscht ihn.";
             }
+        }
+        function persistCurrentPageState() {
+            ensurePages();
+            positionPages[currentPageIndex] = {
+                ball_layout: serializeLayout(),
+                line_paths: serializeLines()
+            };
+        }
+        function loadPage(index) {
+            ensurePages();
+            currentPageIndex = clamp(index, 0, positionPages.length - 1);
+            const page = positionPages[currentPageIndex] || createDefaultPage();
+            ballLayout = cloneLayout(page.ball_layout);
+            linePaths = cloneLines(page.line_paths);
+            activeLineDraft = null;
+            stopLineEdit();
+            renderBalls();
+            renderLines();
+            updatePageUi();
+        }
+        function updatePageUi() {
+            const indicator = document.getElementById("pageIndicator");
+            const deleteBtn = document.getElementById("deletePageBtn");
+            if (indicator) indicator.innerText = `Seite ${currentPageIndex + 1} / ${Math.max(positionPages.length, 1)}`;
+            if (deleteBtn) deleteBtn.style.display = positionPages.length > 1 ? "inline-flex" : "none";
+        }
+        function goToPreviousPage() {
+            persistCurrentPageState();
+            loadPage(currentPageIndex - 1);
+        }
+        function goToNextPage() {
+            persistCurrentPageState();
+            loadPage(currentPageIndex + 1);
+        }
+        function addPage() {
+            persistCurrentPageState();
+            const current = positionPages[currentPageIndex] || createDefaultPage();
+            positionPages.splice(currentPageIndex + 1, 0, {
+                ball_layout: cloneLayout(current.ball_layout),
+                line_paths: cloneLines(current.line_paths)
+            });
+            loadPage(currentPageIndex + 1);
+        }
+        function deleteCurrentPage() {
+            ensurePages();
+            if (positionPages.length <= 1) return;
+            if (!confirm("Diese Seite wirklich löschen?")) return;
+            positionPages.splice(currentPageIndex, 1);
+            loadPage(Math.min(currentPageIndex, positionPages.length - 1));
         }
         function updateFullscreenButton() {
             const btn = document.getElementById("fullscreenBtn");
@@ -620,6 +701,7 @@
         function resetBallLayout() {
             ballLayout = getDefaultLayout();
             renderBalls();
+            persistCurrentPageState();
         }
         function toggleDrawMode() {
             if (drawMode && activeLineDraft) finishActiveLineDraft();
@@ -633,6 +715,7 @@
             activeLineDraft = null;
             stopLineEdit();
             renderLines();
+            persistCurrentPageState();
         }
         function serializeLines() {
             return linePaths.map((line) => ({
@@ -678,9 +761,15 @@
             document.getElementById("deleteBtn").style.display = "none";
             selectedDiscipline = "Cadre 47/2";
             setSelectedDiscipline(selectedDiscipline);
-            resetBallLayout();
-            clearLines();
+            positionPages = [createDefaultPage()];
+            currentPageIndex = 0;
+            ballLayout = getDefaultLayout();
+            linePaths = [];
             activeLineDraft = null;
+            stopLineEdit();
+            renderBalls();
+            renderLines();
+            updatePageUi();
             if (positionId) history.replaceState({}, "", "training_position_library_editor.html");
         }
         async function loadPosition() {
@@ -695,16 +784,17 @@
             document.getElementById("titleInput").value = data.title || "";
             document.getElementById("descriptionInput").value = data.description || "";
             setSelectedDiscipline(data.discipline || "Cadre 47/2");
-            ballLayout = data.ball_layout && data.ball_layout.red ? {
-                red: { ...data.ball_layout.red },
-                yellow: { ...data.ball_layout.yellow },
-                white: { ...data.ball_layout.white }
-            } : getDefaultLayout();
-            linePaths = Array.isArray(data.line_paths) ? data.line_paths.map((line) => ({ points: (line.points || []).map((pt) => ({ x: pt.x, y: pt.y })) })) : [];
-            activeLineDraft = null;
-            stopLineEdit();
-            renderBalls();
-            renderLines();
+            positionPages = Array.isArray(data.position_pages) && data.position_pages.length
+                ? data.position_pages.map((page) => ({
+                    ball_layout: cloneLayout(page.ball_layout),
+                    line_paths: cloneLines(page.line_paths)
+                }))
+                : [{
+                    ball_layout: cloneLayout(data.ball_layout),
+                    line_paths: cloneLines(data.line_paths)
+                }];
+            currentPageIndex = 0;
+            loadPage(0);
             fitEditorToViewport();
             document.getElementById("deleteBtn").style.display = "inline-flex";
         }
@@ -713,13 +803,19 @@
             const description = String(document.getElementById("descriptionInput").value || "").trim();
             if (!title) { alert("Bitte einen Titel eingeben."); return; }
             if (activeLineDraft) finishActiveLineDraft();
+            persistCurrentPageState();
+            const firstPage = positionPages[0] || createDefaultPage();
             const payload = {
                 user_id: currentUser.id,
                 title,
                 discipline: selectedDiscipline,
                 description,
-                ball_layout: serializeLayout(),
-                line_paths: serializeLines()
+                ball_layout: cloneLayout(firstPage.ball_layout),
+                line_paths: cloneLines(firstPage.line_paths),
+                position_pages: positionPages.map((page) => ({
+                    ball_layout: cloneLayout(page.ball_layout),
+                    line_paths: cloneLines(page.line_paths)
+                }))
             };
             let result;
             if (editingId) {
@@ -748,10 +844,14 @@
             currentUser = await requireAuth();
             if (!currentUser) return;
             buildDisciplineButtons();
-            resetBallLayout();
+            positionPages = [createDefaultPage()];
+            currentPageIndex = 0;
+            ballLayout = getDefaultLayout();
+            linePaths = [];
             renderBalls();
             renderLines();
             updateDrawModeUi();
+            updatePageUi();
             fitEditorToViewport();
             await loadPosition();
         }
