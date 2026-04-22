@@ -337,20 +337,25 @@
             const deleteBtn = document.getElementById("deleteBtn");
             const saveBtn = document.querySelector(".actions .btn.primary");
             const newBtn = document.querySelector(".topbar .actions .btn");
-            if (titleInput) titleInput.readOnly = readOnly;
-            if (descriptionInput) descriptionInput.readOnly = readOnly;
-            document.querySelectorAll("#disciplineButtons .chip").forEach((btn) => {
-                btn.style.display = readOnly ? "none" : "inline-flex";
-            });
+            if (titleInput) {
+                titleInput.readOnly = readOnly;
+                titleInput.disabled = false;
+            }
+            if (descriptionInput) {
+                descriptionInput.readOnly = readOnly;
+                descriptionInput.disabled = false;
+            }
             const disciplineWrap = document.getElementById("disciplineButtons");
             if (disciplineWrap) {
                 disciplineWrap.style.minHeight = readOnly ? "22px" : "";
                 if (readOnly) {
                     disciplineWrap.innerHTML = `<div class="section-sub" style="margin:0;">${selectedDiscipline}</div>`;
+                } else if (!disciplineWrap.querySelector(".chip")) {
+                    buildDisciplineButtons();
                 }
             }
             if (saveBtn) saveBtn.style.display = readOnly ? "none" : "inline-flex";
-            if (deleteBtn) deleteBtn.style.display = readOnly ? "none" : deleteBtn.style.display;
+            if (deleteBtn) deleteBtn.style.display = readOnly || !editingId ? "none" : "inline-flex";
             if (newBtn) newBtn.style.display = readOnly ? "none" : "inline-flex";
             document.querySelectorAll(".icon-toolbar .icon-btn").forEach((btn) => {
                 const id = btn.id || "";
@@ -364,6 +369,7 @@
                 updateDrawModeUi();
                 renderLines();
             }
+            updatePageUi();
         }
         function syncLoupeContent() {
             const loupeContent = document.getElementById("tableLoupeContent");
