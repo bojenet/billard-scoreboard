@@ -87,6 +87,10 @@
             yellow: { x: 259, y: 214 },
             white: { x: 232, y: 201 }
         };
+        const TABLE_RENDER_SPECS = {
+            MB: { radius: 14.6, whiteStrokeWidth: 1.8 },
+            TB: { radius: 18.0, whiteStrokeWidth: 2.25 }
+        };
         let currentUser = null;
         let activeFilter = "Alle";
         let libraryItems = [];
@@ -127,11 +131,15 @@
             });
             setFilter(activeFilter);
         }
-        function renderThumbBallMarkup(layout) {
+        function getTableTypeForDiscipline(discipline) {
+            return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB";
+        }
+        function renderThumbBallMarkup(layout, discipline) {
+            const spec = TABLE_RENDER_SPECS[getTableTypeForDiscipline(discipline)] || TABLE_RENDER_SPECS.MB;
             return `
-                <g transform="translate(${layout.red.x} ${layout.red.y})"><circle r="12" fill="#e02f2f"></circle></g>
-                <g transform="translate(${layout.yellow.x} ${layout.yellow.y})"><circle r="12" fill="#ffe500"></circle></g>
-                <g transform="translate(${layout.white.x} ${layout.white.y})"><circle r="12" fill="#fbfbfb" stroke="#7d7d7d" stroke-width="1.2"></circle></g>
+                <g transform="translate(${layout.red.x} ${layout.red.y})"><circle r="${spec.radius}" fill="#e02f2f"></circle></g>
+                <g transform="translate(${layout.yellow.x} ${layout.yellow.y})"><circle r="${spec.radius}" fill="#ffe500"></circle></g>
+                <g transform="translate(${layout.white.x} ${layout.white.y})"><circle r="${spec.radius}" fill="#fbfbfb" stroke="#7d7d7d" stroke-width="${spec.whiteStrokeWidth}"></circle></g>
             `;
         }
         function escapeHtml(value) {
@@ -154,7 +162,7 @@
                 const lines = Array.isArray(item.line_paths) ? item.line_paths : [];
                 const card = document.createElement("div");
                 card.className = "item";
-                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}</div></div><div class="item-actions"><button class="btn" type="button" data-edit="${item.id}">Bearbeiten</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button></div></div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
+                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}</div></div><div class="item-actions"><button class="btn" type="button" data-edit="${item.id}">Bearbeiten</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button></div></div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
                 card.querySelector("[data-open]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
                 card.querySelector("[data-edit]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
                 card.querySelector("[data-delete]").onclick = () => deletePosition(item.id);

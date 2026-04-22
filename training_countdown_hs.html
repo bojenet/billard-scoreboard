@@ -745,6 +745,10 @@
         let duelPositionsOpen = false;
         const TABLE_VIEWBOX = { width: 674, height: 1200 };
         const CHALLENGE_BOUNDS = { minX: 70, maxX: 605, minY: 58, maxY: 1143 };
+        const TABLE_RENDER_SPECS = {
+            MB: { radius: 14.6, glareRadius: 5.5, glareOffset: 4.9, strokeWidth: 1.8, whiteStrokeWidth: 1.8 },
+            TB: { radius: 18.0, glareRadius: 6.8, glareOffset: 6.0, strokeWidth: 2.25, whiteStrokeWidth: 2.25 }
+        };
         const DISCIPLINE_TEMPLATES = {
             "Freie Partie": "assets/discipline-mb-libre.png",
             "Cadre 35/2": "assets/discipline-tb-35.png",
@@ -820,8 +824,8 @@
                     ["red", "yellow", "white"].forEach((ballKey) => {
                         if (!saved[ballKey]) return;
                         layout[ballKey] = {
-                            x: clamp(Number(saved[ballKey].x) || layout[ballKey].x, CHALLENGE_BOUNDS.minX, CHALLENGE_BOUNDS.maxX),
-                            y: clamp(Number(saved[ballKey].y) || layout[ballKey].y, CHALLENGE_BOUNDS.minY, CHALLENGE_BOUNDS.maxY)
+                            x: clamp(Number(saved[ballKey].x) || layout[ballKey].x, getChallengeBoundsForDiscipline(getActiveChallengeDiscipline()).minX, getChallengeBoundsForDiscipline(getActiveChallengeDiscipline()).maxX),
+                            y: clamp(Number(saved[ballKey].y) || layout[ballKey].y, getChallengeBoundsForDiscipline(getActiveChallengeDiscipline()).minY, getChallengeBoundsForDiscipline(getActiveChallengeDiscipline()).maxY)
                         };
                     });
                     return layout;
@@ -872,6 +876,21 @@
 
         function getChallengeTemplateForDiscipline(discipline) {
             return DISCIPLINE_TEMPLATES[discipline] || "assets/discipline-mb-47.png";
+        }
+        function getTableTypeForDiscipline(discipline) {
+            return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB";
+        }
+        function getBallSpec(discipline) {
+            return TABLE_RENDER_SPECS[getTableTypeForDiscipline(discipline)] || TABLE_RENDER_SPECS.MB;
+        }
+        function getChallengeBoundsForDiscipline(discipline) {
+            const delta = getBallSpec(discipline).radius - 12;
+            return {
+                minX: CHALLENGE_BOUNDS.minX + delta,
+                maxX: CHALLENGE_BOUNDS.maxX - delta,
+                minY: CHALLENGE_BOUNDS.minY + delta,
+                maxY: CHALLENGE_BOUNDS.maxY - delta
+            };
         }
 
         function getChallengePositionLayout(positionId) {
@@ -967,8 +986,8 @@
                     ["red", "yellow", "white"].forEach((ballKey) => {
                         if (!saved[ballKey]) return;
                         layout[ballKey] = {
-                            x: clamp(Number(saved[ballKey].x) || layout[ballKey].x, CHALLENGE_BOUNDS.minX, CHALLENGE_BOUNDS.maxX),
-                            y: clamp(Number(saved[ballKey].y) || layout[ballKey].y, CHALLENGE_BOUNDS.minY, CHALLENGE_BOUNDS.maxY)
+                            x: clamp(Number(saved[ballKey].x) || layout[ballKey].x, getChallengeBoundsForDiscipline(getActiveChallengeDiscipline()).minX, getChallengeBoundsForDiscipline(getActiveChallengeDiscipline()).maxX),
+                            y: clamp(Number(saved[ballKey].y) || layout[ballKey].y, getChallengeBoundsForDiscipline(getActiveChallengeDiscipline()).minY, getChallengeBoundsForDiscipline(getActiveChallengeDiscipline()).maxY)
                         };
                     });
                     return layout;
@@ -1026,19 +1045,20 @@
         }
 
         function renderChallengePositionSvg(layout) {
+            const spec = getBallSpec(getActiveChallengeDiscipline());
             return `
                 <svg class="position-table-overlay" viewBox="0 0 ${TABLE_VIEWBOX.width} ${TABLE_VIEWBOX.height}" aria-label="Challenge Position ${layout.id}">
                     <g class="challenge-ball" data-position-id="${layout.id}" data-ball="red" transform="translate(${layout.red.x} ${layout.red.y})">
-                        <circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
-                        <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
+                        <circle r="${spec.radius}" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle>
+                        <circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.42"></circle>
                     </g>
                     <g class="challenge-ball" data-position-id="${layout.id}" data-ball="yellow" transform="translate(${layout.yellow.x} ${layout.yellow.y})">
-                        <circle r="12" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
-                        <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle>
+                        <circle r="${spec.radius}" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle>
+                        <circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.42"></circle>
                     </g>
                     <g class="challenge-ball" data-position-id="${layout.id}" data-ball="white" transform="translate(${layout.white.x} ${layout.white.y})">
-                        <circle r="12" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="1.5"></circle>
-                        <circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.72"></circle>
+                        <circle r="${spec.radius}" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="${spec.whiteStrokeWidth}"></circle>
+                        <circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.72"></circle>
                     </g>
                 </svg>
             `;
@@ -1094,9 +1114,10 @@
         function updateChallengeBallPosition(positionId, ballKey, x, y) {
             const layout = challengePositions.find((item) => Number(item.id) === Number(positionId));
             if (!layout || !layout[ballKey]) return;
+            const currentBounds = getChallengeBoundsForDiscipline(getActiveChallengeDiscipline());
             layout[ballKey] = {
-                x: clamp(x, CHALLENGE_BOUNDS.minX, CHALLENGE_BOUNDS.maxX),
-                y: clamp(y, CHALLENGE_BOUNDS.minY, CHALLENGE_BOUNDS.maxY)
+                x: clamp(x, currentBounds.minX, currentBounds.maxX),
+                y: clamp(y, currentBounds.minY, currentBounds.maxY)
             };
             document.querySelectorAll(`.challenge-ball[data-position-id="${positionId}"][data-ball="${ballKey}"]`).forEach((ball) => {
                 ball.setAttribute("transform", `translate(${layout[ballKey].x} ${layout[ballKey].y})`);

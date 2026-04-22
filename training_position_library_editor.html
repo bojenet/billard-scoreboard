@@ -177,6 +177,10 @@
             yellow: { x: 259, y: 214 },
             white: { x: 232, y: 201 }
         };
+        const TABLE_RENDER_SPECS = {
+            MB: { radius: 14.6, glareRadius: 5.5, glareOffset: 4.9, strokeWidth: 1.8, whiteStrokeWidth: 1.8 },
+            TB: { radius: 18.0, glareRadius: 6.8, glareOffset: 6.0, strokeWidth: 2.25, whiteStrokeWidth: 2.25 }
+        };
         let currentUser = null;
         let selectedDiscipline = "Cadre 47/2";
         let activeDrag = null;
@@ -203,6 +207,38 @@
             };
         }
         function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+        function getTableTypeForDiscipline(discipline) {
+            return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB";
+        }
+        function getBallSpec(discipline) {
+            return TABLE_RENDER_SPECS[getTableTypeForDiscipline(discipline)] || TABLE_RENDER_SPECS.MB;
+        }
+        function getCurrentBounds() {
+            const delta = getBallSpec(selectedDiscipline).radius - 12;
+            return {
+                minX: bounds.minX + delta,
+                maxX: bounds.maxX - delta,
+                minY: bounds.minY + delta,
+                maxY: bounds.maxY - delta
+            };
+        }
+        function applyBallAppearance() {
+            const spec = getBallSpec(selectedDiscipline);
+            ["red", "yellow", "white"].forEach((key) => {
+                const group = document.getElementById("ball-" + key);
+                if (!group) return;
+                const circles = group.querySelectorAll("circle");
+                if (circles[0]) {
+                    circles[0].setAttribute("r", String(spec.radius));
+                    circles[0].setAttribute("stroke-width", String(key === "white" ? spec.whiteStrokeWidth : spec.strokeWidth));
+                }
+                if (circles[1]) {
+                    circles[1].setAttribute("r", String(spec.glareRadius));
+                    circles[1].setAttribute("cx", String(-spec.glareOffset));
+                    circles[1].setAttribute("cy", String(-spec.glareOffset));
+                }
+            });
+        }
         function updateEditorZoomStage() {
             const wrap = document.getElementById("tableWrap");
             const zoomStage = document.getElementById("tableZoomStage");
@@ -334,6 +370,8 @@
             selectedDiscipline = value || "Cadre 47/2";
             document.getElementById("tableBackground").src = getTemplateForDiscipline(selectedDiscipline);
             document.querySelectorAll("#disciplineButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === selectedDiscipline));
+            applyBallAppearance();
+            renderBalls();
         }
         function buildDisciplineButtons() {
             const wrap = document.getElementById("disciplineButtons");
@@ -415,8 +453,8 @@
                 const prev = normalized[normalized.length - 1];
                 if (prev && Math.hypot(prev.x - pt.x, prev.y - pt.y) < 4) return;
                 normalized.push({
-                    x: clamp(pt.x, bounds.minX, bounds.maxX),
-                    y: clamp(pt.y, bounds.minY, bounds.maxY)
+                    x: clamp(pt.x, getCurrentBounds().minX, getCurrentBounds().maxX),
+                    y: clamp(pt.y, getCurrentBounds().minY, getCurrentBounds().maxY)
                 });
             });
             return normalized;
@@ -435,12 +473,13 @@
             const landscapeX = ((event.clientX - rect.left) / rect.width) * 1200;
             const landscapeY = ((event.clientY - rect.top) / rect.height) * 674;
             return {
-                x: clamp(landscapeY, bounds.minX, bounds.maxX),
-                y: clamp(1200 - landscapeX, bounds.minY, bounds.maxY)
+                x: clamp(landscapeY, getCurrentBounds().minX, getCurrentBounds().maxX),
+                y: clamp(1200 - landscapeX, getCurrentBounds().minY, getCurrentBounds().maxY)
             };
         }
         function updateBallPosition(ballKey, x, y) {
-            ballLayout[ballKey] = { x: clamp(x, bounds.minX, bounds.maxX), y: clamp(y, bounds.minY, bounds.maxY) };
+            const currentBounds = getCurrentBounds();
+            ballLayout[ballKey] = { x: clamp(x, currentBounds.minX, currentBounds.maxX), y: clamp(y, currentBounds.minY, currentBounds.maxY) };
             renderBalls();
         }
         function startBallDrag(event) {
@@ -553,12 +592,13 @@
                 if (activeLineEdit.type === "line") {
                     const line = linePaths[activeLineEdit.lineIndex];
                     if (line?.points?.length) {
+                        const currentBounds = getCurrentBounds();
                         const dx = point.x - activeLineEdit.lastPoint.x;
                         const dy = point.y - activeLineEdit.lastPoint.y;
                         const xs = line.points.map((pt) => pt.x);
                         const ys = line.points.map((pt) => pt.y);
-                        const safeDx = clamp(dx, bounds.minX - Math.min(...xs), bounds.maxX - Math.max(...xs));
-                        const safeDy = clamp(dy, bounds.minY - Math.min(...ys), bounds.maxY - Math.max(...ys));
+                        const safeDx = clamp(dx, currentBounds.minX - Math.min(...xs), currentBounds.maxX - Math.max(...xs));
+                        const safeDy = clamp(dy, currentBounds.minY - Math.min(...ys), currentBounds.maxY - Math.max(...ys));
                         line.points = line.points.map((pt) => ({
                             x: pt.x + safeDx,
                             y: pt.y + safeDy

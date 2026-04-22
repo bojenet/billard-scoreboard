@@ -169,6 +169,10 @@
         const params = new URLSearchParams(window.location.search);
         const sessionId = params.get("session") || "";
         const TABLE_VIEWBOX = { width: 674, height: 1200 };
+        const TABLE_RENDER_SPECS = {
+            MB: { radius: 14.6, glareRadius: 5.5, glareOffset: 4.9, strokeWidth: 1.8, whiteStrokeWidth: 1.8 },
+            TB: { radius: 18.0, glareRadius: 6.8, glareOffset: 6.0, strokeWidth: 2.25, whiteStrokeWidth: 2.25 }
+        };
         const DISCIPLINE_TEMPLATES = {
             "Freie Partie": "assets/discipline-mb-libre.png",
             "Cadre 35/2": "assets/discipline-tb-35.png",
@@ -258,6 +262,8 @@
         function parseSeries(value) { return Array.isArray(value) ? value.map((x) => Number(x)).filter((x) => Number.isFinite(x) && x >= 0) : []; }
         function avg(score, innings) { return innings > 0 ? (score / innings).toFixed(3) : "0.000"; }
         function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/discipline-mb-47.png"; }
+        function getTableTypeForDiscipline(discipline) { return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB"; }
+        function getBallSpec(discipline) { return TABLE_RENDER_SPECS[getTableTypeForDiscipline(discipline)] || TABLE_RENDER_SPECS.MB; }
         function getCurrentPlayerDiscipline() { return isHost ? (sessionData?.host_discipline || "Cadre 47/2") : (sessionData?.guest_discipline || sessionData?.host_discipline || "Cadre 47/2"); }
         function getPositions() { return Array.isArray(sessionData?.challenge_positions) && sessionData.challenge_positions.length ? sessionData.challenge_positions : DEFAULT_POSITIONS; }
         function getCurrentPositionIndex() {
@@ -274,10 +280,11 @@
             return null;
         }
         function renderPositionSvg(layout) {
+            const spec = getBallSpec(getCurrentPlayerDiscipline());
             return `<svg class="position-table-overlay" viewBox="0 0 ${TABLE_VIEWBOX.width} ${TABLE_VIEWBOX.height}" aria-label="Position ${layout.id}">
-                <g transform="translate(${layout.red.x} ${layout.red.y})"><circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle><circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle></g>
-                <g transform="translate(${layout.yellow.x} ${layout.yellow.y})"><circle r="12" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle><circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.42"></circle></g>
-                <g transform="translate(${layout.white.x} ${layout.white.y})"><circle r="12" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="1.5"></circle><circle r="4.5" cx="-4" cy="-4" fill="#ffffff" fill-opacity="0.72"></circle></g>
+                <g transform="translate(${layout.red.x} ${layout.red.y})"><circle r="${spec.radius}" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.42"></circle></g>
+                <g transform="translate(${layout.yellow.x} ${layout.yellow.y})"><circle r="${spec.radius}" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.42"></circle></g>
+                <g transform="translate(${layout.white.x} ${layout.white.y})"><circle r="${spec.radius}" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="${spec.whiteStrokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.72"></circle></g>
             </svg>`;
         }
         function renderPositionModal(positionId) {
