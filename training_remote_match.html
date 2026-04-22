@@ -182,7 +182,16 @@
         const disciplines = ["Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
         const TABLE_VIEWBOX = { width: 674, height: 1200 };
         const CHALLENGE_BOUNDS = { minX: 70, maxX: 605, minY: 58, maxY: 1143 };
-        const DISCIPLINE_TEMPLATES = { "Cadre 47/2": "assets/grosser-tisch-47-2.png", "Cadre 71/2": "assets/mb-71-2.png" };
+        const DISCIPLINE_TEMPLATES = {
+            "Freie Partie": "assets/discipline-mb-libre.png",
+            "Cadre 35/2": "assets/discipline-tb-35.png",
+            "Cadre 52/2": "assets/discipline-tb-52.png",
+            "Cadre 47/2": "assets/discipline-mb-47.png",
+            "Cadre 47/1": "assets/discipline-mb-47.png",
+            "Cadre 71/2": "assets/discipline-mb-71.png",
+            "Einband": "assets/discipline-mb-bande.png",
+            "Dreiband": "assets/discipline-mb-bande.png"
+        };
         const positionDefaults = [
             { id: 1, red: { x: 236, y: 166 }, yellow: { x: 259, y: 214 }, white: { x: 232, y: 201 } },
             { id: 2, red: { x: 288, y: 262 }, yellow: { x: 316, y: 305 }, white: { x: 272, y: 323 } },
@@ -203,7 +212,7 @@
 
         function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
         function getDefaultChallengePositions() { return positionDefaults.map((x) => ({ id: x.id, red: { ...x.red }, yellow: { ...x.yellow }, white: { ...x.white } })); }
-        function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/grosser-tisch-47-2.png"; }
+        function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/discipline-mb-47.png"; }
         function getActiveDiscipline() { return selectedHostDiscipline || selectedGuestDiscipline || "Cadre 47/2"; }
         function serializeChallengePositions() { return challengePositions.map((x) => ({ id: x.id, red: { ...x.red }, yellow: { ...x.yellow }, white: { ...x.white } })); }
         function updateFullscreenButton() { const btn = document.getElementById("fullscreenBtn"); if (!btn) return; const active = !!document.fullscreenElement; btn.innerText = active ? "×" : "⛶"; }

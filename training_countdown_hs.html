@@ -746,8 +746,14 @@
         const TABLE_VIEWBOX = { width: 674, height: 1200 };
         const CHALLENGE_BOUNDS = { minX: 70, maxX: 605, minY: 58, maxY: 1143 };
         const DISCIPLINE_TEMPLATES = {
-            "Cadre 47/2": "assets/grosser-tisch-47-2.png",
-            "Cadre 71/2": "assets/mb-71-2.png"
+            "Freie Partie": "assets/discipline-mb-libre.png",
+            "Cadre 35/2": "assets/discipline-tb-35.png",
+            "Cadre 52/2": "assets/discipline-tb-52.png",
+            "Cadre 47/2": "assets/discipline-mb-47.png",
+            "Cadre 47/1": "assets/discipline-mb-47.png",
+            "Cadre 71/2": "assets/discipline-mb-71.png",
+            "Einband": "assets/discipline-mb-bande.png",
+            "Dreiband": "assets/discipline-mb-bande.png"
         };
         const challengePositionDefaults = [
             { id: 1, red: { x: 236, y: 166 }, yellow: { x: 259, y: 214 }, white: { x: 232, y: 201 } },
@@ -865,7 +871,7 @@
         }
 
         function getChallengeTemplateForDiscipline(discipline) {
-            return DISCIPLINE_TEMPLATES[discipline] || "assets/grosser-tisch-47-2.png";
+            return DISCIPLINE_TEMPLATES[discipline] || "assets/discipline-mb-47.png";
         }
 
         function getChallengePositionLayout(positionId) {

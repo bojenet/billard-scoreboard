@@ -119,7 +119,7 @@
                         <div class="table-zoom-stage" id="tableZoomStage">
                             <div class="table-wrap" id="tableWrap">
                                 <div class="table-stage" id="tableStage">
-                                    <img id="tableBackground" class="table-bg" src="assets/grosser-tisch-47-2.png" alt="Tischvorlage">
+                                    <img id="tableBackground" class="table-bg" src="assets/discipline-mb-47.png" alt="Tischvorlage">
                                     <svg id="positionTable" class="table-overlay" viewBox="0 0 674 1200" aria-label="Interaktiver Billardtisch">
                                         <g id="ball-red" class="table-ball" data-ball="red">
                                             <circle r="12" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="1.5"></circle>
@@ -161,7 +161,16 @@
         const params = new URLSearchParams(window.location.search);
         const positionId = params.get("id") || "";
         const disciplines = ["Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
-        const tableTemplates = { "Cadre 47/2": "assets/grosser-tisch-47-2.png", "Cadre 71/2": "assets/mb-71-2.png" };
+        const tableTemplates = {
+            "Freie Partie": "assets/discipline-mb-libre.png",
+            "Cadre 35/2": "assets/discipline-tb-35.png",
+            "Cadre 52/2": "assets/discipline-tb-52.png",
+            "Cadre 47/2": "assets/discipline-mb-47.png",
+            "Cadre 47/1": "assets/discipline-mb-47.png",
+            "Cadre 71/2": "assets/discipline-mb-71.png",
+            "Einband": "assets/discipline-mb-bande.png",
+            "Dreiband": "assets/discipline-mb-bande.png"
+        };
         const bounds = { minX: 70, maxX: 605, minY: 58, maxY: 1143 };
         const defaultLayout = {
             red: { x: 236, y: 166 },
@@ -320,7 +329,7 @@
             } catch (_) {}
             updateFullscreenButton();
         }
-        function getTemplateForDiscipline(discipline) { return tableTemplates[discipline] || "assets/grosser-tisch-47-2.png"; }
+        function getTemplateForDiscipline(discipline) { return tableTemplates[discipline] || "assets/discipline-mb-47.png"; }
         function setSelectedDiscipline(value) {
             selectedDiscipline = value || "Cadre 47/2";
             document.getElementById("tableBackground").src = getTemplateForDiscipline(selectedDiscipline);

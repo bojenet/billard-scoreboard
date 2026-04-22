@@ -169,7 +169,16 @@
         const params = new URLSearchParams(window.location.search);
         const sessionId = params.get("session") || "";
         const TABLE_VIEWBOX = { width: 674, height: 1200 };
-        const DISCIPLINE_TEMPLATES = { "Cadre 47/2": "assets/grosser-tisch-47-2.png", "Cadre 71/2": "assets/mb-71-2.png" };
+        const DISCIPLINE_TEMPLATES = {
+            "Freie Partie": "assets/discipline-mb-libre.png",
+            "Cadre 35/2": "assets/discipline-tb-35.png",
+            "Cadre 52/2": "assets/discipline-tb-52.png",
+            "Cadre 47/2": "assets/discipline-mb-47.png",
+            "Cadre 47/1": "assets/discipline-mb-47.png",
+            "Cadre 71/2": "assets/discipline-mb-71.png",
+            "Einband": "assets/discipline-mb-bande.png",
+            "Dreiband": "assets/discipline-mb-bande.png"
+        };
         const DEFAULT_POSITIONS = [
             { id: 1, red: { x: 236, y: 166 }, yellow: { x: 259, y: 214 }, white: { x: 232, y: 201 } },
             { id: 2, red: { x: 288, y: 262 }, yellow: { x: 316, y: 305 }, white: { x: 272, y: 323 } },
@@ -248,7 +257,7 @@
         }
         function parseSeries(value) { return Array.isArray(value) ? value.map((x) => Number(x)).filter((x) => Number.isFinite(x) && x >= 0) : []; }
         function avg(score, innings) { return innings > 0 ? (score / innings).toFixed(3) : "0.000"; }
-        function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/grosser-tisch-47-2.png"; }
+        function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/discipline-mb-47.png"; }
         function getCurrentPlayerDiscipline() { return isHost ? (sessionData?.host_discipline || "Cadre 47/2") : (sessionData?.guest_discipline || sessionData?.host_discipline || "Cadre 47/2"); }
         function getPositions() { return Array.isArray(sessionData?.challenge_positions) && sessionData.challenge_positions.length ? sessionData.challenge_positions : DEFAULT_POSITIONS; }
         function getCurrentPositionIndex() {

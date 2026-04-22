@@ -72,7 +72,16 @@
     <script src="js/user_menu.js"></script>
     <script>
         const disciplines = ["Alle", "Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
-        const tableTemplates = { "Cadre 47/2": "assets/grosser-tisch-47-2.png", "Cadre 71/2": "assets/mb-71-2.png" };
+        const tableTemplates = {
+            "Freie Partie": "assets/discipline-mb-libre.png",
+            "Cadre 35/2": "assets/discipline-tb-35.png",
+            "Cadre 52/2": "assets/discipline-tb-52.png",
+            "Cadre 47/2": "assets/discipline-mb-47.png",
+            "Cadre 47/1": "assets/discipline-mb-47.png",
+            "Cadre 71/2": "assets/discipline-mb-71.png",
+            "Einband": "assets/discipline-mb-bande.png",
+            "Dreiband": "assets/discipline-mb-bande.png"
+        };
         const defaultLayout = {
             red: { x: 236, y: 166 },
             yellow: { x: 259, y: 214 },
@@ -99,7 +108,7 @@
             } catch (_) {}
             updateFullscreenButton();
         }
-        function getTemplateForDiscipline(discipline) { return tableTemplates[discipline] || "assets/grosser-tisch-47-2.png"; }
+        function getTemplateForDiscipline(discipline) { return tableTemplates[discipline] || "assets/discipline-mb-47.png"; }
         function setFilter(value) {
             activeFilter = value || "Alle";
             document.querySelectorAll("#filterButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === activeFilter));
