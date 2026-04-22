@@ -197,6 +197,7 @@
         let drawMode = false;
         let activeLineDraft = null;
         let activeLineEdit = null;
+        let lastDraftTap = null;
         let currentEditorZoom = 1;
         let fitEditorZoom = 1;
         let activePan = null;
@@ -402,6 +403,7 @@
             ballLayout = cloneLayout(page.ball_layout);
             linePaths = cloneLines(page.line_paths);
             activeLineDraft = null;
+            lastDraftTap = null;
             stopLineEdit();
             renderBalls();
             renderLines();
@@ -561,6 +563,7 @@
             const points = normalizeLinePoints(activeLineDraft.points);
             if (points.length >= 2) linePaths.push({ points });
             activeLineDraft = null;
+            lastDraftTap = null;
             updateDrawModeUi();
             renderLines();
         }
@@ -720,6 +723,7 @@
         function toggleDrawMode() {
             if (drawMode && activeLineDraft) finishActiveLineDraft();
             drawMode = !drawMode;
+            lastDraftTap = null;
             stopLineEdit();
             updateDrawModeUi();
             renderLines();
@@ -727,6 +731,7 @@
         function clearLines() {
             linePaths = [];
             activeLineDraft = null;
+            lastDraftTap = null;
             stopLineEdit();
             renderLines();
             persistCurrentPageState();
@@ -740,11 +745,26 @@
             if (!drawMode) return;
             if (event.target.closest(".table-ball") || event.target.closest(".line-hit-area") || event.target.closest(".line-point-handle")) return;
             const point = getPortraitPoint(event);
-            if (!activeLineDraft) activeLineDraft = { points: [point, point] };
-            else {
+            const now = Date.now();
+            const isDraftFinishTap = !!(
+                activeLineDraft &&
+                lastDraftTap &&
+                now - lastDraftTap.time <= 360 &&
+                Math.hypot(point.x - lastDraftTap.point.x, point.y - lastDraftTap.point.y) <= 18
+            );
+            if (isDraftFinishTap) {
+                event.preventDefault();
+                event.stopPropagation();
+                finishActiveLineDraft();
+                return;
+            }
+            if (!activeLineDraft) {
+                activeLineDraft = { points: [point, point] };
+            } else {
                 activeLineDraft.points[activeLineDraft.points.length - 1] = point;
                 activeLineDraft.points.push(point);
             }
+            lastDraftTap = { time: now, point: { ...point } };
             event.preventDefault();
             event.stopPropagation();
             updateDrawModeUi();
@@ -780,6 +800,7 @@
             ballLayout = getDefaultLayout();
             linePaths = [];
             activeLineDraft = null;
+            lastDraftTap = null;
             stopLineEdit();
             renderBalls();
             renderLines();
@@ -862,6 +883,7 @@
             currentPageIndex = 0;
             ballLayout = getDefaultLayout();
             linePaths = [];
+            lastDraftTap = null;
             renderBalls();
             renderLines();
             updateDrawModeUi();
