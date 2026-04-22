@@ -73,7 +73,6 @@
         <div class="topbar">
             <div>
                 <h1 class="title" id="pageTitle">Neue Position</h1>
-                <div class="sub">Eigene Seite zum Anlegen und Bearbeiten. Der Tisch ist jetzt im Querformat für mehr Platz.</div>
             </div>
             <div class="actions">
                 <button class="btn" type="button" onclick="resetForm()">Neu</button>
@@ -107,11 +106,10 @@
 
             <div class="card">
                 <div class="section">
-                    <h2 class="section-title">Billardtisch</h2>
                     <div class="section-sub" id="tableHelpText" style="display:none;">Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben.</div>
                     <div class="icon-toolbar">
                         <button class="icon-btn" id="drawToggleBtn" type="button" onclick="toggleDrawMode()" title="Linien"><img class="icon-img" src="assets/icon-draw-line.png" alt="Linien"></button>
-                        <button class="icon-btn" type="button" onclick="resetBallLayout()" title="Bälle zurücksetzen"><img class="icon-img" src="assets/icon-move-ball.png" alt="Bälle zurücksetzen"></button>
+                        <button class="icon-btn" id="moveBallBtn" type="button" onclick="enableMoveMode()" title="Bälle verschieben"><img class="icon-img" src="assets/icon-move-ball.png" alt="Bälle verschieben"></button>
                         <button class="icon-btn" type="button" onclick="clearLines()" title="Linien löschen"><img class="icon-img" src="assets/icon-delete-lines.png" alt="Linien löschen"></button>
                         <button class="icon-btn" type="button" onclick="resetEditorZoom()" title="Zoom"><img class="icon-img" src="assets/icon-full-view.png" alt="Zoom"></button>
                         <button class="icon-btn" type="button" onclick="changeEditorZoom(-0.25)" title="Zoom out"><img class="icon-img" src="assets/icon-zoom-out.png" alt="Zoom out"></button>
@@ -119,9 +117,9 @@
                         <button class="icon-btn" type="button" onclick="addPage()" title="Seite hinzufügen"><img class="icon-img" src="assets/icon-add-page.png" alt="Seite hinzufügen"></button>
                         <button class="icon-btn danger" id="deletePageBtn" type="button" onclick="deleteCurrentPage()" title="Seite löschen" style="display:none;"><img class="icon-img" src="assets/icon-delete-page.png" alt="Seite löschen"></button>
                         <button class="icon-btn" id="finishLineBtn" type="button" onclick="finishActiveLineDraft()" title="Linie beenden" style="display:none;">✓</button>
-                        <button class="icon-btn" type="button" onclick="goToPreviousPage()" title="Vorherige Seite">←</button>
-                        <button class="icon-btn" type="button" onclick="goToNextPage()" title="Nächste Seite">→</button>
-                        <div class="section-sub" id="pageIndicator" style="margin:0 0 0 6px; min-width:110px;">Seite 1 / 1</div>
+                        <button class="icon-btn" id="prevPageBtn" type="button" onclick="goToPreviousPage()" title="Vorherige Seite" style="display:none;">←</button>
+                        <button class="icon-btn" id="nextPageBtn" type="button" onclick="goToNextPage()" title="Nächste Seite" style="display:none;">→</button>
+                        <div class="section-sub" id="pageIndicator" style="display:none; margin:0 0 0 6px; min-width:110px;">Seite 1 / 1</div>
                     </div>
                     <div class="table-viewport" id="tableViewport">
                         <div class="table-zoom-stage" id="tableZoomStage">
@@ -373,10 +371,12 @@
         }
         function updateDrawModeUi() {
             const btn = document.getElementById("drawToggleBtn");
+            const moveBtn = document.getElementById("moveBallBtn");
             const finishBtn = document.getElementById("finishLineBtn");
             const wrap = document.getElementById("tableWrap");
             const helpText = document.getElementById("tableHelpText");
             if (btn) btn.classList.toggle("active", drawMode);
+            if (moveBtn) moveBtn.classList.toggle("active", !drawMode);
             if (finishBtn) finishBtn.style.display = drawMode && activeLineDraft ? "inline-flex" : "none";
             if (wrap) wrap.classList.toggle("draw-mode", drawMode);
             updatePanUi();
@@ -408,8 +408,21 @@
         function updatePageUi() {
             const indicator = document.getElementById("pageIndicator");
             const deleteBtn = document.getElementById("deletePageBtn");
+            const prevBtn = document.getElementById("prevPageBtn");
+            const nextBtn = document.getElementById("nextPageBtn");
+            const hasMultiplePages = positionPages.length > 1;
             if (indicator) indicator.innerText = `Seite ${currentPageIndex + 1} / ${Math.max(positionPages.length, 1)}`;
-            if (deleteBtn) deleteBtn.style.display = positionPages.length > 1 ? "inline-flex" : "none";
+            if (indicator) indicator.style.display = hasMultiplePages ? "block" : "none";
+            if (deleteBtn) deleteBtn.style.display = hasMultiplePages ? "inline-flex" : "none";
+            if (prevBtn) prevBtn.style.display = hasMultiplePages ? "inline-flex" : "none";
+            if (nextBtn) nextBtn.style.display = hasMultiplePages ? "inline-flex" : "none";
+        }
+        function enableMoveMode() {
+            if (drawMode && activeLineDraft) finishActiveLineDraft();
+            drawMode = false;
+            stopLineEdit();
+            updateDrawModeUi();
+            renderLines();
         }
         function goToPreviousPage() {
             persistCurrentPageState();
