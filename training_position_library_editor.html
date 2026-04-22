@@ -116,7 +116,6 @@
                         <button class="icon-btn" type="button" onclick="changeEditorZoom(0.25)" title="Zoom in"><img class="icon-img" src="assets/icon-zoom-in.png" alt="Zoom in"></button>
                         <button class="icon-btn" type="button" onclick="addPage()" title="Seite hinzufügen"><img class="icon-img" src="assets/icon-add-page.png" alt="Seite hinzufügen"></button>
                         <button class="icon-btn danger" id="deletePageBtn" type="button" onclick="deleteCurrentPage()" title="Seite löschen" style="display:none;"><img class="icon-img" src="assets/icon-delete-page.png" alt="Seite löschen"></button>
-                        <button class="icon-btn" id="finishLineBtn" type="button" onclick="finishActiveLineDraft()" title="Linie beenden" style="display:none;">✓</button>
                         <button class="icon-btn" id="prevPageBtn" type="button" onclick="goToPreviousPage()" title="Vorherige Seite" style="display:none;">←</button>
                         <button class="icon-btn" id="nextPageBtn" type="button" onclick="goToNextPage()" title="Nächste Seite" style="display:none;">→</button>
                         <div class="section-sub" id="pageIndicator" style="display:none; margin:0 0 0 6px; min-width:110px;">Seite 1 / 1</div>
@@ -304,8 +303,13 @@
             updatePanUi();
         }
         function resetEditorZoom() {
-            currentEditorZoom = 1;
+            currentEditorZoom = fitEditorZoom;
             updateEditorZoomStage();
+            const viewport = document.getElementById("tableViewport");
+            if (viewport) {
+                viewport.scrollLeft = 0;
+                viewport.scrollTop = 0;
+            }
             updatePanUi();
         }
         function setNotice(text) {
@@ -372,17 +376,15 @@
         function updateDrawModeUi() {
             const btn = document.getElementById("drawToggleBtn");
             const moveBtn = document.getElementById("moveBallBtn");
-            const finishBtn = document.getElementById("finishLineBtn");
             const wrap = document.getElementById("tableWrap");
             const helpText = document.getElementById("tableHelpText");
             if (btn) btn.classList.toggle("active", drawMode);
             if (moveBtn) moveBtn.classList.toggle("active", !drawMode);
-            if (finishBtn) finishBtn.style.display = drawMode && activeLineDraft ? "inline-flex" : "none";
             if (wrap) wrap.classList.toggle("draw-mode", drawMode);
             updatePanUi();
             if (helpText) {
                 helpText.innerText = drawMode && activeLineDraft
-                    ? "Linie aktiv. Mit jedem Klick kommt ein weiterer Punkt dazu. `Linie beenden` oder Doppelklick schließt den Pfad ab."
+                    ? "Linie aktiv. Mit jedem Klick kommt ein weiterer Punkt dazu. Doppelklick schließt den Pfad ab."
                     : "Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben. Doppelklick auf einen Punkt löscht ihn.";
             }
         }
