@@ -223,9 +223,6 @@
                 return;
             }
             document.getElementById("newPositionBtn").style.display = isPositionLibraryEditable(positionLibraryAccessMode) ? "inline-flex" : "none";
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) {
-                setNotice("Positions Library ist aktuell nur im Lesemodus freigeschaltet.", "warn");
-            }
             buildFilterButtons();
             await loadLibrary();
         }
