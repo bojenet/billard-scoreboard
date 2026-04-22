@@ -29,12 +29,13 @@
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:10px 14px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:14px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
-        .icon-toolbar { display:flex; gap:8px; flex-wrap:nowrap; align-items:center; margin-bottom:10px; overflow-x:auto; }
-        .icon-btn { width:30px; height:30px; border:none; border-radius:0; padding:0; background:transparent; color:#fff; font-size:18px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:none; }
-        .icon-btn.active { filter:grayscale(1) brightness(.72); transform:translateY(1px); }
+        .icon-toolbar { display:flex; gap:12px; flex-wrap:nowrap; align-items:center; margin-bottom:10px; overflow-x:auto; padding:4px 0; }
+        .icon-btn { width:42px; height:42px; border:none; border-radius:0; padding:0; background:transparent; color:#fff; font-size:18px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:none; filter:drop-shadow(0 2px 0 rgba(255,255,255,.18)) drop-shadow(0 5px 8px rgba(0,0,0,.28)); transition:transform .12s ease, filter .12s ease, opacity .12s ease; }
+        .icon-btn:hover { transform:translateY(-1px); filter:drop-shadow(0 3px 0 rgba(255,255,255,.2)) drop-shadow(0 7px 10px rgba(0,0,0,.32)); }
+        .icon-btn.active { filter:grayscale(1) brightness(.72) drop-shadow(0 1px 0 rgba(255,255,255,.08)) drop-shadow(0 2px 4px rgba(0,0,0,.22)); transform:translateY(2px) scale(.98); }
         .icon-btn.danger { background:transparent; }
         .icon-divider { width:1px; height:22px; background:rgba(255,255,255,.18); margin:0 4px; }
-        .icon-img { width:28px; height:28px; display:block; object-fit:contain; pointer-events:none; }
+        .icon-img { width:36px; height:36px; display:block; object-fit:contain; pointer-events:none; }
         .table-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
         .table-zoom-actions { display:flex; gap:8px; flex-wrap:wrap; }
         .zoom-btn { border:none; border-radius:10px; background:#2746aa; color:#fff; font-size:14px; font-weight:700; padding:10px 12px; cursor:pointer; }
@@ -110,7 +111,6 @@
                     <div class="section-sub" id="tableHelpText" style="display:none;">Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben.</div>
                     <div class="icon-toolbar">
                         <button class="icon-btn" id="drawToggleBtn" type="button" onclick="toggleDrawMode()" title="Linien"><img class="icon-img" src="assets/icon-draw-line.png" alt="Linien"></button>
-                        <button class="icon-btn" id="loupeToggleBtn" type="button" onclick="toggleLoupe()" title="Lupe"><img class="icon-img" src="assets/icon-zoom-in.png" alt="Lupe"></button>
                         <button class="icon-btn" type="button" onclick="resetBallLayout()" title="Bälle zurücksetzen"><img class="icon-img" src="assets/icon-move-ball.png" alt="Bälle zurücksetzen"></button>
                         <button class="icon-btn" type="button" onclick="clearLines()" title="Linien löschen"><img class="icon-img" src="assets/icon-delete-lines.png" alt="Linien löschen"></button>
                         <button class="icon-btn" type="button" onclick="resetEditorZoom()" title="Zoom"><img class="icon-img" src="assets/icon-full-view.png" alt="Zoom"></button>
