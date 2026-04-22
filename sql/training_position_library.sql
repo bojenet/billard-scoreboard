@@ -1,6 +1,7 @@
 create table if not exists public.training_position_library (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
+  created_by_name text not null default '',
   title text not null check (char_length(title) between 1 and 120),
   discipline text not null,
   description text not null default '',
@@ -12,6 +13,9 @@ create table if not exists public.training_position_library (
 );
 
 alter table public.training_position_library
+  add column if not exists created_by_name text not null default '';
+
+alter table public.training_position_library
   add column if not exists line_paths jsonb not null default '[]'::jsonb;
 
 alter table public.training_position_library
@@ -19,6 +23,12 @@ alter table public.training_position_library
 
 create index if not exists idx_training_position_library_user on public.training_position_library(user_id, updated_at desc);
 create index if not exists idx_training_position_library_user_discipline on public.training_position_library(user_id, discipline);
+
+update public.training_position_library tpl
+set created_by_name = coalesce(nullif(trim(p.full_name), ''), nullif(trim(p.email), ''), tpl.created_by_name, '')
+from public.profiles p
+where p.id = tpl.user_id
+  and coalesce(trim(tpl.created_by_name), '') = '';
 
 create or replace function public.training_position_library_touch_updated_at()
 returns trigger

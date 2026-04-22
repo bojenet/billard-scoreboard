@@ -30,6 +30,7 @@
         .item-top { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
         .item-title { font-size:16px; font-weight:800; }
         .item-sub { font-size:12px; opacity:.76; margin-top:3px; }
+        .item-meta { font-size:12px; opacity:.72; margin-top:4px; }
         .item-actions { display:flex; gap:6px; flex-wrap:wrap; }
         .item-body { display:grid; gap:8px; align-items:start; }
         .item-text { font-size:12px; line-height:1.35; opacity:.9; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; min-height:49px; }
@@ -167,13 +168,14 @@
                 const layout = firstPage.ball_layout || item.ball_layout || defaultLayout;
                 const lines = Array.isArray(firstPage.line_paths) ? firstPage.line_paths : (Array.isArray(item.line_paths) ? item.line_paths : []);
                 const pageSuffix = pages.length > 1 ? ` • ${pages.length} Seiten` : "";
+                const creatorName = escapeHtml(item.created_by_name || "Unbekannt");
                 const canEdit = isPositionLibraryEditable(positionLibraryAccessMode);
                 const actionMarkup = canEdit
                     ? `<button class="btn" type="button" data-edit="${item.id}">Bearbeiten</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button>`
                     : `<button class="btn" type="button" data-open-btn="${item.id}">Öffnen</button>`;
                 const card = document.createElement("div");
                 card.className = "item";
-                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}${pageSuffix}</div></div><div class="item-actions">${actionMarkup}</div></div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
+                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}${pageSuffix}</div><div class="item-meta">Ersteller: ${creatorName}</div></div><div class="item-actions">${actionMarkup}</div></div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
                 card.querySelector("[data-open]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
                 const openBtn = card.querySelector("[data-open-btn]");
                 if (openBtn) openBtn.onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
