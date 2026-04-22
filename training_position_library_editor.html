@@ -44,7 +44,7 @@
         .table-viewport.panning { cursor:grabbing; user-select:none; }
         .table-zoom-stage { width:max-content; margin:0 auto; }
         .table-wrap { position:relative; width:1200px; border-radius:24px; overflow:hidden; background:#f7f7f4; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio:1200/674; }
-        .table-wrap.draw-mode { box-shadow: inset 0 0 0 3px rgba(255,216,74,.7), 0 18px 34px rgba(0,0,0,.28); }
+        .table-wrap.draw-mode { box-shadow: inset 0 0 0 3px rgba(255,216,74,.7), 0 18px 34px rgba(0,0,0,.28); cursor:crosshair; }
         .table-stage { position:absolute; inset:0; }
         .table-bg, .table-lines, .table-overlay { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
         .table-bg { display:block; object-fit:cover; }
@@ -53,8 +53,13 @@
         .table-overlay { display:block; z-index:2; }
         .table-ball { cursor:grab; touch-action:none; }
         .table-ball:active { cursor:grabbing; }
+        .table-wrap.draw-mode .table-stage,
+        .table-wrap.draw-mode .table-overlay,
+        .table-wrap.draw-mode .table-lines { cursor:crosshair; }
         .line-hit-area { pointer-events:auto; cursor:move; }
-        .line-point-handle { pointer-events:auto; cursor:pointer; }
+        .line-point-handle { pointer-events:auto; cursor:crosshair; }
+        .line-point-hit { fill:transparent; }
+        .line-point-cross { pointer-events:none; }
         .table-loupe { position:absolute; width:190px; height:190px; border-radius:999px; overflow:hidden; border:3px solid rgba(255,216,74,.95); box-shadow:0 14px 30px rgba(0,0,0,.34); background:#f7f7f4; pointer-events:none; z-index:6; display:none; }
         .table-loupe.visible { display:block; }
         .table-loupe-content { position:absolute; inset:0; transform-origin:top left; }
@@ -500,7 +505,13 @@
                 const points = Array.isArray(line.points) ? line.points : [];
                 if (points.length < 2) return "";
                 const polyline = points.map((pt) => `${pt.x},${pt.y}`).join(" ");
-                const handles = drawMode ? points.map((pt, pointIndex) => `<circle class="line-point-handle" data-line-point="${index}:${pointIndex}" cx="${pt.x}" cy="${pt.y}" r="9" fill="#ffd84a" stroke="#173168" stroke-width="3"></circle>`).join("") : "";
+                const handles = drawMode ? points.map((pt, pointIndex) => `
+                    <g class="line-point-handle" data-line-point="${index}:${pointIndex}" transform="translate(${pt.x} ${pt.y})">
+                        <circle class="line-point-hit" r="12"></circle>
+                        <line class="line-point-cross" x1="-7" y1="0" x2="7" y2="0" stroke="#ffe27a" stroke-width="2.4" stroke-linecap="round"></line>
+                        <line class="line-point-cross" x1="0" y1="-7" x2="0" y2="7" stroke="#ffe27a" stroke-width="2.4" stroke-linecap="round"></line>
+                        <circle class="line-point-cross" r="2.2" fill="#173168" stroke="#ffe27a" stroke-width="1.2"></circle>
+                    </g>`).join("") : "";
                 return `<g data-line-index="${index}"><polyline points="${polyline}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"></polyline><polyline class="line-hit-area" data-line-move="${index}" points="${polyline}" fill="none" stroke="transparent" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"></polyline>${handles}</g>`;
             }).join("");
             const draftMarkup = activeLineDraft && activeLineDraft.points.length > 1
