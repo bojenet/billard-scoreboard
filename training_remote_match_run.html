@@ -183,14 +183,6 @@
             "Einband": "assets/discipline-mb-bande.png",
             "Dreiband": "assets/discipline-mb-bande.png"
         };
-        const DEFAULT_POSITIONS = [
-            { id: 1, red: { x: 236, y: 166 }, yellow: { x: 259, y: 214 }, white: { x: 232, y: 201 } },
-            { id: 2, red: { x: 288, y: 262 }, yellow: { x: 316, y: 305 }, white: { x: 272, y: 323 } },
-            { id: 3, red: { x: 411, y: 438 }, yellow: { x: 378, y: 485 }, white: { x: 441, y: 478 } },
-            { id: 4, red: { x: 492, y: 696 }, yellow: { x: 455, y: 738 }, white: { x: 524, y: 756 } },
-            { id: 5, red: { x: 332, y: 882 }, yellow: { x: 360, y: 928 }, white: { x: 306, y: 939 } },
-            { id: 6, red: { x: 237, y: 1038 }, yellow: { x: 275, y: 1078 }, white: { x: 221, y: 1091 } }
-        ];
         let currentUser = null;
         let sessionData = null;
         let realtimeChannel = null;
@@ -265,10 +257,13 @@
         function getTableTypeForDiscipline(discipline) { return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB"; }
         function getBallSpec(discipline) { return TABLE_RENDER_SPECS[getTableTypeForDiscipline(discipline)] || TABLE_RENDER_SPECS.MB; }
         function getCurrentPlayerDiscipline() { return isHost ? (sessionData?.host_discipline || "Cadre 47/2") : (sessionData?.guest_discipline || sessionData?.host_discipline || "Cadre 47/2"); }
-        function getPositions() { return Array.isArray(sessionData?.challenge_positions) && sessionData.challenge_positions.length ? sessionData.challenge_positions : DEFAULT_POSITIONS; }
+        function getPositions() { return Array.isArray(sessionData?.challenge_positions) ? sessionData.challenge_positions.filter((item) => item?.red && item?.yellow && item?.white) : []; }
+        function getPositionCount() { return getPositions().length; }
         function getCurrentPositionIndex() {
+            const count = getPositionCount();
+            if (!count) return 1;
             const raw = Number(isHost ? sessionData?.host_position_index : sessionData?.guest_position_index) || 1;
-            return !Number.isFinite(raw) || raw < 1 ? 1 : ((raw - 1) % 6) + 1;
+            return !Number.isFinite(raw) || raw < 1 ? 1 : ((raw - 1) % count) + 1;
         }
         function updateFullscreenButton() { const btn = document.getElementById("fullscreenBtn"); if (!btn) return; const active = !!document.fullscreenElement; btn.innerText = active ? "×" : "⛶"; }
         async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (_) {} finally { updateFullscreenButton(); } }
@@ -281,7 +276,12 @@
         }
         function renderPositionSvg(layout) {
             const spec = getBallSpec(getCurrentPlayerDiscipline());
+            const linesMarkup = Array.isArray(layout.line_paths) ? layout.line_paths.map((line) => {
+                const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : "";
+                return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : "";
+            }).join("") : "";
             return `<svg class="position-table-overlay" viewBox="0 0 ${TABLE_VIEWBOX.width} ${TABLE_VIEWBOX.height}" aria-label="Position ${layout.id}">
+                ${linesMarkup}
                 <g transform="translate(${layout.red.x} ${layout.red.y})"><circle r="${spec.radius}" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.42"></circle></g>
                 <g transform="translate(${layout.yellow.x} ${layout.yellow.y})"><circle r="${spec.radius}" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.42"></circle></g>
                 <g transform="translate(${layout.white.x} ${layout.white.y})"><circle r="${spec.radius}" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="${spec.whiteStrokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.72"></circle></g>
@@ -289,11 +289,15 @@
         }
         function renderPositionModal(positionId) {
             const positions = getPositions();
+            if (!positions.length) {
+                closePositionModal();
+                return;
+            }
             const layout = positions.find((item) => Number(item.id) === Number(positionId)) || positions[0];
             const content = document.getElementById("positionContent");
             content.innerHTML = `<img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getCurrentPlayerDiscipline())}" alt="Position ${layout.id}">${renderPositionSvg(layout)}`;
             setText("positionTitle", "Position " + layout.id);
-            setText("positionSub", (getCurrentPlayerDiscipline() || "Disziplin") + " • nächste Ausgangsstellung");
+            setText("positionSub", (getCurrentPlayerDiscipline() || "Disziplin") + " • " + getCurrentPositionIndex() + " / " + positions.length);
         }
         function updatePositionZoomStage() { const stage = document.getElementById("positionStage"); if (stage) stage.style.transform = `scale(${currentPositionZoom})`; }
         function changePositionZoom(delta) { currentPositionZoom = Math.min(5, Math.max(0.5, Number((currentPositionZoom + delta).toFixed(2)))); updatePositionZoomStage(); }
@@ -313,7 +317,15 @@
                 showCurrentPosition(true);
             }, delayMs);
         }
-        function showCurrentPosition(force = false) { if (!sessionData || sessionData.status === "finished") return; const index = getCurrentPositionIndex(); if (!force && lastShownPositionIndex === index) return; lastShownPositionIndex = index; openPositionModal(index); }
+        function showCurrentPosition(force = false) {
+            if (!sessionData || sessionData.status === "finished") return;
+            const positions = getPositions();
+            if (!positions.length) return;
+            const index = getCurrentPositionIndex();
+            if (!force && lastShownPositionIndex === index) return;
+            lastShownPositionIndex = index;
+            openPositionModal(index);
+        }
         function applyIncomingSession(next) {
             if (!next) return;
             const previous = sessionData;
@@ -418,10 +430,11 @@
             const updateObj = isHost
                 ? { host_series: nextSeries, host_score: Number(sessionData.host_score || 0) + series, host_innings: Number(sessionData.host_innings || 0) + 1, host_high: Math.max(Number(sessionData.host_high || 0), series) }
                 : { guest_series: nextSeries, guest_score: Number(sessionData.guest_score || 0) + series, guest_innings: Number(sessionData.guest_innings || 0) + 1, guest_high: Math.max(Number(sessionData.guest_high || 0), series) };
+            const positionCount = getPositionCount();
             if (isHost) {
-                updateObj.host_position_index = (getCurrentPositionIndex() % 6) + 1;
+                updateObj.host_position_index = positionCount ? ((getCurrentPositionIndex() % positionCount) + 1) : 1;
             } else {
-                updateObj.guest_position_index = (getCurrentPositionIndex() % 6) + 1;
+                updateObj.guest_position_index = positionCount ? ((getCurrentPositionIndex() % positionCount) + 1) : 1;
             }
             const winner = detectWinner({ ...sessionData, ...updateObj });
             if (winner !== null) updateObj.status = "finished";
