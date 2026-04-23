@@ -100,7 +100,7 @@
         .photo-stage { position:relative; width:100%; background:#0b173a; border:1px solid #3557b7; border-radius:18px; overflow:hidden; }
         .photo-canvas { display:block; width:100%; height:auto; cursor:crosshair; }
         .photo-hint { margin-top:10px; font-size:13px; opacity:.8; }
-        .reference-photo-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; min-height:120px; border-radius:16px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+        .reference-photo-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; min-height:120px; border-radius:16px; overflow:hidden; display:none; align-items:center; justify-content:center; }
         .reference-photo-preview { display:block; width:100%; max-height:280px; object-fit:contain; background:#08112b; }
         .reference-photo-empty { padding:18px; text-align:center; font-size:14px; opacity:.72; }
         @media (max-width: 980px) {
@@ -147,9 +147,8 @@
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                     </div>
                     <div class="field">
-                        <label>Referenzfoto</label>
                         <div class="reference-photo-box" id="referencePhotoBox">
-                            <div class="reference-photo-empty">Noch kein Referenzfoto gespeichert.</div>
+                            <div class="reference-photo-empty"></div>
                         </div>
                     </div>
                 </div>
@@ -481,10 +480,12 @@
             const box = document.getElementById("referencePhotoBox");
             if (!box) return;
             if (referencePhotoDataUrl) {
+                box.style.display = "flex";
                 box.innerHTML = `<img class="reference-photo-preview" src="${referencePhotoDataUrl}" alt="Referenzfoto">`;
                 return;
             }
-            box.innerHTML = `<div class="reference-photo-empty">Noch kein Referenzfoto gespeichert.</div>`;
+            box.style.display = "none";
+            box.innerHTML = `<div class="reference-photo-empty"></div>`;
         }
         function setDefaultPhotoImportMobileAnchors() {
             if (!photoImportMobileImage) return;
@@ -1417,6 +1418,16 @@
                     line_paths: cloneLines(page.line_paths)
                 }))
             };
+            const payloadWithoutReferencePhoto = {
+                user_id: payload.user_id,
+                created_by_name: payload.created_by_name,
+                title: payload.title,
+                discipline: payload.discipline,
+                description: payload.description,
+                ball_layout: payload.ball_layout,
+                line_paths: payload.line_paths,
+                position_pages: payload.position_pages
+            };
             let result;
             if (editingId) {
                 result = await supabaseClient.from("training_position_library").update(payload).eq("id", editingId).eq("user_id", currentUser.id);
@@ -1424,8 +1435,22 @@
                 result = await supabaseClient.from("training_position_library").insert(payload).select("id").single();
             }
             if (result.error) {
-                alert("Position konnte nicht gespeichert werden: " + result.error.message);
-                return;
+                const message = String(result.error.message || "");
+                const missingReferencePhotoColumn = message.includes("reference_photo");
+                if (!missingReferencePhotoColumn) {
+                    alert("Position konnte nicht gespeichert werden: " + result.error.message);
+                    return;
+                }
+                if (editingId) {
+                    result = await supabaseClient.from("training_position_library").update(payloadWithoutReferencePhoto).eq("id", editingId).eq("user_id", currentUser.id);
+                } else {
+                    result = await supabaseClient.from("training_position_library").insert(payloadWithoutReferencePhoto).select("id").single();
+                }
+                if (result.error) {
+                    alert("Position konnte nicht gespeichert werden: " + result.error.message);
+                    return;
+                }
+                alert("Position gespeichert. Das Referenzfoto wird erst mitgespeichert, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.");
             }
             const id = editingId || result.data?.id;
             window.location.href = "training_position_library.html";
