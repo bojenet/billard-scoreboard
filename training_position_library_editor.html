@@ -99,6 +99,9 @@
         .photo-ball-pick.active { box-shadow:0 0 0 3px rgba(255,216,74,.42); transform:translateY(1px); }
         .photo-stage { position:relative; width:100%; background:#0b173a; border:1px solid #3557b7; border-radius:18px; overflow:hidden; }
         .photo-canvas { display:block; width:100%; height:auto; cursor:crosshair; }
+        .photo-schema-wrap { margin-top:12px; display:none; }
+        .photo-schema-wrap.visible { display:block; }
+        .photo-schema-label { font-size:13px; opacity:.82; margin-bottom:8px; }
         .photo-hint { margin-top:10px; font-size:13px; opacity:.8; }
         .reference-photo-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; min-height:120px; border-radius:16px; overflow:hidden; display:none; align-items:center; justify-content:center; }
         .reference-photo-preview { display:block; width:100%; max-height:280px; object-fit:contain; background:#08112b; }
@@ -238,6 +241,12 @@
                 <button class="photo-ball-pick white" id="photoImportMobileBallWhite" type="button" onclick="setPhotoImportMobileActiveBall(2)">Weiß</button>
             </div>
             <div class="photo-status" id="photoImportMobileStatus">Noch kein Foto geladen.</div>
+            <div class="photo-schema-wrap" id="photoImportMobileSchemaWrap">
+                <div class="photo-schema-label">1. Punkt auf der Disziplin-Grafik wählen, danach denselben Punkt im Foto setzen.</div>
+                <div class="photo-stage">
+                    <canvas id="photoImportMobileSchemaCanvas" class="photo-canvas"></canvas>
+                </div>
+            </div>
             <div class="photo-stage">
                 <canvas id="photoImportMobileCanvas" class="photo-canvas"></canvas>
             </div>
@@ -300,6 +309,8 @@
         let photoImportMobileActiveBall = 0;
         let photoImportMobileAlignmentMode = "table";
         let photoImportMobileDrag = null;
+        let photoImportMobileSchemaPoints = [];
+        let photoImportMobileSchemaImage = null;
         let referencePhotoDataUrl = "";
         const baseTableWidth = 1200;
         const baseTableHeight = 674;
@@ -493,8 +504,16 @@
             canvas.width = Math.max(640, Math.round(image.width * scale));
             canvas.height = Math.max(360, Math.round(image.height * scale));
         }
+        function sizePortraitCanvas(canvas) {
+            if (!canvas) return;
+            canvas.width = 674;
+            canvas.height = 1200;
+        }
         function isCadreAlignmentAvailable(discipline) {
             return !!CADRE_IMPORT_SPECS[discipline];
+        }
+        function isGuidedCadreAlignmentActive() {
+            return photoImportMobileAlignmentMode === "cadre" && isCadreAlignmentAvailable(selectedDiscipline);
         }
         function getCadreImportTargetCorners(discipline) {
             const spec = CADRE_IMPORT_SPECS[discipline];
@@ -512,10 +531,20 @@
             ];
         }
         function getPhotoImportMobileTargetCorners() {
-            if (photoImportMobileAlignmentMode === "cadre" && isCadreAlignmentAvailable(selectedDiscipline)) {
-                return getCadreImportTargetCorners(selectedDiscipline);
+            if (isGuidedCadreAlignmentActive() && photoImportMobileSchemaPoints.length === 4) {
+                return photoImportMobileSchemaPoints;
             }
             return photoImportTableCorners;
+        }
+        function getPhotoImportMobileAlignmentPointsReady() {
+            if (isGuidedCadreAlignmentActive()) return photoImportMobileSchemaPoints.length === 4 && photoImportMobileCorners.length === 4;
+            return photoImportMobileCorners.length === 4;
+        }
+        function getPhotoImportMobileCadrePairIndex() {
+            return Math.min(photoImportMobileSchemaPoints.length, photoImportMobileCorners.length);
+        }
+        function isPhotoImportMobileWaitingForPhotoPoint() {
+            return isGuidedCadreAlignmentActive() && photoImportMobileSchemaPoints.length > photoImportMobileCorners.length;
         }
         function updateReferencePhotoUi() {
             const box = document.getElementById("referencePhotoBox");
@@ -533,13 +562,17 @@
             const canvas = document.getElementById("photoImportMobileCanvas");
             if (!canvas) return;
             sizePhotoCanvas(canvas, photoImportMobileImage);
+            photoImportMobileSchemaPoints = [];
+            photoImportMobileCorners = [];
             const playableWidth = bounds.maxX - bounds.minX;
             const playableHeight = bounds.maxY - bounds.minY;
-            const targetCorners = getPhotoImportMobileTargetCorners();
-            photoImportMobileCorners = targetCorners.map((point) => ({
-                x: ((point.x - bounds.minX) / playableWidth) * canvas.width,
-                y: ((point.y - bounds.minY) / playableHeight) * canvas.height
-            }));
+            if (!isGuidedCadreAlignmentActive()) {
+                const targetCorners = photoImportTableCorners;
+                photoImportMobileCorners = targetCorners.map((point) => ({
+                    x: ((point.x - bounds.minX) / playableWidth) * canvas.width,
+                    y: ((point.y - bounds.minY) / playableHeight) * canvas.height
+                }));
+            }
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
             const spread = Math.max(50, canvas.width * 0.08);
@@ -552,8 +585,10 @@
         function getPhotoImportMobileStatusText() {
             if (!photoImportMobileImage) return "Noch kein Foto geladen.";
             if (photoImportMobileStep === "corners") {
-                return photoImportMobileAlignmentMode === "cadre"
-                    ? "Ziehe die 4 gelben Fadenkreuze auf sichtbare Cadre-Linien-Ecken. Danach zu den Bällen wechseln."
+                return isGuidedCadreAlignmentActive()
+                    ? (isPhotoImportMobileWaitingForPhotoPoint()
+                        ? `Jetzt denselben Punkt ${photoImportMobileCorners.length + 1} im Foto setzen.`
+                        : `Punkt ${getPhotoImportMobileCadrePairIndex() + 1} zuerst auf der Disziplin-Grafik wählen.`)
                     : "Ziehe die 4 gelben Fadenkreuze auf die Ecken der Spielfläche. Danach zu den Bällen wechseln.";
             }
             return "Ziehe Rot, Gelb und Weiß an die richtige Stelle. Ein Tipp auf freie Fläche setzt den aktuell aktiven Ball dort ab.";
@@ -581,15 +616,17 @@
             const ballPicks = document.getElementById("photoImportMobileBallPicks");
             const alignTableBtn = document.getElementById("photoImportAlignTable");
             const alignCadreBtn = document.getElementById("photoImportAlignCadre");
+            const schemaWrap = document.getElementById("photoImportMobileSchemaWrap");
             const canUseCadreAlignment = isCadreAlignmentAvailable(selectedDiscipline);
             if (!canUseCadreAlignment && photoImportMobileAlignmentMode === "cadre") photoImportMobileAlignmentMode = "table";
             if (modal) modal.setAttribute("aria-hidden", modal.classList.contains("visible") ? "false" : "true");
             if (status) status.innerText = getPhotoImportMobileStatusText();
-            if (applyBtn) applyBtn.disabled = !(photoImportMobileImage && photoImportMobileCorners.length === 4 && photoImportMobileBalls.length === 3);
+            if (applyBtn) applyBtn.disabled = !(photoImportMobileImage && getPhotoImportMobileAlignmentPointsReady() && photoImportMobileBalls.length === 3);
             if (cornersBtn) cornersBtn.classList.toggle("active", photoImportMobileStep === "corners");
             if (ballsBtn) ballsBtn.classList.toggle("active", photoImportMobileStep === "balls");
             if (ballsBtn) ballsBtn.disabled = !photoImportMobileImage;
             if (ballPicks) ballPicks.style.display = photoImportMobileStep === "balls" ? "flex" : "none";
+            if (schemaWrap) schemaWrap.classList.toggle("visible", photoImportMobileStep === "corners" && isGuidedCadreAlignmentActive());
             if (alignTableBtn) alignTableBtn.classList.toggle("active", photoImportMobileAlignmentMode === "table");
             if (alignCadreBtn) {
                 alignCadreBtn.classList.toggle("active", photoImportMobileAlignmentMode === "cadre");
@@ -599,6 +636,7 @@
                 const button = document.getElementById("photoImportMobileBall" + name);
                 if (button) button.classList.toggle("active", photoImportMobileActiveBall === index);
             });
+            drawPhotoImportMobileSchemaCanvas();
             drawPhotoImportMobileCanvas();
         }
         function openPhotoImportMobile() {
@@ -617,6 +655,7 @@
             stopPhotoImportMobileDrag();
             if (photoImportMobileImage) setDefaultPhotoImportMobileAnchors();
             else {
+                photoImportMobileSchemaPoints = [];
                 photoImportMobileCorners = [];
                 photoImportMobileBalls = [];
             }
@@ -642,6 +681,66 @@
         function getPhotoImportMobileCanvasPoint(event) {
             return getCanvasPoint(document.getElementById("photoImportMobileCanvas"), event);
         }
+        function getPhotoImportMobileSchemaCanvasPoint(event) {
+            const canvas = document.getElementById("photoImportMobileSchemaCanvas");
+            const point = getCanvasPoint(canvas, event);
+            if (!point || !canvas) return null;
+            return {
+                x: clamp(point.x, 0, canvas.width),
+                y: clamp(point.y, 0, canvas.height)
+            };
+        }
+        function drawPhotoImportMobileSchemaCanvas() {
+            const canvas = document.getElementById("photoImportMobileSchemaCanvas");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
+            sizePortraitCanvas(canvas);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#0b173a";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const image = photoImportMobileSchemaImage;
+            if (image?.complete && image.naturalWidth) {
+                ctx.save();
+                ctx.translate(canvas.width, 0);
+                ctx.rotate(Math.PI / 2);
+                ctx.drawImage(image, 0, 0, canvas.height, canvas.width);
+                ctx.restore();
+            }
+            photoImportMobileSchemaPoints.forEach((pt, index) => drawPhotoImportTargetMarker(ctx, pt, index, index === getPhotoImportMobileCadrePairIndex() && !isPhotoImportMobileWaitingForPhotoPoint()));
+        }
+        function drawPhotoImportTargetMarker(ctx, pt, index, highlighted) {
+            const arm = highlighted ? 18 : 14;
+            const gap = highlighted ? 5 : 4;
+            ctx.strokeStyle = "#10192f";
+            ctx.lineWidth = highlighted ? 5 : 4;
+            ctx.beginPath();
+            ctx.moveTo(pt.x - arm, pt.y);
+            ctx.lineTo(pt.x - gap, pt.y);
+            ctx.moveTo(pt.x + gap, pt.y);
+            ctx.lineTo(pt.x + arm, pt.y);
+            ctx.moveTo(pt.x, pt.y - arm);
+            ctx.lineTo(pt.x, pt.y - gap);
+            ctx.moveTo(pt.x, pt.y + gap);
+            ctx.lineTo(pt.x, pt.y + arm);
+            ctx.stroke();
+            ctx.strokeStyle = highlighted ? "#ffd84a" : "#9fdcff";
+            ctx.lineWidth = highlighted ? 3 : 2.5;
+            ctx.beginPath();
+            ctx.moveTo(pt.x - arm, pt.y);
+            ctx.lineTo(pt.x - gap, pt.y);
+            ctx.moveTo(pt.x + gap, pt.y);
+            ctx.lineTo(pt.x + arm, pt.y);
+            ctx.moveTo(pt.x, pt.y - arm);
+            ctx.lineTo(pt.x, pt.y - gap);
+            ctx.moveTo(pt.x, pt.y + gap);
+            ctx.lineTo(pt.x, pt.y + arm);
+            ctx.stroke();
+            ctx.fillStyle = highlighted ? "#ffd84a" : "#9fdcff";
+            ctx.font = "bold 18px Arial";
+            ctx.textAlign = "left";
+            ctx.fillText(String(index + 1), pt.x + arm + 6, pt.y - arm + 6);
+        }
         function drawPhotoImportMobileCanvas() {
             const canvas = document.getElementById("photoImportMobileCanvas");
             if (!canvas) return;
@@ -654,7 +753,7 @@
             sizePhotoCanvas(canvas, photoImportMobileImage);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(photoImportMobileImage, 0, 0, canvas.width, canvas.height);
-            if (photoImportMobileCorners.length === 4) {
+            if (photoImportMobileCorners.length > 1 && !isGuidedCadreAlignmentActive()) {
                 ctx.strokeStyle = "rgba(255,216,74,.95)";
                 ctx.lineWidth = 4;
                 ctx.beginPath();
@@ -662,41 +761,11 @@
                     if (!index) ctx.moveTo(pt.x, pt.y);
                     else ctx.lineTo(pt.x, pt.y);
                 });
-                ctx.closePath();
                 ctx.stroke();
             }
             photoImportMobileCorners.forEach((pt, index) => {
-                const isCornerStep = photoImportMobileStep === "corners";
-                const arm = isCornerStep ? 18 : 14;
-                const gap = isCornerStep ? 5 : 4;
-                ctx.strokeStyle = "#10192f";
-                ctx.lineWidth = isCornerStep ? 5 : 4;
-                ctx.beginPath();
-                ctx.moveTo(pt.x - arm, pt.y);
-                ctx.lineTo(pt.x - gap, pt.y);
-                ctx.moveTo(pt.x + gap, pt.y);
-                ctx.lineTo(pt.x + arm, pt.y);
-                ctx.moveTo(pt.x, pt.y - arm);
-                ctx.lineTo(pt.x, pt.y - gap);
-                ctx.moveTo(pt.x, pt.y + gap);
-                ctx.lineTo(pt.x, pt.y + arm);
-                ctx.stroke();
-                ctx.strokeStyle = "#ffd84a";
-                ctx.lineWidth = isCornerStep ? 3 : 2.5;
-                ctx.beginPath();
-                ctx.moveTo(pt.x - arm, pt.y);
-                ctx.lineTo(pt.x - gap, pt.y);
-                ctx.moveTo(pt.x + gap, pt.y);
-                ctx.lineTo(pt.x + arm, pt.y);
-                ctx.moveTo(pt.x, pt.y - arm);
-                ctx.lineTo(pt.x, pt.y - gap);
-                ctx.moveTo(pt.x, pt.y + gap);
-                ctx.lineTo(pt.x, pt.y + arm);
-                ctx.stroke();
-                ctx.fillStyle = "#ffd84a";
-                ctx.font = "bold 18px Arial";
-                ctx.textAlign = "left";
-                ctx.fillText(String(index + 1), pt.x + arm + 6, pt.y - arm + 6);
+                const highlighted = isGuidedCadreAlignmentActive() ? index === photoImportMobileCorners.length : photoImportMobileStep === "corners";
+                drawPhotoImportTargetMarker(ctx, pt, index, highlighted);
             });
             const ballColors = ["#cf2e2e", "#e0bb20", "#f3f5fb"];
             photoImportMobileBalls.forEach((pt, index) => {
@@ -741,6 +810,13 @@
             const point = getPhotoImportMobileCanvasPoint(event);
             if (!canvas || !point) return;
             if (photoImportMobileStep === "corners") {
+                if (isGuidedCadreAlignmentActive()) {
+                    if (!isPhotoImportMobileWaitingForPhotoPoint()) return;
+                    if (photoImportMobileCorners.length < photoImportMobileSchemaPoints.length) photoImportMobileCorners.push(point);
+                    updatePhotoImportMobileUi();
+                    event.preventDefault();
+                    return;
+                }
                 const cornerIndex = hitTestPhotoImportMobile(point, photoImportMobileCorners, 34);
                 if (cornerIndex === -1) return;
                 photoImportMobileDrag = { type: "corner", index: cornerIndex, pointerId: event.pointerId };
@@ -763,6 +839,17 @@
             const point = getPhotoImportMobileCanvasPoint(event);
             if (!point) return;
             updatePhotoImportMobileDragPoint(point);
+            event.preventDefault();
+        }
+        function handlePhotoImportMobileSchemaPointerDown(event) {
+            if (!photoImportMobileImage || photoImportMobileStep !== "corners" || !isGuidedCadreAlignmentActive()) return;
+            if (isPhotoImportMobileWaitingForPhotoPoint()) return;
+            const point = getPhotoImportMobileSchemaCanvasPoint(event);
+            if (!point) return;
+            if (photoImportMobileSchemaPoints.length < 4) {
+                photoImportMobileSchemaPoints.push(point);
+                updatePhotoImportMobileUi();
+            }
             event.preventDefault();
         }
         function stopPhotoImportMobileDrag(event) {
@@ -825,7 +912,7 @@
             };
         }
         function applyPhotoImportMobile() {
-            if (!photoImportMobileImage || photoImportMobileCorners.length !== 4 || photoImportMobileBalls.length !== 3) return;
+            if (!photoImportMobileImage || !getPhotoImportMobileAlignmentPointsReady() || photoImportMobileBalls.length !== 3) return;
             const homography = computeHomography(photoImportMobileCorners, getPhotoImportMobileTargetCorners());
             if (!homography) {
                 alert("Das Foto konnte nicht auf die Tischgrafik umgerechnet werden.");
@@ -1054,6 +1141,9 @@
             selectedDiscipline = value || "Cadre 47/2";
             document.getElementById("tableBackground").src = getTemplateForDiscipline(selectedDiscipline);
             document.querySelectorAll("#disciplineButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === selectedDiscipline));
+            photoImportMobileSchemaImage = new Image();
+            photoImportMobileSchemaImage.onload = () => updatePhotoImportMobileUi();
+            photoImportMobileSchemaImage.src = getTemplateForDiscipline(selectedDiscipline);
             applyBallAppearance();
             renderBalls();
             updatePhotoImportMobileUi();
@@ -1594,6 +1684,7 @@
         document.getElementById("photoImportMobileCanvas").addEventListener("pointermove", handlePhotoImportMobilePointerMove);
         document.getElementById("photoImportMobileCanvas").addEventListener("pointerup", stopPhotoImportMobileDrag);
         document.getElementById("photoImportMobileCanvas").addEventListener("pointercancel", stopPhotoImportMobileDrag);
+        document.getElementById("photoImportMobileSchemaCanvas").addEventListener("pointerdown", handlePhotoImportMobileSchemaPointerDown);
         updateFullscreenButton();
         init();
     </script>
