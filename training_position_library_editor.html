@@ -225,10 +225,10 @@
                 <button class="btn primary" id="applyPhotoImportMobileBtn" type="button" onclick="applyPhotoImportMobile()" disabled>Position übernehmen</button>
             </div>
             <div class="photo-steps">
-                <button class="photo-step-btn active" id="photoImportOrientationUp" type="button" onclick="setPhotoImportMobileOrientation('up')">Kopf oben</button>
-                <button class="photo-step-btn" id="photoImportOrientationRight" type="button" onclick="setPhotoImportMobileOrientation('right')">Kopf rechts</button>
-                <button class="photo-step-btn" id="photoImportOrientationDown" type="button" onclick="setPhotoImportMobileOrientation('down')">Kopf unten</button>
-                <button class="photo-step-btn" id="photoImportOrientationLeft" type="button" onclick="setPhotoImportMobileOrientation('left')">Kopf links</button>
+                <button class="photo-step-btn active" id="photoImportOrientationUp" type="button" onclick="setPhotoImportMobileOrientation('up')">Kurze Seite oben</button>
+                <button class="photo-step-btn" id="photoImportOrientationRight" type="button" onclick="setPhotoImportMobileOrientation('right')">Kurze Seite rechts</button>
+                <button class="photo-step-btn" id="photoImportOrientationDown" type="button" onclick="setPhotoImportMobileOrientation('down')">Kurze Seite unten</button>
+                <button class="photo-step-btn" id="photoImportOrientationLeft" type="button" onclick="setPhotoImportMobileOrientation('left')">Kurze Seite links</button>
             </div>
             <div class="photo-steps">
                 <button class="photo-step-btn active" id="photoImportMobileStepCorners" type="button" onclick="setPhotoImportMobileStep('corners')">1. Tisch ausrichten</button>
@@ -243,7 +243,7 @@
             <div class="photo-stage">
                 <canvas id="photoImportMobileCanvas" class="photo-canvas"></canvas>
             </div>
-            <div class="photo-hint" id="photoImportMobileHint">Wähle zuerst, wo der Kopf des Tisches im Foto liegt. Danach die vier Tischecken ausrichten und dann die Ballmarker setzen.</div>
+            <div class="photo-hint" id="photoImportMobileHint">Wähle zuerst, auf welcher Bildseite die kurze Tischseite liegt. Danach die vier Tischecken ausrichten und dann die Ballmarker setzen.</div>
         </div>
     </div>
 
@@ -522,13 +522,17 @@
             sizePhotoCanvas(canvas, photoImportMobileImage);
             const playableWidth = bounds.maxX - bounds.minX;
             const playableHeight = bounds.maxY - bounds.minY;
-            const targetCorners = photoImportTableCorners;
-            photoImportMobileCorners = targetCorners.map((point) => ({
-                x: ((point.x - bounds.minX) / playableWidth) * canvas.width,
-                y: ((point.y - bounds.minY) / playableHeight) * canvas.height
-            }));
+            const targetCorners = getPhotoImportMobileTargetCorners();
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
+            photoImportMobileCorners = targetCorners.map((point) => {
+                const rawX = ((point.x - bounds.minX) / playableWidth) * canvas.width;
+                const rawY = ((point.y - bounds.minY) / playableHeight) * canvas.height;
+                return {
+                    x: rawX + ((centerX - rawX) * 0.16),
+                    y: rawY + ((centerY - rawY) * 0.16)
+                };
+            });
             const spread = Math.max(50, canvas.width * 0.08);
             photoImportMobileBalls = [
                 { x: centerX - spread, y: centerY - 18 },
@@ -539,7 +543,7 @@
         function getPhotoImportMobileStatusText() {
             if (!photoImportMobileImage) return "Noch kein Foto geladen.";
             if (photoImportMobileStep === "corners") {
-                return "Pruefe zuerst die Bildlage ueber die Kopf-Richtung. Danach die 4 gelben Fadenkreuze auf die Ecken der Spielflaeche ziehen.";
+                return "Pruefe zuerst, wo im Bild die kurze Tischseite liegt. Danach die 4 gelben Fadenkreuze auf die Ecken der Spielflaeche ziehen.";
             }
             return "Ziehe Rot, Gelb und Weiß an die richtige Stelle. Ein Tipp auf freie Fläche setzt den aktuell aktiven Ball dort ab.";
         }
@@ -801,7 +805,7 @@
         }
         function applyPhotoImportMobile() {
             if (!photoImportMobileImage || !getPhotoImportMobileAlignmentPointsReady() || photoImportMobileBalls.length !== 3) return;
-            const homography = computeHomography(photoImportMobileCorners, photoImportTableCorners);
+            const homography = computeHomography(photoImportMobileCorners, getPhotoImportMobileTargetCorners());
             if (!homography) {
                 alert("Das Foto konnte nicht auf die Tischgrafik umgerechnet werden.");
                 return;
