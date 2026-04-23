@@ -37,11 +37,11 @@
         .selected-user.active { display:block; }
         .selected-user-name { font-size: 15px; font-weight: 700; }
         .selected-user-meta { margin-top: 3px; font-size: 13px; opacity: .76; }
+        .positions-select-row { display:flex; justify-content:flex-end; margin-bottom:10px; }
         .positions-panel { border: 1px solid #2f4ea0; border-radius: 16px; background: rgba(8, 20, 54, 0.42); overflow: hidden; }
         .positions-toggle { width: 100%; border: none; border-bottom: 1px solid #27417f; background: rgba(22, 43, 102, 0.9); color: white; padding: 14px 16px; display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer; text-align:left; }
         .positions-body { display:none; padding: 14px; }
         .positions-body.open { display:block; }
-        .positions-toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
         .positions-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
         .position-card { border: 1px solid #3557b7; border-radius: 16px; background: rgba(12, 28, 72, 0.74); padding: 12px; box-shadow: 0 14px 28px rgba(0,0,0,.24); }
         .position-card-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
@@ -82,8 +82,7 @@
         .library-card-title { font-size:15px; font-weight:700; }
         .library-card-sub { font-size:12px; opacity:.72; }
         .library-card-text { font-size:12px; line-height:1.35; opacity:.88; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; min-height:48px; }
-        .library-card-actions { display:flex; justify-content:space-between; align-items:center; gap:10px; }
-        .library-check { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; }
+        .library-card-actions { display:flex; justify-content:flex-end; align-items:center; gap:10px; }
         .library-empty { padding:18px; font-size:14px; opacity:.72; }
         .actions { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-top: 10px; }
         .btn { padding:14px; border:none; border-radius:14px; color:white; font-size:18px; font-weight:700; cursor:pointer; }
@@ -144,6 +143,9 @@
             </div>
 
             <div class="section">
+                <div class="positions-select-row">
+                    <button class="position-library-btn" type="button" onclick="openPositionLibraryModal()">Positionen auswählen</button>
+                </div>
                 <div class="positions-panel">
                     <button class="positions-toggle" type="button" onclick="togglePositions()">
                         <div>
@@ -153,9 +155,6 @@
                         <span id="positionsToggleIcon" style="font-size:20px;font-weight:700;line-height:1;">+</span>
                     </button>
                     <div class="positions-body" id="positionsBody">
-                        <div class="positions-toolbar">
-                            <button class="position-library-btn" type="button" onclick="openPositionLibraryModal()">Positionen auswählen</button>
-                        </div>
                         <div class="positions-grid" id="positionsGrid"></div>
                     </div>
                 </div>
@@ -572,9 +571,8 @@
                     white: { ...page.ball_layout.white },
                     line_paths: cloneLinePaths(page.line_paths)
                 };
-                card.innerHTML = `<div><div class="library-card-title">${item.title || "Ohne Titel"}</div><div class="library-card-sub">${item.discipline || "-"}${page.pageLabel ? " • " + page.pageLabel : ""}${item.created_by_name ? " • " + item.created_by_name : ""}</div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(item.discipline)}" alt="${item.title || "Library"}">${renderChallengePositionSvg(previewLayout)}</div><div class="library-card-text">${item.description ? item.description.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "Keine Beschreibung"}</div><div class="library-card-actions"><label class="library-check"><input type="checkbox" ${isSelected ? "checked" : ""}> markieren</label><button class="position-library-btn" type="button">${isSelected ? "Abwählen" : "Auswählen"}</button></div>`;
+                card.innerHTML = `<div><div class="library-card-title">${item.title || "Ohne Titel"}</div><div class="library-card-sub">${item.discipline || "-"}${page.pageLabel ? " • " + page.pageLabel : ""}${item.created_by_name ? " • " + item.created_by_name : ""}</div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(item.discipline)}" alt="${item.title || "Library"}">${renderChallengePositionSvg(previewLayout)}</div><div class="library-card-text">${item.description ? item.description.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "Keine Beschreibung"}</div><div class="library-card-actions"><button class="position-library-btn" type="button">${isSelected ? "Abwählen" : "Auswählen"}</button></div>`;
                 const toggleSelection = () => toggleLibrarySelection(page.selectionKey);
-                card.querySelector("input").onchange = toggleSelection;
                 card.querySelector(".position-library-btn").onclick = toggleSelection;
                 wrap.appendChild(card);
             });
