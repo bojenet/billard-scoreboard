@@ -31,7 +31,8 @@
         .item-title { font-size:16px; font-weight:800; }
         .item-sub { font-size:12px; opacity:.76; margin-top:3px; }
         .item-meta { font-size:12px; opacity:.72; margin-top:4px; }
-        .item-actions { display:flex; gap:6px; flex-wrap:wrap; }
+        .item-check { display:flex; align-items:center; justify-content:center; min-width:28px; }
+        .item-check input { width:18px; height:18px; accent-color:#ffd84a; cursor:pointer; }
         .item-body { display:grid; gap:8px; align-items:start; }
         .item-text { font-size:12px; line-height:1.35; opacity:.9; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; min-height:49px; }
         .thumb-wrap { position:relative; width:100%; min-width:0; border-radius:0; overflow:hidden; background:#f7f7f4; aspect-ratio:1200/674; box-shadow:0 8px 18px rgba(0,0,0,.16); cursor:pointer; }
@@ -53,6 +54,7 @@
             </div>
             <div class="actions">
                 <button class="btn primary" id="newPositionBtn" type="button" onclick="window.location.href='training_position_library_editor.html'">Neu</button>
+                <button class="btn danger" id="deleteSelectedBtn" type="button" onclick="deleteSelectedPositions()" style="display:none;">Auswahl löschen</button>
                 <button class="btn" type="button" onclick="window.location.href='training.html'">Zurück</button>
             </div>
         </div>
@@ -97,6 +99,7 @@
         let currentUser = null;
         let activeFilter = "Alle";
         let libraryItems = [];
+        let selectedIds = new Set();
         let positionLibraryAccessMode = "edit";
 
         function setNotice(text, type) {
@@ -154,11 +157,26 @@
             const date = new Date(value);
             return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
         }
+        function updateDeleteSelectedUi() {
+            const button = document.getElementById("deleteSelectedBtn");
+            if (!button) return;
+            const canEdit = isPositionLibraryEditable(positionLibraryAccessMode);
+            button.style.display = canEdit ? "inline-flex" : "none";
+            button.disabled = !selectedIds.size;
+            button.innerText = selectedIds.size ? `Auswahl löschen (${selectedIds.size})` : "Auswahl löschen";
+        }
+        function toggleSelection(id, checked) {
+            if (!id) return;
+            if (checked) selectedIds.add(id);
+            else selectedIds.delete(id);
+            updateDeleteSelectedUi();
+        }
         function renderLibrary() {
             const wrap = document.getElementById("libraryList");
             const visible = libraryItems.filter((item) => activeFilter === "Alle" || item.discipline === activeFilter);
             if (!visible.length) {
                 wrap.innerHTML = `<div class="empty">Noch keine Position gespeichert${activeFilter !== "Alle" ? " für " + activeFilter : ""}.</div>`;
+                updateDeleteSelectedUi();
                 return;
             }
             wrap.innerHTML = "";
@@ -170,21 +188,21 @@
                 const pageSuffix = pages.length > 1 ? ` • ${pages.length} Seiten` : "";
                 const creatorName = escapeHtml(item.created_by_name || "Unbekannt");
                 const canEdit = isPositionLibraryEditable(positionLibraryAccessMode);
-                const actionMarkup = canEdit
-                    ? `<button class="btn" type="button" data-edit="${item.id}">Bearbeiten</button><button class="btn danger" type="button" data-delete="${item.id}">Löschen</button>`
-                    : `<button class="btn" type="button" data-open-btn="${item.id}">Öffnen</button>`;
+                const checkMarkup = canEdit
+                    ? `<label class="item-check" title="Für Sammellöschen auswählen"><input type="checkbox" data-select="${item.id}" ${selectedIds.has(item.id) ? "checked" : ""}></label>`
+                    : "";
                 const card = document.createElement("div");
                 card.className = "item";
-                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}${pageSuffix}</div><div class="item-meta">Ersteller: ${creatorName}</div></div><div class="item-actions">${actionMarkup}</div></div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
+                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}${pageSuffix}</div><div class="item-meta">Ersteller: ${creatorName}</div></div>${checkMarkup}</div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
                 card.querySelector("[data-open]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
-                const openBtn = card.querySelector("[data-open-btn]");
-                if (openBtn) openBtn.onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
-                const editBtn = card.querySelector("[data-edit]");
-                if (editBtn) editBtn.onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
-                const deleteBtn = card.querySelector("[data-delete]");
-                if (deleteBtn) deleteBtn.onclick = () => deletePosition(item.id);
+                const selectBox = card.querySelector("[data-select]");
+                if (selectBox) {
+                    selectBox.onchange = (event) => toggleSelection(item.id, !!event.target.checked);
+                    selectBox.onclick = (event) => event.stopPropagation();
+                }
                 wrap.appendChild(card);
             });
+            updateDeleteSelectedUi();
         }
         async function loadLibrary() {
             let query = supabaseClient
@@ -203,6 +221,7 @@
             }
             if (isPositionLibraryEditable(positionLibraryAccessMode)) setNotice("");
             libraryItems = data || [];
+            selectedIds = new Set([...selectedIds].filter((id) => libraryItems.some((item) => item.id === id)));
             renderLibrary();
         }
         async function deletePosition(id) {
@@ -216,6 +235,19 @@
             }
             await loadLibrary();
         }
+        async function deleteSelectedPositions() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            const ids = [...selectedIds];
+            if (!ids.length) return;
+            if (!confirm(`Diese ${ids.length} Position${ids.length === 1 ? "" : "en"} wirklich löschen?`)) return;
+            const { error } = await supabaseClient.from("training_position_library").delete().in("id", ids).eq("user_id", currentUser.id);
+            if (error) {
+                alert("Positionen konnten nicht gelöscht werden: " + error.message);
+                return;
+            }
+            selectedIds.clear();
+            await loadLibrary();
+        }
         async function init() {
             currentUser = await requireAuth();
             if (!currentUser) return;
@@ -225,6 +257,7 @@
                 return;
             }
             document.getElementById("newPositionBtn").style.display = isPositionLibraryEditable(positionLibraryAccessMode) ? "inline-flex" : "none";
+            updateDeleteSelectedUi();
             buildFilterButtons();
             await loadLibrary();
         }

@@ -100,6 +100,10 @@
         .photo-stage { position:relative; width:100%; background:#0b173a; border:1px solid #3557b7; border-radius:18px; overflow:hidden; }
         .photo-canvas { display:block; width:100%; height:auto; cursor:crosshair; }
         .photo-hint { margin-top:10px; font-size:13px; opacity:.8; }
+        .reference-photo-tools { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+        .reference-photo-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; min-height:120px; border-radius:16px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+        .reference-photo-preview { display:block; width:100%; max-height:280px; object-fit:contain; background:#08112b; }
+        .reference-photo-empty { padding:18px; text-align:center; font-size:14px; opacity:.72; }
         @media (max-width: 980px) {
             .layout { grid-template-columns:1fr; }
             .table-viewport.popup-active { inset:78px 14px 14px; padding:14px; }
@@ -139,10 +143,20 @@
                         <textarea id="descriptionInput" placeholder="Worum geht es in der Position, worauf soll man achten, welche Lösungsidee steckt dahinter?"></textarea>
                     </div>
                     <div class="actions">
-                        <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImport()">Foto importieren</button>
-                        <button class="btn secondary" id="photoImportMobileBtn" type="button" onclick="openPhotoImportMobile()">iPhone Import</button>
+                        <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImportMobile()">Foto importieren</button>
                         <button class="btn primary" type="button" onclick="savePosition()">Speichern</button>
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
+                    </div>
+                    <div class="field">
+                        <label>Referenzfoto</label>
+                        <input id="referencePhotoInput" type="file" accept="image/*" style="display:none;" onchange="handleReferencePhotoFile(event)">
+                        <div class="reference-photo-tools">
+                            <button class="btn secondary" id="referencePhotoUploadBtn" type="button" onclick="document.getElementById('referencePhotoInput').click()">Foto hochladen</button>
+                            <button class="btn danger" id="referencePhotoRemoveBtn" type="button" onclick="removeReferencePhoto()" style="display:none;">Foto entfernen</button>
+                        </div>
+                        <div class="reference-photo-box" id="referencePhotoBox">
+                            <div class="reference-photo-empty">Noch kein Referenzfoto gespeichert.</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -200,28 +214,6 @@
         <button class="zoom-btn" type="button" onclick="changeEditorZoom(0.25)">+</button>
         <button class="zoom-btn" type="button" onclick="resetEditorZoom()">100%</button>
         <button class="zoom-btn" type="button" onclick="closeTablePopup()">Schließen</button>
-    </div>
-    <div class="photo-modal" id="photoImportModal" aria-hidden="true">
-        <div class="photo-panel">
-            <div class="photo-head">
-                <div>
-                    <div class="photo-title">Foto-Import</div>
-                    <div class="photo-copy">Foto laden, dann nacheinander die 4 Tischecken und die 3 Bälle setzen. Die Reihenfolge für die Bälle ist Rot, Gelb, Weiß. Danach wird die Position direkt in den Editor übernommen.</div>
-                </div>
-                <button class="btn" type="button" onclick="closePhotoImport()">Schließen</button>
-            </div>
-            <div class="photo-tools">
-                <input id="photoImportInput" type="file" accept="image/*" style="display:none;" onchange="handlePhotoImportFile(event)">
-                <button class="btn" type="button" onclick="document.getElementById('photoImportInput').click()">Foto wählen</button>
-                <button class="btn" type="button" onclick="resetPhotoImportPoints()">Punkte zurücksetzen</button>
-                <button class="btn primary" id="applyPhotoImportBtn" type="button" onclick="applyPhotoImport()" disabled>Position übernehmen</button>
-            </div>
-            <div class="photo-status" id="photoImportStatus">Noch kein Foto geladen.</div>
-            <div class="photo-stage">
-                <canvas id="photoImportCanvas" class="photo-canvas"></canvas>
-            </div>
-            <div class="photo-hint" id="photoImportHint">Tipp: möglichst von oben fotografieren und den ganzen Tisch sichtbar lassen.</div>
-        </div>
     </div>
     <div class="photo-modal" id="photoImportMobileModal" aria-hidden="true">
         <div class="photo-panel">
@@ -303,15 +295,13 @@
         let loupeEnabled = false;
         let lastPointerClient = null;
         let positionLibraryAccessMode = "edit";
-        let photoImportImage = null;
-        let photoImportCorners = [];
-        let photoImportBalls = [];
         let photoImportMobileImage = null;
         let photoImportMobileCorners = [];
         let photoImportMobileBalls = [];
         let photoImportMobileStep = "corners";
         let photoImportMobileActiveBall = 0;
         let photoImportMobileDrag = null;
+        let referencePhotoDataUrl = "";
         const baseTableWidth = 1200;
         const baseTableHeight = 674;
         const loupeScale = 2.4;
@@ -454,49 +444,6 @@
             box.className = "notice" + (type ? " " + type : "");
             box.innerText = text || "";
         }
-        function getPhotoImportStatusText() {
-            if (!photoImportImage) return "Noch kein Foto geladen.";
-            if (photoImportCorners.length < 4) {
-                const labels = ["oben links", "oben rechts", "unten rechts", "unten links"];
-                return "Tischecke setzen: " + labels[photoImportCorners.length];
-            }
-            if (photoImportBalls.length < 3) {
-                return "Ball setzen: " + photoImportBallOrder[photoImportBalls.length];
-            }
-            return "Fertig. Du kannst die Position jetzt übernehmen.";
-        }
-        function updatePhotoImportUi() {
-            const modal = document.getElementById("photoImportModal");
-            const status = document.getElementById("photoImportStatus");
-            const applyBtn = document.getElementById("applyPhotoImportBtn");
-            if (modal) modal.setAttribute("aria-hidden", modal.classList.contains("visible") ? "false" : "true");
-            if (status) status.innerText = getPhotoImportStatusText();
-            if (applyBtn) applyBtn.disabled = !(photoImportImage && photoImportCorners.length === 4 && photoImportBalls.length === 3);
-            drawPhotoImportCanvas();
-        }
-        function openPhotoImport() {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
-            document.getElementById("photoImportModal").classList.add("visible");
-            updatePhotoImportUi();
-        }
-        function closePhotoImport() {
-            document.getElementById("photoImportModal").classList.remove("visible");
-        }
-        function resetPhotoImportPoints() {
-            photoImportCorners = [];
-            photoImportBalls = [];
-            updatePhotoImportUi();
-        }
-        function handlePhotoImportFile(event) {
-            const file = event.target.files && event.target.files[0];
-            if (!file) return;
-            loadPhotoImportImage(file, (img) => {
-                photoImportImage = img;
-                photoImportCorners = [];
-                photoImportBalls = [];
-                updatePhotoImportUi();
-            });
-        }
         function loadPhotoImportImage(file, onLoad) {
             const reader = new FileReader();
             reader.onload = () => {
@@ -517,9 +464,6 @@
                 y: (event.clientY - rect.top) * scaleY
             };
         }
-        function getPhotoImportCanvasPoint(event) {
-            return getCanvasPoint(document.getElementById("photoImportCanvas"), event);
-        }
         function drawPhotoImportEmptyState(canvas, message) {
             const ctx = canvas.getContext("2d");
             if (!ctx) return;
@@ -538,6 +482,35 @@
             const scale = Math.min(1, maxWidth / image.width);
             canvas.width = Math.max(640, Math.round(image.width * scale));
             canvas.height = Math.max(360, Math.round(image.height * scale));
+        }
+        function updateReferencePhotoUi() {
+            const box = document.getElementById("referencePhotoBox");
+            const removeBtn = document.getElementById("referencePhotoRemoveBtn");
+            if (!box) return;
+            if (referencePhotoDataUrl) {
+                box.innerHTML = `<img class="reference-photo-preview" src="${referencePhotoDataUrl}" alt="Referenzfoto">`;
+                if (removeBtn) removeBtn.style.display = isPositionLibraryEditable(positionLibraryAccessMode) ? "inline-flex" : "none";
+                return;
+            }
+            box.innerHTML = `<div class="reference-photo-empty">Noch kein Referenzfoto gespeichert.</div>`;
+            if (removeBtn) removeBtn.style.display = "none";
+        }
+        function handleReferencePhotoFile(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                referencePhotoDataUrl = typeof reader.result === "string" ? reader.result : "";
+                updateReferencePhotoUi();
+            };
+            reader.readAsDataURL(file);
+        }
+        function removeReferencePhoto() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            referencePhotoDataUrl = "";
+            const input = document.getElementById("referencePhotoInput");
+            if (input) input.value = "";
+            updateReferencePhotoUi();
         }
         function setDefaultPhotoImportMobileAnchors() {
             if (!photoImportMobileImage) return;
@@ -759,53 +732,6 @@
             }
             photoImportMobileDrag = null;
         }
-        function drawPhotoImportCanvas() {
-            const canvas = document.getElementById("photoImportCanvas");
-            if (!canvas) return;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) return;
-            if (!photoImportImage) {
-                drawPhotoImportEmptyState(canvas, "Foto laden");
-                return;
-            }
-            sizePhotoCanvas(canvas, photoImportImage);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(photoImportImage, 0, 0, canvas.width, canvas.height);
-            if (photoImportCorners.length > 1) {
-                ctx.strokeStyle = "#ffd84a";
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                photoImportCorners.forEach((pt, index) => {
-                    if (!index) ctx.moveTo(pt.x, pt.y);
-                    else ctx.lineTo(pt.x, pt.y);
-                });
-                ctx.stroke();
-            }
-            photoImportCorners.forEach((pt, index) => {
-                ctx.fillStyle = "#ffd84a";
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 9, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = "#0f1c3f";
-                ctx.font = "bold 16px Arial";
-                ctx.textAlign = "center";
-                ctx.fillText(String(index + 1), pt.x, pt.y + 5);
-            });
-            const ballColors = ["#cf2e2e", "#e0bb20", "#f3f5fb"];
-            photoImportBalls.forEach((pt, index) => {
-                ctx.fillStyle = ballColors[index] || "#ffffff";
-                ctx.strokeStyle = "#173168";
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 11, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.fillStyle = "#ffffff";
-                ctx.font = "bold 16px Arial";
-                ctx.textAlign = "left";
-                ctx.fillText(photoImportBallOrder[index], pt.x + 16, pt.y + 5);
-            });
-        }
         function solveLinearSystem(matrix, values) {
             const n = values.length;
             const a = matrix.map((row, rowIndex) => row.concat(values[rowIndex]));
@@ -857,37 +783,6 @@
                 y: (((matrix[1][0] * point.x) + (matrix[1][1] * point.y) + matrix[1][2]) / denominator)
             };
         }
-        function applyPhotoImport() {
-            if (!photoImportImage || photoImportCorners.length !== 4 || photoImportBalls.length !== 3) return;
-            const homography = computeHomography(photoImportCorners, photoImportTableCorners);
-            if (!homography) {
-                alert("Das Foto konnte nicht auf die Tischgrafik umgerechnet werden.");
-                return;
-            }
-            const mapped = photoImportBalls.map((ballPoint) => projectPoint(homography, ballPoint));
-            if (mapped.some((pt) => !pt)) {
-                alert("Die Ballpositionen konnten nicht berechnet werden.");
-                return;
-            }
-            const currentBounds = getCurrentBounds();
-            ballLayout = {
-                red: {
-                    x: clamp(mapped[0].x, currentBounds.minX, currentBounds.maxX),
-                    y: clamp(mapped[0].y, currentBounds.minY, currentBounds.maxY)
-                },
-                yellow: {
-                    x: clamp(mapped[1].x, currentBounds.minX, currentBounds.maxX),
-                    y: clamp(mapped[1].y, currentBounds.minY, currentBounds.maxY)
-                },
-                white: {
-                    x: clamp(mapped[2].x, currentBounds.minX, currentBounds.maxX),
-                    y: clamp(mapped[2].y, currentBounds.minY, currentBounds.maxY)
-                }
-            };
-            renderBalls();
-            persistCurrentPageState();
-            closePhotoImport();
-        }
         function applyPhotoImportMobile() {
             if (!photoImportMobileImage || photoImportMobileCorners.length !== 4 || photoImportMobileBalls.length !== 3) return;
             const homography = computeHomography(photoImportMobileCorners, photoImportTableCorners);
@@ -927,7 +822,8 @@
             const saveBtn = document.querySelector(".actions .btn.primary");
             const newBtn = document.querySelector(".topbar .actions .btn");
             const photoImportBtn = document.getElementById("photoImportBtn");
-            const photoImportMobileBtn = document.getElementById("photoImportMobileBtn");
+            const referencePhotoUploadBtn = document.getElementById("referencePhotoUploadBtn");
+            const referencePhotoRemoveBtn = document.getElementById("referencePhotoRemoveBtn");
             if (titleInput) {
                 titleInput.readOnly = readOnly;
                 titleInput.disabled = false;
@@ -947,7 +843,8 @@
             }
             if (saveBtn) saveBtn.style.display = readOnly ? "none" : "inline-flex";
             if (photoImportBtn) photoImportBtn.style.display = readOnly ? "none" : "inline-flex";
-            if (photoImportMobileBtn) photoImportMobileBtn.style.display = readOnly ? "none" : "inline-flex";
+            if (referencePhotoUploadBtn) referencePhotoUploadBtn.style.display = readOnly ? "none" : "inline-flex";
+            if (referencePhotoRemoveBtn) referencePhotoRemoveBtn.style.display = readOnly || !referencePhotoDataUrl ? "none" : "inline-flex";
             if (deleteBtn) deleteBtn.style.display = readOnly || !editingId ? "none" : "inline-flex";
             if (newBtn) newBtn.style.display = readOnly ? "none" : "inline-flex";
             document.querySelectorAll(".icon-toolbar .icon-btn").forEach((btn) => {
@@ -963,6 +860,7 @@
                 renderLines();
             }
             updatePageUi();
+            updateReferencePhotoUi();
         }
         function syncLoupeContent() {
             const loupeContent = document.getElementById("tableLoupeContent");
@@ -1459,19 +1357,18 @@
                 creatorMeta.style.display = "none";
                 creatorMeta.innerText = "";
             }
-            closePhotoImport();
             closePhotoImportMobile();
-            photoImportImage = null;
-            photoImportCorners = [];
-            photoImportBalls = [];
             photoImportMobileImage = null;
             photoImportMobileCorners = [];
             photoImportMobileBalls = [];
             photoImportMobileStep = "corners";
             photoImportMobileActiveBall = 0;
             stopPhotoImportMobileDrag();
+            referencePhotoDataUrl = "";
             document.getElementById("titleInput").value = "";
             document.getElementById("descriptionInput").value = "";
+            const referencePhotoInput = document.getElementById("referencePhotoInput");
+            if (referencePhotoInput) referencePhotoInput.value = "";
             document.getElementById("deleteBtn").style.display = "none";
             selectedDiscipline = "Cadre 47/2";
             setSelectedDiscipline(selectedDiscipline);
@@ -1485,6 +1382,7 @@
             renderBalls();
             renderLines();
             updatePageUi();
+            updateReferencePhotoUi();
             updatePhotoImportMobileUi();
             if (positionId) history.replaceState({}, "", "training_position_library_editor.html");
         }
@@ -1508,6 +1406,8 @@
             }
             document.getElementById("titleInput").value = data.title || "";
             document.getElementById("descriptionInput").value = data.description || "";
+            referencePhotoDataUrl = data.reference_photo || "";
+            updateReferencePhotoUi();
             setSelectedDiscipline(data.discipline || "Cadre 47/2");
             positionPages = Array.isArray(data.position_pages) && data.position_pages.length
                 ? data.position_pages.map((page) => ({
@@ -1539,6 +1439,7 @@
                 title,
                 discipline: selectedDiscipline,
                 description,
+                reference_photo: referencePhotoDataUrl || "",
                 ball_layout: cloneLayout(firstPage.ball_layout),
                 line_paths: cloneLines(firstPage.line_paths),
                 position_pages: positionPages.map((page) => ({
@@ -1592,10 +1493,10 @@
             renderLines();
             updateDrawModeUi();
             updatePageUi();
+            updateReferencePhotoUi();
             fitEditorToViewport();
             await loadPosition();
             applyReadOnlyUi();
-            updatePhotoImportUi();
             updatePhotoImportMobileUi();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
@@ -1624,14 +1525,6 @@
         document.getElementById("tableStage").addEventListener("dblclick", handleTableDoubleClick);
         document.getElementById("tableStage").addEventListener("pointerleave", hideLoupe);
         document.getElementById("tableViewport").addEventListener("pointerdown", startViewportPan);
-        document.getElementById("photoImportCanvas").addEventListener("pointerdown", (event) => {
-            if (!photoImportImage) return;
-            const point = getPhotoImportCanvasPoint(event);
-            if (!point) return;
-            if (photoImportCorners.length < 4) photoImportCorners.push(point);
-            else if (photoImportBalls.length < 3) photoImportBalls.push(point);
-            updatePhotoImportUi();
-        });
         document.getElementById("photoImportMobileCanvas").addEventListener("pointerdown", handlePhotoImportMobilePointerDown);
         document.getElementById("photoImportMobileCanvas").addEventListener("pointermove", handlePhotoImportMobilePointerMove);
         document.getElementById("photoImportMobileCanvas").addEventListener("pointerup", stopPhotoImportMobileDrag);
