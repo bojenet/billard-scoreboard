@@ -45,7 +45,10 @@
         .position-card { border: 1px solid #3557b7; border-radius: 16px; background: rgba(12, 28, 72, 0.74); padding: 12px; box-shadow: 0 14px 28px rgba(0,0,0,.24); }
         .position-card-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
         .position-card-title { font-size: 15px; font-weight: 700; }
-        .position-zoom-btn { border: none; border-radius: 10px; background: #2746aa; color: white; font-size: 12px; font-weight: 700; padding: 8px 10px; cursor: pointer; }
+        .position-card-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+        .position-zoom-btn, .position-library-btn { border: none; border-radius: 10px; background: #2746aa; color: white; font-size: 12px; font-weight: 700; padding: 8px 10px; cursor: pointer; }
+        .position-library-btn { background:#2f6f55; }
+        .position-source { margin-top:10px; font-size:12px; opacity:.76; min-height:16px; }
         .position-table-wrap { position: relative; border-radius: 14px; overflow: hidden; background: #f7f7f4; aspect-ratio: 674 / 1200; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
         .position-table-bg { width:100%; height:100%; display:block; object-fit:cover; }
         .position-table-overlay { position:absolute; inset:0; width:100%; height:100%; display:block; }
@@ -62,11 +65,26 @@
         .zoom-body { overflow:auto; padding:16px; display:block; }
         .zoom-stage { width:max-content; margin:0 auto; transform-origin: top left; transition: transform .12s ease-out; }
         .zoom-table-wrap { position:relative; width:674px; border-radius:18px; overflow:hidden; background:#f7f7f4; aspect-ratio:674/1200; box-shadow:0 18px 38px rgba(0,0,0,.28); }
+        .library-modal { position: fixed; inset: 0; z-index: 1510; display:none; align-items:center; justify-content:center; padding:18px; background: rgba(3,8,22,.82); backdrop-filter: blur(8px); }
+        .library-modal.open { display:flex; }
+        .library-dialog { width:min(1240px,98vw); max-height:96vh; border-radius:22px; border:1px solid #3557b7; background:linear-gradient(180deg,#162b66,#0f1c3f); box-shadow:0 32px 70px rgba(0,0,0,.55); overflow:hidden; display:grid; grid-template-rows:auto auto 1fr; }
+        .library-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #27417f; }
+        .library-title { font-size:18px; font-weight:700; }
+        .library-tools { display:flex; gap:10px; flex-wrap:wrap; padding:14px 16px; border-bottom:1px solid #27417f; }
+        .library-search { flex:1; min-width:220px; border: 1px solid #3959ab; border-radius: 10px; padding: 10px 12px; font-size: 15px; color: #fff; background: #112659; }
+        .library-list { overflow:auto; padding:16px; display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:14px; }
+        .library-card { border: 1px solid #3557b7; border-radius: 16px; background: rgba(12, 28, 72, 0.74); padding: 12px; box-shadow: 0 14px 28px rgba(0,0,0,.24); display:grid; gap:10px; }
+        .library-card-title { font-size:15px; font-weight:700; }
+        .library-card-sub { font-size:12px; opacity:.72; }
+        .library-card-text { font-size:12px; line-height:1.35; opacity:.88; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; min-height:48px; }
+        .library-card-actions { display:flex; justify-content:flex-end; }
+        .library-empty { padding:18px; font-size:14px; opacity:.72; }
         .actions { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-top: 10px; }
         .btn { padding:14px; border:none; border-radius:14px; color:white; font-size:18px; font-weight:700; cursor:pointer; }
         .btn-start { background: linear-gradient(180deg, #2f4fe0, #1c3380); }
         .btn-back { background: #233a8f; }
-        @media (max-width: 760px) { .grid-2, .positions-grid, .actions { grid-template-columns:1fr; } .header h1 { font-size: 36px; } }
+        @media (max-width: 900px) { .library-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 760px) { .grid-2, .positions-grid, .actions, .library-list { grid-template-columns:1fr; } .header h1 { font-size: 36px; } }
     </style>
 </head>
 <body>
@@ -173,10 +191,23 @@
             </div>
         </div>
     </div>
+    <div class="library-modal" id="positionLibraryModal">
+        <div class="library-dialog">
+            <div class="library-head">
+                <div class="library-title" id="positionLibraryModalTitle">Position aus Library wählen</div>
+                <button class="zoom-btn zoom-close" type="button" onclick="closePositionLibraryModal()">Schließen</button>
+            </div>
+            <div class="library-tools">
+                <input id="positionLibrarySearch" class="library-search" type="text" placeholder="Titel oder Beschreibung suchen">
+            </div>
+            <div class="library-list" id="positionLibraryList"></div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/position_library_access.js"></script>
     <script src="js/user_menu.js"></script>
     <script>
         const disciplines = ["Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
@@ -210,8 +241,10 @@
         let selectedGuestUser = null;
         let positionsOpen = false;
         let challengePositions = [];
+        let libraryItems = [];
         let activeChallengeDrag = null;
         let currentPositionZoom = 1;
+        let activeLibraryTargetPositionId = 0;
         const REMOTE_MATCH_DRAFT_KEY = "training_remote_match_setup_draft_v1";
 
         function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
@@ -229,7 +262,22 @@
         function getDefaultChallengePositions() { return positionDefaults.map((x) => ({ id: x.id, red: { ...x.red }, yellow: { ...x.yellow }, white: { ...x.white } })); }
         function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/discipline-mb-47.png"; }
         function getActiveDiscipline() { return selectedHostDiscipline || selectedGuestDiscipline || "Cadre 47/2"; }
-        function serializeChallengePositions() { return challengePositions.map((x) => ({ id: x.id, red: { ...x.red }, yellow: { ...x.yellow }, white: { ...x.white } })); }
+        function serializeChallengePositions() {
+            return challengePositions.map((x) => ({
+                id: x.id,
+                red: { ...x.red },
+                yellow: { ...x.yellow },
+                white: { ...x.white },
+                line_paths: Array.isArray(x.line_paths) ? x.line_paths.map((line) => ({ points: Array.isArray(line.points) ? line.points.map((pt) => ({ x: pt.x, y: pt.y })) : [] })) : [],
+                source_title: x.source_title || "",
+                source_page_label: x.source_page_label || ""
+            }));
+        }
+        function cloneLinePaths(lines) {
+            return Array.isArray(lines) ? lines.map((line) => ({
+                points: Array.isArray(line.points) ? line.points.map((pt) => ({ x: pt.x, y: pt.y })) : []
+            })) : [];
+        }
         function updateFullscreenButton() { const btn = document.getElementById("fullscreenBtn"); if (!btn) return; const active = !!document.fullscreenElement; btn.innerText = active ? "×" : "⛶"; }
         async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (_) {} finally { updateFullscreenButton(); } }
         function setTargetPoints(value) { document.getElementById("targetPointsInput").value = value; }
@@ -286,7 +334,15 @@
             setSelectedGuestUser(draft.guestUser || null);
             document.getElementById("targetPointsInput").value = draft.targetPoints || 50;
             challengePositions = Array.isArray(draft.challengePositions) && draft.challengePositions.length
-                ? draft.challengePositions.map((x) => ({ id: x.id, red: { ...x.red }, yellow: { ...x.yellow }, white: { ...x.white } }))
+                ? draft.challengePositions.map((x) => ({
+                    id: x.id,
+                    red: { ...x.red },
+                    yellow: { ...x.yellow },
+                    white: { ...x.white },
+                    line_paths: cloneLinePaths(x.line_paths),
+                    source_title: x.source_title || "",
+                    source_page_label: x.source_page_label || ""
+                }))
                 : getDefaultChallengePositions();
             const currentBounds = getChallengeBoundsForDiscipline(getActiveDiscipline());
             challengePositions = challengePositions.map((layout) => {
@@ -340,13 +396,19 @@
                     btn.classList.add("active");
                     onSelect(discipline);
                     renderPositions();
+                    if (document.getElementById("positionLibraryModal").classList.contains("open")) renderPositionLibraryList();
                 };
                 container.appendChild(btn);
             });
         }
         function renderChallengePositionSvg(layout) {
             const spec = getBallSpec(getActiveDiscipline());
+            const linesMarkup = Array.isArray(layout.line_paths) ? layout.line_paths.map((line) => {
+                const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : "";
+                return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : "";
+            }).join("") : "";
             return `<svg class="position-table-overlay" viewBox="0 0 ${TABLE_VIEWBOX.width} ${TABLE_VIEWBOX.height}" aria-label="Position ${layout.id}">
+                ${linesMarkup}
                 <g class="challenge-ball" data-position-id="${layout.id}" data-ball="red" transform="translate(${layout.red.x} ${layout.red.y})"><circle r="${spec.radius}" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.42"></circle></g>
                 <g class="challenge-ball" data-position-id="${layout.id}" data-ball="yellow" transform="translate(${layout.yellow.x} ${layout.yellow.y})"><circle r="${spec.radius}" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.42"></circle></g>
                 <g class="challenge-ball" data-position-id="${layout.id}" data-ball="white" transform="translate(${layout.white.x} ${layout.white.y})"><circle r="${spec.radius}" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="${spec.whiteStrokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.72"></circle></g>
@@ -364,10 +426,12 @@
             challengePositions.forEach((layout) => {
                 const card = document.createElement("div");
                 card.className = "position-card";
-                card.innerHTML = `<div class="position-card-head"><div class="position-card-title">Position ${layout.id}</div><button class="position-zoom-btn" type="button" data-position-zoom="${layout.id}">Groß</button></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}</div>`;
+                const sourceLabel = layout.source_title ? `${layout.source_title}${layout.source_page_label ? " • " + layout.source_page_label : ""}` : "";
+                card.innerHTML = `<div class="position-card-head"><div class="position-card-title">Position ${layout.id}</div><div class="position-card-actions"><button class="position-library-btn" type="button" data-position-library="${layout.id}">Library</button><button class="position-zoom-btn" type="button" data-position-zoom="${layout.id}">Groß</button></div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}</div><div class="position-source">${sourceLabel ? `Quelle: ${sourceLabel}` : ""}</div>`;
                 grid.appendChild(card);
             });
             bindChallengePositionDrag(grid);
+            grid.querySelectorAll("[data-position-library]").forEach((btn) => { btn.onclick = () => openPositionLibraryModal(Number(btn.dataset.positionLibrary || 0)); });
             grid.querySelectorAll("[data-position-zoom]").forEach((btn) => { btn.onclick = () => openPositionZoom(Number(btn.dataset.positionZoom || 0)); });
         }
         function togglePositions() { positionsOpen = !positionsOpen; document.getElementById("positionsBody").classList.toggle("open", positionsOpen); document.getElementById("positionsToggleIcon").innerText = positionsOpen ? "−" : "+"; }
@@ -396,6 +460,89 @@
         function closePositionZoom() { document.getElementById("positionZoomModal").classList.remove("open"); }
         function changePositionZoom(delta) { currentPositionZoom = clamp(Number((currentPositionZoom + delta).toFixed(2)), 0.5, 5); updatePositionZoomStage(); }
         function resetPositionZoom() { currentPositionZoom = 1; updatePositionZoomStage(); }
+        function getLibraryPages(item) {
+            const pages = Array.isArray(item.position_pages) && item.position_pages.length ? item.position_pages : [{ ball_layout: item.ball_layout, line_paths: item.line_paths }];
+            return pages.map((page, index) => ({
+                pageIndex: index,
+                pageLabel: pages.length > 1 ? `Seite ${index + 1}/${pages.length}` : "",
+                ball_layout: {
+                    red: { ...(page.ball_layout?.red || positionDefaults[0].red) },
+                    yellow: { ...(page.ball_layout?.yellow || positionDefaults[0].yellow) },
+                    white: { ...(page.ball_layout?.white || positionDefaults[0].white) }
+                },
+                line_paths: cloneLinePaths(page.line_paths)
+            }));
+        }
+        async function loadPositionLibraryItems() {
+            const accessMode = await getPositionLibraryAccess(currentUser);
+            if (!isPositionLibraryVisible(accessMode)) {
+                libraryItems = [];
+                return;
+            }
+            const { data, error } = await supabaseClient
+                .from("training_position_library")
+                .select("*")
+                .order("updated_at", { ascending: false });
+            if (error) {
+                libraryItems = [];
+                return;
+            }
+            libraryItems = data || [];
+        }
+        function renderPositionLibraryList() {
+            const wrap = document.getElementById("positionLibraryList");
+            const search = String(document.getElementById("positionLibrarySearch").value || "").trim().toLowerCase();
+            const activeDiscipline = getActiveDiscipline();
+            const pages = libraryItems
+                .filter((item) => !activeDiscipline || item.discipline === activeDiscipline)
+                .flatMap((item) => getLibraryPages(item).map((page) => ({ item, page })))
+                .filter(({ item }) => {
+                    if (!search) return true;
+                    return [item.title, item.description, item.created_by_name].some((value) => String(value || "").toLowerCase().includes(search));
+                });
+            if (!pages.length) {
+                wrap.innerHTML = `<div class="library-empty">Keine passende Library-Position gefunden.</div>`;
+                return;
+            }
+            wrap.innerHTML = "";
+            pages.forEach(({ item, page }) => {
+                const card = document.createElement("div");
+                card.className = "library-card";
+                const previewLayout = {
+                    id: activeLibraryTargetPositionId || 1,
+                    red: { ...page.ball_layout.red },
+                    yellow: { ...page.ball_layout.yellow },
+                    white: { ...page.ball_layout.white },
+                    line_paths: cloneLinePaths(page.line_paths)
+                };
+                card.innerHTML = `<div><div class="library-card-title">${item.title || "Ohne Titel"}</div><div class="library-card-sub">${item.discipline || "-"}${page.pageLabel ? " • " + page.pageLabel : ""}${item.created_by_name ? " • " + item.created_by_name : ""}</div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(item.discipline)}" alt="${item.title || "Library"}">${renderChallengePositionSvg(previewLayout)}</div><div class="library-card-text">${item.description ? item.description.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "Keine Beschreibung"}</div><div class="library-card-actions"><button class="position-library-btn" type="button">Übernehmen</button></div>`;
+                card.querySelector(".position-library-btn").onclick = () => applyLibraryPositionToSlot(activeLibraryTargetPositionId, item, page);
+                wrap.appendChild(card);
+            });
+        }
+        function openPositionLibraryModal(positionId) {
+            activeLibraryTargetPositionId = Number(positionId || 0);
+            document.getElementById("positionLibraryModalTitle").innerText = `Library für Position ${activeLibraryTargetPositionId}`;
+            document.getElementById("positionLibrarySearch").value = "";
+            renderPositionLibraryList();
+            document.getElementById("positionLibraryModal").classList.add("open");
+        }
+        function closePositionLibraryModal() {
+            document.getElementById("positionLibraryModal").classList.remove("open");
+            activeLibraryTargetPositionId = 0;
+        }
+        function applyLibraryPositionToSlot(positionId, item, page) {
+            const layout = challengePositions.find((entry) => Number(entry.id) === Number(positionId));
+            if (!layout) return;
+            layout.red = { ...page.ball_layout.red };
+            layout.yellow = { ...page.ball_layout.yellow };
+            layout.white = { ...page.ball_layout.white };
+            layout.line_paths = cloneLinePaths(page.line_paths);
+            layout.source_title = item.title || "";
+            layout.source_page_label = page.pageLabel || "";
+            renderPositions();
+            closePositionLibraryModal();
+        }
         async function cancelInvite(sessionId) {
             if (!sessionId) return;
             const { error } = await supabaseClient.from("training_remote_match_sessions").update({ status: "cancelled" }).eq("id", sessionId).eq("host_user_id", currentUser.id).eq("status", "active");
@@ -453,8 +600,10 @@
             challengePositions = getDefaultChallengePositions();
             buildDisciplineButtons("disciplineButtonsHost", (value) => { selectedHostDiscipline = value; });
             buildDisciplineButtons("disciplineButtonsGuest", (value) => { selectedGuestDiscipline = value; });
+            await loadPositionLibraryItems();
             renderPositions();
             renderDraftCard();
+            document.getElementById("positionLibrarySearch").addEventListener("input", renderPositionLibraryList);
             document.getElementById("guestUserSearch").addEventListener("input", () => loadChallengeUsers(document.getElementById("guestUserSearch").value || ""));
             await loadChallengeUsers("");
             await loadIncomingInvites();
@@ -463,7 +612,7 @@
         window.addEventListener("pointermove", handleChallengePointerMove);
         window.addEventListener("pointerup", stopChallengePointerDrag);
         window.addEventListener("pointercancel", stopChallengePointerDrag);
-        window.addEventListener("keydown", (event) => { if (event.key === "Escape") closePositionZoom(); });
+        window.addEventListener("keydown", (event) => { if (event.key === "Escape") { closePositionZoom(); closePositionLibraryModal(); } });
         init();
     </script>
 </body>
