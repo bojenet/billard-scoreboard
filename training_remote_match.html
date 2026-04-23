@@ -59,8 +59,6 @@
         .position-table-overlay { position:absolute; inset:0; width:100%; height:100%; display:block; }
         .position-empty-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:18px; text-align:center; font-size:14px; font-weight:700; color:#ffffff; background:rgba(8, 20, 54, 0.42); }
         .positions-empty { padding:18px; border:1px dashed #4564c4; border-radius:14px; text-align:center; font-size:14px; opacity:.8; }
-        .challenge-ball { cursor: grab; touch-action: none; }
-        .challenge-ball:active { cursor: grabbing; }
         .zoom-modal { position: fixed; inset: 0; z-index: 1500; display: none; align-items:center; justify-content:center; padding:18px; background: rgba(3,8,22,.82); backdrop-filter: blur(8px); }
         .zoom-modal.open { display:flex; }
         .zoom-dialog { width:min(1240px,98vw); max-height:96vh; border-radius:22px; border:1px solid #3557b7; background:linear-gradient(180deg,#162b66,#0f1c3f); box-shadow:0 32px 70px rgba(0,0,0,.55); overflow:hidden; display:grid; grid-template-rows:auto 1fr; }
@@ -249,7 +247,6 @@
         let positionsOpen = false;
         let challengePositions = [];
         let libraryItems = [];
-        let activeChallengeDrag = null;
         let activePositionOrderDragId = 0;
         let currentPositionZoom = 1;
         let selectedLibraryKeys = new Set();
@@ -301,7 +298,6 @@
             selectedHostDiscipline = "";
             selectedGuestDiscipline = "";
             selectedGuestUser = null;
-            activeChallengeDrag = null;
             selectedLibraryKeys = new Set();
             currentPositionZoom = 1;
             challengePositions = [];
@@ -461,7 +457,6 @@
             const layout = challengePositions.find((item) => Number(item.id) === Number(positionId));
             if (!container || !layout) return;
             container.innerHTML = `<img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}`;
-            bindChallengePositionDrag(container);
         }
         function removeChallengePositionSlot(positionId) {
             challengePositions = challengePositions.filter((item) => Number(item.id) !== Number(positionId)).map((item, index) => ({ ...item, id: index + 1 }));
@@ -522,32 +517,11 @@
                 card.innerHTML = `<div class="position-card-head drag-handle" draggable="true" data-position-order-id="${layout.id}"><div class="position-card-title">Position ${layout.id}</div><div class="position-card-actions"><button class="position-zoom-btn" type="button" data-position-zoom="${layout.id}">Groß</button><button class="position-zoom-btn position-remove-btn" type="button" data-position-remove="${layout.id}">Löschen</button></div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}${emptyHint}</div><div class="position-source">${sourceLabel ? `Quelle: ${sourceLabel}` : "Quelle: bitte aus Library laden"}</div>`;
                 grid.appendChild(card);
             });
-            bindChallengePositionDrag(grid);
             bindPositionReorderDrag(grid);
             grid.querySelectorAll("[data-position-zoom]").forEach((btn) => { btn.onclick = () => openPositionZoom(Number(btn.dataset.positionZoom || 0)); });
             grid.querySelectorAll("[data-position-remove]").forEach((btn) => { btn.onclick = () => removeChallengePositionSlot(Number(btn.dataset.positionRemove || 0)); });
         }
         function togglePositions() { setPositionsOpenState(!positionsOpen); }
-        function getChallengeSvgPoint(event) { const svg = activeChallengeDrag?.svg; if (!svg) return null; const rect = svg.getBoundingClientRect(); return { x: ((event.clientX - rect.left) / rect.width) * TABLE_VIEWBOX.width, y: ((event.clientY - rect.top) / rect.height) * TABLE_VIEWBOX.height }; }
-        function updateChallengeBallPosition(positionId, ballKey, x, y) {
-            const layout = challengePositions.find((item) => Number(item.id) === Number(positionId));
-            if (!layout || !layout[ballKey]) return;
-            const currentBounds = getChallengeBoundsForDiscipline(getActiveDiscipline());
-            layout[ballKey] = { x: clamp(x, currentBounds.minX, currentBounds.maxX), y: clamp(y, currentBounds.minY, currentBounds.maxY) };
-            document.querySelectorAll(`.challenge-ball[data-position-id="${positionId}"][data-ball="${ballKey}"]`).forEach((ball) => { ball.setAttribute("transform", `translate(${layout[ballKey].x} ${layout[ballKey].y})`); });
-        }
-        function handleChallengePointerMove(event) { if (!activeChallengeDrag) return; event.preventDefault(); const point = getChallengeSvgPoint(event); if (!point) return; updateChallengeBallPosition(activeChallengeDrag.positionId, activeChallengeDrag.ballKey, point.x, point.y); }
-        function stopChallengePointerDrag() { if (activeChallengeDrag?.element?.releasePointerCapture) { try { activeChallengeDrag.element.releasePointerCapture(activeChallengeDrag.pointerId); } catch (_) {} } activeChallengeDrag = null; }
-        function startChallengePointerDrag(event) {
-            const positionId = Number(event.currentTarget.dataset.positionId || 0);
-            const ballKey = event.currentTarget.dataset.ball || "";
-            const svg = event.currentTarget.ownerSVGElement;
-            if (!positionId || !ballKey || !svg) return;
-            activeChallengeDrag = { positionId, ballKey, svg, element: event.currentTarget, pointerId: event.pointerId };
-            if (event.currentTarget.setPointerCapture) { try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) {} }
-            event.preventDefault();
-        }
-        function bindChallengePositionDrag(root = document) { root.querySelectorAll(".challenge-ball").forEach((ball) => { ball.addEventListener("pointerdown", startChallengePointerDrag); }); }
         function updatePositionZoomStage() { const stage = document.getElementById("positionZoomStage"); if (stage) stage.style.transform = `scale(${currentPositionZoom})`; }
         function openPositionZoom(positionId) { currentPositionZoom = 1; document.getElementById("positionZoomTitle").innerText = `Position ${positionId}`; renderSingleChallengePosition(document.getElementById("positionZoomContent"), positionId); updatePositionZoomStage(); document.getElementById("positionZoomModal").classList.add("open"); }
         function closePositionZoom() { document.getElementById("positionZoomModal").classList.remove("open"); }
@@ -690,7 +664,7 @@
             if (!selectedHostDiscipline || !selectedGuestDiscipline) { alert("Bitte für beide Spieler eine Disziplin wählen."); return; }
             const targetPoints = Number(document.getElementById("targetPointsInput").value || 0);
             if (!Number.isInteger(targetPoints) || targetPoints < 1) { alert("Bitte gültige Zielpunkte eingeben."); return; }
-            if (!hasAllChallengePositionsLoaded()) { alert("Bitte zuerst mindestens eine Position anlegen und alle angelegten Slots aus der Library laden."); return; }
+            if (!hasAllChallengePositionsLoaded()) { alert("Bitte zuerst mindestens eine Position aus der Library übernehmen."); return; }
             const payload = {
                 host_user_id: currentUser.id,
                 host_name: getDisplayName(currentUser),
@@ -723,9 +697,6 @@
             await refreshRemoteMatchSetupView();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
-        window.addEventListener("pointermove", handleChallengePointerMove);
-        window.addEventListener("pointerup", stopChallengePointerDrag);
-        window.addEventListener("pointercancel", stopChallengePointerDrag);
         window.addEventListener("keydown", (event) => { if (event.key === "Escape") { closePositionZoom(); closePositionLibraryModal(); } });
         window.addEventListener("pageshow", async () => {
             if (!currentUser) return;
