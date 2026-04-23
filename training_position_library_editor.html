@@ -221,6 +221,8 @@
             <div class="photo-tools">
                 <input id="photoImportMobileInput" type="file" accept="image/*" style="display:none;" onchange="handlePhotoImportMobileFile(event)">
                 <button class="btn" type="button" onclick="document.getElementById('photoImportMobileInput').click()">Foto wählen</button>
+                <button class="btn" type="button" onclick="rotatePhotoImportMobile(-1)">90° links</button>
+                <button class="btn" type="button" onclick="rotatePhotoImportMobile(1)">90° rechts</button>
                 <button class="btn" type="button" onclick="resetPhotoImportMobilePoints()">Marker zurücksetzen</button>
                 <button class="btn primary" id="applyPhotoImportMobileBtn" type="button" onclick="applyPhotoImportMobile()" disabled>Position übernehmen</button>
             </div>
@@ -237,7 +239,7 @@
             <div class="photo-stage">
                 <canvas id="photoImportMobileCanvas" class="photo-canvas"></canvas>
             </div>
-            <div class="photo-hint" id="photoImportMobileHint">Auf iPhone am besten erst den Tisch grob ausrichten und danach die Ballmarker ziehen. Ein Tipp auf freie Fläche setzt im Ball-Schritt den aktuell gewählten Ball direkt neu.</div>
+            <div class="photo-hint" id="photoImportMobileHint">Foto vor dem Setzen der Marker so drehen, dass der Tisch in der gleichen Lage wie die App-Vorlage erscheint: lange Tischseite hochkant. Danach erst Tisch ausrichten und dann die Ballmarker setzen.</div>
         </div>
     </div>
 
@@ -294,6 +296,7 @@
         let photoImportMobileBalls = [];
         let photoImportMobileStep = "corners";
         let photoImportMobileActiveBall = 0;
+        let photoImportMobileRotation = 0;
         let photoImportMobileDrag = null;
         let referencePhotoDataUrl = "";
         const baseTableWidth = 1200;
@@ -472,9 +475,31 @@
         }
         function sizePhotoCanvas(canvas, image) {
             const maxWidth = 1400;
-            const scale = Math.min(1, maxWidth / image.width);
-            canvas.width = Math.max(640, Math.round(image.width * scale));
-            canvas.height = Math.max(360, Math.round(image.height * scale));
+            const rotatedQuarterTurn = Math.abs(photoImportMobileRotation % 2) === 1;
+            const sourceWidth = rotatedQuarterTurn ? image.height : image.width;
+            const sourceHeight = rotatedQuarterTurn ? image.width : image.height;
+            const scale = Math.min(1, maxWidth / sourceWidth);
+            canvas.width = Math.max(640, Math.round(sourceWidth * scale));
+            canvas.height = Math.max(360, Math.round(sourceHeight * scale));
+        }
+        function drawRotatedPhotoImportImage(ctx, image, canvas) {
+            const width = canvas.width;
+            const height = canvas.height;
+            ctx.save();
+            ctx.translate(width / 2, height / 2);
+            ctx.rotate(photoImportMobileRotation * (Math.PI / 2));
+            if (Math.abs(photoImportMobileRotation % 2) === 1) {
+                ctx.drawImage(image, -height / 2, -width / 2, height, width);
+            } else {
+                ctx.drawImage(image, -width / 2, -height / 2, width, height);
+            }
+            ctx.restore();
+        }
+        function rotatePhotoImportMobile(direction) {
+            if (!photoImportMobileImage) return;
+            photoImportMobileRotation = (photoImportMobileRotation + (direction < 0 ? 3 : 1)) % 4;
+            setDefaultPhotoImportMobileAnchors();
+            updatePhotoImportMobileUi();
         }
         function getPhotoImportMobileAlignmentPointsReady() {
             return photoImportMobileCorners.length === 4;
@@ -572,6 +597,7 @@
             loadPhotoImportImage(file, (img) => {
                 photoImportMobileImage = img;
                 referencePhotoDataUrl = typeof img.src === "string" ? img.src : "";
+                photoImportMobileRotation = 0;
                 photoImportMobileStep = "corners";
                 photoImportMobileActiveBall = 0;
                 setDefaultPhotoImportMobileAnchors();
@@ -625,7 +651,7 @@
             }
             sizePhotoCanvas(canvas, photoImportMobileImage);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(photoImportMobileImage, 0, 0, canvas.width, canvas.height);
+            drawRotatedPhotoImportImage(ctx, photoImportMobileImage, canvas);
             if (photoImportMobileCorners.length > 1) {
                 ctx.strokeStyle = "rgba(255,216,74,.95)";
                 ctx.lineWidth = 4;
@@ -1342,6 +1368,7 @@
             photoImportMobileBalls = [];
             photoImportMobileStep = "corners";
             photoImportMobileActiveBall = 0;
+            photoImportMobileRotation = 0;
             stopPhotoImportMobileDrag();
             referencePhotoDataUrl = "";
             document.getElementById("titleInput").value = "";
