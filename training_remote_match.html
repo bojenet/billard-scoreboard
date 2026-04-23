@@ -52,6 +52,7 @@
         .position-table-wrap { position: relative; border-radius: 14px; overflow: hidden; background: #f7f7f4; aspect-ratio: 674 / 1200; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
         .position-table-bg { width:100%; height:100%; display:block; object-fit:cover; }
         .position-table-overlay { position:absolute; inset:0; width:100%; height:100%; display:block; }
+        .position-empty-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:18px; text-align:center; font-size:14px; font-weight:700; color:#ffffff; background:rgba(8, 20, 54, 0.42); }
         .challenge-ball { cursor: grab; touch-action: none; }
         .challenge-ball:active { cursor: grabbing; }
         .zoom-modal { position: fixed; inset: 0; z-index: 1500; display: none; align-items:center; justify-content:center; padding:18px; background: rgba(3,8,22,.82); backdrop-filter: blur(8px); }
@@ -104,7 +105,7 @@
                     </div>
                     <div class="field">
                         <label for="guestUserSearch">Spieler suchen</label>
-                        <input id="guestUserSearch" type="text" placeholder="Name oder E-Mail">
+                        <input id="guestUserSearch" type="text" placeholder="Name oder E-Mail" autocomplete="off">
                     </div>
                     <div class="user-results" id="guestUserResults"></div>
                 </div>
@@ -125,7 +126,7 @@
                 <div class="panel">
                     <div class="field">
                         <label for="targetPointsInput">Zielpunkte</label>
-                        <input id="targetPointsInput" type="number" min="1" value="50">
+                        <input id="targetPointsInput" type="number" min="1" value="50" autocomplete="off">
                     </div>
                     <div class="btn-group">
                         <button class="chip" type="button" onclick="setTargetPoints(25)">25</button>
@@ -260,14 +261,17 @@
             };
         }
         function getDefaultChallengePositions() { return positionDefaults.map((x) => ({ id: x.id, red: { ...x.red }, yellow: { ...x.yellow }, white: { ...x.white } })); }
+        function getEmptyChallengePositions() { return positionDefaults.map((x) => ({ id: x.id, red: null, yellow: null, white: null, line_paths: [], source_title: "", source_page_label: "" })); }
         function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/discipline-mb-47.png"; }
         function getActiveDiscipline() { return selectedHostDiscipline || selectedGuestDiscipline || "Cadre 47/2"; }
+        function hasLoadedChallengePosition(layout) { return !!(layout?.red && layout?.yellow && layout?.white); }
+        function hasAllChallengePositionsLoaded() { return challengePositions.length === 6 && challengePositions.every((layout) => hasLoadedChallengePosition(layout)); }
         function serializeChallengePositions() {
             return challengePositions.map((x) => ({
                 id: x.id,
-                red: { ...x.red },
-                yellow: { ...x.yellow },
-                white: { ...x.white },
+                red: x.red ? { ...x.red } : null,
+                yellow: x.yellow ? { ...x.yellow } : null,
+                white: x.white ? { ...x.white } : null,
                 line_paths: Array.isArray(x.line_paths) ? x.line_paths.map((line) => ({ points: Array.isArray(line.points) ? line.points.map((pt) => ({ x: pt.x, y: pt.y })) : [] })) : [],
                 source_title: x.source_title || "",
                 source_page_label: x.source_page_label || ""
@@ -293,7 +297,7 @@
             activeChallengeDrag = null;
             activeLibraryTargetPositionId = 0;
             currentPositionZoom = 1;
-            challengePositions = getDefaultChallengePositions();
+            challengePositions = getEmptyChallengePositions();
             document.getElementById("targetPointsInput").value = 50;
             document.getElementById("guestUserSearch").value = "";
             setSelectedGuestUser(null);
@@ -303,6 +307,12 @@
             closePositionZoom();
             closePositionLibraryModal();
             renderPositions();
+        }
+        async function refreshRemoteMatchSetupView() {
+            resetRemoteMatchSetupState();
+            if (!currentUser) return;
+            await loadChallengeUsers("");
+            await loadIncomingInvites();
         }
         function setSelectedGuestUser(user) {
             selectedGuestUser = user || null;
@@ -359,14 +369,14 @@
             challengePositions = Array.isArray(draft.challengePositions) && draft.challengePositions.length
                 ? draft.challengePositions.map((x) => ({
                     id: x.id,
-                    red: { ...x.red },
-                    yellow: { ...x.yellow },
-                    white: { ...x.white },
+                    red: x.red ? { ...x.red } : null,
+                    yellow: x.yellow ? { ...x.yellow } : null,
+                    white: x.white ? { ...x.white } : null,
                     line_paths: cloneLinePaths(x.line_paths),
                     source_title: x.source_title || "",
                     source_page_label: x.source_page_label || ""
                 }))
-                : getDefaultChallengePositions();
+                : getEmptyChallengePositions();
             const currentBounds = getChallengeBoundsForDiscipline(getActiveDiscipline());
             challengePositions = challengePositions.map((layout) => {
                 ["red", "yellow", "white"].forEach((ballKey) => {
@@ -425,6 +435,7 @@
             });
         }
         function renderChallengePositionSvg(layout) {
+            if (!hasLoadedChallengePosition(layout)) return `<svg class="position-table-overlay" viewBox="0 0 ${TABLE_VIEWBOX.width} ${TABLE_VIEWBOX.height}" aria-label="Position ${layout.id}"></svg>`;
             const spec = getBallSpec(getActiveDiscipline());
             const linesMarkup = Array.isArray(layout.line_paths) ? layout.line_paths.map((line) => {
                 const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : "";
@@ -450,7 +461,8 @@
                 const card = document.createElement("div");
                 card.className = "position-card";
                 const sourceLabel = layout.source_title ? `${layout.source_title}${layout.source_page_label ? " • " + layout.source_page_label : ""}` : "";
-                card.innerHTML = `<div class="position-card-head"><div class="position-card-title">Position ${layout.id}</div><div class="position-card-actions"><button class="position-library-btn" type="button" data-position-library="${layout.id}">Library</button><button class="position-zoom-btn" type="button" data-position-zoom="${layout.id}">Groß</button></div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}</div><div class="position-source">${sourceLabel ? `Quelle: ${sourceLabel}` : ""}</div>`;
+                const emptyHint = hasLoadedChallengePosition(layout) ? "" : `<div class="position-empty-hint">Noch keine Position geladen</div>`;
+                card.innerHTML = `<div class="position-card-head"><div class="position-card-title">Position ${layout.id}</div><div class="position-card-actions"><button class="position-library-btn" type="button" data-position-library="${layout.id}">Library</button><button class="position-zoom-btn" type="button" data-position-zoom="${layout.id}">Groß</button></div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}${emptyHint}</div><div class="position-source">${sourceLabel ? `Quelle: ${sourceLabel}` : "Quelle: bitte aus Library laden"}</div>`;
                 grid.appendChild(card);
             });
             bindChallengePositionDrag(grid);
@@ -598,6 +610,7 @@
             if (!selectedHostDiscipline || !selectedGuestDiscipline) { alert("Bitte für beide Spieler eine Disziplin wählen."); return; }
             const targetPoints = Number(document.getElementById("targetPointsInput").value || 0);
             if (!Number.isInteger(targetPoints) || targetPoints < 1) { alert("Bitte gültige Zielpunkte eingeben."); return; }
+            if (!hasAllChallengePositionsLoaded()) { alert("Bitte zuerst alle 6 Positionen aus der Library laden."); return; }
             const payload = {
                 host_user_id: currentUser.id,
                 host_name: getDisplayName(currentUser),
@@ -627,19 +640,17 @@
             renderDraftCard();
             document.getElementById("positionLibrarySearch").addEventListener("input", renderPositionLibraryList);
             document.getElementById("guestUserSearch").addEventListener("input", () => loadChallengeUsers(document.getElementById("guestUserSearch").value || ""));
-            await loadChallengeUsers("");
-            await loadIncomingInvites();
+            await refreshRemoteMatchSetupView();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
         window.addEventListener("pointermove", handleChallengePointerMove);
         window.addEventListener("pointerup", stopChallengePointerDrag);
         window.addEventListener("pointercancel", stopChallengePointerDrag);
         window.addEventListener("keydown", (event) => { if (event.key === "Escape") { closePositionZoom(); closePositionLibraryModal(); } });
-        window.addEventListener("pageshow", async (event) => {
-            if (!event.persisted || !currentUser) return;
-            resetRemoteMatchSetupState();
-            await loadChallengeUsers("");
-            await loadIncomingInvites();
+        window.addEventListener("pageshow", async () => {
+            if (!currentUser) return;
+            await refreshRemoteMatchSetupView();
+            window.setTimeout(() => { resetRemoteMatchSetupState(); }, 0);
         });
         init();
     </script>
