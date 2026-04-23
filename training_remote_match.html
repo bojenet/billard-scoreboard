@@ -281,6 +281,29 @@
         function updateFullscreenButton() { const btn = document.getElementById("fullscreenBtn"); if (!btn) return; const active = !!document.fullscreenElement; btn.innerText = active ? "×" : "⛶"; }
         async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (_) {} finally { updateFullscreenButton(); } }
         function setTargetPoints(value) { document.getElementById("targetPointsInput").value = value; }
+        function setPositionsOpenState(isOpen) {
+            positionsOpen = !!isOpen;
+            document.getElementById("positionsBody").classList.toggle("open", positionsOpen);
+            document.getElementById("positionsToggleIcon").innerText = positionsOpen ? "−" : "+";
+        }
+        function resetRemoteMatchSetupState() {
+            selectedHostDiscipline = "";
+            selectedGuestDiscipline = "";
+            selectedGuestUser = null;
+            activeChallengeDrag = null;
+            activeLibraryTargetPositionId = 0;
+            currentPositionZoom = 1;
+            challengePositions = getDefaultChallengePositions();
+            document.getElementById("targetPointsInput").value = 50;
+            document.getElementById("guestUserSearch").value = "";
+            setSelectedGuestUser(null);
+            syncDisciplineButtons("disciplineButtonsHost", "");
+            syncDisciplineButtons("disciplineButtonsGuest", "");
+            setPositionsOpenState(false);
+            closePositionZoom();
+            closePositionLibraryModal();
+            renderPositions();
+        }
         function setSelectedGuestUser(user) {
             selectedGuestUser = user || null;
             const box = document.getElementById("selectedGuestBox");
@@ -434,7 +457,7 @@
             grid.querySelectorAll("[data-position-library]").forEach((btn) => { btn.onclick = () => openPositionLibraryModal(Number(btn.dataset.positionLibrary || 0)); });
             grid.querySelectorAll("[data-position-zoom]").forEach((btn) => { btn.onclick = () => openPositionZoom(Number(btn.dataset.positionZoom || 0)); });
         }
-        function togglePositions() { positionsOpen = !positionsOpen; document.getElementById("positionsBody").classList.toggle("open", positionsOpen); document.getElementById("positionsToggleIcon").innerText = positionsOpen ? "−" : "+"; }
+        function togglePositions() { setPositionsOpenState(!positionsOpen); }
         function getChallengeSvgPoint(event) { const svg = activeChallengeDrag?.svg; if (!svg) return null; const rect = svg.getBoundingClientRect(); return { x: ((event.clientX - rect.left) / rect.width) * TABLE_VIEWBOX.width, y: ((event.clientY - rect.top) / rect.height) * TABLE_VIEWBOX.height }; }
         function updateChallengeBallPosition(positionId, ballKey, x, y) {
             const layout = challengePositions.find((item) => Number(item.id) === Number(positionId));
@@ -597,11 +620,10 @@
             currentUser = await requireAuth();
             if (!currentUser) return;
             updateFullscreenButton();
-            challengePositions = getDefaultChallengePositions();
             buildDisciplineButtons("disciplineButtonsHost", (value) => { selectedHostDiscipline = value; });
             buildDisciplineButtons("disciplineButtonsGuest", (value) => { selectedGuestDiscipline = value; });
+            resetRemoteMatchSetupState();
             await loadPositionLibraryItems();
-            renderPositions();
             renderDraftCard();
             document.getElementById("positionLibrarySearch").addEventListener("input", renderPositionLibraryList);
             document.getElementById("guestUserSearch").addEventListener("input", () => loadChallengeUsers(document.getElementById("guestUserSearch").value || ""));
@@ -613,6 +635,12 @@
         window.addEventListener("pointerup", stopChallengePointerDrag);
         window.addEventListener("pointercancel", stopChallengePointerDrag);
         window.addEventListener("keydown", (event) => { if (event.key === "Escape") { closePositionZoom(); closePositionLibraryModal(); } });
+        window.addEventListener("pageshow", async (event) => {
+            if (!event.persisted || !currentUser) return;
+            resetRemoteMatchSetupState();
+            await loadChallengeUsers("");
+            await loadIncomingInvites();
+        });
         init();
     </script>
 </body>
