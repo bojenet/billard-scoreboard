@@ -153,6 +153,12 @@
             color: #157347;
         }
 
+        .readonly-note {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
         .summary-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -627,6 +633,7 @@
                         <select id="savedTournamentSelect" onchange="loadSelectedTournament(true)">
                             <option value="">Kein gespeichertes Turnier</option>
                         </select>
+                        <div id="readonlyNote" class="readonly-note" style="display:none;">Lesemodus aktiv</div>
                     </div>
                 </div>
             </div>
@@ -722,11 +729,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/tournament_access.js"></script>
     <script src="js/user_menu.js"></script>
     <script>
         const STORAGE_KEY = "tournament_round_robin_v3";
         const MAX_TABLES = 2;
         let currentUser = null;
+        let tournamentAccessMode = "edit";
         let currentTournamentId = "";
         const lastSavedMatchSignature = new Map();
         const savingMatchIds = new Set();
@@ -740,6 +749,47 @@
             const el = document.getElementById("message");
             el.textContent = text || "";
             el.className = "message" + (type ? " " + type : "");
+        }
+        function applyTournamentAccessUi() {
+            const readOnly = !isTournamentEditable(tournamentAccessMode);
+            const note = document.getElementById("readonlyNote");
+            const saveButton = document.querySelector(".btn-save");
+            if (note) note.style.display = readOnly ? "block" : "none";
+            if (saveButton) saveButton.style.display = readOnly ? "none" : "";
+            const setupSelectors = [
+                "#playerCount",
+                "#tournamentTitle",
+                "#seedPlayer1",
+                "#seedPlayer2",
+                "#seedPlayer3",
+                "#seedPlayer4",
+                "#seedPlayer5",
+                "#seedUp1",
+                "#seedDown1",
+                "#seedUp2",
+                "#seedDown2",
+                "#seedUp3",
+                "#seedDown3",
+                "#seedUp4",
+                "#seedDown4",
+                "#seedUp5",
+                "#seedDown5"
+            ];
+            setupSelectors.forEach((selector) => {
+                const node = document.querySelector(selector);
+                if (!node) return;
+                if (node.tagName === "INPUT" || node.tagName === "SELECT") node.disabled = readOnly;
+                if (node.tagName === "BUTTON") node.disabled = readOnly;
+            });
+            document.querySelectorAll(".button-row .btn").forEach((btn) => {
+                const text = (btn.textContent || "").trim();
+                const allow = text === "PDF Export" || text === "Zurück";
+                btn.disabled = readOnly && !allow;
+            });
+            document.querySelectorAll("#schedule input[type='number']").forEach((input) => {
+                if (input.readOnly) return;
+                input.disabled = readOnly;
+            });
         }
 
         function escapeHtml(value) {
@@ -1380,6 +1430,7 @@
         }
 
         function handlePlayerCountChange() {
+            if (!isTournamentEditable(tournamentAccessMode)) return;
             updateSeedInputAvailability();
             if (tournamentState.matches.length > 0) {
                 rebuildTournamentFromSeedInputs(true);
@@ -1387,6 +1438,7 @@
         }
 
         function moveSeedPlayer(index, direction) {
+            if (!isTournamentEditable(tournamentAccessMode)) return;
             const count = Number(document.getElementById("playerCount").value || 4);
             const targetIndex = index + direction;
             if (index < 1 || index > count || targetIndex < 1 || targetIndex > count) return;
@@ -1411,6 +1463,7 @@
             renderSchedule();
             renderTable();
             renderPrintSheet();
+            applyTournamentAccessUi();
         }
 
         function updateMatchDisplay(match) {
@@ -1441,6 +1494,7 @@
         }
 
         async function updateMatch(matchId, field, value) {
+            if (!isTournamentEditable(tournamentAccessMode)) return;
             const match = tournamentState.matches.find((entry) => entry.client_id === matchId);
             if (!match) return;
 
@@ -1457,6 +1511,7 @@
         }
 
         function fillExample() {
+            if (!isTournamentEditable(tournamentAccessMode)) return;
             document.getElementById("playerCount").value = "5";
             document.getElementById("seedPlayer1").value = "Anna";
             document.getElementById("seedPlayer2").value = "Ben";
@@ -1471,6 +1526,7 @@
         }
 
         function startNewTournament() {
+            if (!isTournamentEditable(tournamentAccessMode)) return;
             currentTournamentId = "";
             lastSavedMatchSignature.clear();
             savingMatchIds.clear();
@@ -1485,6 +1541,7 @@
         }
 
         function resetTournament() {
+            if (!isTournamentEditable(tournamentAccessMode)) return;
             currentTournamentId = "";
             lastSavedMatchSignature.clear();
             savingMatchIds.clear();
@@ -1499,6 +1556,7 @@
         }
 
         function generateTournament() {
+            if (!isTournamentEditable(tournamentAccessMode)) return;
             const playerCount = Number(document.getElementById("playerCount").value || 4);
             const players = getPlayersFromSeedInputs();
 
@@ -1517,11 +1575,14 @@
             const select = document.getElementById("savedTournamentSelect");
             select.innerHTML = '<option value="">Kein gespeichertes Turnier</option>';
 
-            const { data, error } = await supabaseClient
+            let query = supabaseClient
                 .from("tournaments")
-                .select("id,title,updated_at")
-                .eq("owner_user_id", currentUser.id)
+                .select("id,title,updated_at,owner_user_id")
                 .order("updated_at", { ascending: false });
+            if (isTournamentEditable(tournamentAccessMode)) {
+                query = query.eq("owner_user_id", currentUser.id);
+            }
+            const { data, error } = await query;
 
             if (error) {
                 console.warn("Gespeicherte Turniere konnten nicht geladen werden:", error);
@@ -1545,6 +1606,7 @@
         }
 
         async function ensureTournamentExists() {
+            if (!isTournamentEditable(tournamentAccessMode)) return "";
             if (currentTournamentId) return currentTournamentId;
             if (!currentUser) return "";
 
@@ -1656,6 +1718,7 @@
         }
 
         async function saveTournament() {
+            if (!isTournamentEditable(tournamentAccessMode)) return;
             if (!currentUser) {
                 showMessage("Bitte zuerst anmelden.", "error");
                 return;
@@ -1773,6 +1836,7 @@
         }
 
         async function saveSingleMatch(matchId, silent = false) {
+            if (!isTournamentEditable(tournamentAccessMode)) return;
             const match = tournamentState.matches.find((entry) => entry.client_id === matchId);
             if (!match) {
                 if (!silent) showMessage("Partie wurde nicht gefunden.", "error");
@@ -1849,9 +1913,15 @@
         async function initPage() {
             currentUser = await requireAuth();
             if (!currentUser) return;
+            tournamentAccessMode = await getTournamentAccess(currentUser);
+            if (!isTournamentVisible(tournamentAccessMode)) {
+                window.location.href = "index.html";
+                return;
+            }
 
             const restoredLocal = loadLocalState();
             renderAll();
+            applyTournamentAccessUi();
             await loadTournamentOptions();
 
             if (!restoredLocal) {

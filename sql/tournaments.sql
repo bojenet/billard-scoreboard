@@ -56,6 +56,49 @@ create trigger trg_tournament_matches_touch_updated_at
 before update on public.tournament_matches
 for each row execute function public.touch_updated_at();
 
+create or replace function public.tournament_access_mode(uid uuid)
+returns text
+language sql
+stable
+as $$
+  select case
+    when public.is_admin(uid) then 'edit'
+    else coalesce(
+      (
+        select case
+          when lower(coalesce(ur.tournament_access, 'edit')) in ('hidden', 'read', 'edit')
+            then lower(coalesce(ur.tournament_access, 'edit'))
+          else 'edit'
+        end
+        from public.user_roles ur
+        where ur.user_id = uid
+        limit 1
+      ),
+      'edit'
+    )
+  end;
+$$;
+
+create or replace function public.tournament_can_view(uid uuid)
+returns boolean
+language sql
+stable
+as $$
+  select public.tournament_access_mode(uid) <> 'hidden';
+$$;
+
+create or replace function public.tournament_can_edit(uid uuid)
+returns boolean
+language sql
+stable
+as $$
+  select public.tournament_access_mode(uid) = 'edit';
+$$;
+
+grant execute on function public.tournament_access_mode(uuid) to authenticated;
+grant execute on function public.tournament_can_view(uuid) to authenticated;
+grant execute on function public.tournament_can_edit(uuid) to authenticated;
+
 alter table public.tournaments enable row level security;
 alter table public.tournament_matches enable row level security;
 
@@ -63,42 +106,48 @@ drop policy if exists "tournaments_select_own_or_admin" on public.tournaments;
 create policy "tournaments_select_own_or_admin"
 on public.tournaments for select to authenticated
 using (
-  owner_user_id = auth.uid()
-  or public.is_admin(auth.uid())
+  public.tournament_can_view(auth.uid())
+  and (
+    owner_user_id = auth.uid()
+    or public.is_admin(auth.uid())
+    or public.tournament_access_mode(auth.uid()) = 'read'
+  )
 );
 
 drop policy if exists "tournaments_insert_own_or_admin" on public.tournaments;
 create policy "tournaments_insert_own_or_admin"
 on public.tournaments for insert to authenticated
 with check (
-  owner_user_id = auth.uid()
-  or public.is_admin(auth.uid())
+  (owner_user_id = auth.uid() or public.is_admin(auth.uid()))
+  and public.tournament_can_edit(auth.uid())
 );
 
 drop policy if exists "tournaments_update_own_or_admin" on public.tournaments;
 create policy "tournaments_update_own_or_admin"
 on public.tournaments for update to authenticated
 using (
-  owner_user_id = auth.uid()
-  or public.is_admin(auth.uid())
+  (owner_user_id = auth.uid() or public.is_admin(auth.uid()))
+  and public.tournament_can_edit(auth.uid())
 )
 with check (
-  owner_user_id = auth.uid()
-  or public.is_admin(auth.uid())
+  (owner_user_id = auth.uid() or public.is_admin(auth.uid()))
+  and public.tournament_can_edit(auth.uid())
 );
 
 drop policy if exists "tournaments_delete_own_or_admin" on public.tournaments;
 create policy "tournaments_delete_own_or_admin"
 on public.tournaments for delete to authenticated
 using (
-  owner_user_id = auth.uid()
-  or public.is_admin(auth.uid())
+  (owner_user_id = auth.uid() or public.is_admin(auth.uid()))
+  and public.tournament_can_edit(auth.uid())
 );
 
 drop policy if exists "tournament_matches_select_own_or_admin" on public.tournament_matches;
 create policy "tournament_matches_select_own_or_admin"
 on public.tournament_matches for select to authenticated
 using (
+  public.tournament_can_view(auth.uid())
+  and
   exists (
     select 1
     from public.tournaments t
@@ -106,6 +155,7 @@ using (
       and (
         t.owner_user_id = auth.uid()
         or public.is_admin(auth.uid())
+        or public.tournament_access_mode(auth.uid()) = 'read'
       )
   )
 );
@@ -114,6 +164,8 @@ drop policy if exists "tournament_matches_insert_own_or_admin" on public.tournam
 create policy "tournament_matches_insert_own_or_admin"
 on public.tournament_matches for insert to authenticated
 with check (
+  public.tournament_can_edit(auth.uid())
+  and
   exists (
     select 1
     from public.tournaments t
@@ -129,6 +181,8 @@ drop policy if exists "tournament_matches_update_own_or_admin" on public.tournam
 create policy "tournament_matches_update_own_or_admin"
 on public.tournament_matches for update to authenticated
 using (
+  public.tournament_can_edit(auth.uid())
+  and
   exists (
     select 1
     from public.tournaments t
@@ -140,6 +194,8 @@ using (
   )
 )
 with check (
+  public.tournament_can_edit(auth.uid())
+  and
   exists (
     select 1
     from public.tournaments t
@@ -155,6 +211,8 @@ drop policy if exists "tournament_matches_delete_own_or_admin" on public.tournam
 create policy "tournament_matches_delete_own_or_admin"
 on public.tournament_matches for delete to authenticated
 using (
+  public.tournament_can_edit(auth.uid())
+  and
   exists (
     select 1
     from public.tournaments t

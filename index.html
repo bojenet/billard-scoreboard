@@ -133,7 +133,7 @@
             <div class="tile-sub">Übungen & Serienmodus</div>
         </div>
 
-        <div class="tile" onclick="window.location.href='turnier.html'">
+        <div id="tournamentTile" class="tile" onclick="window.location.href='turnier.html'" style="display:none;">
             <div class="tile-title">Turnier</div>
             <div class="tile-sub">Jeder gegen jeden mit Tabelle</div>
         </div>
@@ -179,6 +179,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/tournament_access.js"></script>
     <script src="js/user_menu.js"></script>
 
     <script>
@@ -222,6 +223,13 @@
             });
         }
 
+        async function applyTournamentAccess(user) {
+            const tile = document.getElementById("tournamentTile");
+            if (!tile) return;
+            const accessMode = await getTournamentAccess(user);
+            tile.style.display = isTournamentVisible(accessMode) ? "" : "none";
+        }
+
         async function loadLiveMatches() {
             const user = await requireAuth();
             if (!user) return;
@@ -232,6 +240,7 @@
                 usersTile.style.display = isAdmin ? "flex" : "none";
             }
 
+            await applyTournamentAccess(user);
             await loadCountdownInvites(user);
             const ownedNames = await getOwnedPlayerNames(user.id);
 
