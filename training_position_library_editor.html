@@ -7,7 +7,7 @@
         html { min-height:100%; background:linear-gradient(180deg,#0f1c3f,#0a122b); }
         body { margin:0; min-height:100vh; font-family:Arial,sans-serif; background:linear-gradient(180deg,#0f1c3f,#0a122b); color:#fff; }
         .fullscreen-btn { position:fixed; top:10px; right:10px; z-index:1200; width:34px; height:34px; border:1px solid #3659bb; border-radius:10px; background:rgba(28,51,128,.92); color:#fff; font-size:16px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; }
-        .page { width:min(1680px,96%); margin:20px auto 28px; }
+        .page { width:min(1460px,95%); margin:20px auto 28px; }
         .topbar { display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
         .title { font-size:46px; font-weight:700; margin:0; }
         .title-meta { margin-top:6px; opacity:.76; font-size:15px; }
@@ -17,7 +17,7 @@
         .btn.primary { background:#2f4fe0; }
         .btn.danger { background:#9f3434; border-color:#be5757; }
         .btn.secondary { background:#17306f; }
-        .editor-layout { width:min(1540px,100%); margin:0 auto; }
+        .layout { display:grid; grid-template-columns:minmax(360px,.86fr) minmax(0,1.34fr); gap:18px; }
         .card { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:22px; box-shadow:0 24px 56px rgba(0,0,0,.45); overflow:hidden; }
         .section { padding:16px; border-bottom:1px solid #27417f; }
         .section:last-child { border-bottom:none; }
@@ -29,10 +29,7 @@
         .field label { display:block; font-size:13px; opacity:.82; margin-bottom:6px; }
         .field input, .field textarea { width:100%; box-sizing:border-box; border:1px solid #3959ab; border-radius:12px; padding:12px 14px; color:#fff; background:#112659; font-size:15px; }
         .field input[readonly], .field textarea[readonly] { opacity:.78; cursor:default; }
-        .field textarea { min-height:120px; resize:vertical; }
-        .meta-fields { width:min(1280px,100%); margin:0 auto; display:grid; grid-template-columns:minmax(320px, 1.05fr) minmax(420px, .95fr); gap:18px; align-items:start; }
-        .discipline-block label { margin-bottom:10px; }
-        .discipline-block .chips { justify-content:flex-start; }
+        .field textarea { min-height:180px; resize:vertical; }
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:10px 14px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:14px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
@@ -43,14 +40,14 @@
         .icon-btn.danger { background:transparent; }
         .icon-divider { width:1px; height:22px; background:rgba(255,255,255,.18); margin:0 4px; }
         .icon-img { width:36px; height:36px; display:block; object-fit:contain; pointer-events:none; }
-        .table-toolbar { width:min(1540px,100%); margin:0 auto 12px; }
+        .table-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
         .table-zoom-actions { display:flex; gap:8px; flex-wrap:wrap; }
         .zoom-btn { border:none; border-radius:10px; background:#2746aa; color:#fff; font-size:14px; font-weight:700; padding:10px 12px; cursor:pointer; }
-        .table-viewport { overflow:auto; padding-bottom:6px; width:100%; }
+        .table-viewport { overflow:auto; padding-bottom:6px; }
         .table-viewport.pannable { cursor:grab; }
         .table-viewport.panning { cursor:grabbing; user-select:none; }
         .table-zoom-stage { width:max-content; margin:0 auto; }
-        .table-wrap { position:relative; width:1440px; border-radius:0; overflow:hidden; background:#f7f7f4; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio:1200/674; }
+        .table-wrap { position:relative; width:1200px; border-radius:0; overflow:hidden; background:#f7f7f4; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio:1200/674; }
         .table-wrap.draw-mode { box-shadow: inset 0 0 0 3px rgba(255,216,74,.7), 0 18px 34px rgba(0,0,0,.28); cursor:crosshair; }
         .table-stage { position:absolute; inset:0; }
         .table-bg, .table-lines, .table-overlay { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
@@ -87,12 +84,7 @@
         .photo-stage { position:relative; width:100%; background:#0b173a; border:1px solid #3557b7; border-radius:18px; overflow:hidden; }
         .photo-canvas { display:block; width:100%; height:auto; cursor:crosshair; }
         .photo-hint { margin-top:10px; font-size:13px; opacity:.8; }
-        @media (max-width: 980px) {
-            .page { width:min(100%,98%); }
-            .title { font-size:38px; }
-            .meta-fields { width:100%; grid-template-columns:1fr; }
-            .discipline-block .chips { justify-content:center; }
-        }
+        @media (max-width: 980px) { .layout { grid-template-columns:1fr; } }
     </style>
 </head>
 <body>
@@ -109,21 +101,31 @@
             </div>
         </div>
 
-        <div class="editor-layout">
+        <div class="layout">
             <div class="card">
                 <div class="section">
                     <div id="noticeBox" class="notice"></div>
-                    <div class="meta-fields">
-                        <div class="field">
-                            <label for="titleInput">Titel</label>
-                            <input id="titleInput" type="text" maxlength="120" placeholder="z. B. Anker am kurzen Cadre">
-                        </div>
-                        <div class="field discipline-block">
-                            <label>Disziplin</label>
-                            <div class="chips" id="disciplineButtons"></div>
-                        </div>
+                    <h2 class="section-title">Position</h2>
+                    <div class="field">
+                        <label for="titleInput">Titel</label>
+                        <input id="titleInput" type="text" maxlength="120" placeholder="z. B. Anker am kurzen Cadre">
+                    </div>
+                    <div class="field">
+                        <label>Disziplin</label>
+                        <div class="chips" id="disciplineButtons"></div>
+                    </div>
+                    <div class="field">
+                        <label for="descriptionInput">Beschreibung</label>
+                        <textarea id="descriptionInput" placeholder="Worum geht es in der Position, worauf soll man achten, welche Lösungsidee steckt dahinter?"></textarea>
+                    </div>
+                    <div class="actions">
+                        <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImport()">Foto importieren</button>
+                        <button class="btn primary" type="button" onclick="savePosition()">Speichern</button>
+                        <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                     </div>
                 </div>
+            </div>
+            <div class="card">
                 <div class="section">
                     <div class="section-sub" id="tableHelpText" style="display:none;">Bälle verschieben oder im Zeichenmodus Linien als echte Punktpfade setzen. Klick fügt Punkte hinzu, Doppelklick schließt die Linie ab, vorhandene Punkte und Linien lassen sich danach verschieben.</div>
                     <div class="icon-toolbar">
@@ -164,19 +166,6 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="section">
-                    <div class="meta-fields">
-                        <div class="field">
-                            <label for="descriptionInput">Beschreibung</label>
-                            <textarea id="descriptionInput" placeholder="Worum geht es in der Position, worauf soll man achten, welche Lösungsidee steckt dahinter?"></textarea>
-                        </div>
-                        <div class="actions">
-                            <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImport()">Foto importieren</button>
-                            <button class="btn primary" type="button" onclick="savePosition()">Speichern</button>
-                            <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                         </div>
                     </div>
                 </div>
@@ -256,8 +245,8 @@
         let photoImportImage = null;
         let photoImportCorners = [];
         let photoImportBalls = [];
-        const baseTableWidth = 1440;
-        const baseTableHeight = 809;
+        const baseTableWidth = 1200;
+        const baseTableHeight = 674;
         const loupeScale = 2.4;
         const photoImportBallOrder = ["Rot", "Gelb", "Weiß"];
         const photoImportTableCorners = [
