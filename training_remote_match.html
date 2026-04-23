@@ -78,10 +78,12 @@
         .library-search { flex:1; min-width:220px; border: 1px solid #3959ab; border-radius: 10px; padding: 10px 12px; font-size: 15px; color: #fff; background: #112659; }
         .library-list { overflow:auto; padding:16px; display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:14px; }
         .library-card { border: 1px solid #3557b7; border-radius: 16px; background: rgba(12, 28, 72, 0.74); padding: 12px; box-shadow: 0 14px 28px rgba(0,0,0,.24); display:grid; gap:10px; }
+        .library-card.selected { border-color:#ffe27a; box-shadow:0 0 0 2px rgba(255,226,122,.35), 0 14px 28px rgba(0,0,0,.24); }
         .library-card-title { font-size:15px; font-weight:700; }
         .library-card-sub { font-size:12px; opacity:.72; }
         .library-card-text { font-size:12px; line-height:1.35; opacity:.88; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; min-height:48px; }
-        .library-card-actions { display:flex; justify-content:flex-end; }
+        .library-card-actions { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+        .library-check { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; }
         .library-empty { padding:18px; font-size:14px; opacity:.72; }
         .actions { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-top: 10px; }
         .btn { padding:14px; border:none; border-radius:14px; color:white; font-size:18px; font-weight:700; cursor:pointer; }
@@ -152,7 +154,7 @@
                     </button>
                     <div class="positions-body" id="positionsBody">
                         <div class="positions-toolbar">
-                            <button class="position-library-btn" type="button" onclick="addChallengePositionSlot()">Position hinzufügen</button>
+                            <button class="position-library-btn" type="button" onclick="openPositionLibraryModal()">Positionen auswählen</button>
                         </div>
                         <div class="positions-grid" id="positionsGrid"></div>
                     </div>
@@ -202,7 +204,10 @@
         <div class="library-dialog">
             <div class="library-head">
                 <div class="library-title" id="positionLibraryModalTitle">Position aus Library wählen</div>
-                <button class="zoom-btn zoom-close" type="button" onclick="closePositionLibraryModal()">Schließen</button>
+                <div class="zoom-actions">
+                    <button class="zoom-btn" type="button" onclick="applySelectedLibraryPositions()">Übernehmen</button>
+                    <button class="zoom-btn zoom-close" type="button" onclick="closePositionLibraryModal()">Schließen</button>
+                </div>
             </div>
             <div class="library-tools">
                 <input id="positionLibrarySearch" class="library-search" type="text" placeholder="Titel oder Beschreibung suchen">
@@ -244,7 +249,7 @@
         let libraryItems = [];
         let activeChallengeDrag = null;
         let currentPositionZoom = 1;
-        let activeLibraryTargetPositionId = 0;
+        let selectedLibraryKeys = new Set();
         const REMOTE_MATCH_DRAFT_KEY = "training_remote_match_setup_draft_v1";
 
         function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
@@ -276,6 +281,8 @@
                 yellow: x.yellow ? { ...x.yellow } : null,
                 white: x.white ? { ...x.white } : null,
                 line_paths: Array.isArray(x.line_paths) ? x.line_paths.map((line) => ({ points: Array.isArray(line.points) ? line.points.map((pt) => ({ x: pt.x, y: pt.y })) : [] })) : [],
+                source_library_id: x.source_library_id || "",
+                source_page_index: Number.isInteger(x.source_page_index) ? x.source_page_index : 0,
                 source_title: x.source_title || "",
                 source_page_label: x.source_page_label || ""
             }));
@@ -298,7 +305,7 @@
             selectedGuestDiscipline = "";
             selectedGuestUser = null;
             activeChallengeDrag = null;
-            activeLibraryTargetPositionId = 0;
+            selectedLibraryKeys = new Set();
             currentPositionZoom = 1;
             challengePositions = [];
             document.getElementById("targetPointsInput").value = 50;
@@ -376,6 +383,8 @@
                     yellow: x.yellow ? { ...x.yellow } : null,
                     white: x.white ? { ...x.white } : null,
                     line_paths: cloneLinePaths(x.line_paths),
+                    source_library_id: x.source_library_id || "",
+                    source_page_index: Number.isInteger(x.source_page_index) ? x.source_page_index : 0,
                     source_title: x.source_title || "",
                     source_page_label: x.source_page_label || ""
                 }))
@@ -457,11 +466,6 @@
             container.innerHTML = `<img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}`;
             bindChallengePositionDrag(container);
         }
-        function addChallengePositionSlot() {
-            challengePositions.push(createEmptyChallengePosition());
-            setPositionsOpenState(true);
-            renderPositions();
-        }
         function removeChallengePositionSlot(positionId) {
             challengePositions = challengePositions.filter((item) => Number(item.id) !== Number(positionId)).map((item, index) => ({ ...item, id: index + 1 }));
             renderPositions();
@@ -470,7 +474,7 @@
             const grid = document.getElementById("positionsGrid");
             grid.innerHTML = "";
             if (!challengePositions.length) {
-                grid.innerHTML = `<div class="positions-empty">Noch keine Positionen angelegt. Mit \`Position hinzufügen\` erstellst du beliebig viele Slots und lädst sie dann einzeln aus der Library.</div>`;
+                grid.innerHTML = `<div class="positions-empty">Noch keine Positionen ausgewählt. Über \`Positionen auswählen\` kannst du beliebig viele Einträge aus der Library markieren und übernehmen.</div>`;
                 return;
             }
             challengePositions.forEach((layout) => {
@@ -478,11 +482,10 @@
                 card.className = "position-card";
                 const sourceLabel = layout.source_title ? `${layout.source_title}${layout.source_page_label ? " • " + layout.source_page_label : ""}` : "";
                 const emptyHint = hasLoadedChallengePosition(layout) ? "" : `<div class="position-empty-hint">Noch keine Position geladen</div>`;
-                card.innerHTML = `<div class="position-card-head"><div class="position-card-title">Position ${layout.id}</div><div class="position-card-actions"><button class="position-library-btn" type="button" data-position-library="${layout.id}">Library</button><button class="position-zoom-btn" type="button" data-position-zoom="${layout.id}">Groß</button><button class="position-zoom-btn position-remove-btn" type="button" data-position-remove="${layout.id}">Löschen</button></div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}${emptyHint}</div><div class="position-source">${sourceLabel ? `Quelle: ${sourceLabel}` : "Quelle: bitte aus Library laden"}</div>`;
+                card.innerHTML = `<div class="position-card-head"><div class="position-card-title">Position ${layout.id}</div><div class="position-card-actions"><button class="position-zoom-btn" type="button" data-position-zoom="${layout.id}">Groß</button><button class="position-zoom-btn position-remove-btn" type="button" data-position-remove="${layout.id}">Löschen</button></div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}${emptyHint}</div><div class="position-source">${sourceLabel ? `Quelle: ${sourceLabel}` : "Quelle: bitte aus Library laden"}</div>`;
                 grid.appendChild(card);
             });
             bindChallengePositionDrag(grid);
-            grid.querySelectorAll("[data-position-library]").forEach((btn) => { btn.onclick = () => openPositionLibraryModal(Number(btn.dataset.positionLibrary || 0)); });
             grid.querySelectorAll("[data-position-zoom]").forEach((btn) => { btn.onclick = () => openPositionZoom(Number(btn.dataset.positionZoom || 0)); });
             grid.querySelectorAll("[data-position-remove]").forEach((btn) => { btn.onclick = () => removeChallengePositionSlot(Number(btn.dataset.positionRemove || 0)); });
         }
@@ -516,6 +519,7 @@
             const pages = Array.isArray(item.position_pages) && item.position_pages.length ? item.position_pages : [{ ball_layout: item.ball_layout, line_paths: item.line_paths }];
             return pages.map((page, index) => ({
                 pageIndex: index,
+                selectionKey: `${item.id || item.title || "item"}::${index}`,
                 pageLabel: pages.length > 1 ? `Seite ${index + 1}/${pages.length}` : "",
                 ball_layout: {
                     red: { ...(page.ball_layout?.red || FALLBACK_PREVIEW_LAYOUT.red) },
@@ -559,39 +563,61 @@
             wrap.innerHTML = "";
             pages.forEach(({ item, page }) => {
                 const card = document.createElement("div");
-                card.className = "library-card";
+                const isSelected = selectedLibraryKeys.has(page.selectionKey);
+                card.className = "library-card" + (isSelected ? " selected" : "");
                 const previewLayout = {
-                    id: activeLibraryTargetPositionId || 1,
+                    id: 1,
                     red: { ...page.ball_layout.red },
                     yellow: { ...page.ball_layout.yellow },
                     white: { ...page.ball_layout.white },
                     line_paths: cloneLinePaths(page.line_paths)
                 };
-                card.innerHTML = `<div><div class="library-card-title">${item.title || "Ohne Titel"}</div><div class="library-card-sub">${item.discipline || "-"}${page.pageLabel ? " • " + page.pageLabel : ""}${item.created_by_name ? " • " + item.created_by_name : ""}</div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(item.discipline)}" alt="${item.title || "Library"}">${renderChallengePositionSvg(previewLayout)}</div><div class="library-card-text">${item.description ? item.description.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "Keine Beschreibung"}</div><div class="library-card-actions"><button class="position-library-btn" type="button">Übernehmen</button></div>`;
-                card.querySelector(".position-library-btn").onclick = () => applyLibraryPositionToSlot(activeLibraryTargetPositionId, item, page);
+                card.innerHTML = `<div><div class="library-card-title">${item.title || "Ohne Titel"}</div><div class="library-card-sub">${item.discipline || "-"}${page.pageLabel ? " • " + page.pageLabel : ""}${item.created_by_name ? " • " + item.created_by_name : ""}</div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(item.discipline)}" alt="${item.title || "Library"}">${renderChallengePositionSvg(previewLayout)}</div><div class="library-card-text">${item.description ? item.description.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "Keine Beschreibung"}</div><div class="library-card-actions"><label class="library-check"><input type="checkbox" ${isSelected ? "checked" : ""}> markieren</label><button class="position-library-btn" type="button">${isSelected ? "Abwählen" : "Auswählen"}</button></div>`;
+                const toggleSelection = () => toggleLibrarySelection(page.selectionKey);
+                card.querySelector("input").onchange = toggleSelection;
+                card.querySelector(".position-library-btn").onclick = toggleSelection;
                 wrap.appendChild(card);
             });
         }
-        function openPositionLibraryModal(positionId) {
-            activeLibraryTargetPositionId = Number(positionId || 0);
-            document.getElementById("positionLibraryModalTitle").innerText = `Library für Position ${activeLibraryTargetPositionId}`;
+        function toggleLibrarySelection(selectionKey) {
+            if (selectedLibraryKeys.has(selectionKey)) selectedLibraryKeys.delete(selectionKey);
+            else selectedLibraryKeys.add(selectionKey);
+            renderPositionLibraryList();
+        }
+        function syncSelectedLibraryKeysFromCurrentPositions() {
+            selectedLibraryKeys = new Set(
+                challengePositions
+                    .filter((item) => item.source_library_id)
+                    .map((item) => `${item.source_library_id}::${Number(item.source_page_index) || 0}`)
+            );
+        }
+        function openPositionLibraryModal() {
+            syncSelectedLibraryKeysFromCurrentPositions();
+            document.getElementById("positionLibraryModalTitle").innerText = `Positionen aus Library wählen`;
             document.getElementById("positionLibrarySearch").value = "";
             renderPositionLibraryList();
             document.getElementById("positionLibraryModal").classList.add("open");
         }
         function closePositionLibraryModal() {
             document.getElementById("positionLibraryModal").classList.remove("open");
-            activeLibraryTargetPositionId = 0;
+            selectedLibraryKeys = new Set();
         }
-        function applyLibraryPositionToSlot(positionId, item, page) {
-            const layout = challengePositions.find((entry) => Number(entry.id) === Number(positionId));
-            if (!layout) return;
-            layout.red = { ...page.ball_layout.red };
-            layout.yellow = { ...page.ball_layout.yellow };
-            layout.white = { ...page.ball_layout.white };
-            layout.line_paths = cloneLinePaths(page.line_paths);
-            layout.source_title = item.title || "";
-            layout.source_page_label = page.pageLabel || "";
+        function applySelectedLibraryPositions() {
+            const selectedPages = libraryItems
+                .filter((item) => !getActiveDiscipline() || item.discipline === getActiveDiscipline())
+                .flatMap((item) => getLibraryPages(item).map((page) => ({ item, page })))
+                .filter(({ page }) => selectedLibraryKeys.has(page.selectionKey));
+            challengePositions = selectedPages.map(({ item, page }, index) => ({
+                id: index + 1,
+                red: { ...page.ball_layout.red },
+                yellow: { ...page.ball_layout.yellow },
+                white: { ...page.ball_layout.white },
+                line_paths: cloneLinePaths(page.line_paths),
+                source_library_id: item.id || "",
+                source_page_index: page.pageIndex || 0,
+                source_title: item.title || "",
+                source_page_label: page.pageLabel || ""
+            }));
             renderPositions();
             closePositionLibraryModal();
         }
