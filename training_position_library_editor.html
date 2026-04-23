@@ -100,7 +100,6 @@
         .photo-stage { position:relative; width:100%; background:#0b173a; border:1px solid #3557b7; border-radius:18px; overflow:hidden; }
         .photo-canvas { display:block; width:100%; height:auto; cursor:crosshair; }
         .photo-hint { margin-top:10px; font-size:13px; opacity:.8; }
-        .reference-photo-tools { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
         .reference-photo-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; min-height:120px; border-radius:16px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
         .reference-photo-preview { display:block; width:100%; max-height:280px; object-fit:contain; background:#08112b; }
         .reference-photo-empty { padding:18px; text-align:center; font-size:14px; opacity:.72; }
@@ -149,11 +148,6 @@
                     </div>
                     <div class="field">
                         <label>Referenzfoto</label>
-                        <input id="referencePhotoInput" type="file" accept="image/*" style="display:none;" onchange="handleReferencePhotoFile(event)">
-                        <div class="reference-photo-tools">
-                            <button class="btn secondary" id="referencePhotoUploadBtn" type="button" onclick="document.getElementById('referencePhotoInput').click()">Foto hochladen</button>
-                            <button class="btn danger" id="referencePhotoRemoveBtn" type="button" onclick="removeReferencePhoto()" style="display:none;">Foto entfernen</button>
-                        </div>
                         <div class="reference-photo-box" id="referencePhotoBox">
                             <div class="reference-photo-empty">Noch kein Referenzfoto gespeichert.</div>
                         </div>
@@ -485,32 +479,12 @@
         }
         function updateReferencePhotoUi() {
             const box = document.getElementById("referencePhotoBox");
-            const removeBtn = document.getElementById("referencePhotoRemoveBtn");
             if (!box) return;
             if (referencePhotoDataUrl) {
                 box.innerHTML = `<img class="reference-photo-preview" src="${referencePhotoDataUrl}" alt="Referenzfoto">`;
-                if (removeBtn) removeBtn.style.display = isPositionLibraryEditable(positionLibraryAccessMode) ? "inline-flex" : "none";
                 return;
             }
             box.innerHTML = `<div class="reference-photo-empty">Noch kein Referenzfoto gespeichert.</div>`;
-            if (removeBtn) removeBtn.style.display = "none";
-        }
-        function handleReferencePhotoFile(event) {
-            const file = event.target.files && event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = () => {
-                referencePhotoDataUrl = typeof reader.result === "string" ? reader.result : "";
-                updateReferencePhotoUi();
-            };
-            reader.readAsDataURL(file);
-        }
-        function removeReferencePhoto() {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
-            referencePhotoDataUrl = "";
-            const input = document.getElementById("referencePhotoInput");
-            if (input) input.value = "";
-            updateReferencePhotoUi();
         }
         function setDefaultPhotoImportMobileAnchors() {
             if (!photoImportMobileImage) return;
@@ -592,9 +566,11 @@
             if (!file) return;
             loadPhotoImportImage(file, (img) => {
                 photoImportMobileImage = img;
+                referencePhotoDataUrl = typeof img.src === "string" ? img.src : "";
                 photoImportMobileStep = "corners";
                 photoImportMobileActiveBall = 0;
                 setDefaultPhotoImportMobileAnchors();
+                updateReferencePhotoUi();
                 updatePhotoImportMobileUi();
             });
         }
@@ -822,8 +798,6 @@
             const saveBtn = document.querySelector(".actions .btn.primary");
             const newBtn = document.querySelector(".topbar .actions .btn");
             const photoImportBtn = document.getElementById("photoImportBtn");
-            const referencePhotoUploadBtn = document.getElementById("referencePhotoUploadBtn");
-            const referencePhotoRemoveBtn = document.getElementById("referencePhotoRemoveBtn");
             if (titleInput) {
                 titleInput.readOnly = readOnly;
                 titleInput.disabled = false;
@@ -843,8 +817,6 @@
             }
             if (saveBtn) saveBtn.style.display = readOnly ? "none" : "inline-flex";
             if (photoImportBtn) photoImportBtn.style.display = readOnly ? "none" : "inline-flex";
-            if (referencePhotoUploadBtn) referencePhotoUploadBtn.style.display = readOnly ? "none" : "inline-flex";
-            if (referencePhotoRemoveBtn) referencePhotoRemoveBtn.style.display = readOnly || !referencePhotoDataUrl ? "none" : "inline-flex";
             if (deleteBtn) deleteBtn.style.display = readOnly || !editingId ? "none" : "inline-flex";
             if (newBtn) newBtn.style.display = readOnly ? "none" : "inline-flex";
             document.querySelectorAll(".icon-toolbar .icon-btn").forEach((btn) => {
@@ -1367,8 +1339,6 @@
             referencePhotoDataUrl = "";
             document.getElementById("titleInput").value = "";
             document.getElementById("descriptionInput").value = "";
-            const referencePhotoInput = document.getElementById("referencePhotoInput");
-            if (referencePhotoInput) referencePhotoInput.value = "";
             document.getElementById("deleteBtn").style.display = "none";
             selectedDiscipline = "Cadre 47/2";
             setSelectedDiscipline(selectedDiscipline);
