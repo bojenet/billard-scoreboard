@@ -30,10 +30,9 @@
         .field input, .field textarea { width:100%; box-sizing:border-box; border:1px solid #3959ab; border-radius:12px; padding:12px 14px; color:#fff; background:#112659; font-size:15px; }
         .field input[readonly], .field textarea[readonly] { opacity:.78; cursor:default; }
         .field textarea { min-height:120px; resize:vertical; }
-        .meta-fields { width:min(980px,100%); margin:0 auto; display:grid; gap:14px; }
-        .discipline-block { text-align:center; }
+        .meta-fields { width:min(1280px,100%); margin:0 auto; display:grid; grid-template-columns:minmax(320px, 1.05fr) minmax(420px, .95fr); gap:18px; align-items:start; }
         .discipline-block label { margin-bottom:10px; }
-        .discipline-block .chips { justify-content:center; }
+        .discipline-block .chips { justify-content:flex-start; }
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:10px 14px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:14px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
@@ -91,7 +90,8 @@
         @media (max-width: 980px) {
             .page { width:min(100%,98%); }
             .title { font-size:38px; }
-            .meta-fields { width:100%; }
+            .meta-fields { width:100%; grid-template-columns:1fr; }
+            .discipline-block .chips { justify-content:center; }
         }
     </style>
 </head>
