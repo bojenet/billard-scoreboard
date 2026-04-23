@@ -225,10 +225,6 @@
                 <button class="btn primary" id="applyPhotoImportMobileBtn" type="button" onclick="applyPhotoImportMobile()" disabled>Position übernehmen</button>
             </div>
             <div class="photo-steps">
-                <button class="photo-step-btn active" id="photoImportAlignTable" type="button" onclick="setPhotoImportMobileAlignmentMode('table')">Ganzer Tisch</button>
-                <button class="photo-step-btn" id="photoImportAlignCadre" type="button" onclick="setPhotoImportMobileAlignmentMode('cadre')">Cadre-Linien</button>
-            </div>
-            <div class="photo-steps">
                 <button class="photo-step-btn active" id="photoImportMobileStepCorners" type="button" onclick="setPhotoImportMobileStep('corners')">1. Tisch ausrichten</button>
                 <button class="photo-step-btn" id="photoImportMobileStepBalls" type="button" onclick="setPhotoImportMobileStep('balls')">2. Bälle setzen</button>
             </div>
@@ -298,7 +294,6 @@
         let photoImportMobileBalls = [];
         let photoImportMobileStep = "corners";
         let photoImportMobileActiveBall = 0;
-        let photoImportMobileAlignmentMode = "table";
         let photoImportMobileDrag = null;
         let referencePhotoDataUrl = "";
         const baseTableWidth = 1200;
@@ -311,18 +306,6 @@
             { x: bounds.maxX, y: bounds.maxY },
             { x: bounds.minX, y: bounds.maxY }
         ];
-        const TABLE_DIMENSIONS_CM = {
-            MB: { width: 142, height: 284 },
-            TB: { width: 105, height: 210 }
-        };
-        const CADRE_IMPORT_SPECS = {
-            "Cadre 35/2": { xCm: 35, yCm: 35, tableType: "TB" },
-            "Cadre 52/2": { xCm: 35, yCm: 52.5, tableType: "TB" },
-            "Cadre 47/2": { xCm: 47, yCm: 47, tableType: "MB" },
-            "Cadre 47/1": { xCm: 47, yCm: 47, tableType: "MB" },
-            "Cadre 71/2": { xCm: 47, yCm: 71, tableType: "MB" }
-        };
-
         function getDefaultLayout() {
             return {
                 red: { ...defaultLayout.red },
@@ -493,30 +476,6 @@
             canvas.width = Math.max(640, Math.round(image.width * scale));
             canvas.height = Math.max(360, Math.round(image.height * scale));
         }
-        function isCadreAlignmentAvailable(discipline) {
-            return !!CADRE_IMPORT_SPECS[discipline];
-        }
-        function getCadreImportTargetCorners(discipline) {
-            const spec = CADRE_IMPORT_SPECS[discipline];
-            if (!spec) return photoImportTableCorners;
-            const dimensions = TABLE_DIMENSIONS_CM[spec.tableType] || TABLE_DIMENSIONS_CM.MB;
-            const playableWidth = bounds.maxX - bounds.minX;
-            const playableHeight = bounds.maxY - bounds.minY;
-            const xOffset = (spec.xCm / dimensions.width) * playableWidth;
-            const yOffset = (spec.yCm / dimensions.height) * playableHeight;
-            return [
-                { x: bounds.minX + xOffset, y: bounds.minY + yOffset },
-                { x: bounds.maxX - xOffset, y: bounds.minY + yOffset },
-                { x: bounds.maxX - xOffset, y: bounds.maxY - yOffset },
-                { x: bounds.minX + xOffset, y: bounds.maxY - yOffset }
-            ];
-        }
-        function getPhotoImportMobileTargetCorners() {
-            if (photoImportMobileAlignmentMode === "cadre" && isCadreAlignmentAvailable(selectedDiscipline)) {
-                return getCadreImportTargetCorners(selectedDiscipline);
-            }
-            return photoImportTableCorners;
-        }
         function getPhotoImportMobileAlignmentPointsReady() {
             return photoImportMobileCorners.length === 4;
         }
@@ -538,7 +497,7 @@
             sizePhotoCanvas(canvas, photoImportMobileImage);
             const playableWidth = bounds.maxX - bounds.minX;
             const playableHeight = bounds.maxY - bounds.minY;
-            const targetCorners = getPhotoImportMobileTargetCorners();
+            const targetCorners = photoImportTableCorners;
             photoImportMobileCorners = targetCorners.map((point) => ({
                 x: ((point.x - bounds.minX) / playableWidth) * canvas.width,
                 y: ((point.y - bounds.minY) / playableHeight) * canvas.height
@@ -555,17 +514,9 @@
         function getPhotoImportMobileStatusText() {
             if (!photoImportMobileImage) return "Noch kein Foto geladen.";
             if (photoImportMobileStep === "corners") {
-                return photoImportMobileAlignmentMode === "cadre"
-                    ? "Ziehe die 4 gelben Fadenkreuze auf sichtbare Cadre-Linien-Ecken. Danach zu den Bällen wechseln."
-                    : "Ziehe die 4 gelben Fadenkreuze auf die Ecken der Spielfläche. Danach zu den Bällen wechseln.";
+                return "Ziehe die 4 gelben Fadenkreuze auf die Ecken der Spielfläche. Danach zu den Bällen wechseln.";
             }
             return "Ziehe Rot, Gelb und Weiß an die richtige Stelle. Ein Tipp auf freie Fläche setzt den aktuell aktiven Ball dort ab.";
-        }
-        function setPhotoImportMobileAlignmentMode(mode) {
-            const nextMode = mode === "cadre" && isCadreAlignmentAvailable(selectedDiscipline) ? "cadre" : "table";
-            photoImportMobileAlignmentMode = nextMode;
-            if (photoImportMobileImage) setDefaultPhotoImportMobileAnchors();
-            updatePhotoImportMobileUi();
         }
         function setPhotoImportMobileActiveBall(index) {
             photoImportMobileActiveBall = clamp(index, 0, 2);
@@ -582,10 +533,6 @@
             const cornersBtn = document.getElementById("photoImportMobileStepCorners");
             const ballsBtn = document.getElementById("photoImportMobileStepBalls");
             const ballPicks = document.getElementById("photoImportMobileBallPicks");
-            const alignTableBtn = document.getElementById("photoImportAlignTable");
-            const alignCadreBtn = document.getElementById("photoImportAlignCadre");
-            const canUseCadreAlignment = isCadreAlignmentAvailable(selectedDiscipline);
-            if (!canUseCadreAlignment && photoImportMobileAlignmentMode === "cadre") photoImportMobileAlignmentMode = "table";
             if (modal) modal.setAttribute("aria-hidden", modal.classList.contains("visible") ? "false" : "true");
             if (status) status.innerText = getPhotoImportMobileStatusText();
             if (applyBtn) applyBtn.disabled = !(photoImportMobileImage && getPhotoImportMobileAlignmentPointsReady() && photoImportMobileBalls.length === 3);
@@ -593,11 +540,6 @@
             if (ballsBtn) ballsBtn.classList.toggle("active", photoImportMobileStep === "balls");
             if (ballsBtn) ballsBtn.disabled = !photoImportMobileImage;
             if (ballPicks) ballPicks.style.display = photoImportMobileStep === "balls" ? "flex" : "none";
-            if (alignTableBtn) alignTableBtn.classList.toggle("active", photoImportMobileAlignmentMode === "table");
-            if (alignCadreBtn) {
-                alignCadreBtn.classList.toggle("active", photoImportMobileAlignmentMode === "cadre");
-                alignCadreBtn.disabled = !canUseCadreAlignment;
-            }
             ["Red", "Yellow", "White"].forEach((name, index) => {
                 const button = document.getElementById("photoImportMobileBall" + name);
                 if (button) button.classList.toggle("active", photoImportMobileActiveBall === index);
@@ -606,9 +548,6 @@
         }
         function openPhotoImportMobile() {
             if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
-            if (!isCadreAlignmentAvailable(selectedDiscipline) && photoImportMobileAlignmentMode === "cadre") {
-                photoImportMobileAlignmentMode = "table";
-            }
             document.getElementById("photoImportMobileModal").classList.add("visible");
             updatePhotoImportMobileUi();
         }
@@ -625,7 +564,6 @@
             }
             photoImportMobileStep = "corners";
             photoImportMobileActiveBall = 0;
-            if (!isCadreAlignmentAvailable(selectedDiscipline)) photoImportMobileAlignmentMode = "table";
             updatePhotoImportMobileUi();
         }
         function handlePhotoImportMobileFile(event) {
@@ -634,7 +572,6 @@
             loadPhotoImportImage(file, (img) => {
                 photoImportMobileImage = img;
                 referencePhotoDataUrl = typeof img.src === "string" ? img.src : "";
-                if (!isCadreAlignmentAvailable(selectedDiscipline)) photoImportMobileAlignmentMode = "table";
                 photoImportMobileStep = "corners";
                 photoImportMobileActiveBall = 0;
                 setDefaultPhotoImportMobileAnchors();
@@ -830,7 +767,7 @@
         }
         function applyPhotoImportMobile() {
             if (!photoImportMobileImage || !getPhotoImportMobileAlignmentPointsReady() || photoImportMobileBalls.length !== 3) return;
-            const homography = computeHomography(photoImportMobileCorners, getPhotoImportMobileTargetCorners());
+            const homography = computeHomography(photoImportMobileCorners, photoImportTableCorners);
             if (!homography) {
                 alert("Das Foto konnte nicht auf die Tischgrafik umgerechnet werden.");
                 return;
@@ -1405,7 +1342,6 @@
             photoImportMobileBalls = [];
             photoImportMobileStep = "corners";
             photoImportMobileActiveBall = 0;
-            photoImportMobileAlignmentMode = "table";
             stopPhotoImportMobileDrag();
             referencePhotoDataUrl = "";
             document.getElementById("titleInput").value = "";
