@@ -87,6 +87,16 @@
         .photo-copy { font-size:14px; line-height:1.45; opacity:.82; max-width:760px; }
         .photo-tools { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
         .photo-status { margin:0 0 12px; font-size:14px; color:#ffe27a; min-height:20px; }
+        .photo-steps { display:flex; gap:10px; flex-wrap:wrap; margin:0 0 12px; }
+        .photo-step-btn { border:none; border-radius:999px; padding:10px 14px; background:#112659; color:#c8d6ff; border:1px solid #3557b7; font-size:14px; font-weight:700; cursor:pointer; }
+        .photo-step-btn.active { background:#ffd84a; color:#11192f; border-color:#ffe27a; }
+        .photo-step-btn:disabled { opacity:.48; cursor:default; }
+        .photo-ball-picks { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
+        .photo-ball-pick { border:none; border-radius:999px; padding:10px 14px; font-size:14px; font-weight:700; cursor:pointer; border:2px solid rgba(255,255,255,.18); color:#fff; }
+        .photo-ball-pick.red { background:#b62a2a; }
+        .photo-ball-pick.yellow { background:#c8a113; color:#11192f; }
+        .photo-ball-pick.white { background:#eef2ff; color:#0f1730; }
+        .photo-ball-pick.active { box-shadow:0 0 0 3px rgba(255,216,74,.42); transform:translateY(1px); }
         .photo-stage { position:relative; width:100%; background:#0b173a; border:1px solid #3557b7; border-radius:18px; overflow:hidden; }
         .photo-canvas { display:block; width:100%; height:auto; cursor:crosshair; }
         .photo-hint { margin-top:10px; font-size:13px; opacity:.8; }
@@ -130,6 +140,7 @@
                     </div>
                     <div class="actions">
                         <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImport()">Foto importieren</button>
+                        <button class="btn secondary" id="photoImportMobileBtn" type="button" onclick="openPhotoImportMobile()">iPhone Import</button>
                         <button class="btn primary" type="button" onclick="savePosition()">Speichern</button>
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                     </div>
@@ -212,6 +223,37 @@
             <div class="photo-hint" id="photoImportHint">Tipp: möglichst von oben fotografieren und den ganzen Tisch sichtbar lassen.</div>
         </div>
     </div>
+    <div class="photo-modal" id="photoImportMobileModal" aria-hidden="true">
+        <div class="photo-panel">
+            <div class="photo-head">
+                <div>
+                    <div class="photo-title">iPhone Import</div>
+                    <div class="photo-copy">Einfachere Mobile-Variante: Foto laden, gelbe Eckpunkte auf den Tisch ziehen, danach die drei Ballmarker passend verschieben. Der klassische Import bleibt davon unberührt.</div>
+                </div>
+                <button class="btn" type="button" onclick="closePhotoImportMobile()">Schließen</button>
+            </div>
+            <div class="photo-tools">
+                <input id="photoImportMobileInput" type="file" accept="image/*" style="display:none;" onchange="handlePhotoImportMobileFile(event)">
+                <button class="btn" type="button" onclick="document.getElementById('photoImportMobileInput').click()">Foto wählen</button>
+                <button class="btn" type="button" onclick="resetPhotoImportMobilePoints()">Marker zurücksetzen</button>
+                <button class="btn primary" id="applyPhotoImportMobileBtn" type="button" onclick="applyPhotoImportMobile()" disabled>Position übernehmen</button>
+            </div>
+            <div class="photo-steps">
+                <button class="photo-step-btn active" id="photoImportMobileStepCorners" type="button" onclick="setPhotoImportMobileStep('corners')">1. Tisch ausrichten</button>
+                <button class="photo-step-btn" id="photoImportMobileStepBalls" type="button" onclick="setPhotoImportMobileStep('balls')">2. Bälle setzen</button>
+            </div>
+            <div class="photo-ball-picks" id="photoImportMobileBallPicks" style="display:none;">
+                <button class="photo-ball-pick red active" id="photoImportMobileBallRed" type="button" onclick="setPhotoImportMobileActiveBall(0)">Rot</button>
+                <button class="photo-ball-pick yellow" id="photoImportMobileBallYellow" type="button" onclick="setPhotoImportMobileActiveBall(1)">Gelb</button>
+                <button class="photo-ball-pick white" id="photoImportMobileBallWhite" type="button" onclick="setPhotoImportMobileActiveBall(2)">Weiß</button>
+            </div>
+            <div class="photo-status" id="photoImportMobileStatus">Noch kein Foto geladen.</div>
+            <div class="photo-stage">
+                <canvas id="photoImportMobileCanvas" class="photo-canvas"></canvas>
+            </div>
+            <div class="photo-hint" id="photoImportMobileHint">Auf iPhone am besten erst den Tisch grob ausrichten und danach die Ballmarker ziehen. Ein Tipp auf freie Fläche setzt im Ball-Schritt den aktuell gewählten Ball direkt neu.</div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
@@ -264,6 +306,12 @@
         let photoImportImage = null;
         let photoImportCorners = [];
         let photoImportBalls = [];
+        let photoImportMobileImage = null;
+        let photoImportMobileCorners = [];
+        let photoImportMobileBalls = [];
+        let photoImportMobileStep = "corners";
+        let photoImportMobileActiveBall = 0;
+        let photoImportMobileDrag = null;
         const baseTableWidth = 1200;
         const baseTableHeight = 674;
         const loupeScale = 2.4;
@@ -442,21 +490,24 @@
         function handlePhotoImportFile(event) {
             const file = event.target.files && event.target.files[0];
             if (!file) return;
+            loadPhotoImportImage(file, (img) => {
+                photoImportImage = img;
+                photoImportCorners = [];
+                photoImportBalls = [];
+                updatePhotoImportUi();
+            });
+        }
+        function loadPhotoImportImage(file, onLoad) {
             const reader = new FileReader();
             reader.onload = () => {
                 const img = new Image();
-                img.onload = () => {
-                    photoImportImage = img;
-                    photoImportCorners = [];
-                    photoImportBalls = [];
-                    updatePhotoImportUi();
-                };
+                img.onload = () => onLoad(img);
                 img.src = reader.result;
             };
             reader.readAsDataURL(file);
         }
-        function getPhotoImportCanvasPoint(event) {
-            const canvas = document.getElementById("photoImportCanvas");
+        function getCanvasPoint(canvas, event) {
+            if (!canvas) return null;
             const rect = canvas.getBoundingClientRect();
             if (!rect.width || !rect.height) return null;
             const scaleX = canvas.width / rect.width;
@@ -466,27 +517,237 @@
                 y: (event.clientY - rect.top) * scaleY
             };
         }
+        function getPhotoImportCanvasPoint(event) {
+            return getCanvasPoint(document.getElementById("photoImportCanvas"), event);
+        }
+        function drawPhotoImportEmptyState(canvas, message) {
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
+            canvas.width = 1200;
+            canvas.height = 700;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#0b173a";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "rgba(255,255,255,.72)";
+            ctx.font = "28px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+        }
+        function sizePhotoCanvas(canvas, image) {
+            const maxWidth = 1400;
+            const scale = Math.min(1, maxWidth / image.width);
+            canvas.width = Math.max(640, Math.round(image.width * scale));
+            canvas.height = Math.max(360, Math.round(image.height * scale));
+        }
+        function setDefaultPhotoImportMobileAnchors() {
+            if (!photoImportMobileImage) return;
+            const canvas = document.getElementById("photoImportMobileCanvas");
+            if (!canvas) return;
+            sizePhotoCanvas(canvas, photoImportMobileImage);
+            const padX = canvas.width * 0.1;
+            const padY = canvas.height * 0.1;
+            photoImportMobileCorners = [
+                { x: padX, y: padY },
+                { x: canvas.width - padX, y: padY },
+                { x: canvas.width - padX, y: canvas.height - padY },
+                { x: padX, y: canvas.height - padY }
+            ];
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const spread = Math.max(50, canvas.width * 0.08);
+            photoImportMobileBalls = [
+                { x: centerX - spread, y: centerY - 18 },
+                { x: centerX + spread, y: centerY - 8 },
+                { x: centerX, y: centerY + spread * 0.55 }
+            ];
+        }
+        function getPhotoImportMobileStatusText() {
+            if (!photoImportMobileImage) return "Noch kein Foto geladen.";
+            if (photoImportMobileStep === "corners") return "Ziehe die 4 gelben Eckpunkte auf die Ecken der Spielfläche. Danach zu den Bällen wechseln.";
+            return "Ziehe Rot, Gelb und Weiß an die richtige Stelle. Ein Tipp auf freie Fläche setzt den aktuell aktiven Ball dort ab.";
+        }
+        function setPhotoImportMobileActiveBall(index) {
+            photoImportMobileActiveBall = clamp(index, 0, 2);
+            updatePhotoImportMobileUi();
+        }
+        function setPhotoImportMobileStep(step) {
+            photoImportMobileStep = step === "balls" ? "balls" : "corners";
+            updatePhotoImportMobileUi();
+        }
+        function updatePhotoImportMobileUi() {
+            const modal = document.getElementById("photoImportMobileModal");
+            const status = document.getElementById("photoImportMobileStatus");
+            const applyBtn = document.getElementById("applyPhotoImportMobileBtn");
+            const cornersBtn = document.getElementById("photoImportMobileStepCorners");
+            const ballsBtn = document.getElementById("photoImportMobileStepBalls");
+            const ballPicks = document.getElementById("photoImportMobileBallPicks");
+            if (modal) modal.setAttribute("aria-hidden", modal.classList.contains("visible") ? "false" : "true");
+            if (status) status.innerText = getPhotoImportMobileStatusText();
+            if (applyBtn) applyBtn.disabled = !(photoImportMobileImage && photoImportMobileCorners.length === 4 && photoImportMobileBalls.length === 3);
+            if (cornersBtn) cornersBtn.classList.toggle("active", photoImportMobileStep === "corners");
+            if (ballsBtn) ballsBtn.classList.toggle("active", photoImportMobileStep === "balls");
+            if (ballsBtn) ballsBtn.disabled = !photoImportMobileImage;
+            if (ballPicks) ballPicks.style.display = photoImportMobileStep === "balls" ? "flex" : "none";
+            ["Red", "Yellow", "White"].forEach((name, index) => {
+                const button = document.getElementById("photoImportMobileBall" + name);
+                if (button) button.classList.toggle("active", photoImportMobileActiveBall === index);
+            });
+            drawPhotoImportMobileCanvas();
+        }
+        function openPhotoImportMobile() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            document.getElementById("photoImportMobileModal").classList.add("visible");
+            updatePhotoImportMobileUi();
+        }
+        function closePhotoImportMobile() {
+            stopPhotoImportMobileDrag();
+            document.getElementById("photoImportMobileModal").classList.remove("visible");
+        }
+        function resetPhotoImportMobilePoints() {
+            stopPhotoImportMobileDrag();
+            if (photoImportMobileImage) setDefaultPhotoImportMobileAnchors();
+            else {
+                photoImportMobileCorners = [];
+                photoImportMobileBalls = [];
+            }
+            photoImportMobileStep = "corners";
+            photoImportMobileActiveBall = 0;
+            updatePhotoImportMobileUi();
+        }
+        function handlePhotoImportMobileFile(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            loadPhotoImportImage(file, (img) => {
+                photoImportMobileImage = img;
+                photoImportMobileStep = "corners";
+                photoImportMobileActiveBall = 0;
+                setDefaultPhotoImportMobileAnchors();
+                updatePhotoImportMobileUi();
+            });
+        }
+        function getPhotoImportMobileCanvasPoint(event) {
+            return getCanvasPoint(document.getElementById("photoImportMobileCanvas"), event);
+        }
+        function drawPhotoImportMobileCanvas() {
+            const canvas = document.getElementById("photoImportMobileCanvas");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
+            if (!photoImportMobileImage) {
+                drawPhotoImportEmptyState(canvas, "Foto laden");
+                return;
+            }
+            sizePhotoCanvas(canvas, photoImportMobileImage);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(photoImportMobileImage, 0, 0, canvas.width, canvas.height);
+            if (photoImportMobileCorners.length === 4) {
+                ctx.strokeStyle = "rgba(255,216,74,.95)";
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                photoImportMobileCorners.forEach((pt, index) => {
+                    if (!index) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                });
+                ctx.closePath();
+                ctx.stroke();
+            }
+            photoImportMobileCorners.forEach((pt, index) => {
+                ctx.fillStyle = "#ffd84a";
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, photoImportMobileStep === "corners" ? 18 : 14, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "#10192f";
+                ctx.font = "bold 20px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText(String(index + 1), pt.x, pt.y + 7);
+            });
+            const ballColors = ["#cf2e2e", "#e0bb20", "#f3f5fb"];
+            photoImportMobileBalls.forEach((pt, index) => {
+                const isActive = photoImportMobileActiveBall === index;
+                ctx.fillStyle = ballColors[index] || "#ffffff";
+                ctx.strokeStyle = isActive ? "#ffd84a" : "#173168";
+                ctx.lineWidth = isActive ? 6 : 4;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, photoImportMobileStep === "balls" ? 22 : 16, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = isActive ? "#ffd84a" : "#ffffff";
+                ctx.font = "bold 20px Arial";
+                ctx.textAlign = "left";
+                ctx.fillText(photoImportBallOrder[index], pt.x + 24, pt.y + 6);
+            });
+        }
+        function hitTestPhotoImportMobile(point, list, radius) {
+            let bestIndex = -1;
+            let bestDistance = Number.POSITIVE_INFINITY;
+            list.forEach((entry, index) => {
+                const distance = Math.hypot(point.x - entry.x, point.y - entry.y);
+                if (distance <= radius && distance < bestDistance) {
+                    bestDistance = distance;
+                    bestIndex = index;
+                }
+            });
+            return bestIndex;
+        }
+        function updatePhotoImportMobileDragPoint(point) {
+            const canvas = document.getElementById("photoImportMobileCanvas");
+            if (!canvas || !photoImportMobileDrag) return;
+            const safePoint = {
+                x: clamp(point.x, 0, canvas.width),
+                y: clamp(point.y, 0, canvas.height)
+            };
+            if (photoImportMobileDrag.type === "corner") photoImportMobileCorners[photoImportMobileDrag.index] = safePoint;
+            if (photoImportMobileDrag.type === "ball") photoImportMobileBalls[photoImportMobileDrag.index] = safePoint;
+            drawPhotoImportMobileCanvas();
+        }
+        function handlePhotoImportMobilePointerDown(event) {
+            if (!photoImportMobileImage) return;
+            const canvas = document.getElementById("photoImportMobileCanvas");
+            const point = getPhotoImportMobileCanvasPoint(event);
+            if (!canvas || !point) return;
+            if (photoImportMobileStep === "corners") {
+                const cornerIndex = hitTestPhotoImportMobile(point, photoImportMobileCorners, 34);
+                if (cornerIndex === -1) return;
+                photoImportMobileDrag = { type: "corner", index: cornerIndex, pointerId: event.pointerId };
+            } else {
+                const ballIndex = hitTestPhotoImportMobile(point, photoImportMobileBalls, 38);
+                const targetIndex = ballIndex === -1 ? photoImportMobileActiveBall : ballIndex;
+                photoImportMobileActiveBall = targetIndex;
+                photoImportMobileBalls[targetIndex] = point;
+                photoImportMobileDrag = { type: "ball", index: targetIndex, pointerId: event.pointerId };
+            }
+            if (canvas.setPointerCapture) {
+                try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
+            }
+            updatePhotoImportMobileDragPoint(point);
+            updatePhotoImportMobileUi();
+            event.preventDefault();
+        }
+        function handlePhotoImportMobilePointerMove(event) {
+            if (!photoImportMobileDrag || photoImportMobileDrag.pointerId !== event.pointerId) return;
+            const point = getPhotoImportMobileCanvasPoint(event);
+            if (!point) return;
+            updatePhotoImportMobileDragPoint(point);
+            event.preventDefault();
+        }
+        function stopPhotoImportMobileDrag(event) {
+            if (!photoImportMobileDrag) return;
+            const canvas = document.getElementById("photoImportMobileCanvas");
+            if (canvas?.releasePointerCapture && event?.pointerId !== undefined) {
+                try { canvas.releasePointerCapture(event.pointerId); } catch (_) {}
+            }
+            photoImportMobileDrag = null;
+        }
         function drawPhotoImportCanvas() {
             const canvas = document.getElementById("photoImportCanvas");
             if (!canvas) return;
             const ctx = canvas.getContext("2d");
             if (!ctx) return;
             if (!photoImportImage) {
-                canvas.width = 1200;
-                canvas.height = 700;
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = "#0b173a";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = "rgba(255,255,255,.72)";
-                ctx.font = "28px Arial";
-                ctx.textAlign = "center";
-                ctx.fillText("Foto laden", canvas.width / 2, canvas.height / 2);
+                drawPhotoImportEmptyState(canvas, "Foto laden");
                 return;
             }
-            const maxWidth = 1400;
-            const scale = Math.min(1, maxWidth / photoImportImage.width);
-            canvas.width = Math.max(640, Math.round(photoImportImage.width * scale));
-            canvas.height = Math.max(360, Math.round(photoImportImage.height * scale));
+            sizePhotoCanvas(canvas, photoImportImage);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(photoImportImage, 0, 0, canvas.width, canvas.height);
             if (photoImportCorners.length > 1) {
@@ -606,6 +867,37 @@
             persistCurrentPageState();
             closePhotoImport();
         }
+        function applyPhotoImportMobile() {
+            if (!photoImportMobileImage || photoImportMobileCorners.length !== 4 || photoImportMobileBalls.length !== 3) return;
+            const homography = computeHomography(photoImportMobileCorners, photoImportTableCorners);
+            if (!homography) {
+                alert("Das Foto konnte nicht auf die Tischgrafik umgerechnet werden.");
+                return;
+            }
+            const mapped = photoImportMobileBalls.map((ballPoint) => projectPoint(homography, ballPoint));
+            if (mapped.some((pt) => !pt)) {
+                alert("Die Ballpositionen konnten nicht berechnet werden.");
+                return;
+            }
+            const currentBounds = getCurrentBounds();
+            ballLayout = {
+                red: {
+                    x: clamp(mapped[0].x, currentBounds.minX, currentBounds.maxX),
+                    y: clamp(mapped[0].y, currentBounds.minY, currentBounds.maxY)
+                },
+                yellow: {
+                    x: clamp(mapped[1].x, currentBounds.minX, currentBounds.maxX),
+                    y: clamp(mapped[1].y, currentBounds.minY, currentBounds.maxY)
+                },
+                white: {
+                    x: clamp(mapped[2].x, currentBounds.minX, currentBounds.maxX),
+                    y: clamp(mapped[2].y, currentBounds.minY, currentBounds.maxY)
+                }
+            };
+            renderBalls();
+            persistCurrentPageState();
+            closePhotoImportMobile();
+        }
         function applyReadOnlyUi() {
             const readOnly = !isPositionLibraryEditable(positionLibraryAccessMode);
             const titleInput = document.getElementById("titleInput");
@@ -614,6 +906,7 @@
             const saveBtn = document.querySelector(".actions .btn.primary");
             const newBtn = document.querySelector(".topbar .actions .btn");
             const photoImportBtn = document.getElementById("photoImportBtn");
+            const photoImportMobileBtn = document.getElementById("photoImportMobileBtn");
             if (titleInput) {
                 titleInput.readOnly = readOnly;
                 titleInput.disabled = false;
@@ -633,6 +926,7 @@
             }
             if (saveBtn) saveBtn.style.display = readOnly ? "none" : "inline-flex";
             if (photoImportBtn) photoImportBtn.style.display = readOnly ? "none" : "inline-flex";
+            if (photoImportMobileBtn) photoImportMobileBtn.style.display = readOnly ? "none" : "inline-flex";
             if (deleteBtn) deleteBtn.style.display = readOnly || !editingId ? "none" : "inline-flex";
             if (newBtn) newBtn.style.display = readOnly ? "none" : "inline-flex";
             document.querySelectorAll(".icon-toolbar .icon-btn").forEach((btn) => {
@@ -1145,9 +1439,16 @@
                 creatorMeta.innerText = "";
             }
             closePhotoImport();
+            closePhotoImportMobile();
             photoImportImage = null;
             photoImportCorners = [];
             photoImportBalls = [];
+            photoImportMobileImage = null;
+            photoImportMobileCorners = [];
+            photoImportMobileBalls = [];
+            photoImportMobileStep = "corners";
+            photoImportMobileActiveBall = 0;
+            stopPhotoImportMobileDrag();
             document.getElementById("titleInput").value = "";
             document.getElementById("descriptionInput").value = "";
             document.getElementById("deleteBtn").style.display = "none";
@@ -1163,6 +1464,7 @@
             renderBalls();
             renderLines();
             updatePageUi();
+            updatePhotoImportMobileUi();
             if (positionId) history.replaceState({}, "", "training_position_library_editor.html");
         }
         async function loadPosition() {
@@ -1273,16 +1575,22 @@
             await loadPosition();
             applyReadOnlyUi();
             updatePhotoImportUi();
+            updatePhotoImportMobileUi();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
         window.addEventListener("resize", fitEditorToViewport);
         window.addEventListener("pointermove", handlePointerMove);
-        window.addEventListener("pointerup", () => { stopBallDrag(); stopLineEdit(); stopViewportPan(); handleTablePointerUp(); });
-        window.addEventListener("pointercancel", () => { stopBallDrag(); stopLineEdit(); stopViewportPan(); handleTablePointerUp(); hideLoupe(); });
+        window.addEventListener("pointerup", () => { stopBallDrag(); stopLineEdit(); stopViewportPan(); handleTablePointerUp(); stopPhotoImportMobileDrag(); });
+        window.addEventListener("pointercancel", () => { stopBallDrag(); stopLineEdit(); stopViewportPan(); handleTablePointerUp(); stopPhotoImportMobileDrag(); hideLoupe(); });
         window.addEventListener("keydown", (event) => {
             if (event.key === "Escape" && tablePopupOpen) {
                 event.preventDefault();
                 closeTablePopup();
+                return;
+            }
+            if (event.key === "Escape" && document.getElementById("photoImportMobileModal")?.classList.contains("visible")) {
+                event.preventDefault();
+                closePhotoImportMobile();
                 return;
             }
             if (event.key === "Escape" && activeLineDraft) {
@@ -1303,6 +1611,10 @@
             else if (photoImportBalls.length < 3) photoImportBalls.push(point);
             updatePhotoImportUi();
         });
+        document.getElementById("photoImportMobileCanvas").addEventListener("pointerdown", handlePhotoImportMobilePointerDown);
+        document.getElementById("photoImportMobileCanvas").addEventListener("pointermove", handlePhotoImportMobilePointerMove);
+        document.getElementById("photoImportMobileCanvas").addEventListener("pointerup", stopPhotoImportMobileDrag);
+        document.getElementById("photoImportMobileCanvas").addEventListener("pointercancel", stopPhotoImportMobileDrag);
         updateFullscreenButton();
         init();
     </script>
