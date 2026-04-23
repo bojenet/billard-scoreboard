@@ -231,6 +231,7 @@
                 <button class="photo-step-btn active" id="photoImportAlignTable" type="button" onclick="setPhotoImportMobileAlignmentMode('table')">Ganzer Tisch</button>
                 <button class="photo-step-btn" id="photoImportAlignCadre" type="button" onclick="setPhotoImportMobileAlignmentMode('cadre')">Cadre-Linien</button>
             </div>
+            <div class="chips" id="photoImportDisciplineButtons"></div>
             <div class="photo-steps">
                 <button class="photo-step-btn active" id="photoImportMobileStepCorners" type="button" onclick="setPhotoImportMobileStep('corners')">1. Tisch ausrichten</button>
                 <button class="photo-step-btn" id="photoImportMobileStepBalls" type="button" onclick="setPhotoImportMobileStep('balls')">2. Bälle setzen</button>
@@ -263,6 +264,7 @@
         const params = new URLSearchParams(window.location.search);
         const positionId = params.get("id") || "";
         const disciplines = ["Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
+        const importDisciplines = ["Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Freie Partie", "Einband", "Dreiband"];
         const tableTemplates = {
             "Freie Partie": "assets/discipline-mb-libre.png",
             "Cadre 35/2": "assets/discipline-tb-35.png",
@@ -498,6 +500,24 @@
             ctx.textAlign = "center";
             ctx.fillText(message, canvas.width / 2, canvas.height / 2);
         }
+        function buildPhotoImportDisciplineButtons() {
+            const wrap = document.getElementById("photoImportDisciplineButtons");
+            if (!wrap) return;
+            wrap.innerHTML = "";
+            importDisciplines.forEach((discipline) => {
+                const btn = document.createElement("button");
+                btn.className = "chip";
+                btn.type = "button";
+                btn.dataset.value = discipline;
+                btn.innerText = discipline;
+                btn.onclick = () => setSelectedDiscipline(discipline);
+                wrap.appendChild(btn);
+            });
+            syncPhotoImportDisciplineButtons();
+        }
+        function syncPhotoImportDisciplineButtons() {
+            document.querySelectorAll("#photoImportDisciplineButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === selectedDiscipline));
+        }
         function sizePhotoCanvas(canvas, image) {
             const maxWidth = 1400;
             const scale = Math.min(1, maxWidth / image.width);
@@ -632,6 +652,7 @@
                 alignCadreBtn.classList.toggle("active", photoImportMobileAlignmentMode === "cadre");
                 alignCadreBtn.disabled = !canUseCadreAlignment;
             }
+            syncPhotoImportDisciplineButtons();
             ["Red", "Yellow", "White"].forEach((name, index) => {
                 const button = document.getElementById("photoImportMobileBall" + name);
                 if (button) button.classList.toggle("active", photoImportMobileActiveBall === index);
@@ -701,10 +722,17 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             const image = photoImportMobileSchemaImage;
             if (image?.complete && image.naturalWidth) {
+                const rotatedWidth = image.naturalHeight;
+                const rotatedHeight = image.naturalWidth;
+                const scale = Math.min(canvas.width / rotatedWidth, canvas.height / rotatedHeight);
+                const drawWidth = rotatedWidth * scale;
+                const drawHeight = rotatedHeight * scale;
+                const offsetX = (canvas.width - drawWidth) / 2;
+                const offsetY = (canvas.height - drawHeight) / 2;
                 ctx.save();
-                ctx.translate(canvas.width, 0);
+                ctx.translate(offsetX + drawWidth, offsetY);
                 ctx.rotate(Math.PI / 2);
-                ctx.drawImage(image, 0, 0, canvas.height, canvas.width);
+                ctx.drawImage(image, 0, 0, drawHeight, drawWidth);
                 ctx.restore();
             }
             photoImportMobileSchemaPoints.forEach((pt, index) => drawPhotoImportTargetMarker(ctx, pt, index, index === getPhotoImportMobileCadrePairIndex() && !isPhotoImportMobileWaitingForPhotoPoint()));
@@ -1141,6 +1169,7 @@
             selectedDiscipline = value || "Cadre 47/2";
             document.getElementById("tableBackground").src = getTemplateForDiscipline(selectedDiscipline);
             document.querySelectorAll("#disciplineButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === selectedDiscipline));
+            syncPhotoImportDisciplineButtons();
             photoImportMobileSchemaImage = new Image();
             photoImportMobileSchemaImage.onload = () => updatePhotoImportMobileUi();
             photoImportMobileSchemaImage.src = getTemplateForDiscipline(selectedDiscipline);
@@ -1639,6 +1668,7 @@
                 return;
             }
             buildDisciplineButtons();
+            buildPhotoImportDisciplineButtons();
             positionPages = [createDefaultPage()];
             currentPageIndex = 0;
             ballLayout = getDefaultLayout();
