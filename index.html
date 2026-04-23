@@ -128,7 +128,7 @@
             <div class="tile-sub">Neue Partie starten</div>
         </div>
 
-        <div class="tile" onclick="window.location.href='training.html'">
+        <div id="trainingTile" class="tile" onclick="window.location.href='training.html'" style="display:none;">
             <div class="tile-title">Training</div>
             <div class="tile-sub">Übungen & Serienmodus</div>
         </div>
@@ -179,6 +179,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/training_access.js"></script>
     <script src="js/tournament_access.js"></script>
     <script src="js/user_menu.js"></script>
 
@@ -223,6 +224,13 @@
             });
         }
 
+        async function applyTrainingAccess(user) {
+            const tile = document.getElementById("trainingTile");
+            if (!tile) return;
+            const accessMode = await getTrainingAccess(user);
+            tile.style.display = isTrainingVisible(accessMode) ? "" : "none";
+        }
+
         async function applyTournamentAccess(user) {
             const tile = document.getElementById("tournamentTile");
             if (!tile) return;
@@ -240,6 +248,7 @@
                 usersTile.style.display = isAdmin ? "flex" : "none";
             }
 
+            await applyTrainingAccess(user);
             await applyTournamentAccess(user);
             await loadCountdownInvites(user);
             const ownedNames = await getOwnedPlayerNames(user.id);

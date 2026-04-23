@@ -11,12 +11,16 @@ create table if not exists public.user_roles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   role text not null default 'member' check (role in ('member', 'admin')),
   position_library_access text not null default 'edit' check (position_library_access in ('hidden', 'read', 'edit')),
+  training_access text not null default 'edit' check (training_access in ('hidden', 'read', 'edit')),
   tournament_access text not null default 'edit' check (tournament_access in ('hidden', 'read', 'edit')),
   created_at timestamptz not null default now()
 );
 
 alter table public.user_roles
   add column if not exists position_library_access text not null default 'edit';
+
+alter table public.user_roles
+  add column if not exists training_access text not null default 'edit';
 
 alter table public.user_roles
   add column if not exists tournament_access text not null default 'edit';
@@ -27,6 +31,13 @@ alter table public.user_roles
 alter table public.user_roles
   add constraint user_roles_position_library_access_check
   check (position_library_access in ('hidden', 'read', 'edit'));
+
+alter table public.user_roles
+  drop constraint if exists user_roles_training_access_check;
+
+alter table public.user_roles
+  add constraint user_roles_training_access_check
+  check (training_access in ('hidden', 'read', 'edit'));
 
 alter table public.user_roles
   drop constraint if exists user_roles_tournament_access_check;
@@ -45,8 +56,8 @@ from auth.users
 on conflict (id) do update
 set email = excluded.email;
 
-insert into public.user_roles (user_id, role, position_library_access, tournament_access)
-select id, 'member', 'edit', 'edit'
+insert into public.user_roles (user_id, role, position_library_access, training_access, tournament_access)
+select id, 'member', 'edit', 'edit', 'edit'
 from auth.users
 on conflict (user_id) do nothing;
 
@@ -80,8 +91,8 @@ begin
   values (new.id, new.email)
   on conflict (id) do update set email = excluded.email;
 
-  insert into public.user_roles (user_id, role, position_library_access, tournament_access)
-  values (new.id, 'member', 'edit', 'edit')
+  insert into public.user_roles (user_id, role, position_library_access, training_access, tournament_access)
+  values (new.id, 'member', 'edit', 'edit', 'edit')
   on conflict (user_id) do nothing;
 
   return new;

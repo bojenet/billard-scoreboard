@@ -119,6 +119,7 @@
           <th>User ID</th>
           <th>Rolle</th>
           <th>Positions Library</th>
+          <th>Training</th>
           <th>Turnier</th>
           <th>Aktion</th>
         </tr>
@@ -135,6 +136,7 @@
   <script src="js/supabase.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/position_library_access.js"></script>
+  <script src="js/training_access.js"></script>
   <script src="js/tournament_access.js"></script>
   <script src="js/user_menu.js"></script>
   <script>
@@ -160,7 +162,7 @@
 
       const { data: roles, error: rolesError } = await supabaseClient
         .from("user_roles")
-        .select("user_id,role,position_library_access,tournament_access");
+        .select("user_id,role,position_library_access,training_access,tournament_access");
 
       if (rolesError) {
         setMsg("Rollen laden fehlgeschlagen: " + rolesError.message, "err");
@@ -172,6 +174,7 @@
         roleByUser[r.user_id] = {
           role: r.role || "member",
           position_library_access: r.position_library_access || "edit",
+          training_access: r.training_access || "edit",
           tournament_access: r.tournament_access || "edit"
         };
       });
@@ -183,6 +186,7 @@
           <th>User ID</th>
           <th>Rolle</th>
           <th>Positions Library</th>
+          <th>Training</th>
           <th>Turnier</th>
           <th>Aktion</th>
         </tr>
@@ -193,6 +197,7 @@
         const roleInfo = roleByUser[p.id] || {};
         const role = roleInfo.role || "member";
         const positionLibraryAccess = normalizePositionLibraryAccess(roleInfo.position_library_access);
+        const trainingAccess = normalizeTrainingAccess(roleInfo.training_access);
         const tournamentAccess = normalizeTournamentAccess(roleInfo.tournament_access);
         row.innerHTML = `
           <td>${p.email || "-"}</td>
@@ -208,6 +213,13 @@
               <option value="hidden" ${positionLibraryAccess === "hidden" ? "selected" : ""}>ausblenden</option>
               <option value="read" ${positionLibraryAccess === "read" ? "selected" : ""}>lesen</option>
               <option value="edit" ${positionLibraryAccess === "edit" ? "selected" : ""}>editieren</option>
+            </select>
+          </td>
+          <td>
+            <select id="training_access_${p.id}">
+              <option value="hidden" ${trainingAccess === "hidden" ? "selected" : ""}>ausblenden</option>
+              <option value="read" ${trainingAccess === "read" ? "selected" : ""}>lesen</option>
+              <option value="edit" ${trainingAccess === "edit" ? "selected" : ""}>editieren</option>
             </select>
           </td>
           <td>
@@ -232,10 +244,11 @@
 
       const role = document.getElementById("role_" + userId).value;
       const positionLibraryAccess = normalizePositionLibraryAccess(document.getElementById("position_library_access_" + userId).value);
+      const trainingAccess = normalizeTrainingAccess(document.getElementById("training_access_" + userId).value);
       const tournamentAccess = normalizeTournamentAccess(document.getElementById("tournament_access_" + userId).value);
       const { error } = await supabaseClient
         .from("user_roles")
-        .upsert([{ user_id: userId, role, position_library_access: positionLibraryAccess, tournament_access: tournamentAccess }], { onConflict: "user_id" });
+        .upsert([{ user_id: userId, role, position_library_access: positionLibraryAccess, training_access: trainingAccess, tournament_access: tournamentAccess }], { onConflict: "user_id" });
 
       if (error) {
         setMsg("Rolle speichern fehlgeschlagen: " + error.message, "err");

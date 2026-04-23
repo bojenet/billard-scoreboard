@@ -169,6 +169,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/training_access.js"></script>
 <script src="js/position_library_access.js"></script>
 <script src="js/user_menu.js"></script>
 <script>
@@ -195,6 +196,14 @@
     }
     document.addEventListener("fullscreenchange", updateFullscreenButton);
     updateFullscreenButton();
+    async function applyTrainingAccess(user) {
+        const accessMode = await getTrainingAccess(user);
+        if (!isTrainingVisible(accessMode)) {
+            window.location.href = "index.html";
+            return false;
+        }
+        return true;
+    }
     async function applyPositionLibraryAccess() {
         const tile = document.getElementById("positionLibraryTile");
         if (!tile) return;
@@ -236,6 +245,8 @@
     (async () => {
         const user = await requireAuth();
         if (!user) return;
+        const visible = await applyTrainingAccess(user);
+        if (!visible) return;
         await loadRemoteMatchInvites(user);
     })();
 </script>
