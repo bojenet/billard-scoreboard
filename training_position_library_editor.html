@@ -46,6 +46,7 @@
         .table-viewport { overflow:auto; padding-bottom:6px; }
         .table-viewport.pannable { cursor:grab; }
         .table-viewport.panning { cursor:grabbing; user-select:none; }
+        .table-viewport.popup-active { position:fixed; inset:88px 28px 28px; z-index:1701; padding:22px; background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; box-shadow:0 28px 60px rgba(0,0,0,.5); }
         .table-zoom-stage { width:max-content; margin:0 auto; }
         .table-wrap { position:relative; width:1200px; border-radius:0; overflow:hidden; background:#f7f7f4; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), 0 18px 34px rgba(0,0,0,.28); aspect-ratio:1200/674; }
         .table-wrap.draw-mode { box-shadow: inset 0 0 0 3px rgba(255,216,74,.7), 0 18px 34px rgba(0,0,0,.28); cursor:crosshair; }
@@ -70,6 +71,11 @@
         .table-loupe-content .table-bg, .table-loupe-content .table-lines, .table-loupe-content .table-overlay { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
         .table-loupe-content .table-bg { display:block; object-fit:cover; }
         .table-loupe-content .table-lines, .table-loupe-content .table-overlay { display:block; }
+        .table-popup-backdrop { position:fixed; inset:0; z-index:1700; background:rgba(4,8,19,.82); backdrop-filter:blur(6px); display:none; }
+        .table-popup-backdrop.visible { display:block; }
+        .table-popup-toolbar { position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:1702; display:none; gap:10px; align-items:center; flex-wrap:wrap; padding:12px 14px; background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; box-shadow:0 18px 34px rgba(0,0,0,.36); }
+        .table-popup-toolbar.visible { display:flex; }
+        .table-popup-title { font-size:14px; font-weight:700; opacity:.82; margin-right:8px; }
         .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:13px; opacity:.82; margin-top:10px; }
         .legend-item { display:flex; align-items:center; gap:8px; }
         .legend-dot { width:12px; height:12px; border-radius:999px; box-shadow:0 0 0 1px rgba(255,255,255,.25); }
@@ -84,7 +90,11 @@
         .photo-stage { position:relative; width:100%; background:#0b173a; border:1px solid #3557b7; border-radius:18px; overflow:hidden; }
         .photo-canvas { display:block; width:100%; height:auto; cursor:crosshair; }
         .photo-hint { margin-top:10px; font-size:13px; opacity:.8; }
-        @media (max-width: 980px) { .layout { grid-template-columns:1fr; } }
+        @media (max-width: 980px) {
+            .layout { grid-template-columns:1fr; }
+            .table-viewport.popup-active { inset:78px 14px 14px; padding:14px; }
+            .table-popup-toolbar { top:12px; width:min(96vw, 920px); justify-content:center; }
+        }
     </style>
 </head>
 <body>
@@ -132,7 +142,7 @@
                         <button class="icon-btn" id="drawToggleBtn" type="button" onclick="toggleDrawMode()" title="Linien"><img class="icon-img" src="assets/icon-draw-line.png" alt="Linien"></button>
                         <button class="icon-btn" id="moveBallBtn" type="button" onclick="enableMoveMode()" title="Bälle verschieben"><img class="icon-img" src="assets/icon-move-ball.png" alt="Bälle verschieben"></button>
                         <button class="icon-btn" id="clearLinesBtn" type="button" onclick="clearLines()" title="Linien löschen"><img class="icon-img" src="assets/icon-delete-lines.png" alt="Linien löschen"></button>
-                        <button class="icon-btn" id="fullViewBtn" type="button" onclick="resetEditorZoom()" title="Zoom"><img class="icon-img" src="assets/icon-full-view.png" alt="Zoom"></button>
+                        <button class="icon-btn" id="fullViewBtn" type="button" onclick="toggleTablePopup()" title="Großansicht"><img class="icon-img" src="assets/icon-full-view.png" alt="Großansicht"></button>
                         <button class="icon-btn" id="zoomOutBtn" type="button" onclick="changeEditorZoom(-0.25)" title="Zoom out"><img class="icon-img" src="assets/icon-zoom-out.png" alt="Zoom out"></button>
                         <button class="icon-btn" id="zoomInBtn" type="button" onclick="changeEditorZoom(0.25)" title="Zoom in"><img class="icon-img" src="assets/icon-zoom-in.png" alt="Zoom in"></button>
                         <button class="icon-btn" id="addPageBtn" type="button" onclick="addPage()" title="Seite hinzufügen"><img class="icon-img" src="assets/icon-add-page.png" alt="Seite hinzufügen"></button>
@@ -171,6 +181,14 @@
                 </div>
             </div>
         </div>
+    </div>
+    <div class="table-popup-backdrop" id="tablePopupBackdrop" onclick="closeTablePopup()"></div>
+    <div class="table-popup-toolbar" id="tablePopupToolbar">
+        <div class="table-popup-title">Große Bearbeitungsansicht</div>
+        <button class="zoom-btn" type="button" onclick="changeEditorZoom(-0.25)">−</button>
+        <button class="zoom-btn" type="button" onclick="changeEditorZoom(0.25)">+</button>
+        <button class="zoom-btn" type="button" onclick="resetEditorZoom()">100%</button>
+        <button class="zoom-btn" type="button" onclick="closeTablePopup()">Schließen</button>
     </div>
     <div class="photo-modal" id="photoImportModal" aria-hidden="true">
         <div class="photo-panel">
@@ -239,6 +257,7 @@
         let currentEditorZoom = 1;
         let fitEditorZoom = 1;
         let activePan = null;
+        let tablePopupOpen = false;
         let loupeEnabled = false;
         let lastPointerClient = null;
         let positionLibraryAccessMode = "edit";
@@ -361,6 +380,25 @@
                 viewport.scrollTop = 0;
             }
             updatePanUi();
+        }
+        function toggleTablePopup() {
+            if (tablePopupOpen) closeTablePopup();
+            else openTablePopup();
+        }
+        function openTablePopup() {
+            tablePopupOpen = true;
+            document.getElementById("tableViewport")?.classList.add("popup-active");
+            document.getElementById("tablePopupBackdrop")?.classList.add("visible");
+            document.getElementById("tablePopupToolbar")?.classList.add("visible");
+            fitEditorToViewport();
+        }
+        function closeTablePopup() {
+            if (!tablePopupOpen) return;
+            tablePopupOpen = false;
+            document.getElementById("tableViewport")?.classList.remove("popup-active");
+            document.getElementById("tablePopupBackdrop")?.classList.remove("visible");
+            document.getElementById("tablePopupToolbar")?.classList.remove("visible");
+            fitEditorToViewport();
         }
         function setNotice(text, type) {
             const box = document.getElementById("noticeBox");
@@ -1242,6 +1280,11 @@
         window.addEventListener("pointerup", () => { stopBallDrag(); stopLineEdit(); stopViewportPan(); handleTablePointerUp(); });
         window.addEventListener("pointercancel", () => { stopBallDrag(); stopLineEdit(); stopViewportPan(); handleTablePointerUp(); hideLoupe(); });
         window.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && tablePopupOpen) {
+                event.preventDefault();
+                closeTablePopup();
+                return;
+            }
             if (event.key === "Escape" && activeLineDraft) {
                 event.preventDefault();
                 finishActiveLineDraft();
