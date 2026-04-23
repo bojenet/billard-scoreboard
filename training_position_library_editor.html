@@ -99,9 +99,6 @@
         .photo-ball-pick.active { box-shadow:0 0 0 3px rgba(255,216,74,.42); transform:translateY(1px); }
         .photo-stage { position:relative; width:100%; background:#0b173a; border:1px solid #3557b7; border-radius:18px; overflow:hidden; }
         .photo-canvas { display:block; width:100%; height:auto; cursor:crosshair; }
-        .photo-schema-wrap { margin-top:12px; display:none; }
-        .photo-schema-wrap.visible { display:block; }
-        .photo-schema-label { font-size:13px; opacity:.82; margin-bottom:8px; }
         .photo-hint { margin-top:10px; font-size:13px; opacity:.8; }
         .reference-photo-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; min-height:120px; border-radius:16px; overflow:hidden; display:none; align-items:center; justify-content:center; }
         .reference-photo-preview { display:block; width:100%; max-height:280px; object-fit:contain; background:#08112b; }
@@ -231,7 +228,6 @@
                 <button class="photo-step-btn active" id="photoImportAlignTable" type="button" onclick="setPhotoImportMobileAlignmentMode('table')">Ganzer Tisch</button>
                 <button class="photo-step-btn" id="photoImportAlignCadre" type="button" onclick="setPhotoImportMobileAlignmentMode('cadre')">Cadre-Linien</button>
             </div>
-            <div class="chips" id="photoImportDisciplineButtons"></div>
             <div class="photo-steps">
                 <button class="photo-step-btn active" id="photoImportMobileStepCorners" type="button" onclick="setPhotoImportMobileStep('corners')">1. Tisch ausrichten</button>
                 <button class="photo-step-btn" id="photoImportMobileStepBalls" type="button" onclick="setPhotoImportMobileStep('balls')">2. Bälle setzen</button>
@@ -242,12 +238,6 @@
                 <button class="photo-ball-pick white" id="photoImportMobileBallWhite" type="button" onclick="setPhotoImportMobileActiveBall(2)">Weiß</button>
             </div>
             <div class="photo-status" id="photoImportMobileStatus">Noch kein Foto geladen.</div>
-            <div class="photo-schema-wrap" id="photoImportMobileSchemaWrap">
-                <div class="photo-schema-label">1. Punkt auf der Disziplin-Grafik wählen, danach denselben Punkt im Foto setzen.</div>
-                <div class="photo-stage">
-                    <canvas id="photoImportMobileSchemaCanvas" class="photo-canvas"></canvas>
-                </div>
-            </div>
             <div class="photo-stage">
                 <canvas id="photoImportMobileCanvas" class="photo-canvas"></canvas>
             </div>
@@ -264,7 +254,6 @@
         const params = new URLSearchParams(window.location.search);
         const positionId = params.get("id") || "";
         const disciplines = ["Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
-        const importDisciplines = ["Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Freie Partie", "Einband", "Dreiband"];
         const tableTemplates = {
             "Freie Partie": "assets/discipline-mb-libre.png",
             "Cadre 35/2": "assets/discipline-tb-35.png",
@@ -311,8 +300,6 @@
         let photoImportMobileActiveBall = 0;
         let photoImportMobileAlignmentMode = "table";
         let photoImportMobileDrag = null;
-        let photoImportMobileSchemaPoints = [];
-        let photoImportMobileSchemaImage = null;
         let referencePhotoDataUrl = "";
         const baseTableWidth = 1200;
         const baseTableHeight = 674;
@@ -500,40 +487,14 @@
             ctx.textAlign = "center";
             ctx.fillText(message, canvas.width / 2, canvas.height / 2);
         }
-        function buildPhotoImportDisciplineButtons() {
-            const wrap = document.getElementById("photoImportDisciplineButtons");
-            if (!wrap) return;
-            wrap.innerHTML = "";
-            importDisciplines.forEach((discipline) => {
-                const btn = document.createElement("button");
-                btn.className = "chip";
-                btn.type = "button";
-                btn.dataset.value = discipline;
-                btn.innerText = discipline;
-                btn.onclick = () => setSelectedDiscipline(discipline);
-                wrap.appendChild(btn);
-            });
-            syncPhotoImportDisciplineButtons();
-        }
-        function syncPhotoImportDisciplineButtons() {
-            document.querySelectorAll("#photoImportDisciplineButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === selectedDiscipline));
-        }
         function sizePhotoCanvas(canvas, image) {
             const maxWidth = 1400;
             const scale = Math.min(1, maxWidth / image.width);
             canvas.width = Math.max(640, Math.round(image.width * scale));
             canvas.height = Math.max(360, Math.round(image.height * scale));
         }
-        function sizePortraitCanvas(canvas) {
-            if (!canvas) return;
-            canvas.width = 674;
-            canvas.height = 1200;
-        }
         function isCadreAlignmentAvailable(discipline) {
             return !!CADRE_IMPORT_SPECS[discipline];
-        }
-        function isGuidedCadreAlignmentActive() {
-            return photoImportMobileAlignmentMode === "cadre" && isCadreAlignmentAvailable(selectedDiscipline);
         }
         function getCadreImportTargetCorners(discipline) {
             const spec = CADRE_IMPORT_SPECS[discipline];
@@ -551,20 +512,13 @@
             ];
         }
         function getPhotoImportMobileTargetCorners() {
-            if (isGuidedCadreAlignmentActive() && photoImportMobileSchemaPoints.length === 4) {
-                return photoImportMobileSchemaPoints;
+            if (photoImportMobileAlignmentMode === "cadre" && isCadreAlignmentAvailable(selectedDiscipline)) {
+                return getCadreImportTargetCorners(selectedDiscipline);
             }
             return photoImportTableCorners;
         }
         function getPhotoImportMobileAlignmentPointsReady() {
-            if (isGuidedCadreAlignmentActive()) return photoImportMobileSchemaPoints.length === 4 && photoImportMobileCorners.length === 4;
             return photoImportMobileCorners.length === 4;
-        }
-        function getPhotoImportMobileCadrePairIndex() {
-            return Math.min(photoImportMobileSchemaPoints.length, photoImportMobileCorners.length);
-        }
-        function isPhotoImportMobileWaitingForPhotoPoint() {
-            return isGuidedCadreAlignmentActive() && photoImportMobileSchemaPoints.length > photoImportMobileCorners.length;
         }
         function updateReferencePhotoUi() {
             const box = document.getElementById("referencePhotoBox");
@@ -582,17 +536,13 @@
             const canvas = document.getElementById("photoImportMobileCanvas");
             if (!canvas) return;
             sizePhotoCanvas(canvas, photoImportMobileImage);
-            photoImportMobileSchemaPoints = [];
-            photoImportMobileCorners = [];
             const playableWidth = bounds.maxX - bounds.minX;
             const playableHeight = bounds.maxY - bounds.minY;
-            if (!isGuidedCadreAlignmentActive()) {
-                const targetCorners = photoImportTableCorners;
-                photoImportMobileCorners = targetCorners.map((point) => ({
-                    x: ((point.x - bounds.minX) / playableWidth) * canvas.width,
-                    y: ((point.y - bounds.minY) / playableHeight) * canvas.height
-                }));
-            }
+            const targetCorners = getPhotoImportMobileTargetCorners();
+            photoImportMobileCorners = targetCorners.map((point) => ({
+                x: ((point.x - bounds.minX) / playableWidth) * canvas.width,
+                y: ((point.y - bounds.minY) / playableHeight) * canvas.height
+            }));
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
             const spread = Math.max(50, canvas.width * 0.08);
@@ -605,10 +555,8 @@
         function getPhotoImportMobileStatusText() {
             if (!photoImportMobileImage) return "Noch kein Foto geladen.";
             if (photoImportMobileStep === "corners") {
-                return isGuidedCadreAlignmentActive()
-                    ? (isPhotoImportMobileWaitingForPhotoPoint()
-                        ? `Jetzt denselben Punkt ${photoImportMobileCorners.length + 1} im Foto setzen.`
-                        : `Punkt ${getPhotoImportMobileCadrePairIndex() + 1} zuerst auf der Disziplin-Grafik wählen.`)
+                return photoImportMobileAlignmentMode === "cadre"
+                    ? "Ziehe die 4 gelben Fadenkreuze auf sichtbare Cadre-Linien-Ecken. Danach zu den Bällen wechseln."
                     : "Ziehe die 4 gelben Fadenkreuze auf die Ecken der Spielfläche. Danach zu den Bällen wechseln.";
             }
             return "Ziehe Rot, Gelb und Weiß an die richtige Stelle. Ein Tipp auf freie Fläche setzt den aktuell aktiven Ball dort ab.";
@@ -636,7 +584,6 @@
             const ballPicks = document.getElementById("photoImportMobileBallPicks");
             const alignTableBtn = document.getElementById("photoImportAlignTable");
             const alignCadreBtn = document.getElementById("photoImportAlignCadre");
-            const schemaWrap = document.getElementById("photoImportMobileSchemaWrap");
             const canUseCadreAlignment = isCadreAlignmentAvailable(selectedDiscipline);
             if (!canUseCadreAlignment && photoImportMobileAlignmentMode === "cadre") photoImportMobileAlignmentMode = "table";
             if (modal) modal.setAttribute("aria-hidden", modal.classList.contains("visible") ? "false" : "true");
@@ -646,18 +593,15 @@
             if (ballsBtn) ballsBtn.classList.toggle("active", photoImportMobileStep === "balls");
             if (ballsBtn) ballsBtn.disabled = !photoImportMobileImage;
             if (ballPicks) ballPicks.style.display = photoImportMobileStep === "balls" ? "flex" : "none";
-            if (schemaWrap) schemaWrap.classList.toggle("visible", photoImportMobileStep === "corners" && isGuidedCadreAlignmentActive());
             if (alignTableBtn) alignTableBtn.classList.toggle("active", photoImportMobileAlignmentMode === "table");
             if (alignCadreBtn) {
                 alignCadreBtn.classList.toggle("active", photoImportMobileAlignmentMode === "cadre");
                 alignCadreBtn.disabled = !canUseCadreAlignment;
             }
-            syncPhotoImportDisciplineButtons();
             ["Red", "Yellow", "White"].forEach((name, index) => {
                 const button = document.getElementById("photoImportMobileBall" + name);
                 if (button) button.classList.toggle("active", photoImportMobileActiveBall === index);
             });
-            drawPhotoImportMobileSchemaCanvas();
             drawPhotoImportMobileCanvas();
         }
         function openPhotoImportMobile() {
@@ -676,7 +620,6 @@
             stopPhotoImportMobileDrag();
             if (photoImportMobileImage) setDefaultPhotoImportMobileAnchors();
             else {
-                photoImportMobileSchemaPoints = [];
                 photoImportMobileCorners = [];
                 photoImportMobileBalls = [];
             }
@@ -701,41 +644,6 @@
         }
         function getPhotoImportMobileCanvasPoint(event) {
             return getCanvasPoint(document.getElementById("photoImportMobileCanvas"), event);
-        }
-        function getPhotoImportMobileSchemaCanvasPoint(event) {
-            const canvas = document.getElementById("photoImportMobileSchemaCanvas");
-            const point = getCanvasPoint(canvas, event);
-            if (!point || !canvas) return null;
-            return {
-                x: clamp(point.x, 0, canvas.width),
-                y: clamp(point.y, 0, canvas.height)
-            };
-        }
-        function drawPhotoImportMobileSchemaCanvas() {
-            const canvas = document.getElementById("photoImportMobileSchemaCanvas");
-            if (!canvas) return;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) return;
-            sizePortraitCanvas(canvas);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#0b173a";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            const image = photoImportMobileSchemaImage;
-            if (image?.complete && image.naturalWidth) {
-                const rotatedWidth = image.naturalHeight;
-                const rotatedHeight = image.naturalWidth;
-                const scale = Math.min(canvas.width / rotatedWidth, canvas.height / rotatedHeight);
-                const drawWidth = rotatedWidth * scale;
-                const drawHeight = rotatedHeight * scale;
-                const offsetX = (canvas.width - drawWidth) / 2;
-                const offsetY = (canvas.height - drawHeight) / 2;
-                ctx.save();
-                ctx.translate(offsetX + drawWidth, offsetY);
-                ctx.rotate(Math.PI / 2);
-                ctx.drawImage(image, 0, 0, drawHeight, drawWidth);
-                ctx.restore();
-            }
-            photoImportMobileSchemaPoints.forEach((pt, index) => drawPhotoImportTargetMarker(ctx, pt, index, index === getPhotoImportMobileCadrePairIndex() && !isPhotoImportMobileWaitingForPhotoPoint()));
         }
         function drawPhotoImportTargetMarker(ctx, pt, index, highlighted) {
             const arm = highlighted ? 18 : 14;
@@ -781,7 +689,7 @@
             sizePhotoCanvas(canvas, photoImportMobileImage);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(photoImportMobileImage, 0, 0, canvas.width, canvas.height);
-            if (photoImportMobileCorners.length > 1 && !isGuidedCadreAlignmentActive()) {
+            if (photoImportMobileCorners.length > 1) {
                 ctx.strokeStyle = "rgba(255,216,74,.95)";
                 ctx.lineWidth = 4;
                 ctx.beginPath();
@@ -792,8 +700,7 @@
                 ctx.stroke();
             }
             photoImportMobileCorners.forEach((pt, index) => {
-                const highlighted = isGuidedCadreAlignmentActive() ? index === photoImportMobileCorners.length : photoImportMobileStep === "corners";
-                drawPhotoImportTargetMarker(ctx, pt, index, highlighted);
+                drawPhotoImportTargetMarker(ctx, pt, index, photoImportMobileStep === "corners");
             });
             const ballColors = ["#cf2e2e", "#e0bb20", "#f3f5fb"];
             photoImportMobileBalls.forEach((pt, index) => {
@@ -838,13 +745,6 @@
             const point = getPhotoImportMobileCanvasPoint(event);
             if (!canvas || !point) return;
             if (photoImportMobileStep === "corners") {
-                if (isGuidedCadreAlignmentActive()) {
-                    if (!isPhotoImportMobileWaitingForPhotoPoint()) return;
-                    if (photoImportMobileCorners.length < photoImportMobileSchemaPoints.length) photoImportMobileCorners.push(point);
-                    updatePhotoImportMobileUi();
-                    event.preventDefault();
-                    return;
-                }
                 const cornerIndex = hitTestPhotoImportMobile(point, photoImportMobileCorners, 34);
                 if (cornerIndex === -1) return;
                 photoImportMobileDrag = { type: "corner", index: cornerIndex, pointerId: event.pointerId };
@@ -867,17 +767,6 @@
             const point = getPhotoImportMobileCanvasPoint(event);
             if (!point) return;
             updatePhotoImportMobileDragPoint(point);
-            event.preventDefault();
-        }
-        function handlePhotoImportMobileSchemaPointerDown(event) {
-            if (!photoImportMobileImage || photoImportMobileStep !== "corners" || !isGuidedCadreAlignmentActive()) return;
-            if (isPhotoImportMobileWaitingForPhotoPoint()) return;
-            const point = getPhotoImportMobileSchemaCanvasPoint(event);
-            if (!point) return;
-            if (photoImportMobileSchemaPoints.length < 4) {
-                photoImportMobileSchemaPoints.push(point);
-                updatePhotoImportMobileUi();
-            }
             event.preventDefault();
         }
         function stopPhotoImportMobileDrag(event) {
@@ -1169,10 +1058,6 @@
             selectedDiscipline = value || "Cadre 47/2";
             document.getElementById("tableBackground").src = getTemplateForDiscipline(selectedDiscipline);
             document.querySelectorAll("#disciplineButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === selectedDiscipline));
-            syncPhotoImportDisciplineButtons();
-            photoImportMobileSchemaImage = new Image();
-            photoImportMobileSchemaImage.onload = () => updatePhotoImportMobileUi();
-            photoImportMobileSchemaImage.src = getTemplateForDiscipline(selectedDiscipline);
             applyBallAppearance();
             renderBalls();
             updatePhotoImportMobileUi();
@@ -1668,7 +1553,6 @@
                 return;
             }
             buildDisciplineButtons();
-            buildPhotoImportDisciplineButtons();
             positionPages = [createDefaultPage()];
             currentPageIndex = 0;
             ballLayout = getDefaultLayout();
@@ -1714,7 +1598,6 @@
         document.getElementById("photoImportMobileCanvas").addEventListener("pointermove", handlePhotoImportMobilePointerMove);
         document.getElementById("photoImportMobileCanvas").addEventListener("pointerup", stopPhotoImportMobileDrag);
         document.getElementById("photoImportMobileCanvas").addEventListener("pointercancel", stopPhotoImportMobileDrag);
-        document.getElementById("photoImportMobileSchemaCanvas").addEventListener("pointerdown", handlePhotoImportMobileSchemaPointerDown);
         updateFullscreenButton();
         init();
     </script>
