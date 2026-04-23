@@ -1428,24 +1428,28 @@
                 line_paths: payload.line_paths,
                 position_pages: payload.position_pages
             };
-            let result;
-            if (editingId) {
-                result = await supabaseClient.from("training_position_library").update(payload).eq("id", editingId).eq("user_id", currentUser.id);
-            } else {
-                result = await supabaseClient.from("training_position_library").insert(payload).select("id").single();
+            async function runSave(savePayload) {
+                if (editingId) {
+                    return supabaseClient.from("training_position_library").update(savePayload).eq("id", editingId).eq("user_id", currentUser.id);
+                }
+                return supabaseClient.from("training_position_library").insert(savePayload).select("id").single();
             }
+            let result = await runSave(payload);
             if (result.error) {
                 const message = String(result.error.message || "");
-                const missingReferencePhotoColumn = message.includes("reference_photo");
+                const code = String(result.error.code || "");
+                const details = String(result.error.details || "");
+                const hint = String(result.error.hint || "");
+                const missingReferencePhotoColumn =
+                    message.includes("reference_photo") ||
+                    details.includes("reference_photo") ||
+                    hint.includes("reference_photo") ||
+                    code === "PGRST204";
                 if (!missingReferencePhotoColumn) {
                     alert("Position konnte nicht gespeichert werden: " + result.error.message);
                     return;
                 }
-                if (editingId) {
-                    result = await supabaseClient.from("training_position_library").update(payloadWithoutReferencePhoto).eq("id", editingId).eq("user_id", currentUser.id);
-                } else {
-                    result = await supabaseClient.from("training_position_library").insert(payloadWithoutReferencePhoto).select("id").single();
-                }
+                result = await runSave(payloadWithoutReferencePhoto);
                 if (result.error) {
                     alert("Position konnte nicht gespeichert werden: " + result.error.message);
                     return;
