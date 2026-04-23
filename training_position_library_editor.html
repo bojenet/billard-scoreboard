@@ -652,14 +652,37 @@
                 ctx.stroke();
             }
             photoImportMobileCorners.forEach((pt, index) => {
-                ctx.fillStyle = "#ffd84a";
+                const isCornerStep = photoImportMobileStep === "corners";
+                const arm = isCornerStep ? 18 : 14;
+                const gap = isCornerStep ? 5 : 4;
+                ctx.strokeStyle = "#10192f";
+                ctx.lineWidth = isCornerStep ? 5 : 4;
                 ctx.beginPath();
-                ctx.arc(pt.x, pt.y, photoImportMobileStep === "corners" ? 18 : 14, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = "#10192f";
-                ctx.font = "bold 20px Arial";
-                ctx.textAlign = "center";
-                ctx.fillText(String(index + 1), pt.x, pt.y + 7);
+                ctx.moveTo(pt.x - arm, pt.y);
+                ctx.lineTo(pt.x - gap, pt.y);
+                ctx.moveTo(pt.x + gap, pt.y);
+                ctx.lineTo(pt.x + arm, pt.y);
+                ctx.moveTo(pt.x, pt.y - arm);
+                ctx.lineTo(pt.x, pt.y - gap);
+                ctx.moveTo(pt.x, pt.y + gap);
+                ctx.lineTo(pt.x, pt.y + arm);
+                ctx.stroke();
+                ctx.strokeStyle = "#ffd84a";
+                ctx.lineWidth = isCornerStep ? 3 : 2.5;
+                ctx.beginPath();
+                ctx.moveTo(pt.x - arm, pt.y);
+                ctx.lineTo(pt.x - gap, pt.y);
+                ctx.moveTo(pt.x + gap, pt.y);
+                ctx.lineTo(pt.x + arm, pt.y);
+                ctx.moveTo(pt.x, pt.y - arm);
+                ctx.lineTo(pt.x, pt.y - gap);
+                ctx.moveTo(pt.x, pt.y + gap);
+                ctx.lineTo(pt.x, pt.y + arm);
+                ctx.stroke();
+                ctx.fillStyle = "#ffd84a";
+                ctx.font = "bold 18px Arial";
+                ctx.textAlign = "left";
+                ctx.fillText(String(index + 1), pt.x + arm + 6, pt.y - arm + 6);
             });
             const ballColors = ["#cf2e2e", "#e0bb20", "#f3f5fb"];
             photoImportMobileBalls.forEach((pt, index) => {
