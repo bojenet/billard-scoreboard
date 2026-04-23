@@ -687,12 +687,10 @@
             const ballColors = ["#cf2e2e", "#e0bb20", "#f3f5fb"];
             photoImportMobileBalls.forEach((pt, index) => {
                 const isActive = photoImportMobileActiveBall === index;
-                ctx.fillStyle = ballColors[index] || "#ffffff";
-                ctx.strokeStyle = isActive ? "#ffd84a" : "#173168";
-                ctx.lineWidth = isActive ? 6 : 4;
+                ctx.strokeStyle = isActive ? "#ffd84a" : (ballColors[index] || "#ffffff");
+                ctx.lineWidth = isActive ? 6 : 4.5;
                 ctx.beginPath();
                 ctx.arc(pt.x, pt.y, photoImportMobileStep === "balls" ? 22 : 16, 0, Math.PI * 2);
-                ctx.fill();
                 ctx.stroke();
                 ctx.fillStyle = isActive ? "#ffd84a" : "#ffffff";
                 ctx.font = "bold 20px Arial";
