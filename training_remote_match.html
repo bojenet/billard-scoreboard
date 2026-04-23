@@ -37,14 +37,17 @@
         .selected-user.active { display:block; }
         .selected-user-name { font-size: 15px; font-weight: 700; }
         .selected-user-meta { margin-top: 3px; font-size: 13px; opacity: .76; }
-        .positions-select-row { display:flex; justify-content:flex-end; margin-bottom:10px; }
         .positions-panel { border: 1px solid #2f4ea0; border-radius: 16px; background: rgba(8, 20, 54, 0.42); overflow: hidden; }
         .positions-toggle { width: 100%; border: none; border-bottom: 1px solid #27417f; background: rgba(22, 43, 102, 0.9); color: white; padding: 14px 16px; display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer; text-align:left; }
         .positions-body { display:none; padding: 14px; }
         .positions-body.open { display:block; }
+        .positions-toolbar { display:flex; justify-content:flex-end; margin-bottom:14px; }
         .positions-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
         .position-card { border: 1px solid #3557b7; border-radius: 16px; background: rgba(12, 28, 72, 0.74); padding: 12px; box-shadow: 0 14px 28px rgba(0,0,0,.24); }
+        .position-card.drag-over { border-color:#ffe27a; box-shadow:0 0 0 2px rgba(255,226,122,.28), 0 14px 28px rgba(0,0,0,.24); }
         .position-card-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
+        .position-card-head.drag-handle { cursor: grab; }
+        .position-card-head.drag-handle:active { cursor: grabbing; }
         .position-card-title { font-size: 15px; font-weight: 700; }
         .position-card-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
         .position-zoom-btn, .position-library-btn { border: none; border-radius: 10px; background: #2746aa; color: white; font-size: 12px; font-weight: 700; padding: 8px 10px; cursor: pointer; }
@@ -143,9 +146,6 @@
             </div>
 
             <div class="section">
-                <div class="positions-select-row">
-                    <button class="position-library-btn" type="button" onclick="openPositionLibraryModal()">Positionen auswählen</button>
-                </div>
                 <div class="positions-panel">
                     <button class="positions-toggle" type="button" onclick="togglePositions()">
                         <div>
@@ -155,6 +155,9 @@
                         <span id="positionsToggleIcon" style="font-size:20px;font-weight:700;line-height:1;">+</span>
                     </button>
                     <div class="positions-body" id="positionsBody">
+                        <div class="positions-toolbar">
+                            <button class="position-library-btn" type="button" onclick="openPositionLibraryModal()">Positionen auswählen</button>
+                        </div>
                         <div class="positions-grid" id="positionsGrid"></div>
                     </div>
                 </div>
@@ -247,6 +250,7 @@
         let challengePositions = [];
         let libraryItems = [];
         let activeChallengeDrag = null;
+        let activePositionOrderDragId = 0;
         let currentPositionZoom = 1;
         let selectedLibraryKeys = new Set();
         const REMOTE_MATCH_DRAFT_KEY = "training_remote_match_setup_draft_v1";
@@ -463,6 +467,45 @@
             challengePositions = challengePositions.filter((item) => Number(item.id) !== Number(positionId)).map((item, index) => ({ ...item, id: index + 1 }));
             renderPositions();
         }
+        function reorderChallengePositions(fromId, toId) {
+            const fromIndex = challengePositions.findIndex((item) => Number(item.id) === Number(fromId));
+            const toIndex = challengePositions.findIndex((item) => Number(item.id) === Number(toId));
+            if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+            const next = challengePositions.slice();
+            const [moved] = next.splice(fromIndex, 1);
+            next.splice(toIndex, 0, moved);
+            challengePositions = next.map((item, index) => ({ ...item, id: index + 1 }));
+            renderPositions();
+        }
+        function bindPositionReorderDrag(root) {
+            root.querySelectorAll("[data-position-order-id]").forEach((handle) => {
+                handle.addEventListener("dragstart", (event) => {
+                    activePositionOrderDragId = Number(handle.dataset.positionOrderId || 0);
+                    if (event.dataTransfer) {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", String(activePositionOrderDragId));
+                    }
+                });
+                handle.addEventListener("dragend", () => {
+                    activePositionOrderDragId = 0;
+                    root.querySelectorAll(".position-card").forEach((card) => card.classList.remove("drag-over"));
+                });
+            });
+            root.querySelectorAll(".position-card").forEach((card) => {
+                card.addEventListener("dragover", (event) => {
+                    if (!activePositionOrderDragId) return;
+                    event.preventDefault();
+                    card.classList.add("drag-over");
+                });
+                card.addEventListener("dragleave", () => { card.classList.remove("drag-over"); });
+                card.addEventListener("drop", (event) => {
+                    if (!activePositionOrderDragId) return;
+                    event.preventDefault();
+                    card.classList.remove("drag-over");
+                    reorderChallengePositions(activePositionOrderDragId, Number(card.dataset.positionId || 0));
+                });
+            });
+        }
         function renderPositions() {
             const grid = document.getElementById("positionsGrid");
             grid.innerHTML = "";
@@ -473,12 +516,14 @@
             challengePositions.forEach((layout) => {
                 const card = document.createElement("div");
                 card.className = "position-card";
+                card.dataset.positionId = String(layout.id);
                 const sourceLabel = layout.source_title ? `${layout.source_title}${layout.source_page_label ? " • " + layout.source_page_label : ""}` : "";
                 const emptyHint = hasLoadedChallengePosition(layout) ? "" : `<div class="position-empty-hint">Noch keine Position geladen</div>`;
-                card.innerHTML = `<div class="position-card-head"><div class="position-card-title">Position ${layout.id}</div><div class="position-card-actions"><button class="position-zoom-btn" type="button" data-position-zoom="${layout.id}">Groß</button><button class="position-zoom-btn position-remove-btn" type="button" data-position-remove="${layout.id}">Löschen</button></div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}${emptyHint}</div><div class="position-source">${sourceLabel ? `Quelle: ${sourceLabel}` : "Quelle: bitte aus Library laden"}</div>`;
+                card.innerHTML = `<div class="position-card-head drag-handle" draggable="true" data-position-order-id="${layout.id}"><div class="position-card-title">Position ${layout.id}</div><div class="position-card-actions"><button class="position-zoom-btn" type="button" data-position-zoom="${layout.id}">Groß</button><button class="position-zoom-btn position-remove-btn" type="button" data-position-remove="${layout.id}">Löschen</button></div></div><div class="position-table-wrap"><img class="position-table-bg" src="${getChallengeTemplateForDiscipline(getActiveDiscipline())}" alt="Position ${layout.id}">${renderChallengePositionSvg(layout)}${emptyHint}</div><div class="position-source">${sourceLabel ? `Quelle: ${sourceLabel}` : "Quelle: bitte aus Library laden"}</div>`;
                 grid.appendChild(card);
             });
             bindChallengePositionDrag(grid);
+            bindPositionReorderDrag(grid);
             grid.querySelectorAll("[data-position-zoom]").forEach((btn) => { btn.onclick = () => openPositionZoom(Number(btn.dataset.positionZoom || 0)); });
             grid.querySelectorAll("[data-position-remove]").forEach((btn) => { btn.onclick = () => removeChallengePositionSlot(Number(btn.dataset.positionRemove || 0)); });
         }
