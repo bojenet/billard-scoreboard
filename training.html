@@ -15,6 +15,11 @@
             font-family: Arial, sans-serif;
             background: linear-gradient(180deg, #1e1f29, #14151c);
             color: white;
+            visibility: hidden;
+        }
+
+        body.auth-ready {
+            visibility: visible;
         }
 
         .fullscreen-btn {
@@ -51,59 +56,59 @@
         }
 
         .grid {
-            width: min(1320px, 92%);
-            margin: 0 auto;
+            width: 1000px;
+            max-width: 92%;
+            margin: 60px auto;
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 26px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
         }
 
         .tile {
-            min-height: 220px;
-            border-radius: 20px;
-            background: linear-gradient(180deg, #2b2e40, #25293a);
-            border: 1px solid #3a4060;
-            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.35);
+            background: #2a2b35;
+            border-radius: 25px;
+            height: 200px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             cursor: pointer;
-            transition: transform .18s ease, background .18s ease;
+            transition: 0.25s;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
             text-align: center;
             padding: 20px;
         }
 
         .tile:hover {
-            transform: translateY(-4px);
-            background: linear-gradient(180deg, #36407a, #2c3361);
+            background: #3f4fa3;
+            transform: translateY(-6px);
         }
 
         .tile-title {
-            font-size: 34px;
-            font-weight: 700;
+            font-size: 26px;
             margin-bottom: 12px;
         }
 
         .tile-sub {
-            font-size: 18px;
-            opacity: 0.82;
+            font-size: 14px;
+            opacity: 0.6;
         }
 
         .actions {
-            width: min(1050px, 92%);
+            width: 1000px;
+            max-width: 92%;
             margin: 30px auto 40px;
             display: flex;
             justify-content: center;
         }
 
         .btn {
-            padding: 14px 26px;
+            padding: 10px 16px;
             border: none;
-            border-radius: 12px;
-            background: #4352a8;
+            border-radius: 10px;
+            background: #1c3380;
             color: white;
-            font-size: 22px;
+            font-size: 16px;
             font-weight: 700;
             cursor: pointer;
         }
@@ -245,6 +250,7 @@
     (async () => {
         const user = await requireAuth();
         if (!user) return;
+        document.body.classList.add("auth-ready");
         const visible = await applyTrainingAccess(user);
         if (!visible) return;
         await loadRemoteMatchInvites(user);
