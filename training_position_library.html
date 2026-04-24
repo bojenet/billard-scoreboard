@@ -181,11 +181,8 @@
             }
             wrap.innerHTML = "";
             visible.forEach((item) => {
-                const pages = Array.isArray(item.position_pages) && item.position_pages.length ? item.position_pages : [{ ball_layout: item.ball_layout, line_paths: item.line_paths }];
-                const firstPage = pages[0] || {};
-                const layout = firstPage.ball_layout || item.ball_layout || defaultLayout;
-                const lines = Array.isArray(firstPage.line_paths) ? firstPage.line_paths : (Array.isArray(item.line_paths) ? item.line_paths : []);
-                const pageSuffix = pages.length > 1 ? ` • ${pages.length} Seiten` : "";
+                const layout = item.ball_layout || defaultLayout;
+                const lines = Array.isArray(item.line_paths) ? item.line_paths : [];
                 const creatorName = escapeHtml(item.created_by_name || "Unbekannt");
                 const canEdit = isPositionLibraryEditable(positionLibraryAccessMode);
                 const checkMarkup = canEdit
@@ -193,7 +190,7 @@
                     : "";
                 const card = document.createElement("div");
                 card.className = "item";
-                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}${pageSuffix}</div><div class="item-meta">Ersteller: ${creatorName}</div></div>${checkMarkup}</div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
+                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}</div><div class="item-meta">Ersteller: ${creatorName}</div></div>${checkMarkup}</div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
                 card.querySelector("[data-open]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
                 const selectBox = card.querySelector("[data-select]");
                 if (selectBox) {
@@ -207,7 +204,7 @@
         async function loadLibrary() {
             let query = supabaseClient
                 .from("training_position_library")
-                .select("*")
+                .select("id,title,discipline,updated_at,created_by_name,description,ball_layout,line_paths")
                 .order("updated_at", { ascending: false });
             if (isPositionLibraryEditable(positionLibraryAccessMode)) {
                 query = query.eq("user_id", currentUser.id);
