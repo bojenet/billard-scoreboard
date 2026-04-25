@@ -241,17 +241,18 @@
         async function loadLiveMatches() {
             const user = await requireAuth();
             if (!user) return;
-            document.body.classList.add("auth-ready");
             const isAdmin = await hasAdminAccess(user);
             const usersTile = document.getElementById("usersTile");
             if (usersTile) {
                 usersTile.style.display = isAdmin ? "flex" : "none";
             }
 
-            await applyTrainingAccess(user);
-            await applyTournamentAccess(user);
-            await loadCountdownInvites(user);
-            const ownedNames = await getOwnedPlayerNames(user.id);
+            const [_, __, ___, ownedNames] = await Promise.all([
+                applyTrainingAccess(user),
+                applyTournamentAccess(user),
+                loadCountdownInvites(user),
+                getOwnedPlayerNames(user.id)
+            ]);
 
             const { data, error } = await supabaseClient
                 .from("matches")
@@ -262,6 +263,7 @@
 
             if (error) {
                 console.log("Fehler:", error);
+                document.body.classList.add("auth-ready");
                 return;
             }
 
@@ -292,9 +294,17 @@
 
                 grid.prepend(tile);
             });
+
+            document.body.classList.add("auth-ready");
         }
 
-        loadLiveMatches();
+        loadLiveMatches()
+            .catch((error) => {
+                console.error("Startseite konnte nicht initialisiert werden:", error);
+            })
+            .finally(() => {
+                document.body.classList.add("auth-ready");
+            });
     </script>
 
 </body>
