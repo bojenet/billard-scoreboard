@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Stream Scoreboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: transparent;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        body {
+            visibility: hidden;
+        }
+
+        body.stream-ready {
+            visibility: visible;
+        }
+
+        .canvas {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .overlay {
+            position: absolute;
+            left: clamp(18px, 2vw, 36px);
+            right: clamp(18px, 2vw, 36px);
+            bottom: clamp(18px, 2vw, 32px);
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+            align-items: stretch;
+            gap: clamp(12px, 1.4vw, 22px);
+        }
+
+        .panel {
+            min-height: clamp(120px, 15vh, 190px);
+            border-radius: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background:
+                linear-gradient(180deg, rgba(14, 20, 45, 0.92), rgba(7, 12, 31, 0.94));
+            box-shadow:
+                0 24px 70px rgba(0, 0, 0, 0.42),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+        }
+
+        .player-panel {
+            position: relative;
+            padding: clamp(16px, 1.8vw, 28px) clamp(18px, 2vw, 30px);
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .player-panel.active {
+            border-color: rgba(255, 219, 77, 0.56);
+            box-shadow:
+                0 24px 80px rgba(0, 0, 0, 0.44),
+                0 0 0 2px rgba(255, 219, 77, 0.22),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .player-panel.active.player-white {
+            border-color: rgba(255, 255, 255, 0.55);
+            box-shadow:
+                0 24px 80px rgba(0, 0, 0, 0.44),
+                0 0 0 2px rgba(255, 255, 255, 0.18),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .player-panel.player-yellow .player-name,
+        .player-panel.player-yellow .meta-emphasis {
+            color: #ffd84a;
+        }
+
+        .player-main {
+            min-width: 0;
+        }
+
+        .player-name {
+            font-size: clamp(24px, 2.5vw, 46px);
+            font-weight: 800;
+            line-height: 1.05;
+            letter-spacing: 0.01em;
+            color: #fff;
+            text-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .player-sub {
+            margin-top: 8px;
+            font-size: clamp(12px, 1vw, 18px);
+            color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .player-stats {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: clamp(10px, 1vw, 18px);
+        }
+
+        .stat-chip {
+            min-width: 86px;
+            padding: 8px 12px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.58);
+        }
+
+        .stat-value {
+            margin-top: 3px;
+            font-size: clamp(16px, 1.3vw, 24px);
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .score-block {
+            text-align: right;
+            min-width: clamp(100px, 10vw, 170px);
+        }
+
+        .score-value {
+            font-size: clamp(72px, 8.8vw, 146px);
+            line-height: 0.92;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.04em;
+            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .score-target {
+            margin-top: 8px;
+            font-size: clamp(14px, 1vw, 18px);
+            color: rgba(255, 255, 255, 0.74);
+        }
+
+        .center-panel {
+            min-width: clamp(160px, 14vw, 260px);
+            padding: clamp(12px, 1.2vw, 20px) clamp(14px, 1.4vw, 22px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .center-label {
+            font-size: clamp(11px, 0.8vw, 14px);
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.56);
+        }
+
+        .innings-value {
+            margin-top: 6px;
+            font-size: clamp(44px, 4.8vw, 82px);
+            font-weight: 900;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            color: #fff;
+        }
+
+        .series-badge {
+            margin-top: 10px;
+            min-height: 36px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            font-size: clamp(18px, 1.5vw, 28px);
+            font-weight: 800;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 90px;
+        }
+
+        .center-meta {
+            margin-top: 12px;
+            display: grid;
+            gap: 5px;
+            font-size: clamp(11px, 0.9vw, 15px);
+            color: rgba(255, 255, 255, 0.72);
+        }
+
+        .status-dot {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.28);
+            box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.05);
+        }
+
+        .player-panel.active .status-dot {
+            background: #51f28b;
+            box-shadow: 0 0 0 6px rgba(81, 242, 139, 0.14);
+        }
+
+        .error-box {
+            position: fixed;
+            left: 50%;
+            bottom: 26px;
+            transform: translateX(-50%);
+            width: min(720px, calc(100vw - 48px));
+            padding: 18px 20px;
+            border-radius: 20px;
+            background: rgba(35, 10, 14, 0.92);
+            border: 1px solid rgba(255, 108, 108, 0.35);
+            color: #fff;
+            box-shadow: 0 22px 70px rgba(0, 0, 0, 0.35);
+            font-size: 18px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 1100px) {
+            .overlay {
+                grid-template-columns: 1fr;
+            }
+
+            .center-panel {
+                order: -1;
+                min-width: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="canvas">
+        <div id="overlay" class="overlay hidden">
+            <section id="player1Panel" class="panel player-panel player-white">
+                <div class="status-dot"></div>
+                <div class="player-main">
+                    <div id="player1Name" class="player-name">Spieler 1</div>
+                    <div id="player1Sub" class="player-sub"></div>
+                    <div class="player-stats">
+                        <div class="stat-chip">
+                            <div class="stat-label">GD</div>
+                            <div id="avg1" class="stat-value">0.000</div>
+                        </div>
+                        <div class="stat-chip">
+                            <div class="stat-label">HS</div>
+                            <div id="hs1" class="stat-value">0</div>
+                        </div>
+                        <div class="stat-chip">
+                            <div class="stat-label">Aufn.</div>
+                            <div id="inn1" class="stat-value">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="score-block">
+                    <div id="score1" class="score-value">0</div>
+                    <div id="target1" class="score-target">/ 0</div>
+                </div>
+            </section>
+
+            <section class="panel center-panel">
+                <div class="center-label">Aufnahme</div>
+                <div id="totalInnings" class="innings-value">1</div>
+                <div id="seriesBadge" class="series-badge"></div>
+                <div class="center-meta">
+                    <div id="disciplineLine">Disziplin</div>
+                    <div id="remainingLine">Rest: - : -</div>
+                    <div id="liveLine">Live verbunden</div>
+                </div>
+            </section>
+
+            <section id="player2Panel" class="panel player-panel player-yellow">
+                <div class="status-dot"></div>
+                <div class="player-main">
+                    <div id="player2Name" class="player-name">Spieler 2</div>
+                    <div id="player2Sub" class="player-sub"></div>
+                    <div class="player-stats">
+                        <div class="stat-chip">
+                            <div class="stat-label">GD</div>
+                            <div id="avg2" class="stat-value">0.000</div>
+                        </div>
+                        <div class="stat-chip">
+                            <div class="stat-label">HS</div>
+                            <div id="hs2" class="stat-value">0</div>
+                        </div>
+                        <div class="stat-chip">
+                            <div class="stat-label">Aufn.</div>
+                            <div id="inn2" class="stat-value">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="score-block">
+                    <div id="score2" class="score-value">0</div>
+                    <div id="target2" class="score-target">/ 0</div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div id="errorBox" class="error-box hidden"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const matchId = new URLSearchParams(window.location.search).get("match");
+
+        let channel = null;
+        let pollInterval = null;
+        let currentUserId = "";
+        let ownedPlayerNames = [];
+
+        let player1 = "";
+        let player2 = "";
+        let discipline1 = "";
+        let discipline2 = "";
+        let target1 = 0;
+        let target2 = 0;
+        let score1 = 0;
+        let score2 = 0;
+        let inn1 = 0;
+        let inn2 = 0;
+        let totalInnings = 1;
+        let activePlayer = 1;
+        let series1 = 0;
+        let series2 = 0;
+        let high1 = 0;
+        let high2 = 0;
+        let maxInnings = 0;
+
+        function showError(message) {
+            const errorBox = document.getElementById("errorBox");
+            errorBox.textContent = message;
+            errorBox.classList.remove("hidden");
+            document.getElementById("overlay").classList.add("hidden");
+            document.body.classList.add("stream-ready");
+        }
+
+        function setLiveStatus(text) {
+            document.getElementById("liveLine").textContent = text;
+        }
+
+        function formatAvg(score, innings) {
+            return innings > 0 ? (score / innings).toFixed(3) : "0.000";
+        }
+
+        function remaining(score, target) {
+            if (!target || target <= 0) return "-";
+            return String(Math.max(0, Number(target) - Number(score)));
+        }
+
+        function render() {
+            document.getElementById("player1Name").textContent = player1 || "Spieler 1";
+            document.getElementById("player2Name").textContent = player2 || "Spieler 2";
+            document.getElementById("score1").textContent = String(score1 || 0);
+            document.getElementById("score2").textContent = String(score2 || 0);
+            document.getElementById("target1").textContent = "/ " + String(target1 || 0);
+            document.getElementById("target2").textContent = "/ " + String(target2 || 0);
+            document.getElementById("avg1").textContent = formatAvg(score1, inn1);
+            document.getElementById("avg2").textContent = formatAvg(score2, inn2);
+            document.getElementById("hs1").textContent = String(high1 || 0);
+            document.getElementById("hs2").textContent = String(high2 || 0);
+            document.getElementById("inn1").textContent = String(inn1 || 0);
+            document.getElementById("inn2").textContent = String(inn2 || 0);
+            document.getElementById("totalInnings").textContent = String(totalInnings || 1);
+            document.getElementById("disciplineLine").textContent =
+                String(discipline1 || "-") + "  |  " + String(discipline2 || "-") +
+                (maxInnings > 0 ? "  |  Max " + String(maxInnings) : "");
+            document.getElementById("remainingLine").textContent =
+                "Rest: " + remaining(score1, target1) + " : " + remaining(score2, target2);
+
+            const player1Sub = [];
+            const player2Sub = [];
+            if (discipline1) player1Sub.push(discipline1);
+            if (discipline2) player2Sub.push(discipline2);
+            if (target1 > 0) player1Sub.push("Distanz " + target1);
+            if (target2 > 0) player2Sub.push("Distanz " + target2);
+            document.getElementById("player1Sub").textContent = player1Sub.join(" · ");
+            document.getElementById("player2Sub").textContent = player2Sub.join(" · ");
+
+            const player1Panel = document.getElementById("player1Panel");
+            const player2Panel = document.getElementById("player2Panel");
+            player1Panel.classList.toggle("active", Number(activePlayer) === 1);
+            player2Panel.classList.toggle("active", Number(activePlayer) === 2);
+
+            const currentSeries = Number(activePlayer) === 1 ? Number(series1 || 0) : Number(series2 || 0);
+            const seriesBadge = document.getElementById("seriesBadge");
+            seriesBadge.textContent = currentSeries > 0 ? "+" + String(currentSeries) : "";
+            seriesBadge.style.color = Number(activePlayer) === 2 ? "#ffd84a" : "#ffffff";
+
+            document.getElementById("overlay").classList.remove("hidden");
+            document.body.classList.add("stream-ready");
+        }
+
+        function applyMatch(d) {
+            player1 = String(d.player1 || "");
+            player2 = String(d.player2 || "");
+            discipline1 = String(d.discipline1 || "");
+            discipline2 = String(d.discipline2 || "");
+            target1 = Number(d.target1 || 0);
+            target2 = Number(d.target2 || 0);
+            score1 = Number(d.score1 || 0);
+            score2 = Number(d.score2 || 0);
+            inn1 = Number(d.inn1 || 0);
+            inn2 = Number(d.inn2 || 0);
+            totalInnings = Number(d.totalInnings || 1);
+            activePlayer = Number(d.activePlayer || 1);
+            series1 = Number(d.series1 || 0);
+            series2 = Number(d.series2 || 0);
+            high1 = Number(d.high1 || 0);
+            high2 = Number(d.high2 || 0);
+            maxInnings = Number(d.maxInnings || 0);
+            render();
+        }
+
+        async function fetchMatch() {
+            const { data, error } = await supabaseClient
+                .from("matches")
+                .select("*")
+                .eq("id", matchId)
+                .single();
+
+            if (error) throw error;
+            return data;
+        }
+
+        async function verifyAccess() {
+            const user = await requireAuth();
+            if (!user) return null;
+            currentUserId = user.id;
+            const isAdmin = await hasAdminAccess(user);
+            ownedPlayerNames = await getOwnedPlayerNames(currentUserId);
+            return { user, isAdmin };
+        }
+
+        function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(async () => {
+                try {
+                    const data = await fetchMatch();
+                    applyMatch(data);
+                    setLiveStatus("Autom. Sync aktiv");
+                } catch (error) {
+                    console.warn("Stream-Polling fehlgeschlagen:", error);
+                }
+            }, 4000);
+        }
+
+        function subscribe() {
+            if (channel) {
+                supabaseClient.removeChannel(channel);
+            }
+
+            channel = supabaseClient
+                .channel("stream-match-" + matchId)
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "UPDATE",
+                        schema: "public",
+                        table: "matches",
+                        filter: "id=eq." + matchId
+                    },
+                    (payload) => {
+                        if (!payload?.new) return;
+                        applyMatch(payload.new);
+                        setLiveStatus("Live verbunden");
+                    }
+                )
+                .subscribe((status) => {
+                    if (status === "SUBSCRIBED") {
+                        setLiveStatus("Live verbunden");
+                    } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                        setLiveStatus("Autom. Sync aktiv");
+                    }
+                });
+        }
+
+        async function init() {
+            if (!matchId) {
+                showError("Kein Match angegeben. Bitte '?match=...' an die Stream-URL anhängen.");
+                return;
+            }
+
+            const access = await verifyAccess();
+            if (!access) return;
+
+            const data = await fetchMatch();
+            if (!access.isAdmin && !isOwnedMatch(data, currentUserId, ownedPlayerNames)) {
+                showError("Kein Zugriff auf diese Partie.");
+                return;
+            }
+
+            applyMatch(data);
+            subscribe();
+            startPolling();
+        }
+
+        init().catch((error) => {
+            console.error("Stream-Scoreboard konnte nicht geladen werden:", error);
+            showError("Stream-Scoreboard konnte nicht geladen werden.");
+        });
+    </script>
+</body>
+
+</html>
