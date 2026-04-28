@@ -479,19 +479,40 @@
         }
 
         async function fetchPublicStreamMatch() {
-            const { data, error } = await supabaseClient.functions.invoke("get-stream-match", {
-                body: { match: matchId, token: streamToken }
+            const functionUrl = "https://kstqhcaazuuxchqtnyfc.supabase.co/functions/v1/get-stream-match";
+            const response = await fetch(functionUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "apikey": supabaseKey,
+                    "Authorization": "Bearer " + supabaseKey
+                },
+                body: JSON.stringify({ match: matchId, token: streamToken })
             });
 
-            if (error) {
-                const detail = String(error.message || error.context || error.name || "function-error");
-                throw new Error("Function-Aufruf fehlgeschlagen: " + detail);
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (_) {
+                payload = null;
             }
-            if (!data?.match) {
-                const reason = data?.error ? String(data.error) : "stream-match-not-found";
+
+            if (!response.ok) {
+                const reasonParts = [
+                    payload?.error,
+                    payload?.message,
+                    payload?.details,
+                    payload?.hint,
+                    payload?.code
+                ].filter(Boolean);
+                throw new Error("Function-Aufruf fehlgeschlagen: " + (reasonParts.join(" | ") || ("HTTP " + response.status)));
+            }
+
+            if (!payload?.match) {
+                const reason = payload?.error ? String(payload.error) : "stream-match-not-found";
                 throw new Error("Kein Stream-Match gefunden: " + reason);
             }
-            return data.match;
+            return payload.match;
         }
 
         async function verifyAccess() {

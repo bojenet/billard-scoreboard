@@ -22,6 +22,7 @@ Deno.serve(async (request) => {
     const token = String(body?.token || "").trim();
 
     if (!matchId || !token) {
+      console.error("get-stream-match missing params", { matchId, tokenPresent: Boolean(token) });
       return new Response(
         JSON.stringify({ error: "match-and-token-required" }),
         {
@@ -34,6 +35,10 @@ Deno.serve(async (request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     if (!supabaseUrl || !serviceRoleKey) {
+      console.error("get-stream-match service role missing", {
+        hasSupabaseUrl: Boolean(supabaseUrl),
+        hasServiceRoleKey: Boolean(serviceRoleKey),
+      });
       return new Response(
         JSON.stringify({ error: "service-role-missing" }),
         {
@@ -55,9 +60,22 @@ Deno.serve(async (request) => {
       .maybeSingle();
 
     if (error) {
-      console.error("get-stream-match query failed", error);
+      console.error("get-stream-match query failed", {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        matchId,
+        tokenLength: token.length,
+      });
       return new Response(
-        JSON.stringify({ error: "query-failed" }),
+        JSON.stringify({
+          error: "query-failed",
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -66,6 +84,7 @@ Deno.serve(async (request) => {
     }
 
     if (!data) {
+      console.error("get-stream-match not found", { matchId, tokenLength: token.length });
       return new Response(
         JSON.stringify({ error: "not-found" }),
         {
@@ -80,9 +99,15 @@ Deno.serve(async (request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("get-stream-match unexpected error", error);
+    console.error("get-stream-match unexpected error", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return new Response(
-      JSON.stringify({ error: "unexpected-error" }),
+      JSON.stringify({
+        error: "unexpected-error",
+        message: error instanceof Error ? error.message : String(error),
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
