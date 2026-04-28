@@ -332,7 +332,9 @@
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script>
-        const matchId = new URLSearchParams(window.location.search).get("match");
+        const urlParams = new URLSearchParams(window.location.search);
+        const matchId = urlParams.get("match");
+        let streamToken = urlParams.get("token") || "";
 
         let channel = null;
         let pollInterval = null;
@@ -356,6 +358,22 @@
         let high1 = 0;
         let high2 = 0;
         let maxInnings = 0;
+
+        function generateStreamToken() {
+            if (window.crypto && typeof window.crypto.randomUUID === "function") {
+                return window.crypto.randomUUID().replace(/-/g, "");
+            }
+            return Math.random().toString(36).slice(2) + Date.now().toString(36);
+        }
+
+        function writeTokenToUrl(token) {
+            if (!matchId || !token) return;
+            const next = new URL(window.location.href);
+            next.searchParams.set("match", matchId);
+            next.searchParams.set("token", token);
+            window.history.replaceState({}, "", next.toString());
+            streamToken = token;
+        }
 
         function showError(message) {
             const errorBox = document.getElementById("errorBox");
@@ -453,6 +471,18 @@
             return data;
         }
 
+        async function fetchPublicStreamMatch() {
+            const { data, error } = await supabaseClient.functions.invoke("get-stream-match", {
+                body: { match: matchId, token: streamToken }
+            });
+
+            if (error) throw error;
+            if (!data?.match) {
+                throw new Error("stream-match-not-found");
+            }
+            return data.match;
+        }
+
         async function verifyAccess() {
             const user = await requireAuth();
             if (!user) return null;
@@ -462,11 +492,39 @@
             return { user, isAdmin };
         }
 
-        function startPolling() {
+        async function ensureStreamToken(matchRow, access) {
+            if (!access || !matchRow) return;
+
+            const existingToken = String(matchRow.stream_token || "").trim();
+            if (existingToken) {
+                writeTokenToUrl(existingToken);
+                return;
+            }
+
+            const nextToken = generateStreamToken();
+            const { error } = await supabaseClient
+                .from("matches")
+                .update({ stream_token: nextToken })
+                .eq("id", matchId);
+
+            if (error) {
+                const message = String(error.message || "").toLowerCase();
+                if (message.includes("stream_token") || message.includes("column")) {
+                    console.warn("stream_token-Spalte fehlt noch in der Datenbank:", error);
+                    return;
+                }
+                console.warn("Stream-Token konnte nicht gespeichert werden:", error);
+                return;
+            }
+
+            writeTokenToUrl(nextToken);
+        }
+
+        function startPolling(usePublicToken = false) {
             if (pollInterval) clearInterval(pollInterval);
             pollInterval = setInterval(async () => {
                 try {
-                    const data = await fetchMatch();
+                    const data = usePublicToken ? await fetchPublicStreamMatch() : await fetchMatch();
                     applyMatch(data);
                     setLiveStatus("Autom. Sync aktiv");
                 } catch (error) {
@@ -511,6 +569,14 @@
                 return;
             }
 
+            if (streamToken) {
+                const data = await fetchPublicStreamMatch();
+                applyMatch(data);
+                setLiveStatus("OBS-Link aktiv");
+                startPolling(true);
+                return;
+            }
+
             const access = await verifyAccess();
             if (!access) return;
 
@@ -520,6 +586,7 @@
                 return;
             }
 
+            await ensureStreamToken(data, access);
             applyMatch(data);
             subscribe();
             startPolling();
