@@ -383,6 +383,13 @@
             document.body.classList.add("stream-ready");
         }
 
+        function showInfo(message) {
+            const errorBox = document.getElementById("errorBox");
+            errorBox.textContent = message;
+            errorBox.classList.remove("hidden");
+            document.body.classList.add("stream-ready");
+        }
+
         function setLiveStatus(text) {
             document.getElementById("liveLine").textContent = text;
         }
@@ -476,9 +483,13 @@
                 body: { match: matchId, token: streamToken }
             });
 
-            if (error) throw error;
+            if (error) {
+                const detail = String(error.message || error.context || error.name || "function-error");
+                throw new Error("Function-Aufruf fehlgeschlagen: " + detail);
+            }
             if (!data?.match) {
-                throw new Error("stream-match-not-found");
+                const reason = data?.error ? String(data.error) : "stream-match-not-found";
+                throw new Error("Kein Stream-Match gefunden: " + reason);
             }
             return data.match;
         }
@@ -511,9 +522,11 @@
                 const message = String(error.message || "").toLowerCase();
                 if (message.includes("stream_token") || message.includes("column")) {
                     console.warn("stream_token-Spalte fehlt noch in der Datenbank:", error);
+                    showInfo("Stream-Link noch nicht aktiv. Bitte zuerst das SQL fuer 'stream_token' in Supabase ausfuehren.");
                     return;
                 }
                 console.warn("Stream-Token konnte nicht gespeichert werden:", error);
+                showInfo("Stream-Link konnte nicht erzeugt werden.");
                 return;
             }
 
@@ -594,7 +607,8 @@
 
         init().catch((error) => {
             console.error("Stream-Scoreboard konnte nicht geladen werden:", error);
-            showError("Stream-Scoreboard konnte nicht geladen werden.");
+            const message = String((error && error.message) || "Unbekannter Fehler");
+            showError("Stream-Scoreboard konnte nicht geladen werden. " + message);
         });
     </script>
 </body>
