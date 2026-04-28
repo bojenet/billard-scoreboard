@@ -484,8 +484,7 @@
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "apikey": supabaseKey,
-                    "Authorization": "Bearer " + supabaseKey
+                    "apikey": supabaseKey
                 },
                 body: JSON.stringify({ match: matchId, token: streamToken })
             });
