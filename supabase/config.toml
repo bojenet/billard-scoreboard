@@ -1,0 +1,2 @@
+[functions.get-stream-match]
+verify_jwt = false
