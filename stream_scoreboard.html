@@ -36,194 +36,145 @@
 
         .overlay {
             position: absolute;
-            left: clamp(18px, 2vw, 36px);
-            right: clamp(18px, 2vw, 36px);
-            bottom: clamp(18px, 2vw, 32px);
+            left: 20px;
+            bottom: 20px;
+            width: min(760px, calc(100vw - 40px));
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-            align-items: stretch;
-            gap: clamp(12px, 1.4vw, 22px);
+            gap: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 18px 46px rgba(0, 0, 0, 0.36);
+            background: rgba(20, 30, 86, 0.94);
+            backdrop-filter: blur(8px);
         }
 
-        .panel {
-            min-height: clamp(120px, 15vh, 190px);
-            border-radius: 28px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            background:
-                linear-gradient(180deg, rgba(14, 20, 45, 0.92), rgba(7, 12, 31, 0.94));
-            box-shadow:
-                0 24px 70px rgba(0, 0, 0, 0.42),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(12px);
-        }
-
-        .player-panel {
-            position: relative;
-            padding: clamp(16px, 1.8vw, 28px) clamp(18px, 2vw, 30px);
+        .match-bar {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: 1fr auto;
+            gap: 16px;
             align-items: center;
-            gap: 18px;
+            padding: 8px 12px 7px;
+            background: linear-gradient(90deg, rgba(86, 105, 233, 0.96), rgba(64, 78, 180, 0.96));
+            color: #f8fbff;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
         }
 
-        .player-panel.active {
-            border-color: rgba(255, 219, 77, 0.56);
-            box-shadow:
-                0 24px 80px rgba(0, 0, 0, 0.44),
-                0 0 0 2px rgba(255, 219, 77, 0.22),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        }
-
-        .player-panel.active.player-white {
-            border-color: rgba(255, 255, 255, 0.55);
-            box-shadow:
-                0 24px 80px rgba(0, 0, 0, 0.44),
-                0 0 0 2px rgba(255, 255, 255, 0.18),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        }
-
-        .player-panel.player-yellow .player-name,
-        .player-panel.player-yellow .meta-emphasis {
-            color: #ffd84a;
-        }
-
-        .player-main {
-            min-width: 0;
-        }
-
-        .player-name {
-            font-size: clamp(24px, 2.5vw, 46px);
-            font-weight: 800;
-            line-height: 1.05;
-            letter-spacing: 0.01em;
-            color: #fff;
-            text-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+        .match-bar-main {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        .player-sub {
-            margin-top: 8px;
-            font-size: clamp(12px, 1vw, 18px);
-            color: rgba(255, 255, 255, 0.7);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .player-stats {
-            margin-top: 12px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: clamp(10px, 1vw, 18px);
-        }
-
-        .stat-chip {
-            min-width: 86px;
-            padding: 8px 12px;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.08);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        }
-
-        .stat-label {
-            font-size: 11px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.58);
-        }
-
-        .stat-value {
-            margin-top: 3px;
-            font-size: clamp(16px, 1.3vw, 24px);
-            font-weight: 800;
-            color: #fff;
-        }
-
-        .score-block {
-            text-align: right;
-            min-width: clamp(100px, 10vw, 170px);
-        }
-
-        .score-value {
-            font-size: clamp(72px, 8.8vw, 146px);
-            line-height: 0.92;
-            font-weight: 900;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: -0.04em;
-            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-        }
-
-        .score-target {
-            margin-top: 8px;
-            font-size: clamp(14px, 1vw, 18px);
-            color: rgba(255, 255, 255, 0.74);
-        }
-
-        .center-panel {
-            min-width: clamp(160px, 14vw, 260px);
-            padding: clamp(12px, 1.2vw, 20px) clamp(14px, 1.4vw, 22px);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+        .inning-chip {
+            display: inline-flex;
             align-items: center;
-            text-align: center;
+            gap: 8px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.16);
+            font-size: 14px;
+            font-weight: 800;
         }
 
-        .center-label {
-            font-size: clamp(11px, 0.8vw, 14px);
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.56);
-        }
-
-        .innings-value {
-            margin-top: 6px;
-            font-size: clamp(44px, 4.8vw, 82px);
-            font-weight: 900;
+        .inning-chip strong {
+            font-size: 22px;
             line-height: 1;
-            font-variant-numeric: tabular-nums;
-            color: #fff;
         }
 
-        .series-badge {
-            margin-top: 10px;
-            min-height: 36px;
-            padding: 8px 16px;
+        .player-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 96px 82px;
+            align-items: stretch;
+            min-height: 62px;
+            background: rgba(36, 50, 130, 0.94);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .player-row.active {
+            background: rgba(55, 71, 173, 0.98);
+        }
+
+        .player-row.player-yellow .player-name {
+            color: #ffcf53;
+        }
+
+        .player-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+            padding: 0 14px;
+        }
+
+        .player-marker {
+            width: 18px;
+            height: 18px;
             border-radius: 999px;
-            background: rgba(255, 255, 255, 0.08);
-            font-size: clamp(18px, 1.5vw, 28px);
-            font-weight: 800;
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            background: #f7f7f7;
+            flex: 0 0 auto;
+        }
+
+        .player-row.player-yellow .player-marker {
+            background: #ffd84a;
+        }
+
+        .player-name {
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             color: #fff;
+            font-size: clamp(24px, 2vw, 36px);
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .score-cell {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-width: 90px;
+            font-size: clamp(28px, 2.6vw, 44px);
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            color: #fff;
+            background: rgba(73, 89, 194, 0.92);
         }
 
-        .center-meta {
-            margin-top: 12px;
-            display: grid;
-            gap: 5px;
-            font-size: clamp(11px, 0.9vw, 15px);
-            color: rgba(255, 255, 255, 0.72);
+        .target-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            color: #131313;
+            font-size: clamp(24px, 2.2vw, 40px);
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
         }
 
-        .status-dot {
-            position: absolute;
-            top: 14px;
-            left: 14px;
-            width: 12px;
-            height: 12px;
+        .meta-strip {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            padding: 7px 12px 8px;
+            background: rgba(17, 25, 77, 0.96);
+            color: rgba(255, 255, 255, 0.86);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .series-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            padding: 2px 10px;
             border-radius: 999px;
-            background: rgba(255, 255, 255, 0.28);
-            box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.05);
-        }
-
-        .player-panel.active .status-dot {
-            background: #51f28b;
-            box-shadow: 0 0 0 6px rgba(81, 242, 139, 0.14);
+            background: rgba(255, 255, 255, 0.12);
+            font-weight: 800;
+            color: #fff;
         }
 
         .error-box {
@@ -245,14 +196,30 @@
             display: none !important;
         }
 
-        @media (max-width: 1100px) {
+        @media (max-width: 700px) {
             .overlay {
-                grid-template-columns: 1fr;
+                width: calc(100vw - 24px);
+                left: 12px;
+                bottom: 12px;
             }
 
-            .center-panel {
-                order: -1;
-                min-width: 0;
+            .player-row {
+                grid-template-columns: minmax(0, 1fr) 72px 64px;
+                min-height: 48px;
+            }
+
+            .match-bar {
+                font-size: 12px;
+                gap: 8px;
+            }
+
+            .inning-chip strong {
+                font-size: 18px;
+            }
+
+            .meta-strip {
+                gap: 10px;
+                font-size: 11px;
             }
         }
     </style>
@@ -261,68 +228,33 @@
 <body>
     <div class="canvas">
         <div id="overlay" class="overlay hidden">
-            <section id="player1Panel" class="panel player-panel player-white">
-                <div class="status-dot"></div>
-                <div class="player-main">
+            <div class="match-bar">
+                <div id="disciplineLine" class="match-bar-main">Disziplin</div>
+                <div class="inning-chip">INNING <strong id="totalInnings">1</strong></div>
+            </div>
+
+            <section id="player1Panel" class="player-row player-white">
+                <div class="player-name-cell">
+                    <div class="player-marker"></div>
                     <div id="player1Name" class="player-name">Spieler 1</div>
-                    <div id="player1Sub" class="player-sub"></div>
-                    <div class="player-stats">
-                        <div class="stat-chip">
-                            <div class="stat-label">GD</div>
-                            <div id="avg1" class="stat-value">0.000</div>
-                        </div>
-                        <div class="stat-chip">
-                            <div class="stat-label">HS</div>
-                            <div id="hs1" class="stat-value">0</div>
-                        </div>
-                        <div class="stat-chip">
-                            <div class="stat-label">Aufn.</div>
-                            <div id="inn1" class="stat-value">0</div>
-                        </div>
-                    </div>
                 </div>
-                <div class="score-block">
-                    <div id="score1" class="score-value">0</div>
-                    <div id="target1" class="score-target">/ 0</div>
-                </div>
+                <div id="score1" class="score-cell">0</div>
+                <div id="target1" class="target-cell">0</div>
             </section>
 
-            <section class="panel center-panel">
-                <div class="center-label">Aufnahme</div>
-                <div id="totalInnings" class="innings-value">1</div>
-                <div id="seriesBadge" class="series-badge"></div>
-                <div class="center-meta">
-                    <div id="disciplineLine">Disziplin</div>
-                    <div id="remainingLine">Rest: - : -</div>
-                    <div id="liveLine">Live verbunden</div>
-                </div>
-            </section>
-
-            <section id="player2Panel" class="panel player-panel player-yellow">
-                <div class="status-dot"></div>
-                <div class="player-main">
+            <section id="player2Panel" class="player-row player-yellow">
+                <div class="player-name-cell">
+                    <div class="player-marker"></div>
                     <div id="player2Name" class="player-name">Spieler 2</div>
-                    <div id="player2Sub" class="player-sub"></div>
-                    <div class="player-stats">
-                        <div class="stat-chip">
-                            <div class="stat-label">GD</div>
-                            <div id="avg2" class="stat-value">0.000</div>
-                        </div>
-                        <div class="stat-chip">
-                            <div class="stat-label">HS</div>
-                            <div id="hs2" class="stat-value">0</div>
-                        </div>
-                        <div class="stat-chip">
-                            <div class="stat-label">Aufn.</div>
-                            <div id="inn2" class="stat-value">0</div>
-                        </div>
-                    </div>
                 </div>
-                <div class="score-block">
-                    <div id="score2" class="score-value">0</div>
-                    <div id="target2" class="score-target">/ 0</div>
-                </div>
+                <div id="score2" class="score-cell">0</div>
+                <div id="target2" class="target-cell">0</div>
             </section>
+
+            <div class="meta-strip">
+                <span id="liveLine">Live verbunden</span>
+                <span id="seriesBadge" class="series-pill"></span>
+            </div>
         </div>
     </div>
 
@@ -408,29 +340,13 @@
             document.getElementById("player2Name").textContent = player2 || "Spieler 2";
             document.getElementById("score1").textContent = String(score1 || 0);
             document.getElementById("score2").textContent = String(score2 || 0);
-            document.getElementById("target1").textContent = "/ " + String(target1 || 0);
-            document.getElementById("target2").textContent = "/ " + String(target2 || 0);
-            document.getElementById("avg1").textContent = formatAvg(score1, inn1);
-            document.getElementById("avg2").textContent = formatAvg(score2, inn2);
-            document.getElementById("hs1").textContent = String(high1 || 0);
-            document.getElementById("hs2").textContent = String(high2 || 0);
-            document.getElementById("inn1").textContent = String(inn1 || 0);
-            document.getElementById("inn2").textContent = String(inn2 || 0);
+            document.getElementById("target1").textContent = String(target1 || 0);
+            document.getElementById("target2").textContent = String(target2 || 0);
             document.getElementById("totalInnings").textContent = String(totalInnings || 1);
             document.getElementById("disciplineLine").textContent =
-                String(discipline1 || "-") + "  |  " + String(discipline2 || "-") +
-                (maxInnings > 0 ? "  |  Max " + String(maxInnings) : "");
-            document.getElementById("remainingLine").textContent =
-                "Rest: " + remaining(score1, target1) + " : " + remaining(score2, target2);
-
-            const player1Sub = [];
-            const player2Sub = [];
-            if (discipline1) player1Sub.push(discipline1);
-            if (discipline2) player2Sub.push(discipline2);
-            if (target1 > 0) player1Sub.push("Distanz " + target1);
-            if (target2 > 0) player2Sub.push("Distanz " + target2);
-            document.getElementById("player1Sub").textContent = player1Sub.join(" · ");
-            document.getElementById("player2Sub").textContent = player2Sub.join(" · ");
+                String(discipline1 || discipline2 || "-") +
+                (target1 > 0 ? " [" + String(target1) + "]" : "") +
+                (maxInnings > 0 ? "  ·  Max " + String(maxInnings) : "");
 
             const player1Panel = document.getElementById("player1Panel");
             const player2Panel = document.getElementById("player2Panel");
