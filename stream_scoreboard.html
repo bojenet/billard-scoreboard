@@ -7,8 +7,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root {
-            --overlay-width: 980px;
-            --overlay-height: 84px;
+            --overlay-width: 1020px;
+            --overlay-height: 104px;
+            --blue-deep: rgba(15, 28, 63, 0.94);
+            --blue-mid: rgba(28, 51, 128, 0.96);
+            --blue-panel: rgba(18, 34, 82, 0.96);
+            --yellow: rgba(255, 216, 74, 0.98);
+            --white: rgba(255, 255, 255, 0.98);
         }
 
         html,
@@ -42,39 +47,33 @@
             position: absolute;
             inset: 0;
             display: grid;
-            gap: 0;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
-            background: rgba(15, 28, 63, 0.92);
-            backdrop-filter: blur(6px);
-        }
-
-        .content-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1.55fr) 92px 46px 72px minmax(0, 1.55fr) 92px 46px;
+            grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr);
+            gap: 10px;
             align-items: stretch;
-            min-height: 84px;
-            background: rgba(18, 34, 82, 0.96);
         }
 
-        .player-block {
+        .card {
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow:
+                0 12px 24px rgba(0, 0, 0, 0.28),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            min-width: 0;
+        }
+
+        .player-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 88px 46px;
+            background: linear-gradient(180deg, var(--blue-panel), var(--blue-deep));
+        }
+
+        .player-main {
             display: grid;
             align-content: center;
-            gap: 3px;
+            gap: 4px;
             min-width: 0;
-            padding: 8px 16px;
-        }
-
-        .player-sub {
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 10px;
-            font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            padding: 10px 16px;
         }
 
         .player-name {
@@ -83,72 +82,83 @@
             overflow: hidden;
             text-overflow: ellipsis;
             color: #ffffff;
-            font-size: clamp(18px, 1.15vw, 27px);
+            font-size: clamp(18px, 1.2vw, 28px);
             font-weight: 700;
             line-height: 1;
         }
 
-        #player2Name {
+        .player-two .player-name {
             color: #ffd84a;
         }
 
-        .player-score {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: clamp(26px, 2vw, 38px);
+        .player-sub {
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: rgba(255, 255, 255, 0.64);
+            font-size: 10px;
             font-weight: 700;
-            font-variant-numeric: tabular-nums;
-            color: #ffffff;
-            border-left: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(28, 51, 128, 0.94);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
         }
 
-        .series-cell {
+        .score-box {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: clamp(17px, 1.15vw, 24px);
-            font-weight: 700;
+            background: linear-gradient(180deg, rgba(49, 74, 173, 0.96), var(--blue-mid));
+            color: #ffffff;
+            font-size: clamp(26px, 1.9vw, 40px);
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .series-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(16px, 1.1vw, 22px);
+            font-weight: 800;
             font-variant-numeric: tabular-nums;
             color: #101010;
             border-left: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(8, 15, 36, 0.55);
+            background: rgba(9, 17, 42, 0.55);
         }
 
-        .innings-cell {
+        .series-box.active-white {
+            background: var(--white);
+        }
+
+        .series-box.active-yellow {
+            background: var(--yellow);
+        }
+
+        .innings-card {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            border-left: 1px solid rgba(255, 255, 255, 0.08);
-            border-right: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(11, 22, 55, 0.96);
+            background: linear-gradient(180deg, rgba(16, 28, 70, 0.98), rgba(10, 20, 55, 0.98));
             color: #ffffff;
+            text-align: center;
         }
 
         .innings-label {
-            font-size: 9px;
+            font-size: 10px;
             font-weight: 700;
             letter-spacing: 0.12em;
             text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.58);
+            color: rgba(255, 255, 255, 0.56);
         }
 
         .innings-value {
-            margin-top: 2px;
-            font-size: clamp(18px, 1.35vw, 26px);
+            margin-top: 4px;
+            font-size: clamp(22px, 1.6vw, 32px);
             font-weight: 800;
             line-height: 1;
             font-variant-numeric: tabular-nums;
-        }
-
-        .series-cell.active-white {
-            background: rgba(255, 255, 255, 0.98);
-        }
-
-        .series-cell.active-yellow {
-            background: rgba(255, 216, 74, 0.98);
         }
 
         .error-box {
@@ -171,9 +181,18 @@
         }
 
         @media (max-width: 700px) {
-            .content-row {
-                grid-template-columns: minmax(0, 1fr) 66px 36px 56px minmax(0, 1fr) 66px 36px;
-                min-height: 68px;
+            :root {
+                --overlay-width: 860px;
+                --overlay-height: 96px;
+            }
+
+            .overlay {
+                grid-template-columns: minmax(0, 1fr) 104px minmax(0, 1fr);
+                gap: 8px;
+            }
+
+            .player-card {
+                grid-template-columns: minmax(0, 1fr) 78px 40px;
             }
         }
     </style>
@@ -182,23 +201,27 @@
 <body>
     <div class="canvas">
         <div id="overlay" class="overlay hidden">
-            <section class="content-row">
-                <div class="player-block">
+            <section class="card player-card player-one">
+                <div class="player-main">
                     <div id="player1Name" class="player-name">Spieler 1</div>
                     <div id="player1Sub" class="player-sub">Disziplin · Distanz</div>
                 </div>
-                <div id="score1" class="player-score">0</div>
-                <div id="series1" class="series-cell"></div>
-                <div class="innings-cell">
-                    <div class="innings-label">Aufn.</div>
-                    <div id="totalInnings" class="innings-value">1</div>
-                </div>
-                <div class="player-block">
+                <div id="score1" class="score-box">0</div>
+                <div id="series1" class="series-box"></div>
+            </section>
+
+            <section class="card innings-card">
+                <div class="innings-label">Aufn.</div>
+                <div id="totalInnings" class="innings-value">1</div>
+            </section>
+
+            <section class="card player-card player-two">
+                <div class="player-main">
                     <div id="player2Name" class="player-name">Spieler 2</div>
                     <div id="player2Sub" class="player-sub">Disziplin · Distanz</div>
                 </div>
-                <div id="score2" class="player-score">0</div>
-                <div id="series2" class="series-cell"></div>
+                <div id="score2" class="score-box">0</div>
+                <div id="series2" class="series-box"></div>
             </section>
         </div>
     </div>
@@ -282,8 +305,8 @@
             const series2Cell = document.getElementById("series2");
             series1Cell.textContent = Number(activePlayer) === 1 && Number(series1 || 0) > 0 ? String(series1 || 0) : "";
             series2Cell.textContent = Number(activePlayer) === 2 && Number(series2 || 0) > 0 ? String(series2 || 0) : "";
-            series1Cell.className = "series-cell" + (Number(activePlayer) === 1 ? " active-white" : "");
-            series2Cell.className = "series-cell" + (Number(activePlayer) === 2 ? " active-yellow" : "");
+            series1Cell.className = "series-box" + (Number(activePlayer) === 1 ? " active-white" : "");
+            series2Cell.className = "series-box" + (Number(activePlayer) === 2 ? " active-yellow" : "");
 
             document.getElementById("overlay").classList.remove("hidden");
             document.body.classList.add("stream-ready");
@@ -401,7 +424,6 @@
                 try {
                     const data = usePublicToken ? await fetchPublicStreamMatch() : await fetchMatch();
                     applyMatch(data);
-                    setLiveStatus("Autom. Sync aktiv");
                 } catch (error) {
                     console.warn("Stream-Polling fehlgeschlagen:", error);
                 }
