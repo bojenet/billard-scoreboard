@@ -7,8 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root {
-            --overlay-width: 1020px;
-            --overlay-height: 88px;
+            --overlay-width: 980px;
+            --overlay-height: 84px;
         }
 
         html,
@@ -52,29 +52,29 @@
 
         .content-row {
             display: grid;
-            grid-template-columns: minmax(0, 1.35fr) 96px 72px 104px minmax(0, 1.35fr) 96px 72px;
+            grid-template-columns: minmax(0, 1.55fr) 92px 46px 72px minmax(0, 1.55fr) 92px 46px;
             align-items: stretch;
-            min-height: 88px;
+            min-height: 84px;
             background: rgba(18, 34, 82, 0.96);
         }
 
         .player-block {
             display: grid;
             align-content: center;
-            gap: 4px;
+            gap: 3px;
             min-width: 0;
-            padding: 8px 14px;
+            padding: 8px 16px;
         }
 
         .player-sub {
             color: rgba(255, 255, 255, 0.6);
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.05em;
         }
 
         .player-name {
@@ -83,7 +83,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             color: #ffffff;
-            font-size: clamp(20px, 1.3vw, 30px);
+            font-size: clamp(18px, 1.15vw, 27px);
             font-weight: 700;
             line-height: 1;
         }
@@ -96,7 +96,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: clamp(28px, 2.4vw, 44px);
+            font-size: clamp(26px, 2vw, 38px);
             font-weight: 700;
             font-variant-numeric: tabular-nums;
             color: #ffffff;
@@ -108,12 +108,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: clamp(24px, 2vw, 36px);
+            font-size: clamp(17px, 1.15vw, 24px);
             font-weight: 700;
             font-variant-numeric: tabular-nums;
             color: #101010;
             border-left: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0);
+            background: rgba(8, 15, 36, 0.55);
         }
 
         .innings-cell {
@@ -123,12 +123,12 @@
             justify-content: center;
             border-left: 1px solid rgba(255, 255, 255, 0.08);
             border-right: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(12, 23, 59, 0.98);
+            background: rgba(11, 22, 55, 0.96);
             color: #ffffff;
         }
 
         .innings-label {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
             letter-spacing: 0.12em;
             text-transform: uppercase;
@@ -137,7 +137,7 @@
 
         .innings-value {
             margin-top: 2px;
-            font-size: clamp(22px, 1.8vw, 32px);
+            font-size: clamp(18px, 1.35vw, 26px);
             font-weight: 800;
             line-height: 1;
             font-variant-numeric: tabular-nums;
@@ -172,8 +172,8 @@
 
         @media (max-width: 700px) {
             .content-row {
-                grid-template-columns: minmax(0, 1fr) 70px 46px 66px minmax(0, 1fr) 70px 46px;
-                min-height: 72px;
+                grid-template-columns: minmax(0, 1fr) 66px 36px 56px minmax(0, 1fr) 66px 36px;
+                min-height: 68px;
             }
         }
     </style>
