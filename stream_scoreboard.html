@@ -8,7 +8,7 @@
     <style>
         :root {
             --overlay-width: 1020px;
-            --overlay-height: 58px;
+            --overlay-height: 52px;
             --blue-deep: rgba(15, 28, 63, 0.94);
             --blue-mid: rgba(28, 51, 128, 0.96);
             --blue-panel: rgba(18, 34, 82, 0.96);
@@ -47,13 +47,13 @@
             position: absolute;
             inset: 0;
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr);
-            gap: 8px;
+            grid-template-columns: minmax(0, 1fr) 92px minmax(0, 1fr);
+            gap: 6px;
             align-items: stretch;
         }
 
         .card {
-            border-radius: 24px;
+            border-radius: 20px;
             overflow: hidden;
             box-shadow:
                 0 12px 24px rgba(0, 0, 0, 0.28),
@@ -74,7 +74,7 @@
             justify-items: center;
             gap: 1px;
             min-width: 0;
-            padding: 4px 14px;
+            padding: 3px 12px;
             text-align: center;
         }
 
@@ -200,11 +200,11 @@
         @media (max-width: 700px) {
             :root {
                 --overlay-width: 860px;
-                --overlay-height: 54px;
+                --overlay-height: 48px;
             }
 
             .overlay {
-                grid-template-columns: minmax(0, 1fr) 104px minmax(0, 1fr);
+                grid-template-columns: minmax(0, 1fr) 84px minmax(0, 1fr);
                 gap: 8px;
             }
 
