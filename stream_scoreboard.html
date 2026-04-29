@@ -64,16 +64,18 @@
 
         .player-card {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 88px 46px;
+            grid-template-columns: 46px minmax(0, 1fr) 88px;
             background: linear-gradient(180deg, var(--blue-panel), var(--blue-deep));
         }
 
         .player-main {
             display: grid;
             align-content: center;
+            justify-items: center;
             gap: 1px;
             min-width: 0;
             padding: 4px 14px;
+            text-align: center;
         }
 
         .player-name {
@@ -92,7 +94,7 @@
         }
 
         .player-card.player-two {
-            grid-template-columns: 46px 88px minmax(0, 1fr);
+            grid-template-columns: 88px minmax(0, 1fr) 46px;
         }
 
         .player-sub {
@@ -128,18 +130,18 @@
             font-weight: 800;
             font-variant-numeric: tabular-nums;
             color: #101010;
-            border-left: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(9, 17, 42, 0.55);
-        }
-
-        .player-card.player-two .series-box {
-            border-left: none;
             border-right: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(9, 17, 42, 0.55);
         }
 
         .player-card.player-two .score-box {
             border-left: none;
             border-right: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .player-card.player-two .series-box {
+            border-right: none;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .series-box.active-white {
@@ -207,11 +209,11 @@
             }
 
             .player-card {
-                grid-template-columns: minmax(0, 1fr) 78px 40px;
+                grid-template-columns: 40px minmax(0, 1fr) 78px;
             }
 
             .player-card.player-two {
-                grid-template-columns: 40px 78px minmax(0, 1fr);
+                grid-template-columns: 78px minmax(0, 1fr) 40px;
             }
         }
     </style>
@@ -221,12 +223,12 @@
     <div class="canvas">
         <div id="overlay" class="overlay hidden">
             <section class="card player-card player-one">
+                <div id="series1" class="series-box"></div>
                 <div class="player-main">
                     <div id="player1Name" class="player-name">Spieler 1</div>
                     <div id="player1Sub" class="player-sub">Disziplin · Distanz</div>
                 </div>
                 <div id="score1" class="score-box">0</div>
-                <div id="series1" class="series-box"></div>
             </section>
 
             <section class="card innings-card">
@@ -235,12 +237,12 @@
             </section>
 
             <section class="card player-card player-two">
-                <div id="series2" class="series-box"></div>
                 <div id="score2" class="score-box">0</div>
                 <div class="player-main">
                     <div id="player2Name" class="player-name">Spieler 2</div>
                     <div id="player2Sub" class="player-sub">Disziplin · Distanz</div>
                 </div>
+                <div id="series2" class="series-box"></div>
             </section>
         </div>
     </div>
