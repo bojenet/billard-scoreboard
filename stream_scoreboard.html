@@ -37,11 +37,11 @@
         .overlay {
             position: absolute;
             left: 20px;
+            right: 20px;
             bottom: 20px;
-            width: min(760px, calc(100vw - 40px));
             display: grid;
             gap: 0;
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 18px 46px rgba(0, 0, 0, 0.36);
             background: rgba(20, 30, 86, 0.94);
@@ -83,29 +83,28 @@
             line-height: 1;
         }
 
-        .player-row {
+        .score-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 96px 82px;
+            grid-template-columns: minmax(0, 1fr) 126px 180px minmax(0, 1fr) 126px;
             align-items: stretch;
-            min-height: 62px;
-            background: rgba(36, 50, 130, 0.94);
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            min-height: 78px;
+            background: rgba(31, 44, 119, 0.96);
         }
 
-        .player-row.active {
-            background: rgba(55, 71, 173, 0.98);
-        }
-
-        .player-row.player-yellow .player-name {
-            color: #ffcf53;
-        }
-
-        .player-name-cell {
+        .player-block {
             display: flex;
             align-items: center;
             gap: 12px;
             min-width: 0;
-            padding: 0 14px;
+            padding: 0 16px;
+        }
+
+        .player-block.active {
+            background: rgba(56, 73, 176, 0.98);
+        }
+
+        .player-block.player-yellow .player-name {
+            color: #ffcf53;
         }
 
         .player-marker {
@@ -117,7 +116,7 @@
             flex: 0 0 auto;
         }
 
-        .player-row.player-yellow .player-marker {
+        .player-block.player-yellow .player-marker {
             background: #ffd84a;
         }
 
@@ -132,49 +131,54 @@
             line-height: 1;
         }
 
-        .score-cell {
+        .player-score {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: clamp(28px, 2.6vw, 44px);
+            font-size: clamp(34px, 3vw, 56px);
             font-weight: 900;
             font-variant-numeric: tabular-nums;
             color: #fff;
-            background: rgba(73, 89, 194, 0.92);
+            background: rgba(74, 91, 197, 0.94);
         }
 
-        .target-cell {
+        .series-center {
             display: flex;
-            align-items: center;
+            flex-direction: column;
             justify-content: center;
-            background: #ffffff;
-            color: #131313;
-            font-size: clamp(24px, 2.2vw, 40px);
+            align-items: center;
+            background: rgba(17, 24, 75, 0.98);
+            color: #fff;
+            text-align: center;
+        }
+
+        .series-label {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.62);
+        }
+
+        .series-value {
+            margin-top: 2px;
+            font-size: clamp(36px, 3.8vw, 68px);
             font-weight: 900;
+            line-height: 1;
             font-variant-numeric: tabular-nums;
+            color: #fff;
         }
 
         .meta-strip {
             display: flex;
-            gap: 16px;
+            gap: 18px;
             align-items: center;
-            padding: 7px 12px 8px;
-            background: rgba(17, 25, 77, 0.96);
-            color: rgba(255, 255, 255, 0.86);
+            justify-content: space-between;
+            padding: 6px 14px 7px;
+            background: rgba(14, 21, 67, 0.98);
+            color: rgba(255, 255, 255, 0.84);
             font-size: 13px;
             font-weight: 600;
-        }
-
-        .series-pill {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 44px;
-            padding: 2px 10px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.12);
-            font-weight: 800;
-            color: #fff;
         }
 
         .error-box {
@@ -198,14 +202,14 @@
 
         @media (max-width: 700px) {
             .overlay {
-                width: calc(100vw - 24px);
                 left: 12px;
+                right: 12px;
                 bottom: 12px;
             }
 
-            .player-row {
-                grid-template-columns: minmax(0, 1fr) 72px 64px;
-                min-height: 48px;
+            .score-row {
+                grid-template-columns: minmax(0, 1fr) 82px 110px minmax(0, 1fr) 82px;
+                min-height: 56px;
             }
 
             .match-bar {
@@ -233,27 +237,26 @@
                 <div class="inning-chip">INNING <strong id="totalInnings">1</strong></div>
             </div>
 
-            <section id="player1Panel" class="player-row player-white">
-                <div class="player-name-cell">
+            <section class="score-row">
+                <div id="player1Panel" class="player-block player-white">
                     <div class="player-marker"></div>
                     <div id="player1Name" class="player-name">Spieler 1</div>
                 </div>
-                <div id="score1" class="score-cell">0</div>
-                <div id="target1" class="target-cell">0</div>
-            </section>
-
-            <section id="player2Panel" class="player-row player-yellow">
-                <div class="player-name-cell">
+                <div id="score1" class="player-score">0</div>
+                <div class="series-center">
+                    <div class="series-label">Serie</div>
+                    <div id="seriesBadge" class="series-value"></div>
+                </div>
+                <div id="player2Panel" class="player-block player-yellow">
                     <div class="player-marker"></div>
                     <div id="player2Name" class="player-name">Spieler 2</div>
                 </div>
-                <div id="score2" class="score-cell">0</div>
-                <div id="target2" class="target-cell">0</div>
+                <div id="score2" class="player-score">0</div>
             </section>
 
             <div class="meta-strip">
                 <span id="liveLine">Live verbunden</span>
-                <span id="seriesBadge" class="series-pill"></span>
+                <span id="statusLine"></span>
             </div>
         </div>
     </div>
@@ -340,13 +343,12 @@
             document.getElementById("player2Name").textContent = player2 || "Spieler 2";
             document.getElementById("score1").textContent = String(score1 || 0);
             document.getElementById("score2").textContent = String(score2 || 0);
-            document.getElementById("target1").textContent = String(target1 || 0);
-            document.getElementById("target2").textContent = String(target2 || 0);
             document.getElementById("totalInnings").textContent = String(totalInnings || 1);
             document.getElementById("disciplineLine").textContent =
                 String(discipline1 || discipline2 || "-") +
-                (target1 > 0 ? " [" + String(target1) + "]" : "") +
                 (maxInnings > 0 ? "  ·  Max " + String(maxInnings) : "");
+            document.getElementById("statusLine").textContent =
+                "Aufn. " + String(inn1 || 0) + ":" + String(inn2 || 0);
 
             const player1Panel = document.getElementById("player1Panel");
             const player2Panel = document.getElementById("player2Panel");
