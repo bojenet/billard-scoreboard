@@ -7,8 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root {
-            --overlay-width: 700px;
-            --overlay-height: 168px;
+            --overlay-width: 760px;
+            --overlay-height: 154px;
         }
 
         html,
@@ -43,7 +43,7 @@
             inset: 0;
             display: grid;
             gap: 0;
-            border-radius: 6px;
+            border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
             background: rgba(255, 255, 255, 0.86);
@@ -54,8 +54,8 @@
             padding: 10px 14px 8px;
             background: rgba(255, 255, 255, 0.9);
             color: #101010;
-            font-size: clamp(18px, 1.5vw, 30px);
-            font-weight: 500;
+            font-size: clamp(16px, 1.2vw, 24px);
+            font-weight: 600;
             line-height: 1.1;
             border-bottom: 1px solid rgba(0, 0, 0, 0.08);
             white-space: nowrap;
@@ -63,20 +63,29 @@
             text-overflow: ellipsis;
         }
 
-        .score-row {
+        .content-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 120px 86px;
+            grid-template-columns: minmax(0, 1fr) 84px minmax(0, 1fr) 84px 70px;
             align-items: stretch;
-            min-height: 62px;
+            min-height: 94px;
             background: rgba(255, 255, 255, 0.84);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         }
 
         .player-block {
-            display: flex;
-            align-items: center;
+            display: grid;
+            align-content: center;
+            gap: 6px;
             min-width: 0;
-            padding: 0 14px;
+            padding: 10px 14px;
+        }
+
+        .player-sub {
+            color: rgba(16, 16, 16, 0.68);
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .player-name {
@@ -85,8 +94,8 @@
             overflow: hidden;
             text-overflow: ellipsis;
             color: #101010;
-            font-size: clamp(20px, 1.8vw, 34px);
-            font-weight: 500;
+            font-size: clamp(20px, 1.5vw, 28px);
+            font-weight: 600;
             line-height: 1;
         }
 
@@ -94,8 +103,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: clamp(24px, 2.2vw, 42px);
-            font-weight: 500;
+            font-size: clamp(28px, 2.4vw, 44px);
+            font-weight: 700;
             font-variant-numeric: tabular-nums;
             color: #101010;
             border-left: 1px solid rgba(0, 0, 0, 0.08);
@@ -105,8 +114,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: clamp(24px, 2.2vw, 42px);
-            font-weight: 600;
+            font-size: clamp(28px, 2.4vw, 44px);
+            font-weight: 700;
             font-variant-numeric: tabular-nums;
             color: #101010;
             border-left: 1px solid rgba(0, 0, 0, 0.08);
@@ -157,9 +166,9 @@
                 font-size: 14px;
             }
 
-            .score-row {
-                grid-template-columns: minmax(0, 1fr) 80px 58px;
-                min-height: 48px;
+            .content-row {
+                grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1fr) 70px 54px;
+                min-height: 80px;
             }
 
             .meta-strip {
@@ -175,20 +184,18 @@
         <div id="overlay" class="overlay hidden">
             <div id="disciplineLine" class="match-bar">Disziplin, 200/15</div>
 
-            <section class="score-row">
+            <section class="content-row">
                 <div class="player-block">
                     <div id="player1Name" class="player-name">Spieler 1</div>
+                    <div id="player1Sub" class="player-sub">Disziplin · 200</div>
                 </div>
                 <div id="score1" class="player-score">0</div>
-                <div id="series1" class="series-cell"></div>
-            </section>
-
-            <section class="score-row">
                 <div class="player-block">
                     <div id="player2Name" class="player-name">Spieler 2</div>
+                    <div id="player2Sub" class="player-sub">Disziplin · 200</div>
                 </div>
                 <div id="score2" class="player-score">0</div>
-                <div id="series2" class="series-cell"></div>
+                <div id="seriesCell" class="series-cell"></div>
             </section>
 
             <div class="meta-strip">
@@ -269,6 +276,10 @@
         function render() {
             document.getElementById("player1Name").textContent = player1 || "Spieler 1";
             document.getElementById("player2Name").textContent = player2 || "Spieler 2";
+            document.getElementById("player1Sub").textContent =
+                String(discipline1 || "-") + " · " + String(target1 || 0);
+            document.getElementById("player2Sub").textContent =
+                String(discipline2 || discipline1 || "-") + " · " + String(target2 || 0);
             document.getElementById("score1").textContent = String(score1 || 0);
             document.getElementById("score2").textContent = String(score2 || 0);
             document.getElementById("disciplineLine").textContent =
@@ -278,12 +289,14 @@
             document.getElementById("statusLine").textContent =
                 "Inning " + String(totalInnings || 1);
 
-            const series1Cell = document.getElementById("series1");
-            const series2Cell = document.getElementById("series2");
-            series1Cell.textContent = Number(activePlayer) === 1 && Number(series1 || 0) > 0 ? String(series1 || 0) : "";
-            series2Cell.textContent = Number(activePlayer) === 2 && Number(series2 || 0) > 0 ? String(series2 || 0) : "";
-            series1Cell.className = "series-cell" + (Number(activePlayer) === 1 ? " active-white" : "");
-            series2Cell.className = "series-cell" + (Number(activePlayer) === 2 ? " active-yellow" : "");
+            const seriesCell = document.getElementById("seriesCell");
+            if (Number(activePlayer) === 1) {
+                seriesCell.textContent = Number(series1 || 0) > 0 ? String(series1 || 0) : "";
+                seriesCell.className = "series-cell active-white";
+            } else {
+                seriesCell.textContent = Number(series2 || 0) > 0 ? String(series2 || 0) : "";
+                seriesCell.className = "series-cell active-yellow";
+            }
 
             document.getElementById("overlay").classList.remove("hidden");
             document.body.classList.add("stream-ready");
