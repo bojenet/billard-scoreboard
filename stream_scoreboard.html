@@ -8,7 +8,7 @@
     <style>
         :root {
             --overlay-width: 760px;
-            --overlay-height: 112px;
+            --overlay-height: 88px;
         }
 
         html,
@@ -50,25 +50,11 @@
             backdrop-filter: blur(6px);
         }
 
-        .match-bar {
-            padding: 8px 14px 7px;
-            background: linear-gradient(180deg, rgba(22, 43, 102, 0.96), rgba(15, 28, 63, 0.96));
-            color: rgba(255, 255, 255, 0.92);
-            font-size: clamp(13px, 1vw, 18px);
-            font-weight: 700;
-            line-height: 1.1;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            letter-spacing: 0.02em;
-        }
-
         .content-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 84px minmax(0, 1fr) 84px 70px;
+            grid-template-columns: minmax(0, 1fr) 84px 62px 90px minmax(0, 1fr) 84px 62px;
             align-items: stretch;
-            min-height: 64px;
+            min-height: 88px;
             background: rgba(18, 34, 82, 0.96);
         }
 
@@ -122,12 +108,39 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: clamp(28px, 2.4vw, 44px);
+            font-size: clamp(24px, 2vw, 36px);
             font-weight: 700;
             font-variant-numeric: tabular-nums;
             color: #101010;
             border-left: 1px solid rgba(255, 255, 255, 0.08);
             background: rgba(255, 255, 255, 0);
+        }
+
+        .innings-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(12, 23, 59, 0.98);
+            color: #ffffff;
+        }
+
+        .innings-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.58);
+        }
+
+        .innings-value {
+            margin-top: 2px;
+            font-size: clamp(22px, 1.8vw, 32px);
+            font-weight: 800;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
         }
 
         .series-cell.active-white {
@@ -158,13 +171,9 @@
         }
 
         @media (max-width: 700px) {
-            .match-bar {
-                font-size: 14px;
-            }
-
             .content-row {
-                grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1fr) 70px 54px;
-                min-height: 56px;
+                grid-template-columns: minmax(0, 1fr) 70px 46px 66px minmax(0, 1fr) 70px 46px;
+                min-height: 72px;
             }
         }
     </style>
@@ -173,20 +182,23 @@
 <body>
     <div class="canvas">
         <div id="overlay" class="overlay hidden">
-            <div id="disciplineLine" class="match-bar">Disziplin, 200/15</div>
-
             <section class="content-row">
                 <div class="player-block">
                     <div id="player1Name" class="player-name">Spieler 1</div>
                     <div id="player1Sub" class="player-sub">Disziplin · Distanz</div>
                 </div>
                 <div id="score1" class="player-score">0</div>
+                <div id="series1" class="series-cell"></div>
+                <div class="innings-cell">
+                    <div class="innings-label">Aufn.</div>
+                    <div id="totalInnings" class="innings-value">1</div>
+                </div>
                 <div class="player-block">
                     <div id="player2Name" class="player-name">Spieler 2</div>
                     <div id="player2Sub" class="player-sub">Disziplin · Distanz</div>
                 </div>
                 <div id="score2" class="player-score">0</div>
-                <div id="seriesCell" class="series-cell"></div>
+                <div id="series2" class="series-cell"></div>
             </section>
         </div>
     </div>
@@ -264,19 +276,14 @@
                 String(discipline2 || discipline1 || "-") + " · " + String(target2 || 0);
             document.getElementById("score1").textContent = String(score1 || 0);
             document.getElementById("score2").textContent = String(score2 || 0);
-            document.getElementById("disciplineLine").textContent =
-                String(discipline1 || discipline2 || "-") + ", " +
-                String(target1 || 0) +
-                (maxInnings > 0 ? "/" + String(maxInnings) : "");
+            document.getElementById("totalInnings").textContent = String(totalInnings || 1);
 
-            const seriesCell = document.getElementById("seriesCell");
-            if (Number(activePlayer) === 1) {
-                seriesCell.textContent = Number(series1 || 0) > 0 ? String(series1 || 0) : "";
-                seriesCell.className = "series-cell active-white";
-            } else {
-                seriesCell.textContent = Number(series2 || 0) > 0 ? String(series2 || 0) : "";
-                seriesCell.className = "series-cell active-yellow";
-            }
+            const series1Cell = document.getElementById("series1");
+            const series2Cell = document.getElementById("series2");
+            series1Cell.textContent = Number(activePlayer) === 1 && Number(series1 || 0) > 0 ? String(series1 || 0) : "";
+            series2Cell.textContent = Number(activePlayer) === 2 && Number(series2 || 0) > 0 ? String(series2 || 0) : "";
+            series1Cell.className = "series-cell" + (Number(activePlayer) === 1 ? " active-white" : "");
+            series2Cell.className = "series-cell" + (Number(activePlayer) === 2 ? " active-yellow" : "");
 
             document.getElementById("overlay").classList.remove("hidden");
             document.body.classList.add("stream-ready");
