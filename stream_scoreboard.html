@@ -257,6 +257,7 @@
 
         let channel = null;
         let pollInterval = null;
+        let pollInFlight = false;
         let currentUserId = "";
         let ownedPlayerNames = [];
 
@@ -440,13 +441,17 @@
         function startPolling(usePublicToken = false) {
             if (pollInterval) clearInterval(pollInterval);
             pollInterval = setInterval(async () => {
+                if (pollInFlight) return;
+                pollInFlight = true;
                 try {
                     const data = usePublicToken ? await fetchPublicStreamMatch() : await fetchMatch();
                     applyMatch(data);
                 } catch (error) {
                     console.warn("Stream-Polling fehlgeschlagen:", error);
+                } finally {
+                    pollInFlight = false;
                 }
-            }, 4000);
+            }, usePublicToken ? 800 : 1200);
         }
 
         function subscribe() {
