@@ -8,7 +8,7 @@
     <style>
         :root {
             --overlay-width: 1020px;
-            --overlay-height: 104px;
+            --overlay-height: 58px;
             --blue-deep: rgba(15, 28, 63, 0.94);
             --blue-mid: rgba(28, 51, 128, 0.96);
             --blue-panel: rgba(18, 34, 82, 0.96);
@@ -48,7 +48,7 @@
             inset: 0;
             display: grid;
             grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr);
-            gap: 10px;
+            gap: 8px;
             align-items: stretch;
         }
 
@@ -71,9 +71,9 @@
         .player-main {
             display: grid;
             align-content: center;
-            gap: 4px;
+            gap: 1px;
             min-width: 0;
-            padding: 10px 16px;
+            padding: 4px 14px;
         }
 
         .player-name {
@@ -101,6 +101,7 @@
             font-weight: 700;
             letter-spacing: 0.05em;
             text-transform: uppercase;
+            line-height: 1;
         }
 
         .score-box {
@@ -154,7 +155,7 @@
         }
 
         .innings-value {
-            margin-top: 4px;
+            margin-top: 1px;
             font-size: clamp(22px, 1.6vw, 32px);
             font-weight: 800;
             line-height: 1;
@@ -183,7 +184,7 @@
         @media (max-width: 700px) {
             :root {
                 --overlay-width: 860px;
-                --overlay-height: 96px;
+                --overlay-height: 54px;
             }
 
             .overlay {
