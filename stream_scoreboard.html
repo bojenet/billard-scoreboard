@@ -91,6 +91,10 @@
             color: #ffd84a;
         }
 
+        .player-card.player-two {
+            grid-template-columns: 46px 88px minmax(0, 1fr);
+        }
+
         .player-sub {
             min-width: 0;
             white-space: nowrap;
@@ -126,6 +130,16 @@
             color: #101010;
             border-left: 1px solid rgba(255, 255, 255, 0.08);
             background: rgba(9, 17, 42, 0.55);
+        }
+
+        .player-card.player-two .series-box {
+            border-left: none;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .player-card.player-two .score-box {
+            border-left: none;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .series-box.active-white {
@@ -195,6 +209,10 @@
             .player-card {
                 grid-template-columns: minmax(0, 1fr) 78px 40px;
             }
+
+            .player-card.player-two {
+                grid-template-columns: 40px 78px minmax(0, 1fr);
+            }
         }
     </style>
 </head>
@@ -217,12 +235,12 @@
             </section>
 
             <section class="card player-card player-two">
+                <div id="series2" class="series-box"></div>
+                <div id="score2" class="score-box">0</div>
                 <div class="player-main">
                     <div id="player2Name" class="player-name">Spieler 2</div>
                     <div id="player2Sub" class="player-sub">Disziplin · Distanz</div>
                 </div>
-                <div id="score2" class="score-box">0</div>
-                <div id="series2" class="series-box"></div>
             </section>
         </div>
     </div>
