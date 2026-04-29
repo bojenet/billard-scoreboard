@@ -8,7 +8,7 @@
     <style>
         :root {
             --overlay-width: 760px;
-            --overlay-height: 154px;
+            --overlay-height: 112px;
         }
 
         html,
@@ -45,47 +45,50 @@
             gap: 0;
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-            background: rgba(255, 255, 255, 0.86);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+            background: rgba(15, 28, 63, 0.92);
             backdrop-filter: blur(6px);
         }
 
         .match-bar {
-            padding: 10px 14px 8px;
-            background: rgba(255, 255, 255, 0.9);
-            color: #101010;
-            font-size: clamp(16px, 1.2vw, 24px);
-            font-weight: 600;
+            padding: 8px 14px 7px;
+            background: linear-gradient(180deg, rgba(22, 43, 102, 0.96), rgba(15, 28, 63, 0.96));
+            color: rgba(255, 255, 255, 0.92);
+            font-size: clamp(13px, 1vw, 18px);
+            font-weight: 700;
             line-height: 1.1;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            letter-spacing: 0.02em;
         }
 
         .content-row {
             display: grid;
             grid-template-columns: minmax(0, 1fr) 84px minmax(0, 1fr) 84px 70px;
             align-items: stretch;
-            min-height: 94px;
-            background: rgba(255, 255, 255, 0.84);
+            min-height: 64px;
+            background: rgba(18, 34, 82, 0.96);
         }
 
         .player-block {
             display: grid;
             align-content: center;
-            gap: 6px;
+            gap: 4px;
             min-width: 0;
-            padding: 10px 14px;
+            padding: 8px 14px;
         }
 
         .player-sub {
-            color: rgba(16, 16, 16, 0.68);
-            font-size: 13px;
-            font-weight: 500;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 11px;
+            font-weight: 600;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         .player-name {
@@ -93,10 +96,14 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            color: #101010;
+            color: #ffffff;
             font-size: clamp(20px, 1.5vw, 28px);
-            font-weight: 600;
+            font-weight: 700;
             line-height: 1;
+        }
+
+        #player2Name {
+            color: #ffd84a;
         }
 
         .player-score {
@@ -106,8 +113,9 @@
             font-size: clamp(28px, 2.4vw, 44px);
             font-weight: 700;
             font-variant-numeric: tabular-nums;
-            color: #101010;
-            border-left: 1px solid rgba(0, 0, 0, 0.08);
+            color: #ffffff;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(28, 51, 128, 0.94);
         }
 
         .series-cell {
@@ -118,28 +126,16 @@
             font-weight: 700;
             font-variant-numeric: tabular-nums;
             color: #101010;
-            border-left: 1px solid rgba(0, 0, 0, 0.08);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
             background: rgba(255, 255, 255, 0);
         }
 
         .series-cell.active-white {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.98);
         }
 
         .series-cell.active-yellow {
-            background: rgba(255, 216, 74, 0.95);
-        }
-
-        .meta-strip {
-            display: flex;
-            gap: 18px;
-            align-items: center;
-            justify-content: space-between;
-            padding: 6px 14px 7px;
-            background: rgba(255, 255, 255, 0.88);
-            color: rgba(16, 16, 16, 0.7);
-            font-size: 12px;
-            font-weight: 500;
+            background: rgba(255, 216, 74, 0.98);
         }
 
         .error-box {
@@ -168,12 +164,7 @@
 
             .content-row {
                 grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1fr) 70px 54px;
-                min-height: 80px;
-            }
-
-            .meta-strip {
-                gap: 10px;
-                font-size: 11px;
+                min-height: 56px;
             }
         }
     </style>
@@ -187,21 +178,16 @@
             <section class="content-row">
                 <div class="player-block">
                     <div id="player1Name" class="player-name">Spieler 1</div>
-                    <div id="player1Sub" class="player-sub">Disziplin · 200</div>
+                    <div id="player1Sub" class="player-sub">Disziplin · Distanz</div>
                 </div>
                 <div id="score1" class="player-score">0</div>
                 <div class="player-block">
                     <div id="player2Name" class="player-name">Spieler 2</div>
-                    <div id="player2Sub" class="player-sub">Disziplin · 200</div>
+                    <div id="player2Sub" class="player-sub">Disziplin · Distanz</div>
                 </div>
                 <div id="score2" class="player-score">0</div>
                 <div id="seriesCell" class="series-cell"></div>
             </section>
-
-            <div class="meta-strip">
-                <span id="liveLine">Live verbunden</span>
-                <span id="statusLine">Inning 1</span>
-            </div>
         </div>
     </div>
 
@@ -269,10 +255,6 @@
             document.body.classList.add("stream-ready");
         }
 
-        function setLiveStatus(text) {
-            document.getElementById("liveLine").textContent = text;
-        }
-
         function render() {
             document.getElementById("player1Name").textContent = player1 || "Spieler 1";
             document.getElementById("player2Name").textContent = player2 || "Spieler 2";
@@ -286,8 +268,6 @@
                 String(discipline1 || discipline2 || "-") + ", " +
                 String(target1 || 0) +
                 (maxInnings > 0 ? "/" + String(maxInnings) : "");
-            document.getElementById("statusLine").textContent =
-                "Inning " + String(totalInnings || 1);
 
             const seriesCell = document.getElementById("seriesCell");
             if (Number(activePlayer) === 1) {
@@ -439,16 +419,9 @@
                     (payload) => {
                         if (!payload?.new) return;
                         applyMatch(payload.new);
-                        setLiveStatus("Live verbunden");
                     }
                 )
-                .subscribe((status) => {
-                    if (status === "SUBSCRIBED") {
-                        setLiveStatus("Live verbunden");
-                    } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-                        setLiveStatus("Autom. Sync aktiv");
-                    }
-                });
+                .subscribe();
         }
 
         async function init() {
@@ -460,7 +433,6 @@
             if (streamToken) {
                 const data = await fetchPublicStreamMatch();
                 applyMatch(data);
-                setLiveStatus("OBS-Link aktiv");
                 startPolling(true);
                 return;
             }
