@@ -248,6 +248,65 @@
             color: #b7f7c7;
         }
 
+        .obs-box {
+            display: none;
+            margin-top: 14px;
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #263056, #202746);
+            border: 1px solid #3b4a85;
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+        }
+
+        .obs-box.visible {
+            display: block;
+        }
+
+        .obs-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .obs-sub {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 12px;
+        }
+
+        .obs-link {
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid #495891;
+            background: #11182f;
+            color: #f3f5ff;
+            margin-bottom: 12px;
+        }
+
+        .obs-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .obs-actions button {
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: none;
+            background: #4657ab;
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .obs-actions button:hover {
+            filter: brightness(1.08);
+        }
+
         .control-mode-wrapper {
             display: flex;
             gap: 20px;
@@ -487,6 +546,16 @@
             </button>
         </div>
         <div id="formMessage" class="form-message"></div>
+        <div id="obsBox" class="obs-box">
+            <div class="obs-title">OBS Overlay</div>
+            <div class="obs-sub">Diesen Link als Browser-Quelle in OBS nutzen.</div>
+            <input id="obsOverlayLink" class="obs-link" type="text" readonly value="">
+            <div class="obs-actions">
+                <button type="button" onclick="copyObsLink()">OBS-Link kopieren</button>
+                <button type="button" onclick="openObsOverlay()">Overlay öffnen</button>
+                <button type="button" onclick="openScoreboardMatch()">Zum Scoreboard</button>
+            </div>
+        </div>
 
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         <script src="js/supabase.js"></script>
@@ -500,6 +569,8 @@
             let currentUserId = "";
             let ownedPlayerNames = [];
             let availablePlayers = [];
+            let lastCreatedMatchId = "";
+            let lastCreatedStreamToken = "";
             const LAST_MATCH_SETUP_KEY = "last_match_setup_v1";
 
 
@@ -738,6 +809,47 @@
                 syncMaxInnings(current);
             }
 
+            function buildObsOverlayLink(matchId, streamToken) {
+                const url = new URL(window.location.origin + "/stream_scoreboard.html");
+                url.searchParams.set("match", matchId);
+                if (streamToken) url.searchParams.set("token", streamToken);
+                return url.toString();
+            }
+
+            function showObsBox(matchId, streamToken) {
+                lastCreatedMatchId = String(matchId || "");
+                lastCreatedStreamToken = String(streamToken || "");
+                const obsBox = document.getElementById("obsBox");
+                const obsLink = document.getElementById("obsOverlayLink");
+                if (!obsBox || !obsLink) return;
+                obsLink.value = buildObsOverlayLink(lastCreatedMatchId, lastCreatedStreamToken);
+                obsBox.classList.add("visible");
+            }
+
+            async function copyObsLink() {
+                const input = document.getElementById("obsOverlayLink");
+                if (!input || !input.value) return;
+                try {
+                    await navigator.clipboard.writeText(input.value);
+                    setFormMessage("OBS-Link kopiert.", "ok");
+                } catch (_) {
+                    input.focus();
+                    input.select();
+                    setFormMessage("OBS-Link markiert. Bitte kopieren.", "ok");
+                }
+            }
+
+            function openObsOverlay() {
+                const input = document.getElementById("obsOverlayLink");
+                if (!input || !input.value) return;
+                window.open(input.value, "_blank");
+            }
+
+            function openScoreboardMatch() {
+                if (!lastCreatedMatchId) return;
+                window.location.href = "/scoreboard.html?match=" + lastCreatedMatchId;
+            }
+
             async function startMatch() {
                 try {
                     setFormMessage("", "");
@@ -869,8 +981,9 @@
                     });
 
                     const matchId = data[0].id;
-                    setFormMessage("Match wird gestartet...", "ok");
-                    window.location.href = "/scoreboard.html?match=" + matchId;
+                    const streamToken = String((data[0] && data[0].stream_token) || basePayload.stream_token || "");
+                    showObsBox(matchId, streamToken);
+                    setFormMessage("Match erstellt. OBS-Link ist bereit.", "ok");
                 } catch (e) {
                     console.error("startMatch Ausnahme:", e);
                     setFormMessage("Match-Start fehlgeschlagen: " + ((e && e.message) || "Unbekannter Fehler"), "error");
