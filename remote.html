@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <title>Remote</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f1c3f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest-remote.json">
 
     <style>
         body {
@@ -47,6 +51,13 @@
         .action-row {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            width: 100%;
+        }
+
+        .utility-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
             gap: 12px;
             width: 100%;
         }
@@ -165,6 +176,35 @@
             letter-spacing: 0.4px;
         }
 
+        .status-pill {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: #17295e;
+            border: 1px solid #2b4588;
+            color: #eef3ff;
+            font-size: 16px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .status-pill.ok {
+            background: #1f3f2f;
+            border-color: #3f8d60;
+            color: #d9ffe8;
+        }
+
+        .status-pill.warn {
+            background: #4a3a14;
+            border-color: #8f7130;
+            color: #ffe9a7;
+        }
+
+        .mic-active {
+            background: #8c2323 !important;
+        }
+
     </style>
 </head>
 
@@ -213,6 +253,11 @@
             <button onclick="undo()">Undo</button>
             <button class="danger" onclick="finish()">Beenden</button>
         </div>
+        <div class="utility-row">
+            <button id="voiceBtn" onclick="toggleVoice()">Sprache aus</button>
+            <div id="wakeStatus" class="status-pill">Wake Lock aus</div>
+        </div>
+        <div id="voiceStatus" class="status-pill">Sprache bereit</div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -231,6 +276,170 @@ let remoteChannel = null;
 let pollId = null;
 let remoteHistory = [];
 let matchSeriesStorageAvailable = false;
+let wakeLockSentinel = null;
+let voiceRecognition = null;
+let voiceActive = false;
+let voiceSupported = false;
+let pwaReady = false;
+
+function setWakeStatus(text, type = "") {
+    const el = document.getElementById("wakeStatus");
+    if (!el) return;
+    el.className = "status-pill" + (type ? " " + type : "");
+    el.innerText = text;
+}
+
+function setVoiceStatus(text, type = "") {
+    const el = document.getElementById("voiceStatus");
+    if (!el) return;
+    el.className = "status-pill" + (type ? " " + type : "");
+    el.innerText = text;
+}
+
+function updateVoiceButton() {
+    const btn = document.getElementById("voiceBtn");
+    if (!btn) return;
+    btn.innerText = voiceActive ? "Sprache an" : "Sprache aus";
+    btn.classList.toggle("mic-active", voiceActive);
+    btn.disabled = !voiceSupported;
+}
+
+async function enableWakeLock() {
+    if (!("wakeLock" in navigator) || !navigator.wakeLock?.request) {
+        setWakeStatus("Wake Lock nicht verfuegbar", "warn");
+        return;
+    }
+    try {
+        wakeLockSentinel = await navigator.wakeLock.request("screen");
+        setWakeStatus("Wake Lock aktiv", "ok");
+        wakeLockSentinel.addEventListener("release", () => {
+            setWakeStatus("Wake Lock pausiert", "warn");
+        });
+    } catch (error) {
+        console.warn("Wake Lock fehlgeschlagen:", error);
+        setWakeStatus("Wake Lock fehlgeschlagen", "warn");
+    }
+}
+
+function parseVoiceCommand(raw) {
+    const text = String(raw || "").trim().toLowerCase();
+    if (!text) return null;
+    if (text === "plus" || text === "+") return { action: "add", value: 1 };
+    if (text.includes("plus 5") || text.includes("plus fünf")) return { action: "add", value: 5 };
+    if (text.includes("plus 10") || text.includes("plus zehn")) return { action: "add", value: 10 };
+    if (text === "minus" || text === "minus eins" || text === "-1") return { action: "add", value: -1 };
+    if (text.includes("wechsel") || text.includes("spielerwechsel") || text.includes("naechste aufnahme") || text.includes("nächste aufnahme")) return { action: "switch" };
+    if (text.includes("undo") || text.includes("rückgängig") || text.includes("rueckgaengig")) return { action: "undo" };
+    if (text.includes("beenden") || text.includes("ende")) return { action: "finish" };
+    return null;
+}
+
+async function executeVoiceCommand(command) {
+    if (!command) {
+        setVoiceStatus("Sprachbefehl nicht erkannt", "warn");
+        return;
+    }
+    if (command.action === "add") {
+        await add(command.value);
+        setVoiceStatus("Sprachbefehl: " + (command.value > 0 ? "+" + command.value : String(command.value)), "ok");
+        return;
+    }
+    if (command.action === "switch") {
+        await switchPlayer();
+        setVoiceStatus("Sprachbefehl: Wechsel", "ok");
+        return;
+    }
+    if (command.action === "undo") {
+        await undo();
+        setVoiceStatus("Sprachbefehl: Undo", "ok");
+        return;
+    }
+    if (command.action === "finish") {
+        await finish();
+        setVoiceStatus("Sprachbefehl: Beenden", "ok");
+    }
+}
+
+function setupVoiceRecognition() {
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+        voiceSupported = false;
+        updateVoiceButton();
+        setVoiceStatus("Sprache auf diesem Geraet nicht verfuegbar", "warn");
+        return;
+    }
+
+    voiceRecognition = new Recognition();
+    voiceRecognition.lang = "de-DE";
+    voiceRecognition.continuous = false;
+    voiceRecognition.interimResults = false;
+    voiceSupported = true;
+    updateVoiceButton();
+
+    voiceRecognition.onstart = () => {
+        voiceActive = true;
+        updateVoiceButton();
+        setVoiceStatus("Sprache aktiv: plus, minus, wechsel, undo, beenden", "ok");
+    };
+
+    voiceRecognition.onresult = async (event) => {
+        const transcript = event?.results?.[0]?.[0]?.transcript || "";
+        await executeVoiceCommand(parseVoiceCommand(transcript));
+    };
+
+    voiceRecognition.onerror = (event) => {
+        const code = String(event?.error || "");
+        if (code === "not-allowed" || code === "service-not-allowed") {
+            setVoiceStatus("Mikrofon nicht erlaubt", "warn");
+            voiceActive = false;
+            updateVoiceButton();
+            return;
+        }
+        setVoiceStatus("Sprachfehler: " + code, "warn");
+    };
+
+    voiceRecognition.onend = () => {
+        const shouldRestart = voiceActive;
+        voiceActive = false;
+        updateVoiceButton();
+        if (shouldRestart && !document.hidden) {
+            try {
+                voiceRecognition.start();
+            } catch (_) {
+                setVoiceStatus("Sprache erneut tippen", "warn");
+            }
+        }
+    };
+}
+
+function toggleVoice() {
+    if (!voiceSupported || !voiceRecognition) return;
+    if (voiceActive) {
+        voiceActive = false;
+        try { voiceRecognition.stop(); } catch (_) {}
+        updateVoiceButton();
+        setVoiceStatus("Sprache pausiert");
+        return;
+    }
+    try {
+        voiceActive = true;
+        voiceRecognition.start();
+    } catch (error) {
+        voiceActive = false;
+        updateVoiceButton();
+        setVoiceStatus("Sprache konnte nicht starten", "warn");
+    }
+}
+
+async function registerRemotePwa() {
+    if (!("serviceWorker" in navigator)) return;
+    try {
+        await navigator.serviceWorker.register("/sw-remote.js");
+        pwaReady = true;
+    } catch (error) {
+        console.warn("Service Worker Registrierung fehlgeschlagen:", error);
+    }
+}
 
 function toSeriesArray(value) {
     if (Array.isArray(value)) {
@@ -600,9 +809,12 @@ async function finish() {
 }
 
 // INIT
+registerRemotePwa();
+setupVoiceRecognition();
 loadMatch();
 subscribeToMatch();
 pollId = setInterval(pollMatch, 1200);
+enableWakeLock();
 
 window.addEventListener("beforeunload", () => {
     if (pollId) clearInterval(pollId);
@@ -610,7 +822,10 @@ window.addEventListener("beforeunload", () => {
 });
 
 document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) pollMatch();
+    if (!document.hidden) {
+        pollMatch();
+        enableWakeLock();
+    }
 });
 
 </script>

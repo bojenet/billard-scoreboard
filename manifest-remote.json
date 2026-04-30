@@ -1,0 +1,9 @@
+{
+  "name": "Billard Remote",
+  "short_name": "Remote",
+  "start_url": "/remote.html",
+  "display": "standalone",
+  "background_color": "#0f1c3f",
+  "theme_color": "#0f1c3f",
+  "icons": []
+}
