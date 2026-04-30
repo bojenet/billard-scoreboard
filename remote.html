@@ -431,6 +431,102 @@ async function ensureWakeLockFromGesture() {
 function parseVoiceCommand(raw) {
     const text = String(raw || "").trim().toLowerCase();
     if (!text) return null;
+    const normalized = text
+        .replace(/ß/g, "ss")
+        .replace(/-/g, "")
+        .replace(/\s+/g, "");
+    const numberMap = {
+        "null": 0,
+        "eins": 1,
+        "ein": 1,
+        "eine": 1,
+        "zwei": 2,
+        "drei": 3,
+        "vier": 4,
+        "fuenf": 5,
+        "funf": 5,
+        "fünf": 5,
+        "sechs": 6,
+        "sieben": 7,
+        "acht": 8,
+        "neun": 9,
+        "zehn": 10,
+        "elf": 11,
+        "zwoelf": 12,
+        "zwolf": 12,
+        "zwölf": 12,
+        "dreizehn": 13,
+        "vierzehn": 14,
+        "fuenfzehn": 15,
+        "funfzehn": 15,
+        "fünfzehn": 15,
+        "sechzehn": 16,
+        "siebzehn": 17,
+        "achtzehn": 18,
+        "neunzehn": 19,
+        "zwanzig": 20,
+        "dreissig": 30,
+        "dreissig": 30,
+        "dreißig": 30,
+        "vierzig": 40,
+        "fuenfzig": 50,
+        "funfzig": 50,
+        "fünfzig": 50,
+        "sechzig": 60,
+        "siebzig": 70,
+        "achtzig": 80,
+        "neunzig": 90,
+        "hundert": 100,
+        "zweihundert": 200,
+        "dreihundert": 300
+    };
+    const onesMap = {
+        "ein": 1,
+        "eins": 1,
+        "eine": 1,
+        "zwei": 2,
+        "drei": 3,
+        "vier": 4,
+        "fuenf": 5,
+        "funf": 5,
+        "fünf": 5,
+        "sechs": 6,
+        "sieben": 7,
+        "acht": 8,
+        "neun": 9
+    };
+    const tensMap = {
+        "zwanzig": 20,
+        "dreissig": 30,
+        "dreißig": 30,
+        "vierzig": 40,
+        "fuenfzig": 50,
+        "fünfzig": 50,
+        "funfzig": 50,
+        "sechzig": 60,
+        "siebzig": 70,
+        "achtzig": 80,
+        "neunzig": 90
+    };
+    if (/^\d+$/.test(text)) {
+        const numericValue = Number(text);
+        if (numericValue >= 0 && numericValue <= 300) {
+            return { action: "add", value: numericValue };
+        }
+        return null;
+    }
+    if (Object.prototype.hasOwnProperty.call(numberMap, normalized)) {
+        return { action: "add", value: numberMap[normalized] };
+    }
+    const undIndex = normalized.indexOf("und");
+    if (undIndex > 0) {
+        const onesPart = normalized.slice(0, undIndex);
+        const tensPart = normalized.slice(undIndex + 3);
+        if (Object.prototype.hasOwnProperty.call(onesMap, onesPart) &&
+            Object.prototype.hasOwnProperty.call(tensMap, tensPart)) {
+            return { action: "add", value: onesMap[onesPart] + tensMap[tensPart] };
+        }
+    }
     if (text === "plus" || text === "+") return { action: "add", value: 1 };
     if (text.includes("plus 5") || text.includes("plus fünf")) return { action: "add", value: 5 };
     if (text.includes("plus 10") || text.includes("plus zehn")) return { action: "add", value: 10 };
