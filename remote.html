@@ -511,12 +511,12 @@ function parseVoiceCommand(raw) {
     if (/^\d+$/.test(text)) {
         const numericValue = Number(text);
         if (numericValue >= 0 && numericValue <= 300) {
-            return { action: "add", value: numericValue };
+            return { action: "set", value: numericValue };
         }
         return null;
     }
     if (Object.prototype.hasOwnProperty.call(numberMap, normalized)) {
-        return { action: "add", value: numberMap[normalized] };
+        return { action: "set", value: numberMap[normalized] };
     }
     const undIndex = normalized.indexOf("und");
     if (undIndex > 0) {
@@ -524,7 +524,7 @@ function parseVoiceCommand(raw) {
         const tensPart = normalized.slice(undIndex + 3);
         if (Object.prototype.hasOwnProperty.call(onesMap, onesPart) &&
             Object.prototype.hasOwnProperty.call(tensMap, tensPart)) {
-            return { action: "add", value: onesMap[onesPart] + tensMap[tensPart] };
+            return { action: "set", value: onesMap[onesPart] + tensMap[tensPart] };
         }
     }
     if (text === "plus" || text === "+") return { action: "add", value: 1 };
@@ -540,6 +540,11 @@ function parseVoiceCommand(raw) {
 async function executeVoiceCommand(command) {
     if (!command) {
         setVoiceStatus("Sprachbefehl nicht erkannt", "warn");
+        return;
+    }
+    if (command.action === "set") {
+        await setSeriesValue(command.value);
+        setVoiceStatus("Sprachbefehl: " + String(command.value), "ok");
         return;
     }
     if (command.action === "add") {
@@ -998,6 +1003,36 @@ async function add(value) {
 
         if (target2 > 0 && score2 + series2 > target2)
             series2 = target2 - score2;
+    }
+
+    await updateMatch({ series1, series2 });
+}
+
+async function setSeriesValue(value) {
+
+    if (!matchData) return;
+    if (isFinished()) return;
+    saveHistory();
+
+    let activePlayer = Number(matchData.activePlayer || 1);
+    let series1 = Number(matchData.series1 || 0);
+    let series2 = Number(matchData.series2 || 0);
+    let score1 = Number(matchData.score1 || 0);
+    let score2 = Number(matchData.score2 || 0);
+    let target1 = Number(matchData.target1 || 0);
+    let target2 = Number(matchData.target2 || 0);
+    let nextValue = Math.max(0, Number(value || 0));
+
+    if (activePlayer === 1) {
+        if (target1 > 0 && score1 + nextValue > target1) {
+            nextValue = target1 - score1;
+        }
+        series1 = Math.max(0, nextValue);
+    } else {
+        if (target2 > 0 && score2 + nextValue > target2) {
+            nextValue = target2 - score2;
+        }
+        series2 = Math.max(0, nextValue);
     }
 
     await updateMatch({ series1, series2 });
