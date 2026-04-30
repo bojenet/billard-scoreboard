@@ -337,7 +337,7 @@ function setWakeStatus(text, type = "") {
 function setVoiceStatus(text, type = "") {
     const el = document.getElementById("voiceStatus");
     if (!el) return;
-    el.className = "status-pill" + (type ? " " + type : "");
+    el.className = "sr-only";
     el.innerText = text;
 }
 
@@ -362,7 +362,7 @@ async function enableWakeLock() {
         });
     } catch (error) {
         console.warn("Wake Lock fehlgeschlagen:", error);
-        setWakeStatus("Wake Lock fehlgeschlagen", "warn");
+        setWakeStatus("Wake Lock tippen", "warn");
     }
 }
 
