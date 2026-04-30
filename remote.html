@@ -220,6 +220,18 @@
             text-align: center;
         }
 
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
         .status-pill.ok {
             background: #1f3f2f;
             border-color: #3f8d60;
@@ -289,7 +301,7 @@
             <button id="voiceBtn" onclick="toggleVoice()">Sprache aus</button>
             <div id="wakeStatus" class="status-pill">Wake Lock aus</div>
         </div>
-        <div id="voiceStatus" class="status-pill">Sprache bereit</div>
+        <div id="voiceStatus" class="sr-only" aria-live="polite">Sprache bereit</div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -313,6 +325,7 @@ let voiceRecognition = null;
 let voiceActive = false;
 let voiceSupported = false;
 let pwaReady = false;
+let wakeLockRequestedOnce = false;
 
 function setWakeStatus(text, type = "") {
     const el = document.getElementById("wakeStatus");
@@ -351,6 +364,12 @@ async function enableWakeLock() {
         console.warn("Wake Lock fehlgeschlagen:", error);
         setWakeStatus("Wake Lock fehlgeschlagen", "warn");
     }
+}
+
+async function ensureWakeLockFromGesture() {
+    if (wakeLockSentinel || wakeLockRequestedOnce) return;
+    wakeLockRequestedOnce = true;
+    await enableWakeLock();
 }
 
 function parseVoiceCommand(raw) {
@@ -902,7 +921,6 @@ setupVoiceRecognition();
 loadMatch();
 subscribeToMatch();
 pollId = setInterval(pollMatch, 1200);
-enableWakeLock();
 
 window.addEventListener("beforeunload", () => {
     if (pollId) clearInterval(pollId);
@@ -912,8 +930,15 @@ window.addEventListener("beforeunload", () => {
 document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
         pollMatch();
-        enableWakeLock();
+        wakeLockRequestedOnce = false;
+        ensureWakeLockFromGesture();
     }
+});
+
+["pointerdown", "touchstart", "click"].forEach((eventName) => {
+    window.addEventListener(eventName, () => {
+        ensureWakeLockFromGesture();
+    }, { passive: true, once: false });
 });
 
 </script>
