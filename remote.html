@@ -22,6 +22,12 @@
             padding: 14px;
         }
 
+        body.initial-loading .mini-board,
+        body.initial-loading .controls-stack,
+        body.initial-loading .match-picker {
+            display: none !important;
+        }
+
         h1 {
             margin: 4px 0 14px;
             font-size: 30px;
@@ -43,6 +49,11 @@
 
         .match-picker.visible {
             display: grid;
+        }
+
+        .match-picker-actions {
+            display: flex;
+            justify-content: flex-end;
         }
 
         .match-card {
@@ -251,7 +262,7 @@
     </style>
 </head>
 
-<body>
+<body class="initial-loading">
 
     <h1>Match Remote</h1>
     <div id="matchPicker" class="match-picker"></div>
@@ -326,6 +337,37 @@ let voiceActive = false;
 let voiceSupported = false;
 let pwaReady = false;
 let wakeLockRequestedOnce = false;
+let finishedRedirectTimeout = null;
+
+function showLoadedMatchUi() {
+    const picker = document.getElementById("matchPicker");
+    const board = document.querySelector(".mini-board");
+    const controls = document.querySelector(".controls-stack");
+    if (picker) picker.classList.remove("visible");
+    if (board) board.style.display = "";
+    if (controls) controls.style.display = "";
+    document.body.classList.remove("initial-loading");
+}
+
+function showMatchPickerUi() {
+    const picker = document.getElementById("matchPicker");
+    const board = document.querySelector(".mini-board");
+    const controls = document.querySelector(".controls-stack");
+    if (picker) picker.classList.add("visible");
+    if (board) board.style.display = "none";
+    if (controls) controls.style.display = "none";
+    document.body.classList.remove("initial-loading");
+}
+
+function returnToMatchPicker() {
+    if (finishedRedirectTimeout) {
+        clearTimeout(finishedRedirectTimeout);
+        finishedRedirectTimeout = null;
+    }
+    const next = new URL(window.location.href);
+    next.searchParams.delete("match");
+    window.location.href = next.toString();
+}
 
 function setWakeStatus(text, type = "") {
     const el = document.getElementById("wakeStatus");
@@ -535,11 +577,16 @@ async function loadMatch() {
 
     if (error) {
         console.error(error);
+        showMatchPickerUi();
         return;
     }
 
     if (!isAdmin && !isOwnedMatch(data, currentUserId, ownedPlayerNames)) {
-        document.body.innerHTML = "Kein Zugriff auf diese Partie.";
+        showMatchPickerUi();
+        const picker = document.getElementById("matchPicker");
+        if (picker) {
+            picker.innerHTML = `<div class="status-pill warn">Kein Zugriff auf diese Partie.</div>`;
+        }
         return;
     }
 
@@ -547,6 +594,7 @@ async function loadMatch() {
     matchSeriesStorageAvailable =
         Object.prototype.hasOwnProperty.call(data, "series_log1") &&
         Object.prototype.hasOwnProperty.call(data, "series_log2");
+    showLoadedMatchUi();
     updateDisplay();
 }
 
@@ -582,16 +630,23 @@ async function loadMatchPicker() {
         isOwnedMatch(match, currentUserId, ownedPlayerNames)
     ));
 
-    picker.classList.add("visible");
-    if (board) board.style.display = "none";
-    if (controls) controls.style.display = "none";
+    showMatchPickerUi();
 
     if (!matches.length) {
-        picker.innerHTML = `<div class="status-pill warn">Kein laufendes Match gefunden.</div>`;
+        picker.innerHTML = `
+            <div class="match-picker-actions">
+                <button type="button" onclick="refreshMatchPicker()">Aktualisieren</button>
+            </div>
+            <div class="status-pill warn">Kein laufendes Match gefunden.</div>
+        `;
         return;
     }
 
-    picker.innerHTML = matches.map((match) => `
+    picker.innerHTML = `
+        <div class="match-picker-actions">
+            <button type="button" onclick="refreshMatchPicker()">Aktualisieren</button>
+        </div>
+    ` + matches.map((match) => `
         <button type="button" class="match-card" onclick="openMatchFromPicker('${String(match.id).replace(/'/g, "\\'")}')">
             <div class="match-card-title">${match.player1 || "Spieler 1"} vs ${match.player2 || "Spieler 2"}</div>
             <div class="match-card-sub">${match.discipline1 || "-"} · ${match.score1 || 0} : ${match.score2 || 0} · Aufn. ${match.totalInnings || 1}</div>
@@ -604,6 +659,10 @@ function openMatchFromPicker(id) {
     const next = new URL(window.location.href);
     next.searchParams.set("match", id);
     window.location.href = next.toString();
+}
+
+function refreshMatchPicker() {
+    loadMatchPicker();
 }
 
 // ===============================
@@ -685,7 +744,16 @@ function updateDisplay() {
         seriesInfo.innerText = "Partie beendet - am Hauptscreen speichern oder verwerfen";
         seriesInfo.style.color = "#ffd84a";
         setControlsEnabled(false);
+        if (!finishedRedirectTimeout) {
+            finishedRedirectTimeout = setTimeout(() => {
+                returnToMatchPicker();
+            }, 1200);
+        }
     } else {
+        if (finishedRedirectTimeout) {
+            clearTimeout(finishedRedirectTimeout);
+            finishedRedirectTimeout = null;
+        }
         seriesInfo.innerText =
             "Serie: " + (currentSeries > 0 ? "+" + currentSeries : "0");
         setControlsEnabled(true);
