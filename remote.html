@@ -34,6 +34,37 @@
             gap: 12px;
         }
 
+        .match-picker {
+            width: 100%;
+            max-width: 720px;
+            display: none;
+            gap: 12px;
+        }
+
+        .match-picker.visible {
+            display: grid;
+        }
+
+        .match-card {
+            background: #162b66;
+            border: 1px solid #2d488f;
+            border-radius: 18px;
+            padding: 16px 18px;
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+            cursor: pointer;
+        }
+
+        .match-card-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .match-card-sub {
+            font-size: 15px;
+            opacity: 0.82;
+        }
+
         .point-main {
             width: 100%;
             min-height: 200px;
@@ -211,6 +242,7 @@
 <body>
 
     <h1>Match Remote</h1>
+    <div id="matchPicker" class="match-picker"></div>
     <div class="mini-board">
         <div class="mini-grid">
             <div id="miniCard1" class="mini-player">
@@ -466,7 +498,7 @@ function toSeriesArray(value) {
 
 async function loadMatch() {
     if (!matchId) {
-        document.body.innerHTML = "Kein Match ausgewählt.";
+        await loadMatchPicker();
         return;
     }
 
@@ -497,6 +529,62 @@ async function loadMatch() {
         Object.prototype.hasOwnProperty.call(data, "series_log1") &&
         Object.prototype.hasOwnProperty.call(data, "series_log2");
     updateDisplay();
+}
+
+async function loadMatchPicker() {
+    const picker = document.getElementById("matchPicker");
+    const board = document.querySelector(".mini-board");
+    const controls = document.querySelector(".controls-stack");
+    if (!picker) return;
+
+    const user = await requireAuth();
+    if (!user) return;
+    currentUserId = user.id;
+    const isAdmin = await hasAdminAccess(user);
+    ownedPlayerNames = await getOwnedPlayerNames(currentUserId);
+
+    const { data, error } = await supabaseClient
+        .from("matches")
+        .select("*")
+        .eq("status", 1)
+        .eq("finished", 0)
+        .order("started_at", { ascending: false });
+
+    if (error) {
+        console.error(error);
+        picker.classList.add("visible");
+        picker.innerHTML = `<div class="status-pill warn">Laufende Matches konnten nicht geladen werden.</div>`;
+        if (board) board.style.display = "none";
+        if (controls) controls.style.display = "none";
+        return;
+    }
+
+    const matches = (isAdmin ? (data || []) : (data || []).filter((match) =>
+        isOwnedMatch(match, currentUserId, ownedPlayerNames)
+    ));
+
+    picker.classList.add("visible");
+    if (board) board.style.display = "none";
+    if (controls) controls.style.display = "none";
+
+    if (!matches.length) {
+        picker.innerHTML = `<div class="status-pill warn">Kein laufendes Match gefunden.</div>`;
+        return;
+    }
+
+    picker.innerHTML = matches.map((match) => `
+        <button type="button" class="match-card" onclick="openMatchFromPicker('${String(match.id).replace(/'/g, "\\'")}')">
+            <div class="match-card-title">${match.player1 || "Spieler 1"} vs ${match.player2 || "Spieler 2"}</div>
+            <div class="match-card-sub">${match.discipline1 || "-"} · ${match.score1 || 0} : ${match.score2 || 0} · Aufn. ${match.totalInnings || 1}</div>
+        </button>
+    `).join("");
+}
+
+function openMatchFromPicker(id) {
+    if (!id) return;
+    const next = new URL(window.location.href);
+    next.searchParams.set("match", id);
+    window.location.href = next.toString();
 }
 
 // ===============================
