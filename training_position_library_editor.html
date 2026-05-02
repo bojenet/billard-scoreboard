@@ -102,12 +102,22 @@
         .photo-canvas { display:block; width:100%; height:auto; cursor:crosshair; }
         .photo-hint { margin-top:10px; font-size:13px; opacity:.8; }
         .reference-photo-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; min-height:120px; border-radius:16px; overflow:hidden; display:none; align-items:center; justify-content:center; }
-        .reference-photo-preview { display:block; width:100%; max-height:280px; object-fit:contain; background:#08112b; }
+        .reference-photo-preview { display:block; width:100%; max-height:280px; object-fit:contain; background:#08112b; cursor:zoom-in; }
         .reference-photo-empty { padding:18px; text-align:center; font-size:14px; opacity:.72; }
+        .reference-photo-zoom { position:fixed; inset:0; z-index:1800; display:none; align-items:center; justify-content:center; padding:24px; background:rgba(4,8,19,.84); backdrop-filter:blur(6px); }
+        .reference-photo-zoom.visible { display:flex; }
+        .reference-photo-zoom-panel { width:min(1320px,96vw); max-height:94vh; display:grid; grid-template-rows:auto minmax(0,1fr); gap:12px; background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:20px; box-shadow:0 28px 60px rgba(0,0,0,.5); padding:14px; }
+        .reference-photo-zoom-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+        .reference-photo-zoom-title { font-size:18px; font-weight:800; }
+        .reference-photo-zoom-image-wrap { min-height:0; display:flex; align-items:center; justify-content:center; overflow:auto; background:#08112b; border:1px solid #3557b7; border-radius:14px; }
+        .reference-photo-zoom-image { display:block; max-width:100%; max-height:calc(94vh - 96px); object-fit:contain; }
         @media (max-width: 980px) {
             .layout { grid-template-columns:1fr; }
             .table-viewport.popup-active { inset:78px 14px 14px; padding:14px; }
             .table-popup-toolbar { top:12px; width:min(96vw, 920px); justify-content:center; }
+            .reference-photo-zoom { padding:12px; }
+            .reference-photo-zoom-panel { width:100%; max-height:96vh; padding:10px; }
+            .reference-photo-zoom-image { max-height:calc(96vh - 84px); }
         }
     </style>
 </head>
@@ -245,6 +255,17 @@
                 <canvas id="photoImportMobileCanvas" class="photo-canvas"></canvas>
             </div>
             <div class="photo-hint" id="photoImportMobileHint">Wähle zuerst, auf welcher Bildseite die kurze Tischseite liegt. Danach die vier Tischecken ausrichten und dann die Ballmarker setzen.</div>
+        </div>
+    </div>
+    <div class="reference-photo-zoom" id="referencePhotoZoom" aria-hidden="true" onclick="closeReferencePhotoZoom()">
+        <div class="reference-photo-zoom-panel" role="dialog" aria-modal="true" aria-label="Referenzfoto" onclick="event.stopPropagation()">
+            <div class="reference-photo-zoom-head">
+                <div class="reference-photo-zoom-title">Referenzfoto</div>
+                <button class="btn" type="button" onclick="closeReferencePhotoZoom()">Schließen</button>
+            </div>
+            <div class="reference-photo-zoom-image-wrap">
+                <img class="reference-photo-zoom-image" id="referencePhotoZoomImage" alt="Referenzfoto groß">
+            </div>
         </div>
     </div>
 
@@ -510,11 +531,29 @@
             if (!box) return;
             if (referencePhotoDataUrl) {
                 box.style.display = "flex";
-                box.innerHTML = `<img class="reference-photo-preview" src="${referencePhotoDataUrl}" alt="Referenzfoto">`;
+                box.innerHTML = `<img class="reference-photo-preview" src="${referencePhotoDataUrl}" alt="Referenzfoto" title="Referenzfoto groß öffnen" onclick="openReferencePhotoZoom()">`;
                 return;
             }
             box.style.display = "none";
             box.innerHTML = `<div class="reference-photo-empty"></div>`;
+            closeReferencePhotoZoom();
+        }
+        function openReferencePhotoZoom() {
+            if (!referencePhotoDataUrl) return;
+            const modal = document.getElementById("referencePhotoZoom");
+            const image = document.getElementById("referencePhotoZoomImage");
+            if (!modal || !image) return;
+            image.src = referencePhotoDataUrl;
+            modal.classList.add("visible");
+            modal.setAttribute("aria-hidden", "false");
+        }
+        function closeReferencePhotoZoom() {
+            const modal = document.getElementById("referencePhotoZoom");
+            const image = document.getElementById("referencePhotoZoomImage");
+            if (!modal) return;
+            modal.classList.remove("visible");
+            modal.setAttribute("aria-hidden", "true");
+            if (image) image.removeAttribute("src");
         }
         function setDefaultPhotoImportMobileAnchors() {
             if (!photoImportMobileImage) return;
@@ -1375,6 +1414,7 @@
                 creatorMeta.style.display = "none";
                 creatorMeta.innerText = "";
             }
+            closeReferencePhotoZoom();
             closePhotoImportMobile();
             photoImportMobileImage = null;
             photoImportMobileCorners = [];
@@ -1559,6 +1599,11 @@
             if (event.key === "Escape" && document.getElementById("photoImportMobileModal")?.classList.contains("visible")) {
                 event.preventDefault();
                 closePhotoImportMobile();
+                return;
+            }
+            if (event.key === "Escape" && document.getElementById("referencePhotoZoom")?.classList.contains("visible")) {
+                event.preventDefault();
+                closeReferencePhotoZoom();
                 return;
             }
             if (event.key === "Escape" && activeLineDraft) {
