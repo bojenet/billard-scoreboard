@@ -154,6 +154,7 @@
                     </div>
                     <div class="actions">
                         <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImportMobile()">Foto importieren</button>
+                        <button class="btn secondary" id="exportPositionPdfBtn" type="button" onclick="exportPositionPdf()">PDF exportieren</button>
                         <button class="btn" type="button" onclick="window.location.href='training_position_library.html'">Abbrechen</button>
                         <button class="btn primary" type="button" onclick="savePosition()">Speichern</button>
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
@@ -364,6 +365,14 @@
             }
         }
         function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
         function getTableTypeForDiscipline(discipline) {
             return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB";
         }
@@ -1405,6 +1414,120 @@
                 yellow: { ...ballLayout.yellow },
                 white: { ...ballLayout.white }
             };
+        }
+        function renderExportBallMarkup(layout, discipline) {
+            const spec = getBallSpec(discipline);
+            return `
+                <g transform="translate(${layout.red.x} ${layout.red.y})"><circle r="${spec.radius}" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle><circle r="${spec.glareRadius}" cx="${-spec.glareOffset}" cy="${-spec.glareOffset}" fill="#fff" fill-opacity="0.42"></circle></g>
+                <g transform="translate(${layout.yellow.x} ${layout.yellow.y})"><circle r="${spec.radius}" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle><circle r="${spec.glareRadius}" cx="${-spec.glareOffset}" cy="${-spec.glareOffset}" fill="#fff" fill-opacity="0.42"></circle></g>
+                <g transform="translate(${layout.white.x} ${layout.white.y})"><circle r="${spec.radius}" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="${spec.whiteStrokeWidth}"></circle><circle r="${spec.glareRadius}" cx="${-spec.glareOffset}" cy="${-spec.glareOffset}" fill="#fff" fill-opacity="0.72"></circle></g>
+            `;
+        }
+        function renderExportLineMarkup(lines) {
+            return cloneLines(lines).map((line) => {
+                const points = Array.isArray(line.points) ? line.points : [];
+                if (points.length < 2) return "";
+                const polyline = points.map((pt) => `${pt.x},${pt.y}`).join(" ");
+                return `<polyline points="${polyline}" fill="none" stroke="#1383b5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>`;
+            }).join("");
+        }
+        function renderExportPageMarkup(page, index, total) {
+            const layout = cloneLayout(page.ball_layout);
+            const templateUrl = new URL(getTemplateForDiscipline(selectedDiscipline), window.location.href).href;
+            return `
+                <section class="pdf-page position-page">
+                    <div class="pdf-page-head">
+                        <h2>Position - Seite ${index + 1}</h2>
+                        <div>${index + 1} / ${total}</div>
+                    </div>
+                    <div class="pdf-table-wrap">
+                        <div class="pdf-table-stage">
+                            <img class="pdf-table-bg" src="${templateUrl}" alt="Tischvorlage">
+                            <svg class="pdf-table-lines" viewBox="0 0 674 1200" aria-hidden="true">${renderExportLineMarkup(page.line_paths)}</svg>
+                            <svg class="pdf-table-balls" viewBox="0 0 674 1200" aria-hidden="true">${renderExportBallMarkup(layout, selectedDiscipline)}</svg>
+                        </div>
+                    </div>
+                </section>
+            `;
+        }
+        function buildPositionPdfHtml() {
+            const title = String(document.getElementById("titleInput").value || "Position").trim() || "Position";
+            const description = String(document.getElementById("descriptionInput").value || "").trim();
+            const pages = (Array.isArray(positionPages) && positionPages.length ? positionPages : [createDefaultPage()])
+                .map((page) => ({
+                    ball_layout: cloneLayout(page.ball_layout),
+                    line_paths: cloneLines(page.line_paths)
+                }));
+            const safeTitle = escapeHtml(title);
+            const safeDiscipline = escapeHtml(selectedDiscipline);
+            const descriptionMarkup = description
+                ? escapeHtml(description).replace(/\n/g, "<br>")
+                : '<span class="muted">Keine Beschreibung</span>';
+            const photoMarkup = referencePhotoDataUrl
+                ? `<section class="pdf-page"><h2>Referenzfoto</h2><div class="pdf-photo-wrap"><img class="pdf-photo" src="${referencePhotoDataUrl}" alt="Referenzfoto"></div></section>`
+                : "";
+            return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${safeTitle}</title>
+    <style>
+        @page { size:A4; margin:14mm; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:Arial,sans-serif; color:#172033; background:#fff; }
+        h1 { margin:0 0 6mm; font-size:26pt; line-height:1.1; }
+        h2 { margin:0; font-size:16pt; }
+        .meta { margin-bottom:8mm; color:#42506a; font-size:11pt; }
+        .description { font-size:12pt; line-height:1.45; white-space:normal; }
+        .muted { color:#7b8497; }
+        .pdf-page { page-break-after:always; break-after:page; }
+        .pdf-page:last-child { page-break-after:auto; break-after:auto; }
+        .pdf-page-head { display:flex; justify-content:space-between; align-items:flex-end; gap:10mm; margin-bottom:8mm; color:#172033; }
+        .pdf-page-head div { color:#6b7486; font-size:11pt; font-weight:700; }
+        .pdf-photo-wrap { height:245mm; display:flex; align-items:center; justify-content:center; border:1px solid #d5dbe7; background:#f7f9fc; padding:4mm; }
+        .pdf-photo { max-width:100%; max-height:100%; object-fit:contain; }
+        .pdf-table-wrap { position:relative; width:100%; aspect-ratio:1200/674; overflow:hidden; background:#f7f7f4; border:1px solid #cfd5df; }
+        .pdf-table-stage { position:absolute; inset:0; }
+        .pdf-table-bg, .pdf-table-lines, .pdf-table-balls { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
+        .pdf-table-bg { display:block; object-fit:cover; }
+        .pdf-table-lines, .pdf-table-balls { display:block; }
+        @media screen {
+            body { background:#e8ecf4; padding:18px; }
+            .pdf-page { width:210mm; min-height:297mm; margin:0 auto 18px; padding:14mm; background:#fff; box-shadow:0 8px 28px rgba(25,35,55,.18); }
+        }
+    </style>
+</head>
+<body>
+    <section class="pdf-page">
+        <h1>${safeTitle}</h1>
+        <div class="meta">${safeDiscipline} · ${pages.length} Seite${pages.length === 1 ? "" : "n"}</div>
+        <div class="description">${descriptionMarkup}</div>
+    </section>
+    ${photoMarkup}
+    ${pages.map((page, index) => renderExportPageMarkup(page, index, pages.length)).join("")}
+    <script>
+        window.addEventListener("load", () => {
+            const images = Array.from(document.images);
+            Promise.all(images.map((image) => image.complete ? Promise.resolve() : new Promise((resolve) => {
+                image.onload = resolve;
+                image.onerror = resolve;
+            }))).then(() => setTimeout(() => window.print(), 250));
+        });
+    <\/script>
+</body>
+</html>`;
+        }
+        function exportPositionPdf() {
+            if (activeLineDraft) finishActiveLineDraft();
+            persistCurrentPageState();
+            const printWindow = window.open("", "_blank");
+            if (!printWindow) {
+                alert("Der PDF-Export wurde vom Browser blockiert. Bitte Pop-ups für diese Seite erlauben.");
+                return;
+            }
+            printWindow.document.open();
+            printWindow.document.write(buildPositionPdfHtml());
+            printWindow.document.close();
         }
         function resetForm() {
             editingId = null;
