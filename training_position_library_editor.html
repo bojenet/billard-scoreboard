@@ -1431,31 +1431,12 @@
                 return `<polyline points="${polyline}" fill="none" stroke="#1383b5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>`;
             }).join("");
         }
-        function renderExportPageMarkup(page, index, total) {
-            const layout = cloneLayout(page.ball_layout);
-            const templateUrl = new URL(getTemplateForDiscipline(selectedDiscipline), window.location.href).href;
-            return `
-                <section class="pdf-page position-page">
-                    <div class="pdf-page-head">
-                        <h2>Position - Seite ${index + 1}</h2>
-                        <div>${index + 1} / ${total}</div>
-                    </div>
-                    <div class="pdf-table-wrap">
-                        <div class="pdf-table-stage">
-                            <img class="pdf-table-bg" src="${templateUrl}" alt="Tischvorlage">
-                            <svg class="pdf-table-lines" viewBox="0 0 674 1200" aria-hidden="true">${renderExportLineMarkup(page.line_paths)}</svg>
-                            <svg class="pdf-table-balls" viewBox="0 0 674 1200" aria-hidden="true">${renderExportBallMarkup(layout, selectedDiscipline)}</svg>
-                        </div>
-                    </div>
-                </section>
-            `;
-        }
-        function renderExportCoverPositionItemMarkup(page, index) {
+        function renderExportPositionItemMarkup(page, index) {
             const layout = cloneLayout(page.ball_layout);
             const templateUrl = new URL(getTemplateForDiscipline(selectedDiscipline), window.location.href).href;
             return `
                 <div class="pdf-cover-position-item">
-                    <div class="pdf-cover-position-title">Seite ${index + 1}</div>
+                    <div class="pdf-cover-position-title">Position ${index + 1}</div>
                     <div class="pdf-table-wrap">
                         <div class="pdf-table-stage">
                             <img class="pdf-table-bg" src="${templateUrl}" alt="Tischvorlage">
@@ -1466,12 +1447,23 @@
                 </div>
             `;
         }
-        function renderExportCoverPositionMarkup(pages) {
-            const coverPages = (Array.isArray(pages) && pages.length ? pages : [createDefaultPage()]).slice(0, 2);
+        function renderExportPositionGridMarkup(pages, startIndex) {
+            const gridPages = Array.isArray(pages) && pages.length ? pages : [createDefaultPage()];
             return `
                 <div class="pdf-cover-position-grid">
-                    ${coverPages.map((page, index) => renderExportCoverPositionItemMarkup(page, index)).join("")}
+                    ${gridPages.map((page, index) => renderExportPositionItemMarkup(page, startIndex + index)).join("")}
                 </div>
+            `;
+        }
+        function renderExportPositionGroupPageMarkup(pages, startIndex) {
+            const endIndex = startIndex + pages.length;
+            return `
+                <section class="pdf-page position-page">
+                    <div class="pdf-page-head">
+                        <h2>Positionen ${startIndex + 1}${pages.length > 1 ? " - " + endIndex : ""}</h2>
+                    </div>
+                    ${renderExportPositionGridMarkup(pages, startIndex)}
+                </section>
             `;
         }
         function getReferencePhotoForExport() {
@@ -1502,10 +1494,15 @@
             const descriptionMarkup = description
                 ? escapeHtml(description).replace(/\n/g, "<br>")
                 : '<span class="muted">Keine Beschreibung</span>';
+            const coverPages = referencePhotoForExport ? [] : pages.slice(0, 2);
             const coverVisualMarkup = referencePhotoForExport
                 ? `<div class="pdf-cover-photo-wrap"><img class="pdf-cover-photo" src="${referencePhotoForExport}" alt="Referenzfoto"></div>`
-                : renderExportCoverPositionMarkup(pages);
-            const extraPages = referencePhotoForExport ? pages : pages.slice(Math.min(2, pages.length));
+                : renderExportPositionGridMarkup(coverPages, 0);
+            const extraPageStartIndex = referencePhotoForExport ? 0 : coverPages.length;
+            const extraPositionGroups = [];
+            for (let index = extraPageStartIndex; index < pages.length; index += 2) {
+                extraPositionGroups.push({ startIndex: index, pages: pages.slice(index, index + 2) });
+            }
             return `<!DOCTYPE html>
 <html>
 <head>
@@ -1548,7 +1545,7 @@
         </div>
         ${coverVisualMarkup}
     </section>
-    ${extraPages.map((page, index) => renderExportPageMarkup(page, index + (pages.length - extraPages.length), pages.length)).join("")}
+    ${extraPositionGroups.map((group) => renderExportPositionGroupPageMarkup(group.pages, group.startIndex)).join("")}
     <script>
         window.addEventListener("load", () => {
             const images = Array.from(document.images);
