@@ -854,6 +854,7 @@
         let ownedPlayerNames = [];
         let lastAnnouncedRemainingKey = "";
         let matchSeriesStorageAvailable = false;
+        const FREE_GAME_2X_DISCIPLINE = "Freie Partie 2x";
 
         function renderMatchMeta() {
             document.getElementById("player1Name").innerText = player1Label;
@@ -1229,6 +1230,11 @@
             el.style.display = "none";
         }
 
+        function isFreeGame2xPlayer(player) {
+            const discipline = player === 1 ? discipline1Label : discipline2Label;
+            return String(discipline || "").trim() === FREE_GAME_2X_DISCIPLINE;
+        }
+
         /* ================= POINTS ================= */
 
         async function addPoints(value) {
@@ -1270,8 +1276,10 @@
             if (p === activePlayer) return;
 
             saveState();
+            const previousActivePlayer = activePlayer;
+            let completedInningsForActivePlayer = 0;
 
-            if (activePlayer === 1) {
+            if (previousActivePlayer === 1) {
 
                 // Serie wird jetzt verbucht
                 score1 += series1;
@@ -1283,6 +1291,7 @@
 
                 series1 = 0;
                 inn1++;
+                completedInningsForActivePlayer = inn1;
 
             } else {
 
@@ -1295,10 +1304,23 @@
 
                 series2 = 0;
                 inn2++;
+                completedInningsForActivePlayer = inn2;
+            }
+
+            const keepSamePlayerForSecondInning =
+                isFreeGame2xPlayer(previousActivePlayer) &&
+                completedInningsForActivePlayer % 2 === 1;
+
+            if (keepSamePlayerForSecondInning) {
+                activePlayer = previousActivePlayer;
+                updateUI();
+                checkWinner();
+                updateMatchInDB();
+                return;
             }
 
             // Neue Gesamtaufnahme
-            if (activePlayer === 2 && p === 1)
+            if (previousActivePlayer === 2 && p === 1)
                 totalInnings++;
 
             activePlayer = p;
