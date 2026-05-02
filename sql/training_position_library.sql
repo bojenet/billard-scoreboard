@@ -6,6 +6,7 @@ create table if not exists public.training_position_library (
   discipline text not null,
   description text not null default '',
   reference_photo text not null default '',
+  tags text[] not null default '{}'::text[],
   ball_layout jsonb not null default '{}'::jsonb,
   line_paths jsonb not null default '[]'::jsonb,
   position_pages jsonb not null default '[]'::jsonb,
@@ -25,8 +26,12 @@ alter table public.training_position_library
 alter table public.training_position_library
   add column if not exists reference_photo text not null default '';
 
+alter table public.training_position_library
+  add column if not exists tags text[] not null default '{}'::text[];
+
 create index if not exists idx_training_position_library_user on public.training_position_library(user_id, updated_at desc);
 create index if not exists idx_training_position_library_user_discipline on public.training_position_library(user_id, discipline);
+create index if not exists idx_training_position_library_tags on public.training_position_library using gin (tags);
 
 update public.training_position_library tpl
 set created_by_name = coalesce(nullif(trim(p.full_name), ''), nullif(trim(p.email), ''), tpl.created_by_name, '')

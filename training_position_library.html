@@ -25,12 +25,16 @@
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:8px 11px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:13px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
+        .filter-group { margin-top:10px; }
+        .filter-label { font-size:12px; opacity:.72; margin:0 0 7px; font-weight:700; }
         .list { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px; }
         .item { border:1px solid #3557b7; border-radius:16px; background:rgba(12,28,72,.72); padding:10px; display:grid; gap:8px; }
         .item-top { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
         .item-title { font-size:16px; font-weight:800; }
         .item-sub { font-size:12px; opacity:.76; margin-top:3px; }
         .item-meta { font-size:12px; opacity:.72; margin-top:4px; }
+        .item-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+        .item-tag { border:1px solid #4864bf; background:#172f72; color:#dce5ff; border-radius:999px; padding:4px 7px; font-size:11px; font-weight:700; }
         .item-check { display:flex; align-items:center; justify-content:center; min-width:28px; }
         .item-check input { width:18px; height:18px; accent-color:#ffd84a; cursor:pointer; }
         .item-body { display:grid; gap:8px; align-items:start; }
@@ -62,7 +66,14 @@
         <div class="card">
             <div class="section">
                 <div id="noticeBox" class="notice"></div>
-                <div class="chips" id="filterButtons"></div>
+                <div class="filter-group">
+                    <div class="filter-label">Disziplin</div>
+                    <div class="chips" id="filterButtons"></div>
+                </div>
+                <div class="filter-group" id="tagFilterGroup" style="display:none;">
+                    <div class="filter-label">Tags</div>
+                    <div class="chips" id="tagFilterButtons"></div>
+                </div>
             </div>
             <div class="section">
                 <div id="libraryList" class="list"></div>
@@ -98,6 +109,7 @@
         };
         let currentUser = null;
         let activeFilter = "Alle";
+        let activeTagFilter = "Alle";
         let libraryItems = [];
         let selectedIds = new Set();
         let positionLibraryAccessMode = "edit";
@@ -125,6 +137,64 @@
             activeFilter = value || "Alle";
             document.querySelectorAll("#filterButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === activeFilter));
             renderLibrary();
+        }
+        function normalizeTag(value) {
+            return String(value || "").trim().replace(/[<>"']/g, "").replace(/\s+/g, " ").slice(0, 40);
+        }
+        function normalizeTags(value) {
+            const source = Array.isArray(value) ? value : [];
+            const seen = new Set();
+            return source
+                .map(normalizeTag)
+                .filter(Boolean)
+                .filter((tag) => {
+                    const key = tag.toLowerCase();
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+        }
+        function hasMissingTagsColumn(error) {
+            const message = String(error?.message || "");
+            const details = String(error?.details || "");
+            const hint = String(error?.hint || "");
+            const code = String(error?.code || "");
+            return message.includes("tags") || details.includes("tags") || hint.includes("tags") || code === "PGRST204";
+        }
+        function getAvailableTags() {
+            return normalizeTags(libraryItems.flatMap((item) => Array.isArray(item.tags) ? item.tags : []))
+                .sort((a, b) => a.localeCompare(b, "de"));
+        }
+        function setTagFilter(value) {
+            activeTagFilter = value || "Alle";
+            document.querySelectorAll("#tagFilterButtons .chip").forEach((btn) => btn.classList.toggle("active", btn.dataset.value === activeTagFilter));
+            renderLibrary();
+        }
+        function buildTagFilterButtons() {
+            const group = document.getElementById("tagFilterGroup");
+            const wrap = document.getElementById("tagFilterButtons");
+            if (!group || !wrap) return;
+            const tags = getAvailableTags();
+            if (!tags.length) {
+                activeTagFilter = "Alle";
+                group.style.display = "none";
+                wrap.innerHTML = "";
+                return;
+            }
+            group.style.display = "block";
+            wrap.innerHTML = "";
+            ["Alle", ...tags].forEach((tag) => {
+                const btn = document.createElement("button");
+                btn.className = "chip";
+                btn.dataset.value = tag;
+                btn.innerText = tag;
+                btn.onclick = () => setTagFilter(tag);
+                wrap.appendChild(btn);
+            });
+            if (activeTagFilter !== "Alle" && !tags.some((tag) => tag.toLowerCase() === activeTagFilter.toLowerCase())) {
+                activeTagFilter = "Alle";
+            }
+            setTagFilter(activeTagFilter);
         }
         function buildFilterButtons() {
             const wrap = document.getElementById("filterButtons");
@@ -173,9 +243,14 @@
         }
         function renderLibrary() {
             const wrap = document.getElementById("libraryList");
-            const visible = libraryItems.filter((item) => activeFilter === "Alle" || item.discipline === activeFilter);
+            const visible = libraryItems.filter((item) => {
+                const tags = normalizeTags(item.tags || []);
+                const disciplineMatches = activeFilter === "Alle" || item.discipline === activeFilter;
+                const tagMatches = activeTagFilter === "Alle" || tags.some((tag) => tag.toLowerCase() === activeTagFilter.toLowerCase());
+                return disciplineMatches && tagMatches;
+            });
             if (!visible.length) {
-                wrap.innerHTML = `<div class="empty">Noch keine Position gespeichert${activeFilter !== "Alle" ? " für " + activeFilter : ""}.</div>`;
+                wrap.innerHTML = `<div class="empty">Noch keine Position gespeichert${activeFilter !== "Alle" ? " für " + activeFilter : ""}${activeTagFilter !== "Alle" ? " mit Tag " + activeTagFilter : ""}.</div>`;
                 updateDeleteSelectedUi();
                 return;
             }
@@ -184,13 +259,15 @@
                 const layout = item.ball_layout || defaultLayout;
                 const lines = Array.isArray(item.line_paths) ? item.line_paths : [];
                 const creatorName = escapeHtml(item.created_by_name || "Unbekannt");
+                const tags = normalizeTags(item.tags || []);
+                const tagsMarkup = tags.length ? `<div class="item-tags">${tags.map((tag) => `<span class="item-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : "";
                 const canEdit = isPositionLibraryEditable(positionLibraryAccessMode);
                 const checkMarkup = canEdit
                     ? `<label class="item-check" title="Für Sammellöschen auswählen"><input type="checkbox" data-select="${item.id}" ${selectedIds.has(item.id) ? "checked" : ""}></label>`
                     : "";
                 const card = document.createElement("div");
                 card.className = "item";
-                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}</div><div class="item-meta">Ersteller: ${creatorName}</div></div>${checkMarkup}</div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
+                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}</div><div class="item-meta">Ersteller: ${creatorName}</div>${tagsMarkup}</div>${checkMarkup}</div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
                 card.querySelector("[data-open]").onclick = () => { window.location.href = "training_position_library_editor.html?id=" + encodeURIComponent(item.id); };
                 const selectBox = card.querySelector("[data-select]");
                 if (selectBox) {
@@ -204,21 +281,46 @@
         async function loadLibrary() {
             let query = supabaseClient
                 .from("training_position_library")
-                .select("id,title,discipline,updated_at,created_by_name,description,ball_layout,line_paths")
+                .select("id,title,discipline,updated_at,created_by_name,description,tags,ball_layout,line_paths")
                 .order("updated_at", { ascending: false });
             if (isPositionLibraryEditable(positionLibraryAccessMode)) {
                 query = query.eq("user_id", currentUser.id);
             }
             const { data, error } = await query;
             if (error) {
-                setNotice("Die Positions-Library ist in Supabase noch nicht aktiv. Bitte SQL aus sql/training_position_library.sql ausführen.");
-                libraryItems = [];
+                if (!hasMissingTagsColumn(error)) {
+                    setNotice("Die Positions-Library ist in Supabase noch nicht aktiv. Bitte SQL aus sql/training_position_library.sql ausführen.");
+                    libraryItems = [];
+                    buildTagFilterButtons();
+                    renderLibrary();
+                    return;
+                }
+                let fallbackQuery = supabaseClient
+                    .from("training_position_library")
+                    .select("id,title,discipline,updated_at,created_by_name,description,ball_layout,line_paths")
+                    .order("updated_at", { ascending: false });
+                if (isPositionLibraryEditable(positionLibraryAccessMode)) {
+                    fallbackQuery = fallbackQuery.eq("user_id", currentUser.id);
+                }
+                const fallback = await fallbackQuery;
+                if (fallback.error) {
+                    setNotice("Die Positions-Library ist in Supabase noch nicht aktiv. Bitte SQL aus sql/training_position_library.sql ausführen.");
+                    libraryItems = [];
+                    buildTagFilterButtons();
+                    renderLibrary();
+                    return;
+                }
+                libraryItems = (fallback.data || []).map((item) => ({ ...item, tags: [] }));
+                setNotice("Tag-Filter werden erst aktiv, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.", "warn");
+                selectedIds = new Set([...selectedIds].filter((id) => libraryItems.some((item) => item.id === id)));
+                buildTagFilterButtons();
                 renderLibrary();
                 return;
             }
             if (isPositionLibraryEditable(positionLibraryAccessMode)) setNotice("");
             libraryItems = data || [];
             selectedIds = new Set([...selectedIds].filter((id) => libraryItems.some((item) => item.id === id)));
+            buildTagFilterButtons();
             renderLibrary();
         }
         async function deletePosition(id) {

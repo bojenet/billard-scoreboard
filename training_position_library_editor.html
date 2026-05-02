@@ -34,6 +34,14 @@
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:10px 14px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:14px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
+        .tag-input-row { display:flex; gap:8px; align-items:center; }
+        .tag-input-row input { flex:1; }
+        .tag-list { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+        .tag-pill { display:inline-flex; align-items:center; gap:7px; border:1px solid #4864bf; background:#172f72; color:#fff; border-radius:999px; padding:7px 10px; font-size:13px; font-weight:700; }
+        .tag-pill button { width:18px; height:18px; border:none; border-radius:50%; background:rgba(255,255,255,.16); color:#fff; cursor:pointer; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center; padding:0; }
+        .tag-suggestions { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+        .tag-suggestion { border:1px solid #3557b7; border-radius:999px; background:#112659; color:#d9e2ff; padding:7px 10px; font-size:13px; font-weight:700; cursor:pointer; }
+        .tag-suggestion:hover { background:#1c3380; }
         .icon-toolbar { display:flex; gap:12px; flex-wrap:nowrap; align-items:center; margin-bottom:10px; overflow-x:auto; padding:4px 0; }
         .icon-btn { width:42px; height:42px; border:none; border-radius:0; padding:0; background:transparent; color:#fff; font-size:18px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:none; filter:drop-shadow(0 2px 0 rgba(255,255,255,.18)) drop-shadow(0 5px 8px rgba(0,0,0,.28)); transition:transform .12s ease, filter .12s ease, opacity .12s ease; }
         .icon-btn:hover { transform:translateY(-1px); filter:drop-shadow(0 3px 0 rgba(255,255,255,.2)) drop-shadow(0 7px 10px rgba(0,0,0,.32)); }
@@ -151,6 +159,15 @@
                     <div class="field">
                         <label for="descriptionInput">Beschreibung</label>
                         <textarea id="descriptionInput" placeholder="Worum geht es in der Position, worauf soll man achten, welche Lösungsidee steckt dahinter?"></textarea>
+                    </div>
+                    <div class="field">
+                        <label for="tagInput">Tags</label>
+                        <div class="tag-input-row">
+                            <input id="tagInput" type="text" maxlength="40" placeholder="Tag eingeben">
+                            <button class="btn secondary" id="tagAddBtn" type="button" onclick="addTagFromInput()">Hinzufügen</button>
+                        </div>
+                        <div class="tag-list" id="selectedTags"></div>
+                        <div class="tag-suggestions" id="tagSuggestions"></div>
                     </div>
                     <div class="actions">
                         <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImportMobile()">Foto importieren</button>
@@ -327,6 +344,8 @@
         let photoImportMobileDrag = null;
         let referencePhotoDataUrl = "";
         let positionCreatedAt = "";
+        let selectedTags = [];
+        let availableTags = [];
         const baseTableWidth = 1200;
         const baseTableHeight = 674;
         const loupeScale = 2.4;
@@ -377,6 +396,73 @@
         function formatExportDate(value) {
             const date = value ? new Date(value) : new Date();
             return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+        }
+        function normalizeTag(value) {
+            return String(value || "").trim().replace(/[<>"']/g, "").replace(/\s+/g, " ").slice(0, 40);
+        }
+        function normalizeTags(value) {
+            const source = Array.isArray(value) ? value : String(value || "").split(",");
+            const seen = new Set();
+            return source
+                .map(normalizeTag)
+                .filter(Boolean)
+                .filter((tag) => {
+                    const key = tag.toLowerCase();
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+        }
+        function hasMissingTagsColumn(error) {
+            const message = String(error?.message || "");
+            const details = String(error?.details || "");
+            const hint = String(error?.hint || "");
+            const code = String(error?.code || "");
+            return message.includes("tags") || details.includes("tags") || hint.includes("tags") || code === "PGRST204";
+        }
+        function addTag(tag) {
+            const normalized = normalizeTag(tag);
+            if (!normalized) return;
+            if (!selectedTags.some((existing) => existing.toLowerCase() === normalized.toLowerCase())) {
+                selectedTags.push(normalized);
+            }
+            if (!availableTags.some((existing) => existing.toLowerCase() === normalized.toLowerCase())) {
+                availableTags.push(normalized);
+                availableTags.sort((a, b) => a.localeCompare(b, "de"));
+            }
+            renderTagUi();
+        }
+        function addTagFromInput() {
+            const input = document.getElementById("tagInput");
+            normalizeTags(input?.value || "").forEach(addTag);
+            if (input) input.value = "";
+            renderTagUi();
+        }
+        function removeTag(tag) {
+            const key = String(tag || "").toLowerCase();
+            selectedTags = selectedTags.filter((existing) => existing.toLowerCase() !== key);
+            renderTagUi();
+        }
+        function renderTagUi() {
+            const selectedWrap = document.getElementById("selectedTags");
+            const suggestionsWrap = document.getElementById("tagSuggestions");
+            const input = document.getElementById("tagInput");
+            const readOnly = !isPositionLibraryEditable(positionLibraryAccessMode);
+            if (input) {
+                input.disabled = readOnly;
+                input.placeholder = readOnly ? "" : "Tag eingeben";
+            }
+            if (selectedWrap) {
+                selectedWrap.innerHTML = selectedTags.length
+                    ? selectedTags.map((tag) => `<span class="tag-pill">${escapeHtml(tag)}${readOnly ? "" : `<button type="button" onclick="removeTag('${escapeHtml(tag)}')" title="Tag entfernen">×</button>`}</span>`).join("")
+                    : `<span class="section-sub" style="margin:0;">Keine Tags</span>`;
+            }
+            if (suggestionsWrap) {
+                const selectedKeys = new Set(selectedTags.map((tag) => tag.toLowerCase()));
+                const suggestions = availableTags.filter((tag) => !selectedKeys.has(tag.toLowerCase()));
+                suggestionsWrap.style.display = readOnly || !suggestions.length ? "none" : "flex";
+                suggestionsWrap.innerHTML = suggestions.map((tag) => `<button class="tag-suggestion" type="button" onclick="addTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</button>`).join("");
+            }
         }
         function getTableTypeForDiscipline(discipline) {
             return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB";
@@ -892,6 +978,8 @@
             const readOnly = !isPositionLibraryEditable(positionLibraryAccessMode);
             const titleInput = document.getElementById("titleInput");
             const descriptionInput = document.getElementById("descriptionInput");
+            const tagInput = document.getElementById("tagInput");
+            const tagAddBtn = document.getElementById("tagAddBtn");
             const deleteBtn = document.getElementById("deleteBtn");
             const saveBtn = document.querySelector(".actions .btn.primary");
             const newBtn = document.querySelector(".topbar .actions .btn");
@@ -904,6 +992,11 @@
                 descriptionInput.readOnly = readOnly;
                 descriptionInput.disabled = false;
             }
+            if (tagInput) {
+                tagInput.readOnly = readOnly;
+                tagInput.disabled = readOnly;
+            }
+            if (tagAddBtn) tagAddBtn.style.display = readOnly ? "none" : "inline-flex";
             const disciplineWrap = document.getElementById("disciplineButtons");
             if (disciplineWrap) {
                 disciplineWrap.style.minHeight = readOnly ? "22px" : "";
@@ -931,6 +1024,7 @@
             }
             updatePageUi();
             updateReferencePhotoUi();
+            renderTagUi();
         }
         function syncLoupeContent() {
             const loupeContent = document.getElementById("tableLoupeContent");
@@ -1596,6 +1690,7 @@
             stopPhotoImportMobileDrag();
             referencePhotoDataUrl = "";
             positionCreatedAt = "";
+            selectedTags = [];
             document.getElementById("titleInput").value = "";
             document.getElementById("descriptionInput").value = "";
             document.getElementById("deleteBtn").style.display = "none";
@@ -1612,8 +1707,27 @@
             renderLines();
             updatePageUi();
             updateReferencePhotoUi();
+            renderTagUi();
             updatePhotoImportMobileUi();
             if (positionId) history.replaceState({}, "", "training_position_library_editor.html");
+        }
+        async function loadAvailableTags() {
+            let query = supabaseClient
+                .from("training_position_library")
+                .select("tags");
+            if (isPositionLibraryEditable(positionLibraryAccessMode)) {
+                query = query.eq("user_id", currentUser.id);
+            }
+            const { data, error } = await query;
+            if (error) {
+                if (!hasMissingTagsColumn(error)) console.warn("Tags konnten nicht geladen werden:", error);
+                availableTags = [];
+                renderTagUi();
+                return;
+            }
+            availableTags = normalizeTags((data || []).flatMap((row) => Array.isArray(row.tags) ? row.tags : []))
+                .sort((a, b) => a.localeCompare(b, "de"));
+            renderTagUi();
         }
         async function loadPosition() {
             if (!positionId) return;
@@ -1637,7 +1751,13 @@
             document.getElementById("titleInput").value = data.title || "";
             document.getElementById("descriptionInput").value = data.description || "";
             referencePhotoDataUrl = data.reference_photo || "";
+            selectedTags = normalizeTags(data.tags || []);
+            selectedTags.forEach((tag) => {
+                if (!availableTags.some((existing) => existing.toLowerCase() === tag.toLowerCase())) availableTags.push(tag);
+            });
+            availableTags.sort((a, b) => a.localeCompare(b, "de"));
             updateReferencePhotoUi();
+            renderTagUi();
             setSelectedDiscipline(data.discipline || "Cadre 47/2");
             positionPages = Array.isArray(data.position_pages) && data.position_pages.length
                 ? data.position_pages.map((page) => ({
@@ -1670,6 +1790,7 @@
                 discipline: selectedDiscipline,
                 description,
                 reference_photo: referencePhotoDataUrl || "",
+                tags: normalizeTags(selectedTags),
                 ball_layout: cloneLayout(firstPage.ball_layout),
                 line_paths: cloneLines(firstPage.line_paths),
                 position_pages: positionPages.map((page) => ({
@@ -1683,10 +1804,15 @@
                 title: payload.title,
                 discipline: payload.discipline,
                 description: payload.description,
+                tags: payload.tags,
                 ball_layout: payload.ball_layout,
                 line_paths: payload.line_paths,
                 position_pages: payload.position_pages
             };
+            const payloadWithoutTags = { ...payload };
+            delete payloadWithoutTags.tags;
+            const payloadWithoutReferencePhotoAndTags = { ...payloadWithoutReferencePhoto };
+            delete payloadWithoutReferencePhotoAndTags.tags;
             async function runSave(savePayload) {
                 if (editingId) {
                     return supabaseClient.from("training_position_library").update(savePayload).eq("id", editingId).eq("user_id", currentUser.id);
@@ -1704,16 +1830,22 @@
                     details.includes("reference_photo") ||
                     hint.includes("reference_photo") ||
                     code === "PGRST204";
-                if (!missingReferencePhotoColumn) {
+                const missingTagsColumn = hasMissingTagsColumn(result.error);
+                if (!missingReferencePhotoColumn && !missingTagsColumn) {
                     alert("Position konnte nicht gespeichert werden: " + result.error.message);
                     return;
                 }
-                result = await runSave(payloadWithoutReferencePhoto);
+                result = await runSave(missingReferencePhotoColumn && missingTagsColumn
+                    ? payloadWithoutReferencePhotoAndTags
+                    : (missingReferencePhotoColumn ? payloadWithoutReferencePhoto : payloadWithoutTags));
+                if (result.error && hasMissingTagsColumn(result.error)) {
+                    result = await runSave(missingReferencePhotoColumn ? payloadWithoutReferencePhotoAndTags : payloadWithoutTags);
+                }
                 if (result.error) {
                     alert("Position konnte nicht gespeichert werden: " + result.error.message);
                     return;
                 }
-                alert("Position gespeichert. Das Referenzfoto wird erst mitgespeichert, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.");
+                alert("Position gespeichert. Tags und/oder Referenzfoto werden erst mitgespeichert, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.");
             }
             const id = editingId || result.data?.id;
             window.location.href = "training_position_library.html";
@@ -1753,6 +1885,7 @@
             updatePageUi();
             updateReferencePhotoUi();
             fitEditorToViewport();
+            await loadAvailableTags();
             await loadPosition();
             applyReadOnlyUi();
             updatePhotoImportMobileUi();
@@ -1793,6 +1926,11 @@
         document.getElementById("photoImportMobileCanvas").addEventListener("pointermove", handlePhotoImportMobilePointerMove);
         document.getElementById("photoImportMobileCanvas").addEventListener("pointerup", stopPhotoImportMobileDrag);
         document.getElementById("photoImportMobileCanvas").addEventListener("pointercancel", stopPhotoImportMobileDrag);
+        document.getElementById("tagInput").addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== ",") return;
+            event.preventDefault();
+            addTagFromInput();
+        });
         updateFullscreenButton();
         init();
     </script>
