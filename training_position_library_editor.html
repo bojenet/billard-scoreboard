@@ -1464,7 +1464,7 @@
                 ? escapeHtml(description).replace(/\n/g, "<br>")
                 : '<span class="muted">Keine Beschreibung</span>';
             const photoMarkup = referencePhotoDataUrl
-                ? `<section class="pdf-page"><h2>Referenzfoto</h2><div class="pdf-photo-wrap"><img class="pdf-photo" src="${referencePhotoDataUrl}" alt="Referenzfoto"></div></section>`
+                ? `<div class="pdf-cover-photo-wrap"><img class="pdf-cover-photo" src="${referencePhotoDataUrl}" alt="Referenzfoto"></div>`
                 : "";
             return `<!DOCTYPE html>
 <html>
@@ -1482,10 +1482,11 @@
         .muted { color:#7b8497; }
         .pdf-page { page-break-after:always; break-after:page; }
         .pdf-page:last-child { page-break-after:auto; break-after:auto; }
+        .pdf-cover { display:grid; grid-template-rows:auto auto minmax(0,1fr); gap:8mm; }
+        .pdf-cover-photo-wrap { min-height:0; display:flex; align-items:center; justify-content:center; border:1px solid #d5dbe7; background:#f7f9fc; padding:4mm; }
+        .pdf-cover-photo { max-width:100%; max-height:190mm; object-fit:contain; }
         .pdf-page-head { display:flex; justify-content:space-between; align-items:flex-end; gap:10mm; margin-bottom:8mm; color:#172033; }
         .pdf-page-head div { color:#6b7486; font-size:11pt; font-weight:700; }
-        .pdf-photo-wrap { height:245mm; display:flex; align-items:center; justify-content:center; border:1px solid #d5dbe7; background:#f7f9fc; padding:4mm; }
-        .pdf-photo { max-width:100%; max-height:100%; object-fit:contain; }
         .pdf-table-wrap { position:relative; width:100%; aspect-ratio:1200/674; overflow:hidden; background:#f7f7f4; border:1px solid #cfd5df; }
         .pdf-table-stage { position:absolute; inset:0; }
         .pdf-table-bg, .pdf-table-lines, .pdf-table-balls { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
@@ -1498,12 +1499,14 @@
     </style>
 </head>
 <body>
-    <section class="pdf-page">
-        <h1>${safeTitle}</h1>
-        <div class="meta">${safeDiscipline} · ${pages.length} Seite${pages.length === 1 ? "" : "n"}</div>
-        <div class="description">${descriptionMarkup}</div>
+    <section class="pdf-page pdf-cover">
+        <div>
+            <h1>${safeTitle}</h1>
+            <div class="meta">${safeDiscipline} · ${pages.length} Seite${pages.length === 1 ? "" : "n"}</div>
+            <div class="description">${descriptionMarkup}</div>
+        </div>
+        ${photoMarkup}
     </section>
-    ${photoMarkup}
     ${pages.map((page, index) => renderExportPageMarkup(page, index, pages.length)).join("")}
     <script>
         window.addEventListener("load", () => {
