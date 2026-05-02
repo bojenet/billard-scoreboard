@@ -855,6 +855,9 @@
         let lastAnnouncedRemainingKey = "";
         let matchSeriesStorageAvailable = false;
         const FREE_GAME_2X_DISCIPLINE = "Freie Partie 2x";
+        let freeGame2xPendingPlayer = 0;
+        let freeGame2xPendingSeries1 = 0;
+        let freeGame2xPendingSeries2 = 0;
 
         function renderMatchMeta() {
             document.getElementById("player1Name").innerText = player1Label;
@@ -1235,6 +1238,12 @@
             return String(discipline || "").trim() === FREE_GAME_2X_DISCIPLINE;
         }
 
+        function clearFreeGame2xPending(player) {
+            if (!player || player === 1) freeGame2xPendingSeries1 = 0;
+            if (!player || player === 2) freeGame2xPendingSeries2 = 0;
+            if (!player || freeGame2xPendingPlayer === player) freeGame2xPendingPlayer = 0;
+        }
+
         /* ================= POINTS ================= */
 
         async function addPoints(value) {
@@ -1277,39 +1286,66 @@
 
             saveState();
             const previousActivePlayer = activePlayer;
-            let completedInningsForActivePlayer = 0;
+            const isFreeGame2x = isFreeGame2xPlayer(previousActivePlayer);
+            const isSecondFreeGame2xSwitch = isFreeGame2x && freeGame2xPendingPlayer === previousActivePlayer;
 
             if (previousActivePlayer === 1) {
 
                 // Serie wird jetzt verbucht
                 score1 += series1;
 
-                if (series1 > high1)
-                    high1 = series1;
+                if (isFreeGame2x) {
+                    const combinedSeries = freeGame2xPendingSeries1 + series1;
+                    if (isSecondFreeGame2xSwitch) {
+                        if (combinedSeries > high1) high1 = combinedSeries;
+                        innings1.push(combinedSeries);
+                        inn1++;
+                        clearFreeGame2xPending(1);
+                    } else {
+                        freeGame2xPendingPlayer = 1;
+                        freeGame2xPendingSeries1 = combinedSeries;
+                    }
+                } else {
+                    if (series1 > high1)
+                        high1 = series1;
 
-                innings1.push(series1);
+                    innings1.push(series1);
+
+                    inn1++;
+                }
 
                 series1 = 0;
-                inn1++;
-                completedInningsForActivePlayer = inn1;
 
             } else {
 
                 score2 += series2;
 
-                if (series2 > high2)
-                    high2 = series2;
+                if (isFreeGame2x) {
+                    const combinedSeries = freeGame2xPendingSeries2 + series2;
+                    if (isSecondFreeGame2xSwitch) {
+                        if (combinedSeries > high2) high2 = combinedSeries;
+                        innings2.push(combinedSeries);
+                        inn2++;
+                        clearFreeGame2xPending(2);
+                    } else {
+                        freeGame2xPendingPlayer = 2;
+                        freeGame2xPendingSeries2 = combinedSeries;
+                    }
+                } else {
+                    if (series2 > high2)
+                        high2 = series2;
 
-                innings2.push(series2);
+                    innings2.push(series2);
+
+                    inn2++;
+                }
 
                 series2 = 0;
-                inn2++;
-                completedInningsForActivePlayer = inn2;
             }
 
             const keepSamePlayerForSecondInning =
-                isFreeGame2xPlayer(previousActivePlayer) &&
-                completedInningsForActivePlayer % 2 === 1;
+                isFreeGame2x &&
+                !isSecondFreeGame2xSwitch;
 
             if (keepSamePlayerForSecondInning) {
                 activePlayer = previousActivePlayer;
@@ -1490,6 +1526,9 @@
             [series1, series2] = [series2, series1];
             [high1, high2] = [high2, high1];
             [innings1, innings2] = [innings2, innings1];
+            [freeGame2xPendingSeries1, freeGame2xPendingSeries2] = [freeGame2xPendingSeries2, freeGame2xPendingSeries1];
+            if (freeGame2xPendingPlayer === 1) freeGame2xPendingPlayer = 2;
+            else if (freeGame2xPendingPlayer === 2) freeGame2xPendingPlayer = 1;
             activePlayer = activePlayer === 1 ? 2 : 1;
             lastAnnouncedRemainingKey = "";
 
@@ -1567,7 +1606,10 @@
                 discipline1Label, discipline2Label,
                 player1Id, player2Id,
                 innings1: [...innings1],
-                innings2: [...innings2]
+                innings2: [...innings2],
+                freeGame2xPendingPlayer,
+                freeGame2xPendingSeries1,
+                freeGame2xPendingSeries2
             });
         }
 
@@ -1595,6 +1637,9 @@
             player2Id = prev.player2Id;
             innings1 = [...prev.innings1];
             innings2 = [...prev.innings2];
+            freeGame2xPendingPlayer = prev.freeGame2xPendingPlayer || 0;
+            freeGame2xPendingSeries1 = prev.freeGame2xPendingSeries1 || 0;
+            freeGame2xPendingSeries2 = prev.freeGame2xPendingSeries2 || 0;
             renderMatchMeta();
             updateUI();
             await updateMatchInDB();
