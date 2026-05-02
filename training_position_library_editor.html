@@ -326,6 +326,7 @@
         let photoImportMobileOrientation = "up";
         let photoImportMobileDrag = null;
         let referencePhotoDataUrl = "";
+        let positionCreatedAt = "";
         const baseTableWidth = 1200;
         const baseTableHeight = 674;
         const loupeScale = 2.4;
@@ -372,6 +373,10 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#39;");
+        }
+        function formatExportDate(value) {
+            const date = value ? new Date(value) : new Date();
+            return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
         }
         function getTableTypeForDiscipline(discipline) {
             return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB";
@@ -1491,6 +1496,8 @@
                 }));
             const safeTitle = escapeHtml(title);
             const safeDiscipline = escapeHtml(selectedDiscipline);
+            const safeCreatedDate = escapeHtml(formatExportDate(positionCreatedAt));
+            const positionCountText = `${pages.length} Position${pages.length === 1 ? "" : "en"}`;
             const descriptionMarkup = description
                 ? escapeHtml(description).replace(/\n/g, "<br>")
                 : '<span class="muted">Keine Beschreibung</span>';
@@ -1540,7 +1547,7 @@
     <section class="pdf-page pdf-cover">
         <div>
             <h1>${safeTitle}</h1>
-            <div class="meta">${safeDiscipline} · ${pages.length} Seite${pages.length === 1 ? "" : "n"}</div>
+            <div class="meta">${safeDiscipline} · ${positionCountText}${safeCreatedDate ? " · Erstellt am " + safeCreatedDate : ""}</div>
             <div class="description">${descriptionMarkup}</div>
         </div>
         ${coverVisualMarkup}
@@ -1592,6 +1599,7 @@
             photoImportMobileOrientation = "up";
             stopPhotoImportMobileDrag();
             referencePhotoDataUrl = "";
+            positionCreatedAt = "";
             document.getElementById("titleInput").value = "";
             document.getElementById("descriptionInput").value = "";
             document.getElementById("deleteBtn").style.display = "none";
@@ -1623,6 +1631,7 @@
                 return;
             }
             editingId = data.id;
+            positionCreatedAt = data.created_at || "";
             document.getElementById("pageTitle").innerText = "Position bearbeiten";
             const creatorMeta = document.getElementById("creatorMeta");
             if (creatorMeta) {
