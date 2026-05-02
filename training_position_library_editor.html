@@ -1461,12 +1461,8 @@
             `;
         }
         function renderExportPositionGroupPageMarkup(pages, startIndex) {
-            const endIndex = startIndex + pages.length;
             return `
                 <section class="pdf-page position-page">
-                    <div class="pdf-page-head">
-                        <h2>Positionen ${startIndex + 1}${pages.length > 1 ? " - " + endIndex : ""}</h2>
-                    </div>
                     ${renderExportPositionGridMarkup(pages, startIndex)}
                 </section>
             `;
