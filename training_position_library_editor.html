@@ -1505,6 +1505,7 @@
             const coverVisualMarkup = referencePhotoForExport
                 ? `<div class="pdf-cover-photo-wrap"><img class="pdf-cover-photo" src="${referencePhotoForExport}" alt="Referenzfoto"></div>`
                 : renderExportCoverPositionMarkup(pages);
+            const extraPages = referencePhotoForExport ? pages : pages.slice(Math.min(2, pages.length));
             return `<!DOCTYPE html>
 <html>
 <head>
@@ -1547,7 +1548,7 @@
         </div>
         ${coverVisualMarkup}
     </section>
-    ${pages.map((page, index) => renderExportPageMarkup(page, index, pages.length)).join("")}
+    ${extraPages.map((page, index) => renderExportPageMarkup(page, index + (pages.length - extraPages.length), pages.length)).join("")}
     <script>
         window.addEventListener("load", () => {
             const images = Array.from(document.images);
