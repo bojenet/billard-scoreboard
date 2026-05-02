@@ -1452,12 +1452,22 @@
         }
         function getReferencePhotoForExport() {
             const preview = document.querySelector("#referencePhotoBox .reference-photo-preview");
-            return referencePhotoDataUrl || preview?.src || "";
+            const zoomImage = document.getElementById("referencePhotoZoomImage");
+            const candidates = [
+                referencePhotoDataUrl,
+                preview?.currentSrc,
+                preview?.getAttribute("src"),
+                preview?.src,
+                zoomImage?.currentSrc,
+                zoomImage?.getAttribute("src"),
+                zoomImage?.src,
+                photoImportMobileImage?.src
+            ];
+            return candidates.find((value) => typeof value === "string" && value.trim()) || "";
         }
-        function buildPositionPdfHtml() {
+        function buildPositionPdfHtml(referencePhotoForExport) {
             const title = String(document.getElementById("titleInput").value || "Position").trim() || "Position";
             const description = String(document.getElementById("descriptionInput").value || "").trim();
-            const referencePhotoForExport = getReferencePhotoForExport();
             const pages = (Array.isArray(positionPages) && positionPages.length ? positionPages : [createDefaultPage()])
                 .map((page) => ({
                     ball_layout: cloneLayout(page.ball_layout),
@@ -1530,13 +1540,14 @@
         function exportPositionPdf() {
             if (activeLineDraft) finishActiveLineDraft();
             persistCurrentPageState();
+            const referencePhotoForExport = getReferencePhotoForExport();
             const printWindow = window.open("", "_blank");
             if (!printWindow) {
                 alert("Der PDF-Export wurde vom Browser blockiert. Bitte Pop-ups für diese Seite erlauben.");
                 return;
             }
             printWindow.document.open();
-            printWindow.document.write(buildPositionPdfHtml());
+            printWindow.document.write(buildPositionPdfHtml(referencePhotoForExport));
             printWindow.document.close();
         }
         function resetForm() {
