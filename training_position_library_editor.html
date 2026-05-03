@@ -252,8 +252,6 @@
                 <button class="btn" type="button" onclick="document.getElementById('photoImportMobileInput').click()">Foto wählen</button>
                 <button class="btn" type="button" onclick="resetPhotoImportMobilePoints()">Marker zurücksetzen</button>
                 <button class="btn" id="savePhotoCalibrationBtn" type="button" onclick="savePhotoImportCalibration()" disabled>Kalibrierung speichern</button>
-                <button class="btn" id="saveBallColorCalibrationBtn" type="button" onclick="savePhotoImportBallColorCalibration()" disabled>Ballfarben speichern</button>
-                <button class="btn" id="autoDetectPhotoBtn" type="button" onclick="autoDetectPhotoImportBalls()" disabled>Automatisch erkennen</button>
                 <button class="btn primary" id="applyPhotoImportMobileBtn" type="button" onclick="applyPhotoImportMobile()" disabled>Position übernehmen</button>
             </div>
             <div class="photo-steps">
@@ -353,9 +351,7 @@
         const baseTableHeight = 674;
         const loupeScale = 2.4;
         const PHOTO_IMPORT_CALIBRATION_KEY = "positionLibraryPhotoImportCalibration:v1";
-        const PHOTO_IMPORT_BALL_COLOR_KEY = "positionLibraryPhotoImportBallColors:v1";
         const photoImportBallOrder = ["Rot", "Gelb", "Weiß"];
-        const photoImportBallKeys = ["red", "yellow", "white"];
         const photoImportTableCorners = [
             { x: bounds.minX, y: bounds.minY },
             { x: bounds.maxX, y: bounds.minY },
@@ -637,18 +633,6 @@
         function hasPhotoImportCalibration() {
             return !!getPhotoImportCalibration();
         }
-        function getPhotoImportBallColorCalibration() {
-            try {
-                const parsed = JSON.parse(localStorage.getItem(PHOTO_IMPORT_BALL_COLOR_KEY) || "null");
-                if (!parsed || !parsed.red || !parsed.yellow || !parsed.white) return null;
-                return parsed;
-            } catch (_) {
-                return null;
-            }
-        }
-        function hasPhotoImportBallColorCalibration() {
-            return !!getPhotoImportBallColorCalibration();
-        }
         function applyPhotoImportCalibration() {
             if (!photoImportMobileImage) return false;
             const canvas = document.getElementById("photoImportMobileCanvas");
@@ -741,11 +725,10 @@
         function getPhotoImportMobileStatusText() {
             if (!photoImportMobileImage) return "Noch kein Foto geladen.";
             const calibrated = hasPhotoImportCalibration() ? " Tisch-Kalibrierung ist gespeichert." : " Noch keine Tisch-Kalibrierung gespeichert.";
-            const colorCalibrated = hasPhotoImportBallColorCalibration() ? " Ballfarben sind gespeichert." : " Ballfarben noch nicht gespeichert.";
             if (photoImportMobileStep === "corners") {
-                return "Pruefe zuerst, wo im Bild die kurze Tischseite liegt. Danach die 4 gelben Fadenkreuze auf die Ecken der Spielflaeche ziehen." + calibrated + colorCalibrated;
+                return "Pruefe zuerst, wo im Bild die kurze Tischseite liegt. Danach die 4 gelben Fadenkreuze auf die Ecken der Spielflaeche ziehen." + calibrated;
             }
-            return "Ziehe Rot, Gelb und Weiß an die richtige Stelle. Ein Tipp auf freie Fläche setzt den aktuell aktiven Ball dort ab." + calibrated + colorCalibrated;
+            return "Ziehe Rot, Gelb und Weiß an die richtige Stelle. Ein Tipp auf freie Fläche setzt den aktuell aktiven Ball dort ab." + calibrated;
         }
         function setPhotoImportMobileActiveBall(index) {
             photoImportMobileActiveBall = clamp(index, 0, 2);
@@ -760,8 +743,6 @@
             const status = document.getElementById("photoImportMobileStatus");
             const applyBtn = document.getElementById("applyPhotoImportMobileBtn");
             const calibrationBtn = document.getElementById("savePhotoCalibrationBtn");
-            const ballColorCalibrationBtn = document.getElementById("saveBallColorCalibrationBtn");
-            const autoDetectBtn = document.getElementById("autoDetectPhotoBtn");
             const cornersBtn = document.getElementById("photoImportMobileStepCorners");
             const ballsBtn = document.getElementById("photoImportMobileStepBalls");
             const ballPicks = document.getElementById("photoImportMobileBallPicks");
@@ -773,8 +754,6 @@
             if (status) status.innerText = getPhotoImportMobileStatusText();
             if (applyBtn) applyBtn.disabled = !(photoImportMobileImage && getPhotoImportMobileAlignmentPointsReady() && photoImportMobileBalls.length === 3);
             if (calibrationBtn) calibrationBtn.disabled = !(photoImportMobileImage && getPhotoImportMobileAlignmentPointsReady());
-            if (ballColorCalibrationBtn) ballColorCalibrationBtn.disabled = !(photoImportMobileImage && photoImportMobileBalls.length === 3);
-            if (autoDetectBtn) autoDetectBtn.disabled = !(photoImportMobileImage && (getPhotoImportMobileAlignmentPointsReady() || hasPhotoImportCalibration()));
             if (cornersBtn) cornersBtn.classList.toggle("active", photoImportMobileStep === "corners");
             if (ballsBtn) ballsBtn.classList.toggle("active", photoImportMobileStep === "balls");
             if (ballsBtn) ballsBtn.disabled = !photoImportMobileImage;
@@ -822,7 +801,6 @@
                 if (!calibrationApplied) setDefaultPhotoImportMobileAnchors();
                 updateReferencePhotoUi();
                 updatePhotoImportMobileUi();
-                if (calibrationApplied) setTimeout(autoDetectPhotoImportBalls, 0);
             });
         }
         function getPhotoImportMobileCanvasPoint(event) {
@@ -910,181 +888,6 @@
                 }
             });
             return bestIndex;
-        }
-        function isPointInPolygon(point, polygon) {
-            let inside = false;
-            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
-                const xi = polygon[i].x, yi = polygon[i].y;
-                const xj = polygon[j].x, yj = polygon[j].y;
-                const intersects = ((yi > point.y) !== (yj > point.y)) &&
-                    (point.x < ((xj - xi) * (point.y - yi) / ((yj - yi) || 0.000001)) + xi);
-                if (intersects) inside = !inside;
-            }
-            return inside;
-        }
-        function getPixelBallType(r, g, b) {
-            const max = Math.max(r, g, b);
-            const min = Math.min(r, g, b);
-            const saturation = max ? (max - min) / max : 0;
-            if (r > 135 && r > g * 1.35 && r > b * 1.35) return "red";
-            if (r > 140 && g > 115 && b < 105 && Math.abs(r - g) < 95) return "yellow";
-            if (max > 170 && saturation < 0.22) return "white";
-            return "";
-        }
-        function getNormalizedRgb(r, g, b) {
-            const sum = Math.max(1, r + g + b);
-            return { r: r / sum, g: g / sum, b: b / sum, brightness: sum / 3 };
-        }
-        function getColorProfileDistance(profile, r, g, b) {
-            const normalized = getNormalizedRgb(r, g, b);
-            const chromaDistance = Math.hypot(
-                normalized.r - Number(profile.r || 0),
-                normalized.g - Number(profile.g || 0),
-                normalized.b - Number(profile.b || 0)
-            );
-            const brightnessDistance = Math.abs(normalized.brightness - Number(profile.brightness || 0)) / 255;
-            return chromaDistance + (brightnessDistance * 0.18);
-        }
-        function getPixelBallTypeFromCalibration(r, g, b, calibration) {
-            if (!calibration) return "";
-            let bestType = "";
-            let bestDistance = Number.POSITIVE_INFINITY;
-            photoImportBallKeys.forEach((type) => {
-                const profile = calibration[type];
-                if (!profile) return;
-                const distance = getColorProfileDistance(profile, r, g, b);
-                if (distance < bestDistance) {
-                    bestDistance = distance;
-                    bestType = type;
-                }
-            });
-            return bestDistance <= 0.13 ? bestType : "";
-        }
-        function getPhotoImportCanvasImageData() {
-            if (!photoImportMobileImage) return null;
-            const canvas = document.getElementById("photoImportMobileCanvas");
-            if (!canvas) return null;
-            sizePhotoCanvas(canvas, photoImportMobileImage);
-            const ctx = canvas.getContext("2d", { willReadFrequently: true });
-            if (!ctx) return null;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(photoImportMobileImage, 0, 0, canvas.width, canvas.height);
-            return { canvas, ctx, imageData: ctx.getImageData(0, 0, canvas.width, canvas.height) };
-        }
-        function samplePhotoImportBallProfile(imageData, canvas, center) {
-            const radius = Math.max(8, Math.round(canvas.width * 0.012));
-            const samples = [];
-            for (let y = Math.max(0, Math.round(center.y - radius)); y <= Math.min(canvas.height - 1, Math.round(center.y + radius)); y += 1) {
-                for (let x = Math.max(0, Math.round(center.x - radius)); x <= Math.min(canvas.width - 1, Math.round(center.x + radius)); x += 1) {
-                    if (Math.hypot(x - center.x, y - center.y) > radius) continue;
-                    const offset = ((y * canvas.width) + x) * 4;
-                    samples.push(getNormalizedRgb(imageData.data[offset], imageData.data[offset + 1], imageData.data[offset + 2]));
-                }
-            }
-            if (!samples.length) return null;
-            const avg = samples.reduce((acc, sample) => ({
-                r: acc.r + sample.r,
-                g: acc.g + sample.g,
-                b: acc.b + sample.b,
-                brightness: acc.brightness + sample.brightness
-            }), { r: 0, g: 0, b: 0, brightness: 0 });
-            return {
-                r: avg.r / samples.length,
-                g: avg.g / samples.length,
-                b: avg.b / samples.length,
-                brightness: avg.brightness / samples.length
-            };
-        }
-        function savePhotoImportBallColorCalibration() {
-            if (!photoImportMobileImage || photoImportMobileBalls.length !== 3) return;
-            const data = getPhotoImportCanvasImageData();
-            if (!data) return;
-            const profiles = {};
-            photoImportBallKeys.forEach((key, index) => {
-                profiles[key] = samplePhotoImportBallProfile(data.imageData, data.canvas, photoImportMobileBalls[index]);
-            });
-            if (photoImportBallKeys.some((key) => !profiles[key])) {
-                alert("Ballfarben konnten nicht gespeichert werden. Bitte Marker exakt auf die Bälle setzen.");
-                drawPhotoImportMobileCanvas();
-                return;
-            }
-            localStorage.setItem(PHOTO_IMPORT_BALL_COLOR_KEY, JSON.stringify({
-                ...profiles,
-                savedAt: new Date().toISOString()
-            }));
-            drawPhotoImportMobileCanvas();
-            updatePhotoImportMobileUi();
-        }
-        function findLargestPixelCluster(points, maxDistance) {
-            if (!points.length) return null;
-            const cellSize = maxDistance;
-            const cells = new Map();
-            points.forEach((point) => {
-                const key = Math.floor(point.x / cellSize) + ":" + Math.floor(point.y / cellSize);
-                const bucket = cells.get(key) || [];
-                bucket.push(point);
-                cells.set(key, bucket);
-            });
-            let best = null;
-            cells.forEach((bucket, key) => {
-                const [cellX, cellY] = key.split(":").map(Number);
-                const cluster = [];
-                for (let dx = -1; dx <= 1; dx += 1) {
-                    for (let dy = -1; dy <= 1; dy += 1) {
-                        const neighbor = cells.get((cellX + dx) + ":" + (cellY + dy));
-                        if (neighbor) cluster.push(...neighbor);
-                    }
-                }
-                const center = cluster.reduce((acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }), { x: 0, y: 0 });
-                center.x /= cluster.length;
-                center.y /= cluster.length;
-                const tightCluster = cluster.filter((point) => Math.hypot(point.x - center.x, point.y - center.y) <= maxDistance);
-                if (!best || tightCluster.length > best.count) {
-                    const tightCenter = tightCluster.reduce((acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }), { x: 0, y: 0 });
-                    best = {
-                        count: tightCluster.length,
-                        x: tightCenter.x / tightCluster.length,
-                        y: tightCenter.y / tightCluster.length
-                    };
-                }
-            });
-            return best && best.count >= 8 ? best : null;
-        }
-        function autoDetectPhotoImportBalls() {
-            if (!photoImportMobileImage) return;
-            if (!getPhotoImportMobileAlignmentPointsReady() && !applyPhotoImportCalibration()) {
-                alert("Bitte zuerst die Tisch-Kalibrierung speichern oder die vier Tischecken setzen.");
-                return;
-            }
-            const data = getPhotoImportCanvasImageData();
-            if (!data) return;
-            const { canvas, imageData } = data;
-            const ballColorCalibration = getPhotoImportBallColorCalibration();
-            const candidates = { red: [], yellow: [], white: [] };
-            const step = Math.max(2, Math.round(canvas.width / 700));
-            for (let y = 0; y < canvas.height; y += step) {
-                for (let x = 0; x < canvas.width; x += step) {
-                    if (!isPointInPolygon({ x, y }, photoImportMobileCorners)) continue;
-                    const offset = ((y * canvas.width) + x) * 4;
-                    const r = imageData.data[offset];
-                    const g = imageData.data[offset + 1];
-                    const b = imageData.data[offset + 2];
-                    const type = ballColorCalibration
-                        ? getPixelBallTypeFromCalibration(r, g, b, ballColorCalibration)
-                        : getPixelBallType(r, g, b);
-                    if (type) candidates[type].push({ x, y });
-                }
-            }
-            const detected = ["red", "yellow", "white"].map((type) => findLargestPixelCluster(candidates[type], Math.max(18, canvas.width * 0.035)));
-            if (detected.some((point) => !point)) {
-                alert("Nicht alle Bälle konnten automatisch erkannt werden. Bitte Marker manuell setzen oder Licht/Perspektive prüfen.");
-                drawPhotoImportMobileCanvas();
-                return;
-            }
-            photoImportMobileBalls = detected.map((point) => ({ x: point.x, y: point.y }));
-            photoImportMobileStep = "balls";
-            photoImportMobileActiveBall = 0;
-            updatePhotoImportMobileUi();
         }
         function updatePhotoImportMobileDragPoint(point) {
             const canvas = document.getElementById("photoImportMobileCanvas");
