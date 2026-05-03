@@ -251,6 +251,8 @@
                 <input id="photoImportMobileInput" type="file" accept="image/*" style="display:none;" onchange="handlePhotoImportMobileFile(event)">
                 <button class="btn" type="button" onclick="document.getElementById('photoImportMobileInput').click()">Foto wählen</button>
                 <button class="btn" type="button" onclick="resetPhotoImportMobilePoints()">Marker zurücksetzen</button>
+                <button class="btn" id="savePhotoCalibrationBtn" type="button" onclick="savePhotoImportCalibration()" disabled>Kalibrierung speichern</button>
+                <button class="btn" id="autoDetectPhotoBtn" type="button" onclick="autoDetectPhotoImportBalls()" disabled>Automatisch erkennen</button>
                 <button class="btn primary" id="applyPhotoImportMobileBtn" type="button" onclick="applyPhotoImportMobile()" disabled>Position übernehmen</button>
             </div>
             <div class="photo-steps">
@@ -349,6 +351,7 @@
         const baseTableWidth = 1200;
         const baseTableHeight = 674;
         const loupeScale = 2.4;
+        const PHOTO_IMPORT_CALIBRATION_KEY = "positionLibraryPhotoImportCalibration:v1";
         const photoImportBallOrder = ["Rot", "Gelb", "Weiß"];
         const photoImportTableCorners = [
             { x: bounds.minX, y: bounds.minY },
@@ -619,6 +622,46 @@
             if (rotation === 3) return [base[3], base[0], base[1], base[2]];
             return base;
         }
+        function getPhotoImportCalibration() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(PHOTO_IMPORT_CALIBRATION_KEY) || "null");
+                if (!parsed || !Array.isArray(parsed.corners) || parsed.corners.length !== 4) return null;
+                return parsed;
+            } catch (_) {
+                return null;
+            }
+        }
+        function hasPhotoImportCalibration() {
+            return !!getPhotoImportCalibration();
+        }
+        function applyPhotoImportCalibration() {
+            if (!photoImportMobileImage) return false;
+            const canvas = document.getElementById("photoImportMobileCanvas");
+            const calibration = getPhotoImportCalibration();
+            if (!canvas || !calibration) return false;
+            sizePhotoCanvas(canvas, photoImportMobileImage);
+            photoImportMobileOrientation = ["up", "right", "down", "left"].includes(calibration.orientation) ? calibration.orientation : "up";
+            photoImportMobileCorners = calibration.corners.map((point) => ({
+                x: clamp(Number(point.x || 0) * canvas.width, 0, canvas.width),
+                y: clamp(Number(point.y || 0) * canvas.height, 0, canvas.height)
+            }));
+            return getPhotoImportMobileAlignmentPointsReady();
+        }
+        function savePhotoImportCalibration() {
+            if (!photoImportMobileImage || !getPhotoImportMobileAlignmentPointsReady()) return;
+            const canvas = document.getElementById("photoImportMobileCanvas");
+            if (!canvas || !canvas.width || !canvas.height) return;
+            const calibration = {
+                orientation: photoImportMobileOrientation,
+                corners: photoImportMobileCorners.map((point) => ({
+                    x: point.x / canvas.width,
+                    y: point.y / canvas.height
+                })),
+                savedAt: new Date().toISOString()
+            };
+            localStorage.setItem(PHOTO_IMPORT_CALIBRATION_KEY, JSON.stringify(calibration));
+            updatePhotoImportMobileUi();
+        }
         function setPhotoImportMobileOrientation(value) {
             photoImportMobileOrientation = ["up", "right", "down", "left"].includes(value) ? value : "up";
             updatePhotoImportMobileUi();
@@ -682,10 +725,11 @@
         }
         function getPhotoImportMobileStatusText() {
             if (!photoImportMobileImage) return "Noch kein Foto geladen.";
+            const calibrated = hasPhotoImportCalibration() ? " Kalibrierung ist gespeichert." : " Noch keine Kalibrierung gespeichert.";
             if (photoImportMobileStep === "corners") {
-                return "Pruefe zuerst, wo im Bild die kurze Tischseite liegt. Danach die 4 gelben Fadenkreuze auf die Ecken der Spielflaeche ziehen.";
+                return "Pruefe zuerst, wo im Bild die kurze Tischseite liegt. Danach die 4 gelben Fadenkreuze auf die Ecken der Spielflaeche ziehen." + calibrated;
             }
-            return "Ziehe Rot, Gelb und Weiß an die richtige Stelle. Ein Tipp auf freie Fläche setzt den aktuell aktiven Ball dort ab.";
+            return "Ziehe Rot, Gelb und Weiß an die richtige Stelle. Ein Tipp auf freie Fläche setzt den aktuell aktiven Ball dort ab." + calibrated;
         }
         function setPhotoImportMobileActiveBall(index) {
             photoImportMobileActiveBall = clamp(index, 0, 2);
@@ -699,6 +743,8 @@
             const modal = document.getElementById("photoImportMobileModal");
             const status = document.getElementById("photoImportMobileStatus");
             const applyBtn = document.getElementById("applyPhotoImportMobileBtn");
+            const calibrationBtn = document.getElementById("savePhotoCalibrationBtn");
+            const autoDetectBtn = document.getElementById("autoDetectPhotoBtn");
             const cornersBtn = document.getElementById("photoImportMobileStepCorners");
             const ballsBtn = document.getElementById("photoImportMobileStepBalls");
             const ballPicks = document.getElementById("photoImportMobileBallPicks");
@@ -709,6 +755,8 @@
             if (modal) modal.setAttribute("aria-hidden", modal.classList.contains("visible") ? "false" : "true");
             if (status) status.innerText = getPhotoImportMobileStatusText();
             if (applyBtn) applyBtn.disabled = !(photoImportMobileImage && getPhotoImportMobileAlignmentPointsReady() && photoImportMobileBalls.length === 3);
+            if (calibrationBtn) calibrationBtn.disabled = !(photoImportMobileImage && getPhotoImportMobileAlignmentPointsReady());
+            if (autoDetectBtn) autoDetectBtn.disabled = !(photoImportMobileImage && (getPhotoImportMobileAlignmentPointsReady() || hasPhotoImportCalibration()));
             if (cornersBtn) cornersBtn.classList.toggle("active", photoImportMobileStep === "corners");
             if (ballsBtn) ballsBtn.classList.toggle("active", photoImportMobileStep === "balls");
             if (ballsBtn) ballsBtn.disabled = !photoImportMobileImage;
@@ -752,9 +800,11 @@
                 photoImportMobileOrientation = "up";
                 photoImportMobileStep = "corners";
                 photoImportMobileActiveBall = 0;
-                setDefaultPhotoImportMobileAnchors();
+                const calibrationApplied = applyPhotoImportCalibration();
+                if (!calibrationApplied) setDefaultPhotoImportMobileAnchors();
                 updateReferencePhotoUi();
                 updatePhotoImportMobileUi();
+                if (calibrationApplied) setTimeout(autoDetectPhotoImportBalls, 0);
             });
         }
         function getPhotoImportMobileCanvasPoint(event) {
@@ -842,6 +892,96 @@
                 }
             });
             return bestIndex;
+        }
+        function isPointInPolygon(point, polygon) {
+            let inside = false;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+                const xi = polygon[i].x, yi = polygon[i].y;
+                const xj = polygon[j].x, yj = polygon[j].y;
+                const intersects = ((yi > point.y) !== (yj > point.y)) &&
+                    (point.x < ((xj - xi) * (point.y - yi) / ((yj - yi) || 0.000001)) + xi);
+                if (intersects) inside = !inside;
+            }
+            return inside;
+        }
+        function getPixelBallType(r, g, b) {
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const saturation = max ? (max - min) / max : 0;
+            if (r > 135 && r > g * 1.35 && r > b * 1.35) return "red";
+            if (r > 140 && g > 115 && b < 105 && Math.abs(r - g) < 95) return "yellow";
+            if (max > 170 && saturation < 0.22) return "white";
+            return "";
+        }
+        function findLargestPixelCluster(points, maxDistance) {
+            if (!points.length) return null;
+            const cellSize = maxDistance;
+            const cells = new Map();
+            points.forEach((point) => {
+                const key = Math.floor(point.x / cellSize) + ":" + Math.floor(point.y / cellSize);
+                const bucket = cells.get(key) || [];
+                bucket.push(point);
+                cells.set(key, bucket);
+            });
+            let best = null;
+            cells.forEach((bucket, key) => {
+                const [cellX, cellY] = key.split(":").map(Number);
+                const cluster = [];
+                for (let dx = -1; dx <= 1; dx += 1) {
+                    for (let dy = -1; dy <= 1; dy += 1) {
+                        const neighbor = cells.get((cellX + dx) + ":" + (cellY + dy));
+                        if (neighbor) cluster.push(...neighbor);
+                    }
+                }
+                const center = cluster.reduce((acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }), { x: 0, y: 0 });
+                center.x /= cluster.length;
+                center.y /= cluster.length;
+                const tightCluster = cluster.filter((point) => Math.hypot(point.x - center.x, point.y - center.y) <= maxDistance);
+                if (!best || tightCluster.length > best.count) {
+                    const tightCenter = tightCluster.reduce((acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }), { x: 0, y: 0 });
+                    best = {
+                        count: tightCluster.length,
+                        x: tightCenter.x / tightCluster.length,
+                        y: tightCenter.y / tightCluster.length
+                    };
+                }
+            });
+            return best && best.count >= 8 ? best : null;
+        }
+        function autoDetectPhotoImportBalls() {
+            if (!photoImportMobileImage) return;
+            if (!getPhotoImportMobileAlignmentPointsReady() && !applyPhotoImportCalibration()) {
+                alert("Bitte zuerst die Tisch-Kalibrierung speichern oder die vier Tischecken setzen.");
+                return;
+            }
+            const canvas = document.getElementById("photoImportMobileCanvas");
+            if (!canvas) return;
+            sizePhotoCanvas(canvas, photoImportMobileImage);
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            if (!ctx) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(photoImportMobileImage, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const candidates = { red: [], yellow: [], white: [] };
+            const step = Math.max(2, Math.round(canvas.width / 700));
+            for (let y = 0; y < canvas.height; y += step) {
+                for (let x = 0; x < canvas.width; x += step) {
+                    if (!isPointInPolygon({ x, y }, photoImportMobileCorners)) continue;
+                    const offset = ((y * canvas.width) + x) * 4;
+                    const type = getPixelBallType(imageData.data[offset], imageData.data[offset + 1], imageData.data[offset + 2]);
+                    if (type) candidates[type].push({ x, y });
+                }
+            }
+            const detected = ["red", "yellow", "white"].map((type) => findLargestPixelCluster(candidates[type], Math.max(18, canvas.width * 0.035)));
+            if (detected.some((point) => !point)) {
+                alert("Nicht alle Bälle konnten automatisch erkannt werden. Bitte Marker manuell setzen oder Licht/Perspektive prüfen.");
+                drawPhotoImportMobileCanvas();
+                return;
+            }
+            photoImportMobileBalls = detected.map((point) => ({ x: point.x, y: point.y }));
+            photoImportMobileStep = "balls";
+            photoImportMobileActiveBall = 0;
+            updatePhotoImportMobileUi();
         }
         function updatePhotoImportMobileDragPoint(point) {
             const canvas = document.getElementById("photoImportMobileCanvas");
