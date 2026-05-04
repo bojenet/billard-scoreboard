@@ -139,6 +139,7 @@
             </div>
             <div class="actions">
                 <button class="btn" type="button" onclick="resetForm()">Neu</button>
+                <button class="btn primary" id="editPositionBtn" type="button" onclick="enableEditorEditMode()" style="display:none;">Bearbeiten</button>
                 <button class="btn" type="button" onclick="window.location.href='training_position_library.html'">Library</button>
             </div>
         </div>
@@ -173,7 +174,7 @@
                         <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImportMobile()">Foto importieren</button>
                         <button class="btn secondary" id="exportPositionPdfBtn" type="button" onclick="exportPositionPdf()">PDF exportieren</button>
                         <button class="btn" type="button" onclick="window.location.href='training_position_library.html'">Abbrechen</button>
-                        <button class="btn primary" type="button" onclick="savePosition()">Speichern</button>
+                        <button class="btn primary" id="savePositionBtn" type="button" onclick="savePosition()">Speichern</button>
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                     </div>
                     <div class="field">
@@ -347,6 +348,7 @@
         let positionCreatedAt = "";
         let selectedTags = [];
         let availableTags = [];
+        let editorEditMode = !positionId;
         const baseTableWidth = 1200;
         const baseTableHeight = 674;
         const loupeScale = 2.4;
@@ -422,7 +424,22 @@
             const code = String(error?.code || "");
             return message.includes("tags") || details.includes("tags") || hint.includes("tags") || code === "PGRST204";
         }
+        function isEditorEditable() {
+            return isPositionLibraryEditable(positionLibraryAccessMode) && editorEditMode;
+        }
+        function updatePageTitle() {
+            document.getElementById("pageTitle").innerText = editingId
+                ? (editorEditMode ? "Position bearbeiten" : "Position")
+                : "Neue Position";
+        }
+        function enableEditorEditMode() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            editorEditMode = true;
+            updatePageTitle();
+            applyReadOnlyUi();
+        }
         function addTag(tag) {
+            if (!isEditorEditable()) return;
             const normalized = normalizeTag(tag);
             if (!normalized) return;
             if (!selectedTags.some((existing) => existing.toLowerCase() === normalized.toLowerCase())) {
@@ -449,7 +466,7 @@
             const selectedWrap = document.getElementById("selectedTags");
             const suggestionsWrap = document.getElementById("tagSuggestions");
             const input = document.getElementById("tagInput");
-            const readOnly = !isPositionLibraryEditable(positionLibraryAccessMode);
+            const readOnly = !isEditorEditable();
             if (input) {
                 input.disabled = readOnly;
                 input.placeholder = readOnly ? "" : "Tag eingeben";
@@ -769,7 +786,7 @@
             drawPhotoImportMobileCanvas();
         }
         function openPhotoImportMobile() {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             document.getElementById("photoImportMobileModal").classList.add("visible");
             updatePhotoImportMobileUi();
         }
@@ -991,6 +1008,7 @@
         }
         function applyPhotoImportMobile() {
             if (!photoImportMobileImage || !getPhotoImportMobileAlignmentPointsReady() || photoImportMobileBalls.length !== 3) return;
+            if (!isEditorEditable()) return;
             const homography = computeHomography(photoImportMobileCorners, getPhotoImportMobileTargetCorners());
             if (!homography) {
                 alert("Das Foto konnte nicht auf die Tischgrafik umgerechnet werden.");
@@ -1021,13 +1039,15 @@
             closePhotoImportMobile();
         }
         function applyReadOnlyUi() {
-            const readOnly = !isPositionLibraryEditable(positionLibraryAccessMode);
+            const canEditAccess = isPositionLibraryEditable(positionLibraryAccessMode);
+            const readOnly = !isEditorEditable();
             const titleInput = document.getElementById("titleInput");
             const descriptionInput = document.getElementById("descriptionInput");
             const tagInput = document.getElementById("tagInput");
             const tagAddBtn = document.getElementById("tagAddBtn");
             const deleteBtn = document.getElementById("deleteBtn");
-            const saveBtn = document.querySelector(".actions .btn.primary");
+            const editBtn = document.getElementById("editPositionBtn");
+            const saveBtn = document.getElementById("savePositionBtn");
             const newBtn = document.querySelector(".topbar .actions .btn");
             const photoImportBtn = document.getElementById("photoImportBtn");
             if (titleInput) {
@@ -1055,11 +1075,12 @@
             if (saveBtn) saveBtn.style.display = readOnly ? "none" : "inline-flex";
             if (photoImportBtn) photoImportBtn.style.display = readOnly ? "none" : "inline-flex";
             if (deleteBtn) deleteBtn.style.display = readOnly || !editingId ? "none" : "inline-flex";
-            if (newBtn) newBtn.style.display = readOnly ? "none" : "inline-flex";
+            if (editBtn) editBtn.style.display = canEditAccess && editingId && !editorEditMode ? "inline-flex" : "none";
+            if (newBtn) newBtn.style.display = canEditAccess ? "inline-flex" : "none";
             document.querySelectorAll(".icon-toolbar .icon-btn").forEach((btn) => {
                 const id = btn.id || "";
                 const allowInReadOnly = id === "prevPageBtn" || id === "nextPageBtn" || id === "fullViewBtn" || id === "zoomOutBtn" || id === "zoomInBtn";
-                btn.style.display = readOnly && !allowInReadOnly ? "none" : btn.style.display;
+                btn.style.display = readOnly && !allowInReadOnly ? "none" : "flex";
             });
             if (readOnly) {
                 drawMode = false;
@@ -1169,7 +1190,7 @@
             const prevBtn = document.getElementById("prevPageBtn");
             const nextBtn = document.getElementById("nextPageBtn");
             const hasMultiplePages = positionPages.length > 1;
-            const editable = isPositionLibraryEditable(positionLibraryAccessMode);
+            const editable = isEditorEditable();
             if (indicator) indicator.innerText = `Seite ${currentPageIndex + 1} / ${Math.max(positionPages.length, 1)}`;
             if (indicator) indicator.style.display = hasMultiplePages ? "block" : "none";
             if (deleteBtn) deleteBtn.style.display = hasMultiplePages && editable ? "inline-flex" : "none";
@@ -1177,7 +1198,7 @@
             if (nextBtn) nextBtn.style.display = hasMultiplePages ? "inline-flex" : "none";
         }
         function enableMoveMode() {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             if (drawMode && activeLineDraft) finishActiveLineDraft();
             drawMode = false;
             stopLineEdit();
@@ -1193,7 +1214,7 @@
             loadPage(currentPageIndex + 1);
         }
         function addPage() {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             persistCurrentPageState();
             const current = positionPages[currentPageIndex] || createDefaultPage();
             positionPages.splice(currentPageIndex + 1, 0, {
@@ -1203,7 +1224,7 @@
             loadPage(currentPageIndex + 1);
         }
         function deleteCurrentPage() {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             ensurePages();
             if (positionPages.length <= 1) return;
             if (!confirm("Diese Seite wirklich löschen?")) return;
@@ -1348,7 +1369,7 @@
             renderBalls();
         }
         function startBallDrag(event) {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             if (drawMode) return;
             const ballKey = event.currentTarget.dataset.ball;
             if (!ballKey) return;
@@ -1391,7 +1412,7 @@
             activeLineEdit = null;
         }
         function startLineMove(event) {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             if (!drawMode) return;
             const lineIndex = Number(event.currentTarget.dataset.lineMove);
             if (!Number.isFinite(lineIndex) || !linePaths[lineIndex]) return;
@@ -1409,7 +1430,7 @@
             event.stopPropagation();
         }
         function startLinePointDrag(event) {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             if (!drawMode) return;
             const raw = String(event.currentTarget.dataset.linePoint || "");
             const parts = raw.split(":");
@@ -1484,13 +1505,13 @@
             }
         }
         function resetBallLayout() {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             ballLayout = getDefaultLayout();
             renderBalls();
             persistCurrentPageState();
         }
         function toggleDrawMode() {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             if (drawMode && activeLineDraft) finishActiveLineDraft();
             drawMode = !drawMode;
             lastDraftTap = null;
@@ -1499,7 +1520,7 @@
             renderLines();
         }
         function clearLines() {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             linePaths = [];
             activeLineDraft = null;
             lastDraftTap = null;
@@ -1513,7 +1534,7 @@
             }));
         }
         function handleTablePointerDown(event) {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             if (!drawMode) return;
             if (event.target.closest(".table-ball") || event.target.closest(".line-hit-area") || event.target.closest(".line-point-handle")) return;
             const point = getPortraitPoint(event);
@@ -1546,7 +1567,7 @@
             if (!activeLineDraft || activeLineEdit || activeDrag) return;
         }
         function handleTableDoubleClick(event) {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             if (!drawMode) return;
             if (event.target.closest(".table-ball") || event.target.closest(".line-hit-area") || event.target.closest(".line-point-handle")) return;
             event.preventDefault();
@@ -1719,7 +1740,8 @@
         }
         function resetForm() {
             editingId = null;
-            document.getElementById("pageTitle").innerText = "Neue Position";
+            editorEditMode = true;
+            updatePageTitle();
             const creatorMeta = document.getElementById("creatorMeta");
             if (creatorMeta) {
                 creatorMeta.style.display = "none";
@@ -1777,6 +1799,7 @@
         }
         async function loadPosition() {
             if (!positionId) return;
+            editorEditMode = false;
             let query = supabaseClient.from("training_position_library").select("*").eq("id", positionId);
             if (isPositionLibraryEditable(positionLibraryAccessMode)) {
                 query = query.eq("user_id", currentUser.id);
@@ -1788,7 +1811,7 @@
             }
             editingId = data.id;
             positionCreatedAt = data.created_at || "";
-            document.getElementById("pageTitle").innerText = "Position bearbeiten";
+            updatePageTitle();
             const creatorMeta = document.getElementById("creatorMeta");
             if (creatorMeta) {
                 creatorMeta.innerText = "Ersteller: " + (data.created_by_name || "Unbekannt");
@@ -1817,10 +1840,10 @@
             currentPageIndex = 0;
             loadPage(0);
             fitEditorToViewport();
-            document.getElementById("deleteBtn").style.display = "inline-flex";
+            updatePageTitle();
         }
         async function savePosition() {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             const title = String(document.getElementById("titleInput").value || "").trim();
             const description = String(document.getElementById("descriptionInput").value || "").trim();
             if (!title) { alert("Bitte einen Titel eingeben."); return; }
@@ -1897,7 +1920,7 @@
             window.location.href = "training_position_library.html";
         }
         async function deletePosition() {
-            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!isEditorEditable()) return;
             if (!editingId) return;
             if (!confirm("Diese Position wirklich löschen?")) return;
             const { error } = await supabaseClient.from("training_position_library").delete().eq("id", editingId).eq("user_id", currentUser.id);
