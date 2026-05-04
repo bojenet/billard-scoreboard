@@ -173,7 +173,7 @@
                     <div class="actions">
                         <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImportMobile()">Foto importieren</button>
                         <button class="btn secondary" id="exportPositionPdfBtn" type="button" onclick="exportPositionPdf()">PDF exportieren</button>
-                        <button class="btn" type="button" onclick="window.location.href='training_position_library.html'">Abbrechen</button>
+                        <button class="btn" type="button" onclick="closePositionEditor()">Schließen</button>
                         <button class="btn primary" id="savePositionBtn" type="button" onclick="savePosition()">Speichern</button>
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                     </div>
@@ -437,6 +437,16 @@
             editorEditMode = true;
             updatePageTitle();
             applyReadOnlyUi();
+        }
+        async function closePositionEditor() {
+            if (editingId && editorEditMode) {
+                await loadPosition();
+                editorEditMode = false;
+                updatePageTitle();
+                applyReadOnlyUi();
+                return;
+            }
+            window.location.href = "training_position_library.html";
         }
         function addTag(tag) {
             if (!isEditorEditable()) return;
@@ -1799,10 +1809,11 @@
                 .sort((a, b) => a.localeCompare(b, "de"));
             renderTagUi();
         }
-        async function loadPosition() {
-            if (!positionId) return;
-            editorEditMode = false;
-            let query = supabaseClient.from("training_position_library").select("*").eq("id", positionId);
+        async function loadPosition(options = {}) {
+            const loadId = options.id || positionId || editingId;
+            if (!loadId) return;
+            if (!options.keepEditMode) editorEditMode = false;
+            let query = supabaseClient.from("training_position_library").select("*").eq("id", loadId);
             if (isPositionLibraryEditable(positionLibraryAccessMode)) {
                 query = query.eq("user_id", currentUser.id);
             }
@@ -1919,7 +1930,13 @@
                 alert("Position gespeichert. Tags und/oder Referenzfoto werden erst mitgespeichert, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.");
             }
             const id = editingId || result.data?.id;
-            window.location.href = "training_position_library.html";
+            if (!editingId && id) {
+                editingId = id;
+                history.replaceState({}, "", "training_position_library_editor.html?id=" + encodeURIComponent(id));
+            }
+            editorEditMode = false;
+            updatePageTitle();
+            applyReadOnlyUi();
         }
         async function deletePosition() {
             if (!isEditorEditable()) return;
