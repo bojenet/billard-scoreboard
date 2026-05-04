@@ -163,7 +163,7 @@
                     </div>
                     <div class="field">
                         <label for="tagInput">Tags</label>
-                        <div class="tag-input-row">
+                        <div class="tag-input-row" id="tagInputRow">
                             <input id="tagInput" type="text" maxlength="40" placeholder="Tag eingeben">
                             <button class="btn secondary" id="tagAddBtn" type="button" onclick="addTagFromInput()">Hinzufügen</button>
                         </div>
@@ -466,7 +466,9 @@
             const selectedWrap = document.getElementById("selectedTags");
             const suggestionsWrap = document.getElementById("tagSuggestions");
             const input = document.getElementById("tagInput");
+            const inputRow = document.getElementById("tagInputRow");
             const readOnly = !isEditorEditable();
+            if (inputRow) inputRow.style.display = readOnly ? "none" : "flex";
             if (input) {
                 input.disabled = readOnly;
                 input.placeholder = readOnly ? "" : "Tag eingeben";
