@@ -72,6 +72,11 @@
         .table-wrap.draw-mode .table-stage,
         .table-wrap.draw-mode .table-overlay,
         .table-wrap.draw-mode .table-lines { cursor:crosshair; }
+        .page-description-actions { margin-top:12px; }
+        .page-description-add { border:none; border-radius:10px; background:#2746aa; color:#fff; font-size:13px; font-weight:700; padding:9px 11px; cursor:pointer; }
+        .page-description-field { margin-top:12px; display:none; }
+        .page-description-field textarea { width:100%; box-sizing:border-box; border:1px solid #3959ab; border-radius:12px; padding:11px 13px; color:#fff; background:#112659; font-size:14px; line-height:1.4; min-height:74px; resize:vertical; }
+        .page-description-field textarea[readonly] { opacity:.82; cursor:default; }
         .line-hit-area { pointer-events:auto; cursor:move; }
         .line-point-handle { pointer-events:auto; cursor:crosshair; }
         .line-point-hit { fill:transparent; }
@@ -230,6 +235,12 @@
                             </div>
                         </div>
                     </div>
+                    <div class="page-description-actions" id="pageDescriptionActions">
+                        <button class="page-description-add" id="addPageDescriptionBtn" type="button" onclick="addPageDescription()">Beschreibung hinzufügen</button>
+                    </div>
+                    <div class="page-description-field" id="pageDescriptionField">
+                        <textarea id="pageDescriptionInput" placeholder="Beschreibung für diese Position"></textarea>
+                    </div>
                 </div>
             </div>
         </div>
@@ -329,6 +340,7 @@
         let linePaths = [];
         let positionPages = [];
         let currentPageIndex = 0;
+        let pageDescriptionVisible = false;
         let drawMode = false;
         let activeLineDraft = null;
         let activeLineEdit = null;
@@ -382,8 +394,15 @@
                 points: Array.isArray(line.points) ? line.points.map((pt) => ({ x: pt.x, y: pt.y })) : []
             })) : [];
         }
+        function clonePage(page) {
+            return {
+                ball_layout: cloneLayout(page?.ball_layout),
+                line_paths: cloneLines(page?.line_paths),
+                page_description: String(page?.page_description || "")
+            };
+        }
         function createDefaultPage() {
-            return { ball_layout: getDefaultLayout(), line_paths: [] };
+            return { ball_layout: getDefaultLayout(), line_paths: [], page_description: "" };
         }
         function ensurePages() {
             if (!Array.isArray(positionPages) || !positionPages.length) {
@@ -1124,6 +1143,7 @@
             updatePageUi();
             updateReferencePhotoUi();
             renderTagUi();
+            updatePageDescriptionUi();
         }
         function syncLoupeContent() {
             const loupeContent = document.getElementById("tableLoupeContent");
@@ -1198,9 +1218,12 @@
         }
         function persistCurrentPageState() {
             ensurePages();
+            const pageDescriptionInput = document.getElementById("pageDescriptionInput");
+            const pageDescription = String(pageDescriptionInput?.value || "");
             positionPages[currentPageIndex] = {
                 ball_layout: serializeLayout(),
-                line_paths: serializeLines()
+                line_paths: serializeLines(),
+                page_description: pageDescriptionVisible || pageDescription.trim() ? pageDescription : ""
             };
         }
         function loadPage(index) {
@@ -1209,12 +1232,37 @@
             const page = positionPages[currentPageIndex] || createDefaultPage();
             ballLayout = cloneLayout(page.ball_layout);
             linePaths = cloneLines(page.line_paths);
+            pageDescriptionVisible = !!String(page.page_description || "").trim();
+            const pageDescriptionInput = document.getElementById("pageDescriptionInput");
+            if (pageDescriptionInput) pageDescriptionInput.value = String(page.page_description || "");
             activeLineDraft = null;
             lastDraftTap = null;
             stopLineEdit();
             renderBalls();
             renderLines();
             updatePageUi();
+        }
+        function updatePageDescriptionUi() {
+            const actions = document.getElementById("pageDescriptionActions");
+            const addBtn = document.getElementById("addPageDescriptionBtn");
+            const field = document.getElementById("pageDescriptionField");
+            const input = document.getElementById("pageDescriptionInput");
+            const readOnly = !isEditorEditable();
+            const text = String(input?.value || "");
+            const shouldShowField = pageDescriptionVisible || !!text.trim();
+            if (field) field.style.display = shouldShowField ? "block" : "none";
+            if (actions) actions.style.display = !readOnly && !shouldShowField ? "block" : "none";
+            if (addBtn) addBtn.style.display = !readOnly && !shouldShowField ? "inline-flex" : "none";
+            if (input) {
+                input.readOnly = readOnly;
+                input.disabled = false;
+            }
+        }
+        function addPageDescription() {
+            if (!isEditorEditable()) return;
+            pageDescriptionVisible = true;
+            updatePageDescriptionUi();
+            document.getElementById("pageDescriptionInput")?.focus();
         }
         function updatePageUi() {
             const indicator = document.getElementById("pageIndicator");
@@ -1228,6 +1276,7 @@
             if (deleteBtn) deleteBtn.style.display = hasMultiplePages && editable ? "inline-flex" : "none";
             if (prevBtn) prevBtn.style.display = hasMultiplePages ? "inline-flex" : "none";
             if (nextBtn) nextBtn.style.display = hasMultiplePages ? "inline-flex" : "none";
+            updatePageDescriptionUi();
         }
         function enableMoveMode() {
             if (!isEditorEditable()) return;
@@ -1251,7 +1300,8 @@
             const current = positionPages[currentPageIndex] || createDefaultPage();
             positionPages.splice(currentPageIndex + 1, 0, {
                 ball_layout: cloneLayout(current.ball_layout),
-                line_paths: cloneLines(current.line_paths)
+                line_paths: cloneLines(current.line_paths),
+                page_description: ""
             });
             loadPage(currentPageIndex + 1);
             showEditorToast("Seite hinzugefügt");
@@ -1633,6 +1683,10 @@
         function renderExportPositionItemMarkup(page, index) {
             const layout = cloneLayout(page.ball_layout);
             const templateUrl = new URL(getTemplateForDiscipline(selectedDiscipline), window.location.href).href;
+            const pageDescription = String(page.page_description || "").trim();
+            const pageDescriptionMarkup = pageDescription
+                ? `<div class="pdf-page-description">${escapeHtml(pageDescription).replace(/\n/g, "<br>")}</div>`
+                : "";
             return `
                 <div class="pdf-cover-position-item">
                     <div class="pdf-cover-position-title">Position ${index + 1}</div>
@@ -1643,6 +1697,7 @@
                             <svg class="pdf-table-balls" viewBox="0 0 674 1200" aria-hidden="true">${renderExportBallMarkup(layout, selectedDiscipline)}</svg>
                         </div>
                     </div>
+                    ${pageDescriptionMarkup}
                 </div>
             `;
         }
@@ -1680,10 +1735,7 @@
             const title = String(document.getElementById("titleInput").value || "Position").trim() || "Position";
             const description = String(document.getElementById("descriptionInput").value || "").trim();
             const pages = (Array.isArray(positionPages) && positionPages.length ? positionPages : [createDefaultPage()])
-                .map((page) => ({
-                    ball_layout: cloneLayout(page.ball_layout),
-                    line_paths: cloneLines(page.line_paths)
-                }));
+                .map(clonePage);
             const safeTitle = escapeHtml(title);
             const safeDiscipline = escapeHtml(selectedDiscipline);
             const safeCreatedDate = escapeHtml(formatExportDate(positionCreatedAt));
@@ -1727,6 +1779,7 @@
         .pdf-table-bg, .pdf-table-lines, .pdf-table-balls { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
         .pdf-table-bg { display:block; object-fit:cover; }
         .pdf-table-lines, .pdf-table-balls { display:block; }
+        .pdf-page-description { margin-top:2.2mm; color:#172033; font-size:10pt; line-height:1.35; }
         @media screen {
             body { background:#e8ecf4; padding:18px; }
             .pdf-page { width:210mm; min-height:297mm; margin:0 auto 18px; padding:14mm; background:#fff; box-shadow:0 8px 28px rgba(25,35,55,.18); }
@@ -1864,13 +1917,11 @@
             renderTagUi();
             setSelectedDiscipline(data.discipline || "Cadre 47/2");
             positionPages = Array.isArray(data.position_pages) && data.position_pages.length
-                ? data.position_pages.map((page) => ({
-                    ball_layout: cloneLayout(page.ball_layout),
-                    line_paths: cloneLines(page.line_paths)
-                }))
+                ? data.position_pages.map(clonePage)
                 : [{
                     ball_layout: cloneLayout(data.ball_layout),
-                    line_paths: cloneLines(data.line_paths)
+                    line_paths: cloneLines(data.line_paths),
+                    page_description: ""
                 }];
             currentPageIndex = 0;
             loadPage(0);
@@ -1897,10 +1948,7 @@
                 tags: normalizeTags(selectedTags),
                 ball_layout: cloneLayout(firstPage.ball_layout),
                 line_paths: cloneLines(firstPage.line_paths),
-                position_pages: positionPages.map((page) => ({
-                    ball_layout: cloneLayout(page.ball_layout),
-                    line_paths: cloneLines(page.line_paths)
-                }))
+                position_pages: positionPages.map(clonePage)
             };
             const payloadWithoutReferencePhoto = {
                 user_id: payload.user_id,
