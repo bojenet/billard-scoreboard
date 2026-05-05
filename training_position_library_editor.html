@@ -8,6 +8,8 @@
         body { margin:0; min-height:100vh; font-family:Arial,sans-serif; background:linear-gradient(180deg,#0f1c3f,#0a122b); color:#fff; }
         body.editor-loading .page, body.editor-loading .fullscreen-btn { opacity:0; pointer-events:none; }
         .fullscreen-btn { position:fixed; top:10px; right:10px; z-index:1200; width:34px; height:34px; border:1px solid #3659bb; border-radius:10px; background:rgba(28,51,128,.92); color:#fff; font-size:16px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .toast { position:absolute; left:50%; top:50%; z-index:10; transform:translate(-50%, calc(-50% + 12px)); opacity:0; pointer-events:none; padding:10px 14px; border-radius:12px; border:1px solid #5f77d7; background:rgba(18,35,84,.96); color:#fff; font-size:14px; font-weight:800; box-shadow:0 14px 34px rgba(0,0,0,.38); transition:opacity .18s ease, transform .18s ease; }
+        .toast.visible { opacity:1; transform:translate(-50%,-50%); }
         .page { width:min(1460px,95%); margin:20px auto 28px; }
         .topbar { display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
         .title { font-size:46px; font-weight:700; margin:0; }
@@ -203,6 +205,7 @@
                     <div class="table-viewport" id="tableViewport">
                         <div class="table-zoom-stage" id="tableZoomStage">
                             <div class="table-wrap" id="tableWrap">
+                                <div class="toast" id="editorToast" aria-live="polite"></div>
                                 <div class="table-stage" id="tableStage">
                                     <img id="tableBackground" class="table-bg" src="assets/discipline-mb-47.png" alt="Tischvorlage">
                                     <svg id="positionTable" class="table-overlay" viewBox="0 0 674 1200" aria-label="Interaktiver Billardtisch">
@@ -596,6 +599,20 @@
             box.style.display = text ? "block" : "none";
             box.className = "notice" + (type ? " " + type : "");
             box.innerText = text || "";
+        }
+        function showEditorToast(text) {
+            const toast = document.getElementById("editorToast");
+            if (!toast) return;
+            toast.innerText = text || "";
+            window.clearTimeout(showEditorToast.hideTimer);
+            window.clearTimeout(showEditorToast.clearTimer);
+            toast.classList.add("visible");
+            showEditorToast.hideTimer = window.setTimeout(() => {
+                toast.classList.remove("visible");
+            }, 1000);
+            showEditorToast.clearTimer = window.setTimeout(() => {
+                toast.innerText = "";
+            }, 1250);
         }
         function loadPhotoImportImage(file, onLoad) {
             const reader = new FileReader();
@@ -1234,6 +1251,7 @@
                 line_paths: cloneLines(current.line_paths)
             });
             loadPage(currentPageIndex + 1);
+            showEditorToast("Seite hinzugefügt");
         }
         function deleteCurrentPage() {
             if (!isEditorEditable()) return;
