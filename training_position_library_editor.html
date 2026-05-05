@@ -431,9 +431,12 @@
             return isPositionLibraryEditable(positionLibraryAccessMode) && editorEditMode;
         }
         function updatePageTitle() {
-            document.getElementById("pageTitle").innerText = editingId
-                ? (editorEditMode ? "Position bearbeiten" : "Position")
+            const pageTitle = document.getElementById("pageTitle");
+            const title = editingId
+                ? (editorEditMode ? "Position bearbeiten" : "")
                 : "Neue Position";
+            pageTitle.innerText = title;
+            pageTitle.style.display = title ? "block" : "none";
         }
         function enableEditorEditMode() {
             if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
@@ -1807,6 +1810,7 @@
             updateReferencePhotoUi();
             renderTagUi();
             updatePhotoImportMobileUi();
+            applyReadOnlyUi();
             if (positionId) history.replaceState({}, "", "training_position_library_editor.html");
         }
         async function loadAvailableTags() {
