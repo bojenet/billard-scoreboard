@@ -1400,6 +1400,35 @@
             });
             syncLoupeContent();
         }
+        function renderLineArrowMarkup(points, size = 11) {
+            const source = Array.isArray(points) ? points : [];
+            if (source.length < 2) return "";
+            const tip = source[source.length - 1];
+            let tail = null;
+            for (let index = source.length - 2; index >= 0; index -= 1) {
+                const candidate = source[index];
+                if (Math.hypot(tip.x - candidate.x, tip.y - candidate.y) > 0.5) {
+                    tail = candidate;
+                    break;
+                }
+            }
+            if (!tail) return "";
+            const dx = tip.x - tail.x;
+            const dy = tip.y - tail.y;
+            const length = Math.hypot(dx, dy);
+            if (!length) return "";
+            const ux = dx / length;
+            const uy = dy / length;
+            const px = -uy;
+            const py = ux;
+            const baseX = tip.x - ux * size;
+            const baseY = tip.y - uy * size;
+            const wing = size * 0.52;
+            const p1 = `${tip.x},${tip.y}`;
+            const p2 = `${baseX + px * wing},${baseY + py * wing}`;
+            const p3 = `${baseX - px * wing},${baseY - py * wing}`;
+            return `<polygon points="${p1} ${p2} ${p3}" fill="#111111" opacity="0.95" pointer-events="none"></polygon>`;
+        }
         function renderLines() {
             const svg = document.getElementById("lineLayer");
             if (!svg) return;
@@ -1407,6 +1436,7 @@
                 const points = Array.isArray(line.points) ? line.points : [];
                 if (points.length < 2) return "";
                 const polyline = points.map((pt) => `${pt.x},${pt.y}`).join(" ");
+                const arrow = renderLineArrowMarkup(points);
                 const handles = drawMode ? points.map((pt, pointIndex) => `
                     <g class="line-point-handle" data-line-point="${index}:${pointIndex}" transform="translate(${pt.x} ${pt.y})">
                         <circle class="line-point-hit" r="12"></circle>
@@ -1414,10 +1444,10 @@
                         <line class="line-point-cross" x1="0" y1="-7" x2="0" y2="7" stroke="#ffe27a" stroke-width="2.4" stroke-linecap="round"></line>
                         <circle class="line-point-cross" r="2.2" fill="#173168" stroke="#ffe27a" stroke-width="1.2"></circle>
                     </g>`).join("") : "";
-                return `<g data-line-index="${index}"><polyline points="${polyline}" fill="none" stroke="#111111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8 7" opacity="0.95"></polyline><polyline class="line-hit-area" data-line-move="${index}" points="${polyline}" fill="none" stroke="transparent" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"></polyline>${handles}</g>`;
+                return `<g data-line-index="${index}"><polyline points="${polyline}" fill="none" stroke="#111111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8 7" opacity="0.95"></polyline>${arrow}<polyline class="line-hit-area" data-line-move="${index}" points="${polyline}" fill="none" stroke="transparent" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"></polyline>${handles}</g>`;
             }).join("");
             const draftMarkup = activeLineDraft && activeLineDraft.points.length > 1
-                ? `<polyline points="${activeLineDraft.points.map((pt) => `${pt.x},${pt.y}`).join(" ")}" fill="none" stroke="#111111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8 7"></polyline>`
+                ? `<polyline points="${activeLineDraft.points.map((pt) => `${pt.x},${pt.y}`).join(" ")}" fill="none" stroke="#111111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8 7"></polyline>${renderLineArrowMarkup(activeLineDraft.points)}`
                 : "";
             svg.innerHTML = linesMarkup + draftMarkup;
             svg.querySelectorAll("[data-line-move]").forEach((node) => {
@@ -1721,7 +1751,7 @@
                 const points = Array.isArray(line.points) ? line.points : [];
                 if (points.length < 2) return "";
                 const polyline = points.map((pt) => `${pt.x},${pt.y}`).join(" ");
-                return `<polyline points="${polyline}" fill="none" stroke="#111111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8 7" opacity="0.95"></polyline>`;
+                return `<polyline points="${polyline}" fill="none" stroke="#111111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8 7" opacity="0.95"></polyline>${renderLineArrowMarkup(points)}`;
             }).join("");
         }
         function renderExportPositionItemMarkup(page, label) {
