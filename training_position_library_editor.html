@@ -597,11 +597,6 @@
             box.className = "notice" + (type ? " " + type : "");
             box.innerText = text || "";
         }
-        function setTemporaryNotice(text, type) {
-            setNotice(text, type);
-            window.clearTimeout(setTemporaryNotice.timer);
-            setTemporaryNotice.timer = window.setTimeout(() => setNotice(""), 1800);
-        }
         function loadPhotoImportImage(file, onLoad) {
             const reader = new FileReader();
             reader.onload = () => {
@@ -1239,7 +1234,6 @@
                 line_paths: cloneLines(current.line_paths)
             });
             loadPage(currentPageIndex + 1);
-            setTemporaryNotice("Neue Seite hinzugefügt.");
         }
         function deleteCurrentPage() {
             if (!isEditorEditable()) return;
