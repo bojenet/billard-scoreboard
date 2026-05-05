@@ -77,6 +77,8 @@
         .page-description-field { margin-top:12px; display:none; }
         .page-description-field textarea { width:100%; box-sizing:border-box; border:1px solid #3959ab; border-radius:12px; padding:11px 13px; color:#fff; background:#112659; font-size:14px; line-height:1.4; min-height:74px; resize:vertical; }
         .page-description-field textarea[readonly] { opacity:.82; cursor:default; }
+        .page-follow-btn { border:1px solid #3659bb; border-radius:999px; background:#17306f; color:#dce6ff; font-size:13px; font-weight:800; padding:9px 12px; cursor:pointer; }
+        .page-follow-btn.active { background:#ffd84a; border-color:#ffe27a; color:#11192f; }
         .line-hit-area { pointer-events:auto; cursor:move; }
         .line-point-handle { pointer-events:auto; cursor:crosshair; }
         .line-point-hit { fill:transparent; }
@@ -205,6 +207,7 @@
                         <button class="icon-btn danger" id="deletePageBtn" type="button" onclick="deleteCurrentPage()" title="Seite löschen" style="display:none;"><img class="icon-img" src="assets/icon-delete-page.png" alt="Seite löschen"></button>
                         <button class="icon-btn" id="prevPageBtn" type="button" onclick="goToPreviousPage()" title="Vorherige Seite" style="display:none;">←</button>
                         <button class="icon-btn" id="nextPageBtn" type="button" onclick="goToNextPage()" title="Nächste Seite" style="display:none;">→</button>
+                        <button class="page-follow-btn" id="followUpPageBtn" type="button" onclick="toggleFollowUpPage()" title="Als Folgeposition der vorherigen markieren" style="display:none;">Folgeposition</button>
                         <div class="section-sub" id="pageIndicator" style="display:none; margin:0 0 0 6px; min-width:110px;">Seite 1 / 1</div>
                     </div>
                     <div class="table-viewport" id="tableViewport">
@@ -398,11 +401,36 @@
             return {
                 ball_layout: cloneLayout(page?.ball_layout),
                 line_paths: cloneLines(page?.line_paths),
-                page_description: String(page?.page_description || "")
+                page_description: String(page?.page_description || ""),
+                is_followup: !!page?.is_followup
             };
         }
         function createDefaultPage() {
-            return { ball_layout: getDefaultLayout(), line_paths: [], page_description: "" };
+            return { ball_layout: getDefaultLayout(), line_paths: [], page_description: "", is_followup: false };
+        }
+        function getFollowUpSuffix(index) {
+            let value = Math.max(1, Number(index) || 1);
+            let suffix = "";
+            while (value > 0) {
+                value -= 1;
+                suffix = String.fromCharCode(97 + (value % 26)) + suffix;
+                value = Math.floor(value / 26);
+            }
+            return suffix;
+        }
+        function getPositionLabels(pages) {
+            const source = Array.isArray(pages) && pages.length ? pages : [createDefaultPage()];
+            let positionNumber = 0;
+            let followUpNumber = 0;
+            return source.map((page, index) => {
+                if (index > 0 && page?.is_followup) {
+                    followUpNumber += 1;
+                    return `Position ${positionNumber}${getFollowUpSuffix(followUpNumber)}`;
+                }
+                positionNumber += 1;
+                followUpNumber = 0;
+                return `Position ${positionNumber}`;
+            });
         }
         function ensurePages() {
             if (!Array.isArray(positionPages) || !positionPages.length) {
@@ -1223,7 +1251,8 @@
             positionPages[currentPageIndex] = {
                 ball_layout: serializeLayout(),
                 line_paths: serializeLines(),
-                page_description: pageDescriptionVisible || pageDescription.trim() ? pageDescription : ""
+                page_description: pageDescriptionVisible || pageDescription.trim() ? pageDescription : "",
+                is_followup: currentPageIndex > 0 && !!positionPages[currentPageIndex]?.is_followup
             };
         }
         function loadPage(index) {
@@ -1269,14 +1298,28 @@
             const deleteBtn = document.getElementById("deletePageBtn");
             const prevBtn = document.getElementById("prevPageBtn");
             const nextBtn = document.getElementById("nextPageBtn");
+            const followUpBtn = document.getElementById("followUpPageBtn");
             const hasMultiplePages = positionPages.length > 1;
             const editable = isEditorEditable();
-            if (indicator) indicator.innerText = `Seite ${currentPageIndex + 1} / ${Math.max(positionPages.length, 1)}`;
+            const labels = getPositionLabels(positionPages);
+            if (indicator) indicator.innerText = `${labels[currentPageIndex] || "Position 1"} · Seite ${currentPageIndex + 1} / ${Math.max(positionPages.length, 1)}`;
             if (indicator) indicator.style.display = hasMultiplePages ? "block" : "none";
             if (deleteBtn) deleteBtn.style.display = hasMultiplePages && editable ? "inline-flex" : "none";
             if (prevBtn) prevBtn.style.display = hasMultiplePages ? "inline-flex" : "none";
             if (nextBtn) nextBtn.style.display = hasMultiplePages ? "inline-flex" : "none";
+            if (followUpBtn) {
+                const isFollowUp = currentPageIndex > 0 && !!positionPages[currentPageIndex]?.is_followup;
+                followUpBtn.classList.toggle("active", isFollowUp);
+                followUpBtn.style.display = editable && currentPageIndex > 0 ? "inline-flex" : "none";
+                followUpBtn.innerText = isFollowUp ? "Folgeposition aktiv" : "Folgeposition";
+            }
             updatePageDescriptionUi();
+        }
+        function toggleFollowUpPage() {
+            if (!isEditorEditable() || currentPageIndex <= 0) return;
+            persistCurrentPageState();
+            positionPages[currentPageIndex].is_followup = !positionPages[currentPageIndex].is_followup;
+            updatePageUi();
         }
         function enableMoveMode() {
             if (!isEditorEditable()) return;
@@ -1301,7 +1344,8 @@
             positionPages.splice(currentPageIndex + 1, 0, {
                 ball_layout: cloneLayout(current.ball_layout),
                 line_paths: cloneLines(current.line_paths),
-                page_description: ""
+                page_description: "",
+                is_followup: false
             });
             loadPage(currentPageIndex + 1);
             showEditorToast("Seite hinzugefügt");
@@ -1680,7 +1724,7 @@
                 return `<polyline points="${polyline}" fill="none" stroke="#111111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8 7" opacity="0.95"></polyline>`;
             }).join("");
         }
-        function renderExportPositionItemMarkup(page, index) {
+        function renderExportPositionItemMarkup(page, label) {
             const layout = cloneLayout(page.ball_layout);
             const templateUrl = new URL(getTemplateForDiscipline(selectedDiscipline), window.location.href).href;
             const pageDescription = String(page.page_description || "").trim();
@@ -1689,7 +1733,7 @@
                 : "";
             return `
                 <div class="pdf-cover-position-item">
-                    <div class="pdf-cover-position-title">Position ${index + 1}</div>
+                    <div class="pdf-cover-position-title">${escapeHtml(label || "Position")}</div>
                     <div class="pdf-table-wrap">
                         <div class="pdf-table-stage">
                             <img class="pdf-table-bg" src="${templateUrl}" alt="Tischvorlage">
@@ -1701,18 +1745,19 @@
                 </div>
             `;
         }
-        function renderExportPositionGridMarkup(pages, startIndex) {
+        function renderExportPositionGridMarkup(pages, startIndex, labels) {
             const gridPages = Array.isArray(pages) && pages.length ? pages : [createDefaultPage()];
+            const allLabels = Array.isArray(labels) && labels.length ? labels : getPositionLabels(gridPages);
             return `
                 <div class="pdf-cover-position-grid">
-                    ${gridPages.map((page, index) => renderExportPositionItemMarkup(page, startIndex + index)).join("")}
+                    ${gridPages.map((page, index) => renderExportPositionItemMarkup(page, allLabels[startIndex + index] || `Position ${startIndex + index + 1}`)).join("")}
                 </div>
             `;
         }
-        function renderExportPositionGroupPageMarkup(pages, startIndex) {
+        function renderExportPositionGroupPageMarkup(pages, startIndex, labels) {
             return `
                 <section class="pdf-page position-page">
-                    ${renderExportPositionGridMarkup(pages, startIndex)}
+                    ${renderExportPositionGridMarkup(pages, startIndex, labels)}
                 </section>
             `;
         }
@@ -1736,6 +1781,7 @@
             const description = String(document.getElementById("descriptionInput").value || "").trim();
             const pages = (Array.isArray(positionPages) && positionPages.length ? positionPages : [createDefaultPage()])
                 .map(clonePage);
+            const positionLabels = getPositionLabels(pages);
             const safeTitle = escapeHtml(title);
             const safeDiscipline = escapeHtml(selectedDiscipline);
             const safeCreatedDate = escapeHtml(formatExportDate(positionCreatedAt));
@@ -1746,7 +1792,7 @@
             const coverPages = referencePhotoForExport ? [] : pages.slice(0, 2);
             const coverVisualMarkup = referencePhotoForExport
                 ? `<div class="pdf-cover-photo-wrap"><img class="pdf-cover-photo" src="${referencePhotoForExport}" alt="Referenzfoto"></div>`
-                : renderExportPositionGridMarkup(coverPages, 0);
+                : renderExportPositionGridMarkup(coverPages, 0, positionLabels);
             const extraPageStartIndex = referencePhotoForExport ? 0 : coverPages.length;
             const extraPositionGroups = [];
             for (let index = extraPageStartIndex; index < pages.length; index += 2) {
@@ -1795,7 +1841,7 @@
         </div>
         ${coverVisualMarkup}
     </section>
-    ${extraPositionGroups.map((group) => renderExportPositionGroupPageMarkup(group.pages, group.startIndex)).join("")}
+    ${extraPositionGroups.map((group) => renderExportPositionGroupPageMarkup(group.pages, group.startIndex, positionLabels)).join("")}
     <script>
         window.addEventListener("load", () => {
             const images = Array.from(document.images);
