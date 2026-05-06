@@ -122,8 +122,9 @@
         .reference-photo-preview { display:block; width:100%; max-height:280px; object-fit:contain; background:#08112b; cursor:zoom-in; }
         .reference-photo-empty { padding:18px; text-align:center; font-size:14px; opacity:.72; }
         .position-video-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; border-radius:16px; overflow:hidden; display:none; }
-        .position-video-player { display:block; width:100%; max-height:320px; background:#050b1e; }
+        .position-video-player { display:block; width:100%; min-height:180px; max-height:320px; background:#050b1e; }
         .position-video-meta { padding:10px 12px; font-size:13px; color:#dce6ff; opacity:.88; }
+        .position-video-open { color:#dce6ff; text-decoration:underline; margin-left:8px; display:none; }
         .position-video-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
         .position-video-note { margin-top:8px; font-size:12px; color:#ffe27a; opacity:.9; display:none; }
         .position-video-error { padding:10px 12px; font-size:13px; color:#ffe7a0; background:rgba(94,73,10,.35); border-top:1px solid #7a6424; display:none; }
@@ -195,8 +196,9 @@
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                     </div>
                     <div class="position-video-box" id="positionVideoBox">
-                        <video class="position-video-player" id="positionVideoPlayer" controls playsinline></video>
+                        <video class="position-video-player" id="positionVideoPlayer" controls playsinline preload="metadata"></video>
                         <div class="position-video-meta" id="positionVideoMeta"></div>
+                        <a class="position-video-open" id="positionVideoOpenLink" href="#" target="_blank" rel="noopener">Video öffnen</a>
                         <div class="position-video-error" id="positionVideoError"></div>
                     </div>
                     <div class="position-video-actions" id="positionVideoActions">
@@ -538,6 +540,14 @@
         function getPositionVideoDisplayUrl() {
             return pendingPositionVideoObjectUrl || positionVideoPlaybackUrl || "";
         }
+        function getPositionVideoMimeType() {
+            const rawType = String(pendingPositionVideoFile?.type || positionVideoType || "").toLowerCase();
+            const name = String(pendingPositionVideoFile?.name || positionVideoName || "").toLowerCase();
+            if (rawType) return rawType;
+            if (name.endsWith(".webm")) return "video/webm";
+            if (name.endsWith(".mov")) return "video/quicktime";
+            return "video/mp4";
+        }
         function isEditorEditable() {
             return isPositionLibraryEditable(positionLibraryAccessMode) && editorEditMode;
         }
@@ -618,6 +628,7 @@
             const player = document.getElementById("positionVideoPlayer");
             const meta = document.getElementById("positionVideoMeta");
             const errorBox = document.getElementById("positionVideoError");
+            const openLink = document.getElementById("positionVideoOpenLink");
             const uploadBtn = document.getElementById("positionVideoBtn");
             const removeBtn = document.getElementById("removePositionVideoBtn");
             const note = document.getElementById("positionVideoNote");
@@ -629,10 +640,16 @@
             if (removeBtn) removeBtn.style.display = !readOnly && hasVideo ? "inline-flex" : "none";
             if (note) note.style.display = pendingPositionVideoFile ? "block" : "none";
             if (box) box.style.display = hasVideo ? "block" : "none";
+            if (openLink) {
+                openLink.href = displayUrl || "#";
+                openLink.style.display = displayUrl ? "inline-block" : "none";
+            }
             if (player) {
                 if (displayUrl) {
                     if (player.getAttribute("src") !== displayUrl) {
+                        player.pause();
                         player.setAttribute("src", displayUrl);
+                        player.setAttribute("type", getPositionVideoMimeType());
                         player.load();
                     }
                     player.style.display = "block";
@@ -657,12 +674,23 @@
             const player = document.getElementById("positionVideoPlayer");
             if (!player?.currentSrc) return;
             const name = String(pendingPositionVideoFile?.name || positionVideoName || "").toLowerCase();
+            const code = player.error?.code;
+            const detail = code ? ` Fehlercode ${code}.` : "";
             positionVideoPlaybackError = name.endsWith(".mov") || positionVideoType === "video/quicktime"
                 ? "Dieses MOV-Video kann vom Browser eventuell nicht abgespielt werden. Bitte als MP4 exportieren."
-                : "Video konnte nicht abgespielt werden. Bitte Datei/Format prüfen oder erneut hochladen.";
+                : "Video konnte nicht abgespielt werden." + detail + " Bitte Datei/Format prüfen oder erneut hochladen.";
             updatePositionVideoUi();
         }
         function handlePositionVideoCanPlay() {
+            positionVideoPlaybackError = "";
+            updatePositionVideoUi();
+        }
+        function handlePositionVideoWaiting() {
+            if (!document.getElementById("positionVideoPlayer")?.currentSrc) return;
+            positionVideoPlaybackError = "Video lädt noch. Wenn es hier stehen bleibt, bitte testweise über „Video öffnen“ prüfen.";
+            updatePositionVideoUi();
+        }
+        function handlePositionVideoPlaying() {
             positionVideoPlaybackError = "";
             updatePositionVideoUi();
         }
@@ -2433,6 +2461,9 @@
         document.getElementById("photoImportMobileCanvas").addEventListener("pointercancel", stopPhotoImportMobileDrag);
         document.getElementById("positionVideoPlayer").addEventListener("error", handlePositionVideoError);
         document.getElementById("positionVideoPlayer").addEventListener("canplay", handlePositionVideoCanPlay);
+        document.getElementById("positionVideoPlayer").addEventListener("waiting", handlePositionVideoWaiting);
+        document.getElementById("positionVideoPlayer").addEventListener("stalled", handlePositionVideoWaiting);
+        document.getElementById("positionVideoPlayer").addEventListener("playing", handlePositionVideoPlaying);
         document.getElementById("tagInput").addEventListener("keydown", (event) => {
             if (event.key !== "Enter" && event.key !== ",") return;
             event.preventDefault();
