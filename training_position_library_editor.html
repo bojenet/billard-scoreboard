@@ -121,6 +121,11 @@
         .reference-photo-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; min-height:120px; border-radius:16px; overflow:hidden; display:none; align-items:center; justify-content:center; }
         .reference-photo-preview { display:block; width:100%; max-height:280px; object-fit:contain; background:#08112b; cursor:zoom-in; }
         .reference-photo-empty { padding:18px; text-align:center; font-size:14px; opacity:.72; }
+        .position-video-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; border-radius:16px; overflow:hidden; display:none; }
+        .position-video-player { display:block; width:100%; max-height:320px; background:#050b1e; }
+        .position-video-meta { padding:10px 12px; font-size:13px; color:#dce6ff; opacity:.88; }
+        .position-video-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+        .position-video-note { margin-top:8px; font-size:12px; color:#ffe27a; opacity:.9; display:none; }
         .reference-photo-zoom { position:fixed; inset:0; z-index:1800; display:none; align-items:center; justify-content:center; padding:24px; background:rgba(4,8,19,.84); backdrop-filter:blur(6px); }
         .reference-photo-zoom.visible { display:flex; }
         .reference-photo-zoom-panel { width:min(1320px,96vw); max-height:94vh; display:grid; grid-template-rows:auto minmax(0,1fr); gap:12px; background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:20px; box-shadow:0 28px 60px rgba(0,0,0,.5); padding:14px; }
@@ -181,11 +186,21 @@
                     </div>
                     <div class="actions">
                         <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImportMobile()">Foto importieren</button>
+                        <input id="positionVideoInput" type="file" accept="video/mp4,video/webm,video/quicktime" style="display:none;" onchange="handlePositionVideoFile(event)">
+                        <button class="btn secondary" id="positionVideoBtn" type="button" onclick="document.getElementById('positionVideoInput').click()">Video hinzufügen</button>
                         <button class="btn secondary" id="exportPositionPdfBtn" type="button" onclick="exportPositionPdf()">PDF exportieren</button>
                         <button class="btn" type="button" onclick="closePositionEditor()">Schließen</button>
                         <button class="btn primary" id="savePositionBtn" type="button" onclick="savePosition()">Speichern</button>
                         <button class="btn danger" id="deleteBtn" type="button" onclick="deletePosition()" style="display:none;">Löschen</button>
                     </div>
+                    <div class="position-video-box" id="positionVideoBox">
+                        <video class="position-video-player" id="positionVideoPlayer" controls playsinline></video>
+                        <div class="position-video-meta" id="positionVideoMeta"></div>
+                    </div>
+                    <div class="position-video-actions" id="positionVideoActions">
+                        <button class="btn danger" id="removePositionVideoBtn" type="button" onclick="removePositionVideo()" style="display:none;">Video entfernen</button>
+                    </div>
+                    <div class="position-video-note" id="positionVideoNote">Video wird beim Speichern hochgeladen.</div>
                     <div class="field">
                         <div class="reference-photo-box" id="referencePhotoBox">
                             <div class="reference-photo-empty"></div>
@@ -363,6 +378,14 @@
         let photoImportMobileOrientation = "up";
         let photoImportMobileDrag = null;
         let referencePhotoDataUrl = "";
+        let positionVideoPath = "";
+        let positionVideoName = "";
+        let positionVideoSize = 0;
+        let positionVideoType = "";
+        let positionVideoPlaybackUrl = "";
+        let pendingPositionVideoFile = null;
+        let pendingPositionVideoObjectUrl = "";
+        let pendingPositionVideoRemovalPath = "";
         let positionCreatedAt = "";
         let selectedTags = [];
         let availableTags = [];
@@ -371,6 +394,8 @@
         const baseTableHeight = 674;
         const loupeScale = 2.4;
         const PHOTO_IMPORT_CALIBRATION_KEY = "positionLibraryPhotoImportCalibration:v1";
+        const POSITION_VIDEO_BUCKET = "position-videos";
+        const POSITION_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
         const photoImportBallOrder = ["Rot", "Gelb", "Weiß"];
         const photoImportTableCorners = [
             { x: bounds.minX, y: bounds.minY },
@@ -474,6 +499,42 @@
             const code = String(error?.code || "");
             return message.includes("tags") || details.includes("tags") || hint.includes("tags") || code === "PGRST204";
         }
+        function hasMissingVideoColumn(error) {
+            const text = [
+                error?.message,
+                error?.details,
+                error?.hint
+            ].map((value) => String(value || "")).join(" ");
+            return text.includes("video_path") ||
+                text.includes("video_name") ||
+                text.includes("video_size") ||
+                text.includes("video_type") ||
+                String(error?.code || "") === "PGRST204";
+        }
+        function formatFileSize(bytes) {
+            const value = Number(bytes || 0);
+            if (!value) return "";
+            if (value < 1024 * 1024) return Math.max(1, Math.round(value / 1024)) + " KB";
+            return (value / (1024 * 1024)).toFixed(value >= 10 * 1024 * 1024 ? 0 : 1) + " MB";
+        }
+        function isAllowedPositionVideo(file) {
+            const type = String(file?.type || "").toLowerCase();
+            const name = String(file?.name || "").toLowerCase();
+            return ["video/mp4", "video/webm", "video/quicktime"].includes(type) ||
+                /\.(mp4|webm|mov|m4v)$/.test(name);
+        }
+        function sanitizeStorageFileName(name) {
+            const cleaned = String(name || "position-video.mp4")
+                .normalize("NFKD")
+                .replace(/[^\w.\-]+/g, "-")
+                .replace(/-+/g, "-")
+                .replace(/^-|-$/g, "")
+                .slice(0, 96);
+            return cleaned || "position-video.mp4";
+        }
+        function getPositionVideoDisplayUrl() {
+            return pendingPositionVideoObjectUrl || positionVideoPlaybackUrl || "";
+        }
         function isEditorEditable() {
             return isPositionLibraryEditable(positionLibraryAccessMode) && editorEditMode;
         }
@@ -547,6 +608,130 @@
                 suggestionsWrap.style.display = readOnly || !suggestions.length ? "none" : "flex";
                 suggestionsWrap.innerHTML = suggestions.map((tag) => `<button class="tag-suggestion" type="button" onclick="addTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</button>`).join("");
             }
+        }
+        function updatePositionVideoUi() {
+            const readOnly = !isEditorEditable();
+            const box = document.getElementById("positionVideoBox");
+            const player = document.getElementById("positionVideoPlayer");
+            const meta = document.getElementById("positionVideoMeta");
+            const uploadBtn = document.getElementById("positionVideoBtn");
+            const removeBtn = document.getElementById("removePositionVideoBtn");
+            const note = document.getElementById("positionVideoNote");
+            const displayUrl = getPositionVideoDisplayUrl();
+            const displayName = pendingPositionVideoFile?.name || positionVideoName || "";
+            const displaySize = pendingPositionVideoFile?.size || positionVideoSize || 0;
+            const hasVideo = !!(displayUrl || displayName || positionVideoPath);
+            if (uploadBtn) uploadBtn.style.display = readOnly ? "none" : "inline-flex";
+            if (removeBtn) removeBtn.style.display = !readOnly && hasVideo ? "inline-flex" : "none";
+            if (note) note.style.display = pendingPositionVideoFile ? "block" : "none";
+            if (box) box.style.display = hasVideo ? "block" : "none";
+            if (player) {
+                if (displayUrl) {
+                    if (player.getAttribute("src") !== displayUrl) {
+                        player.setAttribute("src", displayUrl);
+                        player.load();
+                    }
+                    player.style.display = "block";
+                } else {
+                    player.removeAttribute("src");
+                    player.style.display = "none";
+                }
+            }
+            if (meta) {
+                const parts = [displayName || "Video"];
+                const sizeText = formatFileSize(displaySize);
+                if (sizeText) parts.push(sizeText);
+                if (pendingPositionVideoFile) parts.push("noch nicht gespeichert");
+                meta.innerText = parts.join(" · ");
+            }
+        }
+        async function loadPositionVideoPlaybackUrl() {
+            positionVideoPlaybackUrl = "";
+            if (!positionVideoPath) {
+                updatePositionVideoUi();
+                return;
+            }
+            const { data, error } = await supabaseClient.storage
+                .from(POSITION_VIDEO_BUCKET)
+                .createSignedUrl(positionVideoPath, 60 * 60);
+            if (!error && data?.signedUrl) {
+                positionVideoPlaybackUrl = data.signedUrl;
+            } else {
+                const publicResult = supabaseClient.storage
+                    .from(POSITION_VIDEO_BUCKET)
+                    .getPublicUrl(positionVideoPath);
+                positionVideoPlaybackUrl = publicResult?.data?.publicUrl || "";
+            }
+            updatePositionVideoUi();
+        }
+        function handlePositionVideoFile(event) {
+            if (!isEditorEditable()) return;
+            const file = event?.target?.files?.[0];
+            if (event?.target) event.target.value = "";
+            if (!file) return;
+            if (!isAllowedPositionVideo(file)) {
+                alert("Bitte ein MP4-, WebM- oder MOV-Video auswählen.");
+                return;
+            }
+            if (file.size > POSITION_VIDEO_MAX_BYTES) {
+                alert("Das Video ist zu groß. Maximal erlaubt sind 100 MB.");
+                return;
+            }
+            if (pendingPositionVideoObjectUrl) URL.revokeObjectURL(pendingPositionVideoObjectUrl);
+            pendingPositionVideoFile = file;
+            pendingPositionVideoObjectUrl = URL.createObjectURL(file);
+            pendingPositionVideoRemovalPath = "";
+            updatePositionVideoUi();
+        }
+        function removePositionVideo() {
+            if (!isEditorEditable()) return;
+            if (pendingPositionVideoObjectUrl) URL.revokeObjectURL(pendingPositionVideoObjectUrl);
+            pendingPositionVideoFile = null;
+            pendingPositionVideoObjectUrl = "";
+            if (positionVideoPath) pendingPositionVideoRemovalPath = positionVideoPath;
+            positionVideoPath = "";
+            positionVideoName = "";
+            positionVideoSize = 0;
+            positionVideoType = "";
+            positionVideoPlaybackUrl = "";
+            updatePositionVideoUi();
+        }
+        async function removeStoredPositionVideo(path) {
+            if (!path) return;
+            try {
+                await supabaseClient.storage.from(POSITION_VIDEO_BUCKET).remove([path]);
+            } catch (_) {}
+        }
+        async function uploadPendingPositionVideo(positionIdForPath) {
+            if (!pendingPositionVideoFile) return null;
+            const previousPath = positionVideoPath;
+            const safeName = sanitizeStorageFileName(pendingPositionVideoFile.name);
+            const path = `${currentUser.id}/${positionIdForPath}/${Date.now()}-${safeName}`;
+            const { error } = await supabaseClient.storage
+                .from(POSITION_VIDEO_BUCKET)
+                .upload(path, pendingPositionVideoFile, {
+                    cacheControl: "3600",
+                    contentType: pendingPositionVideoFile.type || "video/mp4",
+                    upsert: true
+                });
+            if (error) throw error;
+            if (previousPath && previousPath !== path) await removeStoredPositionVideo(previousPath);
+            const uploaded = {
+                video_path: path,
+                video_name: pendingPositionVideoFile.name,
+                video_size: pendingPositionVideoFile.size,
+                video_type: pendingPositionVideoFile.type || ""
+            };
+            positionVideoPath = uploaded.video_path;
+            positionVideoName = uploaded.video_name;
+            positionVideoSize = uploaded.video_size;
+            positionVideoType = uploaded.video_type;
+            if (pendingPositionVideoObjectUrl) URL.revokeObjectURL(pendingPositionVideoObjectUrl);
+            pendingPositionVideoFile = null;
+            pendingPositionVideoObjectUrl = "";
+            pendingPositionVideoRemovalPath = "";
+            await loadPositionVideoPlaybackUrl();
+            return uploaded;
         }
         function getTableTypeForDiscipline(discipline) {
             return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB";
@@ -1129,6 +1314,7 @@
             const saveBtn = document.getElementById("savePositionBtn");
             const newBtn = document.querySelector(".topbar .actions .btn");
             const photoImportBtn = document.getElementById("photoImportBtn");
+            const videoBtn = document.getElementById("positionVideoBtn");
             if (titleInput) {
                 titleInput.readOnly = readOnly;
                 titleInput.disabled = false;
@@ -1153,6 +1339,7 @@
             }
             if (saveBtn) saveBtn.style.display = readOnly ? "none" : "inline-flex";
             if (photoImportBtn) photoImportBtn.style.display = readOnly ? "none" : "inline-flex";
+            if (videoBtn) videoBtn.style.display = readOnly ? "none" : "inline-flex";
             if (deleteBtn) deleteBtn.style.display = readOnly || !editingId ? "none" : "inline-flex";
             if (editBtn) editBtn.style.display = canEditAccess && editingId && !editorEditMode ? "inline-flex" : "none";
             if (newBtn) newBtn.style.display = canEditAccess ? "inline-flex" : "none";
@@ -1172,6 +1359,7 @@
             updateReferencePhotoUi();
             renderTagUi();
             updatePageDescriptionUi();
+            updatePositionVideoUi();
         }
         function syncLoupeContent() {
             const loupeContent = document.getElementById("tableLoupeContent");
@@ -1919,6 +2107,15 @@
             photoImportMobileOrientation = "up";
             stopPhotoImportMobileDrag();
             referencePhotoDataUrl = "";
+            if (pendingPositionVideoObjectUrl) URL.revokeObjectURL(pendingPositionVideoObjectUrl);
+            positionVideoPath = "";
+            positionVideoName = "";
+            positionVideoSize = 0;
+            positionVideoType = "";
+            positionVideoPlaybackUrl = "";
+            pendingPositionVideoFile = null;
+            pendingPositionVideoObjectUrl = "";
+            pendingPositionVideoRemovalPath = "";
             positionCreatedAt = "";
             selectedTags = [];
             document.getElementById("titleInput").value = "";
@@ -1937,6 +2134,7 @@
             renderLines();
             updatePageUi();
             updateReferencePhotoUi();
+            updatePositionVideoUi();
             renderTagUi();
             updatePhotoImportMobileUi();
             applyReadOnlyUi();
@@ -1984,6 +2182,15 @@
             document.getElementById("titleInput").value = data.title || "";
             document.getElementById("descriptionInput").value = data.description || "";
             referencePhotoDataUrl = data.reference_photo || "";
+            if (pendingPositionVideoObjectUrl) URL.revokeObjectURL(pendingPositionVideoObjectUrl);
+            positionVideoPath = data.video_path || "";
+            positionVideoName = data.video_name || "";
+            positionVideoSize = Number(data.video_size || 0);
+            positionVideoType = data.video_type || "";
+            positionVideoPlaybackUrl = "";
+            pendingPositionVideoFile = null;
+            pendingPositionVideoObjectUrl = "";
+            pendingPositionVideoRemovalPath = "";
             selectedTags = normalizeTags(data.tags || []);
             selectedTags.forEach((tag) => {
                 if (!availableTags.some((existing) => existing.toLowerCase() === tag.toLowerCase())) availableTags.push(tag);
@@ -2002,6 +2209,7 @@
             currentPageIndex = 0;
             loadPage(0);
             fitEditorToViewport();
+            await loadPositionVideoPlaybackUrl();
             updatePageTitle();
         }
         async function savePosition() {
@@ -2022,33 +2230,37 @@
                 description,
                 reference_photo: referencePhotoDataUrl || "",
                 tags: normalizeTags(selectedTags),
+                video_path: positionVideoPath || "",
+                video_name: positionVideoName || "",
+                video_size: Number(positionVideoSize || 0),
+                video_type: positionVideoType || "",
                 ball_layout: cloneLayout(firstPage.ball_layout),
                 line_paths: cloneLines(firstPage.line_paths),
                 position_pages: positionPages.map(clonePage)
             };
-            const payloadWithoutReferencePhoto = {
-                user_id: payload.user_id,
-                created_by_name: payload.created_by_name,
-                title: payload.title,
-                discipline: payload.discipline,
-                description: payload.description,
-                tags: payload.tags,
-                ball_layout: payload.ball_layout,
-                line_paths: payload.line_paths,
-                position_pages: payload.position_pages
-            };
-            const payloadWithoutTags = { ...payload };
-            delete payloadWithoutTags.tags;
-            const payloadWithoutReferencePhotoAndTags = { ...payloadWithoutReferencePhoto };
-            delete payloadWithoutReferencePhotoAndTags.tags;
+            function stripMissingOptionalFields(source, missing) {
+                const next = { ...source };
+                if (missing.referencePhoto) delete next.reference_photo;
+                if (missing.tags) delete next.tags;
+                if (missing.video) {
+                    delete next.video_path;
+                    delete next.video_name;
+                    delete next.video_size;
+                    delete next.video_type;
+                }
+                return next;
+            }
             async function runSave(savePayload) {
                 if (editingId) {
                     return supabaseClient.from("training_position_library").update(savePayload).eq("id", editingId).eq("user_id", currentUser.id);
                 }
                 return supabaseClient.from("training_position_library").insert(savePayload).select("id").single();
             }
-            let result = await runSave(payload);
-            if (result.error) {
+            const missingOptional = { referencePhoto: false, tags: false, video: false };
+            let result = null;
+            for (let attempt = 0; attempt < 4; attempt += 1) {
+                result = await runSave(stripMissingOptionalFields(payload, missingOptional));
+                if (!result.error) break;
                 const message = String(result.error.message || "");
                 const code = String(result.error.code || "");
                 const details = String(result.error.details || "");
@@ -2059,26 +2271,59 @@
                     hint.includes("reference_photo") ||
                     code === "PGRST204";
                 const missingTagsColumn = hasMissingTagsColumn(result.error);
-                if (!missingReferencePhotoColumn && !missingTagsColumn) {
+                const missingVideoColumn = hasMissingVideoColumn(result.error);
+                const changed =
+                    (missingReferencePhotoColumn && !missingOptional.referencePhoto) ||
+                    (missingTagsColumn && !missingOptional.tags) ||
+                    (missingVideoColumn && !missingOptional.video);
+                if (!changed) {
                     alert("Position konnte nicht gespeichert werden: " + result.error.message);
                     return;
                 }
-                result = await runSave(missingReferencePhotoColumn && missingTagsColumn
-                    ? payloadWithoutReferencePhotoAndTags
-                    : (missingReferencePhotoColumn ? payloadWithoutReferencePhoto : payloadWithoutTags));
-                if (result.error && hasMissingTagsColumn(result.error)) {
-                    result = await runSave(missingReferencePhotoColumn ? payloadWithoutReferencePhotoAndTags : payloadWithoutTags);
-                }
-                if (result.error) {
-                    alert("Position konnte nicht gespeichert werden: " + result.error.message);
-                    return;
-                }
-                alert("Position gespeichert. Tags und/oder Referenzfoto werden erst mitgespeichert, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.");
+                if (missingReferencePhotoColumn) missingOptional.referencePhoto = true;
+                if (missingTagsColumn) missingOptional.tags = true;
+                if (missingVideoColumn) missingOptional.video = true;
+            }
+            if (result?.error) {
+                alert("Position konnte nicht gespeichert werden: " + result.error.message);
+                return;
             }
             const id = editingId || result.data?.id;
             if (!editingId && id) {
                 editingId = id;
                 history.replaceState({}, "", "training_position_library_editor.html?id=" + encodeURIComponent(id));
+            }
+            if (missingOptional.video && (pendingPositionVideoFile || pendingPositionVideoRemovalPath)) {
+                alert("Position gespeichert. Videos werden erst mitgespeichert, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.");
+                return;
+            } else if (id) {
+                try {
+                    const uploadedVideo = await uploadPendingPositionVideo(id);
+                    if (uploadedVideo) {
+                        const { error: videoUpdateError } = await supabaseClient
+                            .from("training_position_library")
+                            .update(uploadedVideo)
+                            .eq("id", id)
+                            .eq("user_id", currentUser.id);
+                        if (videoUpdateError) {
+                            await removeStoredPositionVideo(uploadedVideo.video_path);
+                            throw videoUpdateError;
+                        }
+                    } else if (pendingPositionVideoRemovalPath) {
+                        await removeStoredPositionVideo(pendingPositionVideoRemovalPath);
+                        pendingPositionVideoRemovalPath = "";
+                    }
+                } catch (error) {
+                    alert("Position gespeichert, aber das Video konnte nicht gespeichert werden: " + (error?.message || error));
+                    return;
+                }
+            }
+            const missingParts = [];
+            if (missingOptional.referencePhoto) missingParts.push("Referenzfoto");
+            if (missingOptional.tags) missingParts.push("Tags");
+            if (missingOptional.video) missingParts.push("Video");
+            if (missingParts.length && !(missingOptional.video && (pendingPositionVideoFile || pendingPositionVideoRemovalPath))) {
+                alert("Position gespeichert. " + missingParts.join(", ") + " werden erst mitgespeichert, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.");
             }
             editorEditMode = false;
             updatePageTitle();
@@ -2088,11 +2333,13 @@
             if (!isEditorEditable()) return;
             if (!editingId) return;
             if (!confirm("Diese Position wirklich löschen?")) return;
+            const videoPathToDelete = positionVideoPath;
             const { error } = await supabaseClient.from("training_position_library").delete().eq("id", editingId).eq("user_id", currentUser.id);
             if (error) {
                 alert("Position konnte nicht gelöscht werden: " + error.message);
                 return;
             }
+            await removeStoredPositionVideo(videoPathToDelete);
             window.location.href = "training_position_library.html";
         }
         async function init() {

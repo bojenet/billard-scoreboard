@@ -6,6 +6,10 @@ create table if not exists public.training_position_library (
   discipline text not null,
   description text not null default '',
   reference_photo text not null default '',
+  video_path text not null default '',
+  video_name text not null default '',
+  video_size bigint not null default 0,
+  video_type text not null default '',
   tags text[] not null default '{}'::text[],
   ball_layout jsonb not null default '{}'::jsonb,
   line_paths jsonb not null default '[]'::jsonb,
@@ -25,6 +29,18 @@ alter table public.training_position_library
 
 alter table public.training_position_library
   add column if not exists reference_photo text not null default '';
+
+alter table public.training_position_library
+  add column if not exists video_path text not null default '';
+
+alter table public.training_position_library
+  add column if not exists video_name text not null default '';
+
+alter table public.training_position_library
+  add column if not exists video_size bigint not null default 0;
+
+alter table public.training_position_library
+  add column if not exists video_type text not null default '';
 
 alter table public.training_position_library
   add column if not exists tags text[] not null default '{}'::text[];
@@ -130,3 +146,72 @@ create policy "training_position_library_delete_own"
   on public.training_position_library
   for delete
   using ((auth.uid() = user_id or public.is_admin(auth.uid())) and public.position_library_can_edit(auth.uid()));
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'position-videos',
+  'position-videos',
+  false,
+  104857600,
+  array['video/mp4', 'video/webm', 'video/quicktime']::text[]
+)
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "position_videos_select" on storage.objects;
+create policy "position_videos_select"
+  on storage.objects
+  for select
+  using (
+    bucket_id = 'position-videos'
+    and public.position_library_can_view(auth.uid())
+  );
+
+drop policy if exists "position_videos_insert_own" on storage.objects;
+create policy "position_videos_insert_own"
+  on storage.objects
+  for insert
+  with check (
+    bucket_id = 'position-videos'
+    and public.position_library_can_edit(auth.uid())
+    and (
+      (storage.foldername(name))[1] = auth.uid()::text
+      or public.is_admin(auth.uid())
+    )
+  );
+
+drop policy if exists "position_videos_update_own" on storage.objects;
+create policy "position_videos_update_own"
+  on storage.objects
+  for update
+  using (
+    bucket_id = 'position-videos'
+    and public.position_library_can_edit(auth.uid())
+    and (
+      (storage.foldername(name))[1] = auth.uid()::text
+      or public.is_admin(auth.uid())
+    )
+  )
+  with check (
+    bucket_id = 'position-videos'
+    and public.position_library_can_edit(auth.uid())
+    and (
+      (storage.foldername(name))[1] = auth.uid()::text
+      or public.is_admin(auth.uid())
+    )
+  );
+
+drop policy if exists "position_videos_delete_own" on storage.objects;
+create policy "position_videos_delete_own"
+  on storage.objects
+  for delete
+  using (
+    bucket_id = 'position-videos'
+    and public.position_library_can_edit(auth.uid())
+    and (
+      (storage.foldername(name))[1] = auth.uid()::text
+      or public.is_admin(auth.uid())
+    )
+  );
