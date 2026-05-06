@@ -124,8 +124,6 @@
         .reference-photo-empty { padding:18px; text-align:center; font-size:14px; opacity:.72; }
         .position-video-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; border-radius:16px; overflow:hidden; display:none; }
         .position-video-player { display:block; width:100%; min-height:180px; max-height:320px; background:#050b1e; }
-        .position-video-meta { padding:10px 12px; font-size:13px; color:#dce6ff; opacity:.88; }
-        .position-video-open { color:#dce6ff; text-decoration:underline; margin-left:8px; display:none; }
         .position-video-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
         .position-video-note { margin-top:8px; font-size:12px; color:#ffe27a; opacity:.9; display:none; }
         .position-video-error { padding:10px 12px; font-size:13px; color:#ffe7a0; background:rgba(94,73,10,.35); border-top:1px solid #7a6424; display:none; }
@@ -198,8 +196,6 @@
                     </div>
                     <div class="position-video-box" id="positionVideoBox">
                         <video class="position-video-player" id="positionVideoPlayer" controls playsinline preload="metadata"></video>
-                        <div class="position-video-meta" id="positionVideoMeta"></div>
-                        <a class="position-video-open" id="positionVideoOpenLink" href="#" target="_blank" rel="noopener">Video öffnen</a>
                         <div class="position-video-error" id="positionVideoError"></div>
                     </div>
                     <div class="position-video-actions" id="positionVideoActions">
@@ -630,24 +626,17 @@
             const readOnly = !isEditorEditable();
             const box = document.getElementById("positionVideoBox");
             const player = document.getElementById("positionVideoPlayer");
-            const meta = document.getElementById("positionVideoMeta");
             const errorBox = document.getElementById("positionVideoError");
-            const openLink = document.getElementById("positionVideoOpenLink");
             const uploadBtn = document.getElementById("positionVideoBtn");
             const removeBtn = document.getElementById("removePositionVideoBtn");
             const note = document.getElementById("positionVideoNote");
             const displayUrl = getPositionVideoDisplayUrl();
             const displayName = pendingPositionVideoFile?.name || positionVideoName || "";
-            const displaySize = pendingPositionVideoFile?.size || positionVideoSize || 0;
             const hasVideo = !!(displayUrl || displayName || positionVideoPath);
             if (uploadBtn) uploadBtn.style.display = readOnly ? "none" : "inline-flex";
             if (removeBtn) removeBtn.style.display = !readOnly && hasVideo ? "inline-flex" : "none";
             if (note) note.style.display = pendingPositionVideoFile ? "block" : "none";
             if (box) box.style.display = hasVideo ? "block" : "none";
-            if (openLink) {
-                openLink.href = displayUrl || "#";
-                openLink.style.display = displayUrl ? "inline-block" : "none";
-            }
             if (player) {
                 if (displayUrl) {
                     if (player.getAttribute("src") !== displayUrl) {
@@ -661,13 +650,6 @@
                     player.removeAttribute("src");
                     player.style.display = "none";
                 }
-            }
-            if (meta) {
-                const parts = [displayName || "Video"];
-                const sizeText = formatFileSize(displaySize);
-                if (sizeText) parts.push(sizeText);
-                if (pendingPositionVideoFile) parts.push("noch nicht gespeichert");
-                meta.innerText = parts.join(" · ");
             }
             if (errorBox) {
                 errorBox.innerText = positionVideoPlaybackError || "";
@@ -691,7 +673,7 @@
         }
         function handlePositionVideoWaiting() {
             if (!document.getElementById("positionVideoPlayer")?.currentSrc) return;
-            positionVideoPlaybackError = "Video lädt noch. Wenn es hier stehen bleibt, bitte testweise über „Video öffnen“ prüfen.";
+            positionVideoPlaybackError = "Video lädt noch. Wenn es hier stehen bleibt, bitte Datei/Format prüfen.";
             updatePositionVideoUi();
         }
         function handlePositionVideoPlaying() {
