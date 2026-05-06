@@ -172,7 +172,7 @@
                         <label>Disziplin</label>
                         <div class="chips" id="disciplineButtons"></div>
                     </div>
-                    <div class="field">
+                    <div class="field" id="descriptionField">
                         <label for="descriptionInput">Beschreibung</label>
                         <textarea id="descriptionInput" placeholder="Worum geht es in der Position, worauf soll man achten, welche Lösungsidee steckt dahinter?"></textarea>
                     </div>
@@ -1350,6 +1350,7 @@
             const canEditAccess = isPositionLibraryEditable(positionLibraryAccessMode);
             const readOnly = !isEditorEditable();
             const titleInput = document.getElementById("titleInput");
+            const descriptionField = document.getElementById("descriptionField");
             const descriptionInput = document.getElementById("descriptionInput");
             const tagInput = document.getElementById("tagInput");
             const tagAddBtn = document.getElementById("tagAddBtn");
@@ -1366,6 +1367,9 @@
             if (descriptionInput) {
                 descriptionInput.readOnly = readOnly;
                 descriptionInput.disabled = false;
+            }
+            if (descriptionField) {
+                descriptionField.style.display = readOnly && !String(descriptionInput?.value || "").trim() ? "none" : "block";
             }
             if (tagInput) {
                 tagInput.readOnly = readOnly;
