@@ -20,6 +20,7 @@
         .btn.primary { background:#2f4fe0; }
         .btn.danger { background:#9f3434; border-color:#be5757; }
         .btn.secondary { background:#17306f; }
+        .btn.compact { border-radius:9px; padding:7px 10px; font-size:13px; line-height:1.1; }
         .layout { display:grid; grid-template-columns:minmax(360px,.86fr) minmax(0,1.34fr); gap:18px; }
         .card { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:22px; box-shadow:0 24px 56px rgba(0,0,0,.45); overflow:hidden; }
         .section { padding:16px; border-bottom:1px solid #27417f; }
@@ -202,12 +203,15 @@
                         <div class="position-video-error" id="positionVideoError"></div>
                     </div>
                     <div class="position-video-actions" id="positionVideoActions">
-                        <button class="btn danger" id="removePositionVideoBtn" type="button" onclick="removePositionVideo()" style="display:none;">Video entfernen</button>
+                        <button class="btn danger compact" id="removePositionVideoBtn" type="button" onclick="removePositionVideo()" style="display:none;">Video entfernen</button>
                     </div>
                     <div class="position-video-note" id="positionVideoNote">Video wird beim Speichern hochgeladen.</div>
                     <div class="field">
                         <div class="reference-photo-box" id="referencePhotoBox">
                             <div class="reference-photo-empty"></div>
+                        </div>
+                        <div class="position-video-actions">
+                            <button class="btn danger compact" id="removeReferencePhotoBtn" type="button" onclick="removeReferencePhoto()" style="display:none;">Foto entfernen</button>
                         </div>
                     </div>
                 </div>
@@ -1001,6 +1005,8 @@
         }
         function updateReferencePhotoUi() {
             const box = document.getElementById("referencePhotoBox");
+            const removeBtn = document.getElementById("removeReferencePhotoBtn");
+            if (removeBtn) removeBtn.style.display = referencePhotoDataUrl && isEditorEditable() ? "inline-flex" : "none";
             if (!box) return;
             if (referencePhotoDataUrl) {
                 box.style.display = "flex";
@@ -1010,6 +1016,12 @@
             box.style.display = "none";
             box.innerHTML = `<div class="reference-photo-empty"></div>`;
             closeReferencePhotoZoom();
+        }
+        function removeReferencePhoto() {
+            if (!isEditorEditable()) return;
+            referencePhotoDataUrl = "";
+            closeReferencePhotoZoom();
+            updateReferencePhotoUi();
         }
         function openReferencePhotoZoom() {
             if (!referencePhotoDataUrl) return;
