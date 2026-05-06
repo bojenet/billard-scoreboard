@@ -188,7 +188,7 @@
                     </div>
                     <div class="actions">
                         <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImportMobile()">Foto importieren</button>
-                        <input id="positionVideoInput" type="file" accept="video/mp4,video/webm,video/quicktime" style="display:none;" onchange="handlePositionVideoFile(event)">
+                        <input id="positionVideoInput" type="file" accept="video/mp4,video/webm" style="display:none;" onchange="handlePositionVideoFile(event)">
                         <button class="btn secondary" id="positionVideoBtn" type="button" onclick="document.getElementById('positionVideoInput').click()">Video hinzufügen</button>
                         <button class="btn secondary" id="exportPositionPdfBtn" type="button" onclick="exportPositionPdf()">PDF exportieren</button>
                         <button class="btn" type="button" onclick="closePositionEditor()">Schließen</button>
@@ -525,8 +525,8 @@
         function isAllowedPositionVideo(file) {
             const type = String(file?.type || "").toLowerCase();
             const name = String(file?.name || "").toLowerCase();
-            return ["video/mp4", "video/webm", "video/quicktime"].includes(type) ||
-                /\.(mp4|webm|mov|m4v)$/.test(name);
+            return ["video/mp4", "video/webm"].includes(type) ||
+                /\.(mp4|webm|m4v)$/.test(name);
         }
         function sanitizeStorageFileName(name) {
             const cleaned = String(name || "position-video.mp4")
@@ -677,8 +677,8 @@
             const code = player.error?.code;
             const detail = code ? ` Fehlercode ${code}.` : "";
             positionVideoPlaybackError = name.endsWith(".mov") || positionVideoType === "video/quicktime"
-                ? "Dieses MOV-Video kann vom Browser eventuell nicht abgespielt werden. Bitte als MP4 exportieren."
-                : "Video konnte nicht abgespielt werden." + detail + " Bitte Datei/Format prüfen oder erneut hochladen.";
+                ? "Dieses MOV-Video kann vom Browser eventuell nicht abgespielt werden. Bitte als MP4 mit H.264/AAC exportieren."
+                : "Video konnte nicht dekodiert werden." + detail + " Bitte als MP4 mit H.264/AAC oder als WebM neu exportieren und erneut hochladen.";
             updatePositionVideoUi();
         }
         function handlePositionVideoCanPlay() {
@@ -717,7 +717,7 @@
             if (event?.target) event.target.value = "";
             if (!file) return;
             if (!isAllowedPositionVideo(file)) {
-                alert("Bitte ein MP4-, WebM- oder MOV-Video auswählen.");
+                alert("Bitte ein MP4- oder WebM-Video auswählen. Für MP4 muss der Codec browserkompatibel sein, am besten H.264/AAC.");
                 return;
             }
             if (file.size > POSITION_VIDEO_MAX_BYTES) {

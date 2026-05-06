@@ -153,7 +153,7 @@ values (
   'position-videos',
   false,
   104857600,
-  array['video/mp4', 'video/webm', 'video/quicktime']::text[]
+  array['video/mp4', 'video/webm']::text[]
 )
 on conflict (id) do update
 set public = excluded.public,
