@@ -274,7 +274,7 @@
             }
 
             setBusy(true);
-            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
             setBusy(false);
 
             if (error) {
@@ -282,7 +282,24 @@
                 return;
             }
 
+            await recordLoginEvent(data?.user);
             window.location.href = resolveNextPath();
+        }
+
+        async function recordLoginEvent(user) {
+            if (!user?.id) return;
+            try {
+                const { error } = await supabaseClient
+                    .from("login_events")
+                    .insert([{
+                        user_id: user.id,
+                        email: user.email || getEmail(),
+                        user_agent: navigator.userAgent || ""
+                    }]);
+                if (error) console.warn("Login-Tracking nicht gespeichert:", error);
+            } catch (error) {
+                console.warn("Login-Tracking fehlgeschlagen:", error);
+            }
         }
 
         async function signUp() {

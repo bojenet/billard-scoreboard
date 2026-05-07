@@ -28,6 +28,7 @@
       border-radius: 20px;
       box-shadow: 0 22px 50px rgba(0, 0, 0, 0.45);
       overflow: hidden;
+      margin-bottom: 18px;
     }
 
     table {
@@ -57,6 +58,17 @@
       opacity: 0.7;
       font-size: 12px;
       word-break: break-all;
+    }
+
+    .muted {
+      opacity: 0.72;
+      font-size: 13px;
+    }
+
+    .section-title {
+      margin: 22px 0 10px;
+      font-size: 24px;
+      font-weight: 800;
     }
 
     select {
@@ -121,7 +133,20 @@
           <th>Positions Library</th>
           <th>Training</th>
           <th>Turnier</th>
+          <th>Letzter Login</th>
           <th>Aktion</th>
+        </tr>
+      </table>
+    </div>
+
+    <h2 class="section-title">Letzte Logins</h2>
+    <div class="card">
+      <table id="loginEventsTable">
+        <tr>
+          <th>Zeit</th>
+          <th>E-Mail</th>
+          <th>User ID</th>
+          <th>Browser</th>
         </tr>
       </table>
     </div>
@@ -144,6 +169,43 @@
       const el = document.getElementById("msg");
       el.className = "msg " + (type || "");
       el.innerText = text || "";
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "-";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "-";
+      return date.toLocaleString("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function summarizeUserAgent(value) {
+      const ua = String(value || "");
+      if (!ua) return "-";
+      const browser = ua.includes("Firefox/") ? "Firefox" :
+        ua.includes("Edg/") ? "Edge" :
+        ua.includes("Chrome/") ? "Chrome" :
+        ua.includes("Safari/") ? "Safari" : "Browser";
+      const platform = ua.includes("iPhone") ? "iPhone" :
+        ua.includes("iPad") ? "iPad" :
+        ua.includes("Mac OS X") ? "macOS" :
+        ua.includes("Windows") ? "Windows" :
+        ua.includes("Android") ? "Android" : "";
+      return [browser, platform].filter(Boolean).join(" / ");
     }
 
     async function loadUsers() {
@@ -169,6 +231,16 @@
         return;
       }
 
+      const { data: loginEvents, error: loginEventsError } = await supabaseClient
+        .from("login_events")
+        .select("user_id,email,user_agent,created_at")
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (loginEventsError) {
+        setMsg("Login-Tracking laden fehlgeschlagen. Bitte SQL aus sql/user_admin_roles.sql ausführen.", "err");
+      }
+
       const roleByUser = {};
       (roles || []).forEach((r) => {
         roleByUser[r.user_id] = {
@@ -188,9 +260,15 @@
           <th>Positions Library</th>
           <th>Training</th>
           <th>Turnier</th>
+          <th>Letzter Login</th>
           <th>Aktion</th>
         </tr>
       `;
+
+      const latestLoginByUser = {};
+      (loginEvents || []).forEach((entry) => {
+        if (!latestLoginByUser[entry.user_id]) latestLoginByUser[entry.user_id] = entry;
+      });
 
       (profiles || []).forEach((p) => {
         const row = document.createElement("tr");
@@ -229,9 +307,42 @@
               <option value="edit" ${tournamentAccess === "edit" ? "selected" : ""}>editieren</option>
             </select>
           </td>
+          <td>${formatDateTime(latestLoginByUser[p.id]?.created_at)}</td>
           <td>
             <button class="save-btn" onclick="saveRole('${p.id}')">Speichern</button>
           </td>
+        `;
+        table.appendChild(row);
+      });
+
+      renderLoginEvents(loginEvents || []);
+    }
+
+    function renderLoginEvents(events) {
+      const table = document.getElementById("loginEventsTable");
+      table.innerHTML = `
+        <tr>
+          <th>Zeit</th>
+          <th>E-Mail</th>
+          <th>User ID</th>
+          <th>Browser</th>
+        </tr>
+      `;
+
+      if (!events.length) {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td colspan="4" class="muted">Noch keine Login-Einträge vorhanden.</td>`;
+        table.appendChild(row);
+        return;
+      }
+
+      events.slice(0, 50).forEach((entry) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${formatDateTime(entry.created_at)}</td>
+          <td>${escapeHtml(entry.email || "-")}</td>
+          <td class="uid">${escapeHtml(entry.user_id || "-")}</td>
+          <td class="muted">${escapeHtml(summarizeUserAgent(entry.user_agent))}</td>
         `;
         table.appendChild(row);
       });

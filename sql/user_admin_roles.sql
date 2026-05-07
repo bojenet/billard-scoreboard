@@ -16,6 +16,14 @@ create table if not exists public.user_roles (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.login_events (
+  id bigserial primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  email text not null default '',
+  user_agent text not null default '',
+  created_at timestamptz not null default now()
+);
+
 alter table public.user_roles
   add column if not exists position_library_access text not null default 'edit';
 
@@ -48,6 +56,8 @@ alter table public.user_roles
 
 create index if not exists idx_profiles_email on public.profiles(email);
 create index if not exists idx_user_roles_role on public.user_roles(role);
+create index if not exists idx_login_events_user_created on public.login_events(user_id, created_at desc);
+create index if not exists idx_login_events_created on public.login_events(created_at desc);
 
 -- Backfill existing users
 insert into public.profiles (id, email)
@@ -107,6 +117,7 @@ for each row execute function public.handle_new_auth_user();
 -- RLS
 alter table public.profiles enable row level security;
 alter table public.user_roles enable row level security;
+alter table public.login_events enable row level security;
 
 -- profiles policies
 drop policy if exists "profiles_select_own_or_admin" on public.profiles;
@@ -153,3 +164,16 @@ create policy "user_roles_admin_delete"
   on public.user_roles
   for delete
   using (public.is_admin(auth.uid()));
+
+-- login_events policies
+drop policy if exists "login_events_insert_own" on public.login_events;
+create policy "login_events_insert_own"
+  on public.login_events
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "login_events_select_own_or_admin" on public.login_events;
+create policy "login_events_select_own_or_admin"
+  on public.login_events
+  for select
+  using (auth.uid() = user_id or public.is_admin(auth.uid()));
