@@ -70,6 +70,9 @@
         .youtube-ball-pick.active { outline:2px solid #ffd84a; }
         .youtube-ball-pick.red { background:#922b35; }
         .youtube-ball-pick.yellow { background:#8f7918; color:#111; }
+        .youtube-marker-size { display:none; align-items:center; gap:8px; font-size:13px; opacity:.88; }
+        .youtube-marker-size input { width:160px; accent-color:#ffd84a; }
+        .youtube-marker-size span { min-width:28px; font-weight:800; color:#dce6ff; }
         .youtube-ball-pick.white { background:#e7ecf5; color:#111; }
         .youtube-status { font-size:13px; color:#dce6ff; opacity:.82; }
         @media (max-width: 980px) { .list { grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); } .item-text { -webkit-line-clamp:4; } }
@@ -139,6 +142,11 @@
                     <button class="youtube-ball-pick yellow" id="youtubeMarkerBallYellow" type="button" onclick="setYoutubeMarkerActiveBall(1)">Gelb</button>
                     <button class="youtube-ball-pick white" id="youtubeMarkerBallWhite" type="button" onclick="setYoutubeMarkerActiveBall(2)">Weiß</button>
                 </div>
+                <label class="youtube-marker-size" id="youtubeMarkerSizeWrap">
+                    Markergröße
+                    <input id="youtubeMarkerSize" type="range" min="6" max="32" step="1" value="16" oninput="setYoutubeMarkerSize(this.value)">
+                    <span id="youtubeMarkerSizeValue">16</span>
+                </label>
             </div>
             <div class="youtube-save-row">
                 <div class="youtube-status" id="youtubeCaptureStatus">Video laden, pausieren, dann Position übernehmen.</div>
@@ -203,6 +211,7 @@
         let youtubeMarkerLayout = null;
         let youtubeCapturePendingSeconds = null;
         let youtubeCapturePendingTitle = "";
+        let youtubeMarkerRadius = 16;
 
         function setNotice(text, type) {
             const box = document.getElementById("noticeBox");
@@ -833,7 +842,7 @@
                 ctx.strokeStyle = "#111";
                 ctx.lineWidth = youtubeMarkerActiveBall === index ? 1.5 : 1;
                 ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 16, 0, Math.PI * 2);
+                ctx.arc(pt.x, pt.y, youtubeMarkerStep === "balls" ? youtubeMarkerRadius : 16, 0, Math.PI * 2);
                 ctx.stroke();
             });
         }
@@ -847,6 +856,12 @@
             document.getElementById("youtubeMarkerBallsBtn")?.classList.toggle("primary", youtubeMarkerStep === "balls");
             const ballPicks = document.getElementById("youtubeMarkerBallPicks");
             if (ballPicks) ballPicks.style.display = youtubeMarkerStep === "balls" ? "flex" : "none";
+            const markerSizeWrap = document.getElementById("youtubeMarkerSizeWrap");
+            const markerSizeInput = document.getElementById("youtubeMarkerSize");
+            const markerSizeValue = document.getElementById("youtubeMarkerSizeValue");
+            if (markerSizeWrap) markerSizeWrap.style.display = youtubeMarkerStep === "balls" ? "flex" : "none";
+            if (markerSizeInput) markerSizeInput.value = String(youtubeMarkerRadius);
+            if (markerSizeValue) markerSizeValue.innerText = String(youtubeMarkerRadius);
             ["Red", "Yellow", "White"].forEach((name, index) => {
                 document.getElementById("youtubeMarkerBall" + name)?.classList.toggle("active", youtubeMarkerActiveBall === index);
             });
@@ -876,6 +891,10 @@
         }
         function setYoutubeMarkerActiveBall(index) {
             youtubeMarkerActiveBall = clamp(index, 0, 2);
+            updateYoutubeMarkerUi();
+        }
+        function setYoutubeMarkerSize(value) {
+            youtubeMarkerRadius = clamp(Number(value) || 16, 6, 32);
             updateYoutubeMarkerUi();
         }
         function saveYoutubeCalibration() {
