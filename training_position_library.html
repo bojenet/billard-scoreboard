@@ -45,6 +45,8 @@
         .thumb-bg, .thumb-lines, .thumb-balls { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
         .thumb-bg { object-fit:cover; display:block; }
         .thumb-lines, .thumb-balls { display:block; }
+        .media-badge { position:absolute; right:8px; bottom:8px; z-index:2; width:22px; height:16px; border-radius:5px; background:#ff0033; box-shadow:0 2px 8px rgba(0,0,0,.28); display:flex; align-items:center; justify-content:center; }
+        .media-badge svg { width:10px; height:10px; fill:#fff; display:block; }
         .empty { padding:14px; border-radius:14px; border:1px dashed rgba(255,255,255,.18); opacity:.74; }
         @media (max-width: 980px) { .list { grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); } .item-text { -webkit-line-clamp:4; } }
     </style>
@@ -162,6 +164,14 @@
             const code = String(error?.code || "");
             return message.includes("tags") || details.includes("tags") || hint.includes("tags") || code === "PGRST204";
         }
+        function hasMissingVideoColumn(error) {
+            const message = String(error?.message || "");
+            const details = String(error?.details || "");
+            const hint = String(error?.hint || "");
+            const code = String(error?.code || "");
+            const text = `${message} ${details} ${hint}`;
+            return text.includes("video_provider") || code === "PGRST204";
+        }
         function getAvailableTags() {
             return normalizeTags(libraryItems.flatMap((item) => Array.isArray(item.tags) ? item.tags : []))
                 .sort((a, b) => a.localeCompare(b, "de"));
@@ -263,13 +273,16 @@
                 const creatorName = escapeHtml(item.created_by_name || "Unbekannt");
                 const tags = normalizeTags(item.tags || []);
                 const tagsMarkup = tags.length ? `<div class="item-tags">${tags.map((tag) => `<span class="item-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : "";
+                const youtubeBadge = item.video_provider === "youtube"
+                    ? `<span class="media-badge" title="YouTube Video"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.6 15.6V8.4L15.9 12l-6.3 3.6z"></path></svg></span>`
+                    : "";
                 const canEdit = isPositionLibraryEditable(positionLibraryAccessMode);
                 const checkMarkup = canEdit
                     ? `<label class="item-check" title="Für Sammellöschen auswählen"><input type="checkbox" data-select="${item.id}" ${selectedIds.has(item.id) ? "checked" : ""}></label>`
                     : "";
                 const card = document.createElement("div");
                 card.className = "item";
-                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}</div><div class="item-meta">Ersteller: ${creatorName}</div>${tagsMarkup}</div>${checkMarkup}</div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div></div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
+                card.innerHTML = `<div class="item-top"><div><div class="item-title">${escapeHtml(item.title || "Ohne Titel")}</div><div class="item-sub">${escapeHtml(item.discipline || "-")} • ${formatDate(item.updated_at)}</div><div class="item-meta">Ersteller: ${creatorName}</div>${tagsMarkup}</div>${checkMarkup}</div><div class="item-body"><div class="thumb-wrap" data-open="${item.id}" title="Position öffnen"><div class="thumb-stage"><img class="thumb-bg" src="${getTemplateForDiscipline(item.discipline)}" alt="Position"><svg class="thumb-lines" viewBox="0 0 674 1200">${lines.map((line) => { const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : ""; return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ""; }).join("")}</svg><svg class="thumb-balls" viewBox="0 0 674 1200">${renderThumbBallMarkup(layout, item.discipline)}</svg></div>${youtubeBadge}</div><div class="item-text">${item.description ? escapeHtml(item.description).replace(/\n/g, "<br>") : '<span style="opacity:.68;">Keine Beschreibung</span>'}</div></div>`;
                 card.querySelector("[data-open]").onclick = () => openPositionFromLibrary(item.id, visible);
                 const selectBox = card.querySelector("[data-select]");
                 if (selectBox) {
@@ -297,14 +310,14 @@
         async function loadLibrary() {
             let query = supabaseClient
                 .from("training_position_library")
-                .select("id,title,discipline,updated_at,created_by_name,description,tags,ball_layout,line_paths")
+                .select("id,title,discipline,updated_at,created_by_name,description,tags,ball_layout,line_paths,video_provider")
                 .order("updated_at", { ascending: false });
             if (isPositionLibraryEditable(positionLibraryAccessMode)) {
                 query = query.eq("user_id", currentUser.id);
             }
             const { data, error } = await query;
             if (error) {
-                if (!hasMissingTagsColumn(error)) {
+                if (!hasMissingTagsColumn(error) && !hasMissingVideoColumn(error)) {
                     setNotice("Die Positions-Library ist in Supabase noch nicht aktiv. Bitte SQL aus sql/training_position_library.sql ausführen.");
                     libraryItems = [];
                     buildTagFilterButtons();
@@ -327,7 +340,7 @@
                     return;
                 }
                 libraryItems = (fallback.data || []).map((item) => ({ ...item, tags: [] }));
-                setNotice("Tag-Filter werden erst aktiv, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.", "warn");
+                setNotice("Tag-Filter und YouTube-Icons werden erst aktiv, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.", "warn");
                 selectedIds = new Set([...selectedIds].filter((id) => libraryItems.some((item) => item.id === id)));
                 buildTagFilterButtons();
                 renderLibrary();
