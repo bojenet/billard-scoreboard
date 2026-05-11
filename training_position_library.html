@@ -503,15 +503,15 @@
         function buildYoutubeDisciplineSelect() {
             const select = document.getElementById("youtubeDisciplineSelect");
             if (!select) return;
-            select.innerHTML = disciplines
+            select.innerHTML = `<option value="">Disziplin wählen</option>` + disciplines
                 .filter((discipline) => discipline !== "Alle")
                 .map((discipline) => `<option value="${escapeHtml(discipline)}">${escapeHtml(discipline)}</option>`)
                 .join("");
-            select.value = activeFilter !== "Alle" ? activeFilter : "Cadre 47/2";
+            select.value = "";
         }
         function getYoutubeCaptureDiscipline() {
             const selected = document.getElementById("youtubeDisciplineSelect")?.value || "";
-            return disciplines.includes(selected) && selected !== "Alle" ? selected : "Cadre 47/2";
+            return disciplines.includes(selected) && selected !== "Alle" ? selected : "";
         }
         function getTableTypeForDiscipline(discipline) {
             return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB";
@@ -717,6 +717,8 @@
             youtubeCapturePlayerInitPromise = null;
             const iframe = document.getElementById("youtubeCapturePlayer");
             if (iframe) iframe.src = buildYouTubeEmbedUrl(parsed);
+            const disciplineSelect = document.getElementById("youtubeDisciplineSelect");
+            if (disciplineSelect) disciplineSelect.value = "";
             const saveBtn = document.getElementById("saveYoutubeCaptureBtn");
             if (saveBtn) saveBtn.disabled = false;
             setYoutubeCaptureStatus("Video bereit. Abspielen, pausieren, dann Position übernehmen.");
@@ -974,6 +976,12 @@
             const title = String(titleField?.value || youtubeCapturePendingTitle || defaultTitle).trim().slice(0, 120);
             if (!title) return;
             const discipline = getYoutubeCaptureDiscipline();
+            if (!discipline) {
+                alert("Bitte eine Disziplin auswählen.");
+                document.getElementById("youtubeDisciplineSelect")?.focus();
+                setYoutubeCaptureStatus("Disziplin fehlt. Bitte auswählen und erneut speichern.");
+                return;
+            }
             const ownProfile = typeof getOwnProfile === "function" ? await getOwnProfile(currentUser.id) : null;
             const creatorName = (ownProfile?.full_name || (typeof getDisplayName === "function" ? getDisplayName(currentUser) : "") || currentUser.email || currentUser.id || "").trim();
             const markerLayout = getYoutubeMarkerLayout();
