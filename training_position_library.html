@@ -55,6 +55,7 @@
         .youtube-title { font-size:20px; font-weight:800; }
         .youtube-row { display:flex; gap:8px; align-items:center; }
         .youtube-row input { flex:1; min-width:0; border:1px solid #3959ab; border-radius:10px; padding:10px 12px; color:#fff; background:#112659; font-size:14px; }
+        .youtube-row select { border:1px solid #3959ab; border-radius:10px; padding:10px 12px; color:#fff; background:#112659; font-size:14px; font-weight:700; }
         .youtube-stage { position:relative; width:100%; aspect-ratio:16/9; border:1px solid #3557b7; border-radius:14px; background:#050b1e; overflow:hidden; }
         .youtube-player { position:absolute; inset:0; width:100%; height:100%; border:0; background:#050b1e; display:block; }
         .youtube-marker-canvas { position:absolute; inset:0; width:100%; height:100%; z-index:3; display:none; cursor:crosshair; }
@@ -114,6 +115,9 @@
                 <input id="youtubeCaptureInput" type="url" placeholder="YouTube-Link einfügen">
                 <button class="btn secondary" type="button" onclick="loadYoutubeCaptureVideo()">Video laden</button>
             </div>
+            <div class="youtube-row">
+                <select id="youtubeDisciplineSelect"></select>
+            </div>
             <div class="youtube-stage" id="youtubeCaptureStage">
                 <iframe class="youtube-player" id="youtubeCapturePlayer" title="YouTube Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                 <canvas class="youtube-marker-canvas" id="youtubeMarkerCanvas"></canvas>
@@ -133,7 +137,7 @@
             </div>
             <div class="youtube-save-row">
                 <div class="youtube-status" id="youtubeCaptureStatus">Video laden, pausieren, dann Position speichern.</div>
-                <button class="btn primary" id="saveYoutubeCaptureBtn" type="button" onclick="saveYoutubeCapturePosition()" disabled>Position aus aktueller Zeit speichern</button>
+                <button class="btn primary" id="saveYoutubeCaptureBtn" type="button" onclick="captureYoutubePositionTime()" disabled>Position aus aktueller Zeit merken</button>
                 <button class="btn secondary" id="openYoutubeMarkersBtn" type="button" onclick="openYoutubeMarkers()" disabled>Bälle/Tisch Marker setzen</button>
             </div>
         </div>
@@ -193,6 +197,8 @@
         let youtubeMarkerDrag = null;
         let youtubeMarkerOrientation = "up";
         let youtubeMarkerLayout = null;
+        let youtubeCapturePendingSeconds = null;
+        let youtubeCapturePendingTitle = "";
 
         function setNotice(text, type) {
             const box = document.getElementById("noticeBox");
@@ -490,6 +496,19 @@
             });
             setFilter(activeFilter);
         }
+        function buildYoutubeDisciplineSelect() {
+            const select = document.getElementById("youtubeDisciplineSelect");
+            if (!select) return;
+            select.innerHTML = disciplines
+                .filter((discipline) => discipline !== "Alle")
+                .map((discipline) => `<option value="${escapeHtml(discipline)}">${escapeHtml(discipline)}</option>`)
+                .join("");
+            select.value = activeFilter !== "Alle" ? activeFilter : "Cadre 47/2";
+        }
+        function getYoutubeCaptureDiscipline() {
+            const selected = document.getElementById("youtubeDisciplineSelect")?.value || "";
+            return disciplines.includes(selected) && selected !== "Alle" ? selected : "Cadre 47/2";
+        }
         function getTableTypeForDiscipline(discipline) {
             return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB";
         }
@@ -650,6 +669,7 @@
             if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             const modal = document.getElementById("youtubeCaptureModal");
             if (!modal) return;
+            buildYoutubeDisciplineSelect();
             modal.classList.add("visible");
             modal.setAttribute("aria-hidden", "false");
             document.getElementById("youtubeCaptureInput")?.focus();
@@ -678,6 +698,8 @@
                 alert("Bitte einen gültigen YouTube-Link einfügen.");
                 return;
             }
+            youtubeCapturePendingSeconds = null;
+            youtubeCapturePendingTitle = "";
             youtubeCaptureUrl = buildYouTubeWatchUrl(parsed.id, parsed.start);
             youtubeCapturePlayer = null;
             youtubeCapturePlayerSrc = "";
@@ -691,6 +713,20 @@
             setYoutubeCaptureStatus("Video bereit. Pausieren und Position speichern.");
             ensureYoutubeCapturePlayer();
         }
+        async function captureYoutubePositionTime() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            if (!parseYouTubeUrl(youtubeCaptureUrl)) {
+                alert("Bitte zuerst ein YouTube-Video laden.");
+                return;
+            }
+            const seconds = Math.max(0, Math.floor(await getYoutubeCaptureTime()));
+            const defaultTitle = `Position ${formatVideoTimestamp(seconds)}`;
+            const title = String(prompt("Name der neuen Position:", defaultTitle) || "").trim().slice(0, 120);
+            if (!title) return;
+            youtubeCapturePendingSeconds = seconds;
+            youtubeCapturePendingTitle = title;
+            setYoutubeCaptureStatus(`Position gemerkt: ${title} (${formatVideoTimestamp(seconds)}). Jetzt Marker setzen und Pos speichern.`);
+        }
         function sizeYoutubeMarkerCanvas() {
             const canvas = document.getElementById("youtubeMarkerCanvas");
             const stage = document.getElementById("youtubeCaptureStage");
@@ -703,20 +739,24 @@
         function drawYoutubeMarker(ctx, pt, index, highlighted) {
             const arm = highlighted ? 18 : 14;
             const gap = highlighted ? 5 : 4;
+            const drawPath = () => {
+                ctx.beginPath();
+                ctx.moveTo(pt.x - arm, pt.y);
+                ctx.lineTo(pt.x - gap, pt.y);
+                ctx.moveTo(pt.x + gap, pt.y);
+                ctx.lineTo(pt.x + arm, pt.y);
+                ctx.moveTo(pt.x, pt.y - arm);
+                ctx.lineTo(pt.x, pt.y - gap);
+                ctx.moveTo(pt.x, pt.y + gap);
+                ctx.lineTo(pt.x, pt.y + arm);
+            };
             ctx.strokeStyle = "#10192f";
             ctx.lineWidth = highlighted ? 5 : 4;
-            ctx.beginPath();
-            ctx.moveTo(pt.x - arm, pt.y);
-            ctx.lineTo(pt.x - gap, pt.y);
-            ctx.moveTo(pt.x + gap, pt.y);
-            ctx.lineTo(pt.x + arm, pt.y);
-            ctx.moveTo(pt.x, pt.y - arm);
-            ctx.lineTo(pt.x, pt.y - gap);
-            ctx.moveTo(pt.x, pt.y + gap);
-            ctx.lineTo(pt.x, pt.y + arm);
+            drawPath();
             ctx.stroke();
             ctx.strokeStyle = highlighted ? "#ffd84a" : "#9fdcff";
             ctx.lineWidth = highlighted ? 3 : 2.5;
+            drawPath();
             ctx.stroke();
             ctx.fillStyle = highlighted ? "#ffd84a" : "#9fdcff";
             ctx.font = "bold 18px Arial";
@@ -905,11 +945,13 @@
                 alert("Bitte zuerst ein YouTube-Video laden.");
                 return;
             }
-            const seconds = Math.max(0, Math.floor(await getYoutubeCaptureTime()));
+            const seconds = Number.isFinite(Number(youtubeCapturePendingSeconds))
+                ? Math.max(0, Math.floor(Number(youtubeCapturePendingSeconds)))
+                : Math.max(0, Math.floor(await getYoutubeCaptureTime()));
             const defaultTitle = `Position ${formatVideoTimestamp(seconds)}`;
-            const title = String(prompt("Name der neuen Position:", defaultTitle) || "").trim().slice(0, 120);
+            const title = String(youtubeCapturePendingTitle || prompt("Name der neuen Position:", defaultTitle) || "").trim().slice(0, 120);
             if (!title) return;
-            const discipline = activeFilter !== "Alle" ? activeFilter : "Cadre 47/2";
+            const discipline = getYoutubeCaptureDiscipline();
             const ownProfile = typeof getOwnProfile === "function" ? await getOwnProfile(currentUser.id) : null;
             const creatorName = (ownProfile?.full_name || (typeof getDisplayName === "function" ? getDisplayName(currentUser) : "") || currentUser.email || currentUser.id || "").trim();
             const markerLayout = useMarkers ? getYoutubeMarkerLayout() : null;
@@ -925,30 +967,39 @@
                 is_followup: false,
                 video_timestamp: seconds
             };
-            const { error } = await supabaseClient
+            const payload = {
+                user_id: currentUser.id,
+                created_by_name: creatorName,
+                title,
+                discipline,
+                description: `Aus YouTube-Video bei ${formatVideoTimestamp(seconds)}`,
+                reference_photo: "",
+                tags: [],
+                video_path: "",
+                video_name: "YouTube",
+                video_size: 0,
+                video_type: "",
+                video_provider: "youtube",
+                video_url: buildYouTubeWatchUrl(parsed.id, seconds),
+                ball_layout: cloneLayout(layout),
+                line_paths: [],
+                position_pages: [page]
+            };
+            const { data, error } = await supabaseClient
                 .from("training_position_library")
-                .insert({
-                    user_id: currentUser.id,
-                    created_by_name: creatorName,
-                    title,
-                    discipline,
-                    description: `Aus YouTube-Video bei ${formatVideoTimestamp(seconds)}`,
-                    reference_photo: "",
-                    tags: [],
-                    video_path: "",
-                    video_name: "YouTube",
-                    video_size: 0,
-                    video_type: "",
-                    video_provider: "youtube",
-                    video_url: buildYouTubeWatchUrl(parsed.id, seconds),
-                    ball_layout: cloneLayout(layout),
-                    line_paths: [],
-                    position_pages: [page]
-                });
+                .insert(payload)
+                .select("id,video_provider,video_url,ball_layout,position_pages")
+                .single();
             if (error) {
                 alert("Position konnte nicht gespeichert werden: " + error.message);
                 return;
             }
+            if (data?.video_provider !== "youtube" || !data?.video_url || !data?.ball_layout?.red) {
+                alert("Position wurde gespeichert, aber Video-Link oder Ballgrafik wurden nicht vollständig zurückgegeben. Bitte SQL aus sql/training_position_library.sql in Supabase prüfen.");
+                return;
+            }
+            youtubeCapturePendingSeconds = null;
+            youtubeCapturePendingTitle = "";
             setYoutubeCaptureStatus(`Gespeichert: ${title} (${formatVideoTimestamp(seconds)})`);
             await loadLibrary();
         }
@@ -964,6 +1015,7 @@
             document.getElementById("newYoutubePositionBtn").style.display = isPositionLibraryEditable(positionLibraryAccessMode) ? "inline-flex" : "none";
             updateDeleteSelectedUi();
             buildFilterButtons();
+            buildYoutubeDisciplineSelect();
             await loadLibrary();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
