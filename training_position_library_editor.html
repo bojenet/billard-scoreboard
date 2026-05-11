@@ -37,14 +37,13 @@
         .chips { display:flex; gap:8px; flex-wrap:wrap; }
         .chip { padding:10px 14px; border:none; border-radius:999px; background:#1c3380; color:#fff; font-size:14px; font-weight:700; cursor:pointer; border:1px solid #2f4ea0; }
         .chip.active { background:#ffd84a; color:#101420; border-color:#ffe27a; }
-        .tag-input-row { display:flex; gap:8px; align-items:center; }
+        .tag-input-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; }
         .tag-input-row input { flex:1; }
         .tag-list { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
         .tag-pill { display:inline-flex; align-items:center; gap:7px; border:1px solid #4864bf; background:#172f72; color:#fff; border-radius:999px; padding:7px 10px; font-size:13px; font-weight:700; }
         .tag-pill button { width:18px; height:18px; border:none; border-radius:50%; background:rgba(255,255,255,.16); color:#fff; cursor:pointer; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center; padding:0; }
-        .tag-suggestions { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
-        .tag-suggestion { border:1px solid #3557b7; border-radius:999px; background:#112659; color:#d9e2ff; padding:7px 10px; font-size:13px; font-weight:700; cursor:pointer; }
-        .tag-suggestion:hover { background:#1c3380; }
+        .tag-picker-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; align-items:center; margin-top:8px; }
+        .tag-picker-row select { min-width:0; border:1px solid #3959ab; border-radius:10px; padding:10px 12px; color:#fff; background:#112659; font-size:14px; }
         .icon-toolbar { display:flex; gap:12px; flex-wrap:nowrap; align-items:center; margin-bottom:10px; overflow-x:auto; padding:4px 0; }
         .icon-btn { width:42px; height:42px; border:none; border-radius:0; padding:0; background:transparent; color:#fff; font-size:18px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:none; filter:drop-shadow(0 2px 0 rgba(255,255,255,.18)) drop-shadow(0 5px 8px rgba(0,0,0,.28)); transition:transform .12s ease, filter .12s ease, opacity .12s ease; }
         .icon-btn:hover { transform:translateY(-1px); filter:drop-shadow(0 3px 0 rgba(255,255,255,.2)) drop-shadow(0 7px 10px rgba(0,0,0,.32)); }
@@ -197,7 +196,11 @@
                             <button class="btn secondary" id="tagAddBtn" type="button" onclick="addTagFromInput()">Hinzufügen</button>
                         </div>
                         <div class="tag-list" id="selectedTags"></div>
-                        <div class="tag-suggestions" id="tagSuggestions"></div>
+                        <div class="tag-picker-row" id="tagPickerRow">
+                            <select id="tagSelect"></select>
+                            <button class="btn secondary" id="tagSelectAddBtn" type="button" onclick="addTagFromSelect()">Auswählen</button>
+                            <button class="btn danger" id="tagDeleteBtn" type="button" onclick="deleteSelectedAvailableTag()">Tag löschen</button>
+                        </div>
                     </div>
                     <div class="actions">
                         <button class="btn secondary" id="photoImportBtn" type="button" onclick="openPhotoImportMobile()">Foto importieren</button>
@@ -354,10 +357,9 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const positionId = params.get("id") || "";
-        const disciplines = ["Freie Partie", "Freie Partie 2x", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
+        const disciplines = ["Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
         const tableTemplates = {
             "Freie Partie": "assets/discipline-mb-libre.png",
-            "Freie Partie 2x": "assets/discipline-mb-libre.png",
             "Cadre 35/2": "assets/discipline-tb-35.png",
             "Cadre 52/2": "assets/discipline-tb-52.png",
             "Cadre 47/2": "assets/discipline-mb-47.png",
@@ -794,18 +796,66 @@
             if (input) input.value = "";
             renderTagUi();
         }
+        function addTagFromSelect() {
+            const select = document.getElementById("tagSelect");
+            if (!select?.value) return;
+            addTag(select.value);
+        }
         function removeTag(tag) {
             const key = String(tag || "").toLowerCase();
             selectedTags = selectedTags.filter((existing) => existing.toLowerCase() !== key);
             renderTagUi();
         }
+        async function deleteAvailableTag(tag) {
+            if (!isEditorEditable()) return;
+            const normalized = normalizeTag(tag);
+            if (!normalized) return;
+            if (!confirm(`Tag "${normalized}" wirklich aus allen Positionen entfernen?`)) return;
+            const key = normalized.toLowerCase();
+            const { data, error } = await supabaseClient
+                .from("training_position_library")
+                .select("id,tags")
+                .contains("tags", [normalized]);
+            if (error) {
+                if (hasMissingTagsColumn(error)) {
+                    alert("Tags können erst gelöscht werden, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.");
+                    return;
+                }
+                alert("Tag konnte nicht gelöscht werden: " + error.message);
+                return;
+            }
+            const rows = Array.isArray(data) ? data : [];
+            for (const row of rows) {
+                const nextTags = normalizeTags(row.tags || []).filter((existing) => existing.toLowerCase() !== key);
+                const { error: updateError } = await supabaseClient
+                    .from("training_position_library")
+                    .update({ tags: nextTags })
+                    .eq("id", row.id)
+                    .eq("user_id", currentUser.id);
+                if (updateError) {
+                    alert("Tag konnte nicht aus allen Positionen entfernt werden: " + updateError.message);
+                    return;
+                }
+            }
+            selectedTags = selectedTags.filter((existing) => existing.toLowerCase() !== key);
+            availableTags = availableTags.filter((existing) => existing.toLowerCase() !== key);
+            renderTagUi();
+        }
+        function deleteSelectedAvailableTag() {
+            const select = document.getElementById("tagSelect");
+            deleteAvailableTag(select?.value || "");
+        }
         function renderTagUi() {
             const selectedWrap = document.getElementById("selectedTags");
-            const suggestionsWrap = document.getElementById("tagSuggestions");
             const input = document.getElementById("tagInput");
             const inputRow = document.getElementById("tagInputRow");
+            const pickerRow = document.getElementById("tagPickerRow");
+            const select = document.getElementById("tagSelect");
+            const selectAddBtn = document.getElementById("tagSelectAddBtn");
+            const deleteBtn = document.getElementById("tagDeleteBtn");
             const readOnly = !isEditorEditable();
             if (inputRow) inputRow.style.display = readOnly ? "none" : "flex";
+            if (pickerRow) pickerRow.style.display = readOnly || !availableTags.length ? "none" : "grid";
             if (input) {
                 input.disabled = readOnly;
                 input.placeholder = readOnly ? "" : "Tag eingeben";
@@ -815,11 +865,17 @@
                     ? selectedTags.map((tag) => `<span class="tag-pill">${escapeHtml(tag)}${readOnly ? "" : `<button type="button" onclick="removeTag('${escapeHtml(tag)}')" title="Tag entfernen">×</button>`}</span>`).join("")
                     : `<span class="section-sub" style="margin:0;">Keine Tags</span>`;
             }
-            if (suggestionsWrap) {
+            if (select) {
                 const selectedKeys = new Set(selectedTags.map((tag) => tag.toLowerCase()));
                 const suggestions = availableTags.filter((tag) => !selectedKeys.has(tag.toLowerCase()));
-                suggestionsWrap.style.display = readOnly || !suggestions.length ? "none" : "flex";
-                suggestionsWrap.innerHTML = suggestions.map((tag) => `<button class="tag-suggestion" type="button" onclick="addTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</button>`).join("");
+                const previous = select.value;
+                select.innerHTML = suggestions.length
+                    ? suggestions.map((tag) => `<option value="${escapeHtml(tag)}">${escapeHtml(tag)}</option>`).join("")
+                    : `<option value="">Keine Tags verfügbar</option>`;
+                select.value = suggestions.some((tag) => tag === previous) ? previous : (suggestions[0] || "");
+                select.disabled = readOnly || !suggestions.length;
+                if (selectAddBtn) selectAddBtn.disabled = readOnly || !suggestions.length;
+                if (deleteBtn) deleteBtn.disabled = readOnly || !select.value;
             }
         }
         function updatePositionVideoUi() {
