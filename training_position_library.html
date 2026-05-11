@@ -88,6 +88,7 @@
             <div class="actions">
                 <button class="btn primary" id="newPositionBtn" type="button" onclick="window.location.href='training_position_library_editor.html'">Neu</button>
                 <button class="btn primary" id="newYoutubePositionBtn" type="button" onclick="openYoutubeCapture()">Neu von YouTube Video</button>
+                <button class="btn secondary" id="exportSelectedPdfBtn" type="button" onclick="exportSelectedPositionsPdf()" style="display:none;">Auswahl als PDF</button>
                 <button class="btn danger" id="deleteSelectedBtn" type="button" onclick="deleteSelectedPositions()" style="display:none;">Auswahl löschen</button>
                 <button class="btn" type="button" onclick="window.location.href='training.html'">Zurück</button>
             </div>
@@ -541,12 +542,19 @@
             return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString("de-DE", { dateStyle: "short" });
         }
         function updateDeleteSelectedUi() {
-            const button = document.getElementById("deleteSelectedBtn");
-            if (!button) return;
+            const deleteButton = document.getElementById("deleteSelectedBtn");
+            const exportButton = document.getElementById("exportSelectedPdfBtn");
             const canEdit = isPositionLibraryEditable(positionLibraryAccessMode);
-            button.style.display = canEdit ? "inline-flex" : "none";
-            button.disabled = !selectedIds.size;
-            button.innerText = selectedIds.size ? `Auswahl löschen (${selectedIds.size})` : "Auswahl löschen";
+            if (deleteButton) {
+                deleteButton.style.display = canEdit ? "inline-flex" : "none";
+                deleteButton.disabled = !selectedIds.size;
+                deleteButton.innerText = selectedIds.size ? `Auswahl löschen (${selectedIds.size})` : "Auswahl löschen";
+            }
+            if (exportButton) {
+                exportButton.style.display = canEdit ? "inline-flex" : "none";
+                exportButton.disabled = !selectedIds.size;
+                exportButton.innerText = selectedIds.size ? `Auswahl als PDF (${selectedIds.size})` : "Auswahl als PDF";
+            }
         }
         function toggleSelection(id, checked) {
             if (!id) return;
@@ -579,7 +587,7 @@
                     : "";
                 const canEdit = isPositionLibraryEditable(positionLibraryAccessMode);
                 const checkMarkup = canEdit
-                    ? `<label class="item-check" title="Für Sammellöschen auswählen"><input type="checkbox" data-select="${item.id}" ${selectedIds.has(item.id) ? "checked" : ""}></label>`
+                    ? `<label class="item-check" title="Für Auswahl markieren"><input type="checkbox" data-select="${item.id}" ${selectedIds.has(item.id) ? "checked" : ""}></label>`
                     : "";
                 const card = document.createElement("div");
                 card.className = "item";
@@ -676,6 +684,203 @@
             }
             selectedIds.clear();
             await loadLibrary();
+        }
+        function cloneLines(lines) {
+            return (Array.isArray(lines) ? lines : []).map((line) => ({
+                ...line,
+                points: Array.isArray(line.points) ? line.points.map((point) => ({ x: Number(point.x) || 0, y: Number(point.y) || 0 })) : []
+            }));
+        }
+        function cloneExportPage(page, fallbackItem) {
+            return {
+                ball_layout: cloneLayout(page?.ball_layout || fallbackItem?.ball_layout || defaultLayout),
+                line_paths: cloneLines(page?.line_paths || fallbackItem?.line_paths || []),
+                page_description: String(page?.page_description || "")
+            };
+        }
+        function getExportPagesForItem(item) {
+            const pages = Array.isArray(item?.position_pages) && item.position_pages.length
+                ? item.position_pages
+                : [{ ball_layout: item?.ball_layout, line_paths: item?.line_paths, page_description: "" }];
+            return pages.map((page) => cloneExportPage(page, item));
+        }
+        function renderExportLineArrowMarkup(points, size = 11) {
+            const source = Array.isArray(points) ? points : [];
+            if (source.length < 2) return "";
+            const tip = source[source.length - 1];
+            let tail = null;
+            for (let index = source.length - 2; index >= 0; index -= 1) {
+                const candidate = source[index];
+                if (Math.hypot(tip.x - candidate.x, tip.y - candidate.y) > 0.5) {
+                    tail = candidate;
+                    break;
+                }
+            }
+            if (!tail) return "";
+            const dx = tip.x - tail.x;
+            const dy = tip.y - tail.y;
+            const length = Math.hypot(dx, dy);
+            if (!length) return "";
+            const ux = dx / length;
+            const uy = dy / length;
+            const px = -uy;
+            const py = ux;
+            const baseX = tip.x - ux * size;
+            const baseY = tip.y - uy * size;
+            const wing = size * 0.52;
+            return `<polygon points="${tip.x},${tip.y} ${baseX + px * wing},${baseY + py * wing} ${baseX - px * wing},${baseY - py * wing}" fill="#111111" opacity="0.95"></polygon>`;
+        }
+        function renderExportLineMarkup(lines) {
+            return cloneLines(lines).map((line) => {
+                const points = Array.isArray(line.points) ? line.points : [];
+                if (points.length < 2) return "";
+                const polyline = points.map((point) => `${point.x},${point.y}`).join(" ");
+                return `<polyline points="${polyline}" fill="none" stroke="#111111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8 7" opacity="0.95"></polyline>${renderExportLineArrowMarkup(points)}`;
+            }).join("");
+        }
+        function renderExportBallMarkup(layout, discipline) {
+            const spec = TABLE_RENDER_SPECS[getTableTypeForDiscipline(discipline)] || TABLE_RENDER_SPECS.MB;
+            const safeLayout = cloneLayout(layout);
+            return `
+                <g transform="translate(${safeLayout.red.x} ${safeLayout.red.y})"><circle r="${spec.radius}" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.whiteStrokeWidth}"></circle></g>
+                <g transform="translate(${safeLayout.yellow.x} ${safeLayout.yellow.y})"><circle r="${spec.radius}" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.whiteStrokeWidth}"></circle></g>
+                <g transform="translate(${safeLayout.white.x} ${safeLayout.white.y})"><circle r="${spec.radius}" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="${spec.whiteStrokeWidth}"></circle></g>
+            `;
+        }
+        function renderExportPositionItemMarkup(page, label, discipline) {
+            const templateUrl = new URL(getTemplateForDiscipline(discipline), window.location.href).href;
+            const pageDescription = String(page.page_description || "").trim();
+            const pageDescriptionMarkup = pageDescription
+                ? `<div class="pdf-page-description">${escapeHtml(pageDescription).replace(/\n/g, "<br>")}</div>`
+                : "";
+            return `
+                <div class="pdf-cover-position-item">
+                    <div class="pdf-cover-position-title">${escapeHtml(label || "Position")}</div>
+                    <div class="pdf-table-wrap">
+                        <div class="pdf-table-stage">
+                            <img class="pdf-table-bg" src="${templateUrl}" alt="Tischvorlage">
+                            <svg class="pdf-table-lines" viewBox="0 0 674 1200" aria-hidden="true">${renderExportLineMarkup(page.line_paths)}</svg>
+                            <svg class="pdf-table-balls" viewBox="0 0 674 1200" aria-hidden="true">${renderExportBallMarkup(page.ball_layout, discipline)}</svg>
+                        </div>
+                    </div>
+                    ${pageDescriptionMarkup}
+                </div>
+            `;
+        }
+        function renderExportPositionGridMarkup(pages, startIndex, discipline) {
+            return `
+                <div class="pdf-cover-position-grid">
+                    ${pages.map((page, index) => renderExportPositionItemMarkup(page, `Position ${startIndex + index + 1}`, discipline)).join("")}
+                </div>
+            `;
+        }
+        function buildSelectedPositionsPdfHtml(items) {
+            const safeTitle = `Positionsauswahl (${items.length})`;
+            const sections = items.map((item) => {
+                const pages = getExportPagesForItem(item);
+                const referencePhoto = String(item.reference_photo || "").trim();
+                const description = String(item.description || "").trim();
+                const coverPages = referencePhoto ? [] : pages.slice(0, 2);
+                const extraPageStartIndex = referencePhoto ? 0 : coverPages.length;
+                const extraPositionGroups = [];
+                for (let index = extraPageStartIndex; index < pages.length; index += 2) {
+                    extraPositionGroups.push({ startIndex: index, pages: pages.slice(index, index + 2) });
+                }
+                const coverVisualMarkup = referencePhoto
+                    ? `<div class="pdf-cover-photo-wrap"><img class="pdf-cover-photo" src="${referencePhoto}" alt="Referenzfoto"></div>`
+                    : renderExportPositionGridMarkup(coverPages, 0, item.discipline);
+                const descriptionMarkup = description
+                    ? escapeHtml(description).replace(/\n/g, "<br>")
+                    : '<span class="muted">Keine Beschreibung</span>';
+                const positionCountText = `${pages.length} Position${pages.length === 1 ? "" : "en"}`;
+                const createdDate = formatDate(item.created_at || item.updated_at);
+                return `
+                    <section class="pdf-page pdf-cover">
+                        <div>
+                            <h1>${escapeHtml(item.title || "Ohne Titel")}</h1>
+                            <div class="meta">${escapeHtml(item.discipline || "-")} · ${positionCountText}${createdDate && createdDate !== "-" ? " · Erstellt am " + escapeHtml(createdDate) : ""}</div>
+                            <div class="description">${descriptionMarkup}</div>
+                        </div>
+                        ${coverVisualMarkup}
+                    </section>
+                    ${extraPositionGroups.map((group) => `<section class="pdf-page position-page">${renderExportPositionGridMarkup(group.pages, group.startIndex, item.discipline)}</section>`).join("")}
+                `;
+            }).join("");
+            return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${escapeHtml(safeTitle)}</title>
+    <style>
+        @page { size:A4; margin:14mm; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:Arial,sans-serif; color:#172033; background:#fff; }
+        h1 { margin:0 0 6mm; font-size:26pt; line-height:1.1; }
+        .meta { margin-bottom:8mm; color:#42506a; font-size:11pt; }
+        .description { font-size:12pt; line-height:1.45; white-space:normal; }
+        .muted { color:#7b8497; }
+        .pdf-page { page-break-after:always; break-after:page; }
+        .pdf-page:last-child { page-break-after:auto; break-after:auto; }
+        .pdf-cover-photo-wrap { width:100%; height:170mm; margin-top:8mm; display:flex; align-items:center; justify-content:center; border:1px solid #d5dbe7; background:#f7f9fc; padding:4mm; }
+        .pdf-cover-photo { display:block; max-width:100%; max-height:100%; object-fit:contain; }
+        .pdf-cover-position-grid { margin-top:8mm; display:grid; grid-template-columns:1fr; gap:6mm; align-items:start; }
+        .pdf-cover-position-title { margin-bottom:2mm; color:#6b7486; font-size:10pt; font-weight:700; }
+        .pdf-table-wrap { position:relative; width:100%; aspect-ratio:1200/674; overflow:hidden; background:#f7f7f4; border:1px solid #cfd5df; }
+        .pdf-table-stage { position:absolute; inset:0; }
+        .pdf-table-bg, .pdf-table-lines, .pdf-table-balls { position:absolute; top:50%; left:50%; width:56.1667%; height:178.0415%; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center; }
+        .pdf-table-bg { display:block; object-fit:cover; }
+        .pdf-table-lines, .pdf-table-balls { display:block; }
+        .pdf-page-description { margin-top:2.2mm; color:#172033; font-size:10pt; line-height:1.35; }
+        @media screen {
+            body { background:#e8ecf4; padding:18px; }
+            .pdf-page { width:210mm; min-height:297mm; margin:0 auto 18px; padding:14mm; background:#fff; box-shadow:0 8px 28px rgba(25,35,55,.18); }
+        }
+    </style>
+</head>
+<body>
+    ${sections}
+    <script>
+        window.addEventListener("load", () => {
+            const images = Array.from(document.images);
+            Promise.all(images.map((image) => image.complete ? Promise.resolve() : new Promise((resolve) => {
+                image.onload = resolve;
+                image.onerror = resolve;
+            }))).then(() => setTimeout(() => {
+                window.focus();
+                window.print();
+            }, 500));
+        });
+    <\/script>
+</body>
+</html>`;
+        }
+        async function exportSelectedPositionsPdf() {
+            if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
+            const orderedIds = libraryItems.filter((item) => selectedIds.has(item.id)).map((item) => item.id);
+            if (!orderedIds.length) return;
+            const { data, error } = await supabaseClient
+                .from("training_position_library")
+                .select("*")
+                .in("id", orderedIds)
+                .eq("user_id", currentUser.id);
+            if (error) {
+                alert("PDF-Export konnte nicht vorbereitet werden: " + error.message);
+                return;
+            }
+            const byId = new Map((data || []).map((item) => [item.id, item]));
+            const items = orderedIds.map((id) => byId.get(id)).filter(Boolean);
+            if (!items.length) {
+                alert("Keine markierten Positionen gefunden.");
+                return;
+            }
+            const printWindow = window.open("", "_blank");
+            if (!printWindow) {
+                alert("Der PDF-Export wurde vom Browser blockiert. Bitte Pop-ups für diese Seite erlauben.");
+                return;
+            }
+            printWindow.document.open();
+            printWindow.document.write(buildSelectedPositionsPdfHtml(items));
+            printWindow.document.close();
         }
         function openYoutubeCapture() {
             if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
