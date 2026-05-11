@@ -54,6 +54,8 @@
         .youtube-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
         .youtube-title { font-size:20px; font-weight:800; }
         .youtube-row { display:flex; gap:8px; align-items:center; }
+        .youtube-edit-panel { display:none; flex-wrap:wrap; }
+        .youtube-edit-panel.visible { display:flex; }
         .youtube-row input { flex:1; min-width:0; border:1px solid #3959ab; border-radius:10px; padding:10px 12px; color:#fff; background:#112659; font-size:14px; }
         .youtube-row select { border:1px solid #3959ab; border-radius:10px; padding:10px 12px; color:#fff; background:#112659; font-size:14px; font-weight:700; }
         .youtube-stage { position:relative; width:100%; aspect-ratio:16/9; border:1px solid #3557b7; border-radius:14px; background:#050b1e; overflow:hidden; }
@@ -115,7 +117,7 @@
                 <input id="youtubeCaptureInput" type="url" placeholder="YouTube-Link einfügen">
                 <button class="btn secondary" type="button" onclick="loadYoutubeCaptureVideo()">Video laden</button>
             </div>
-            <div class="youtube-row">
+            <div class="youtube-row youtube-edit-panel" id="youtubeEditPanel">
                 <label class="filter-label" for="youtubeDisciplineSelect" style="margin:0; min-width:78px;">Disziplin</label>
                 <select id="youtubeDisciplineSelect"></select>
                 <input id="youtubePositionTitleInput" type="text" maxlength="120" placeholder="Positionsname">
@@ -139,9 +141,8 @@
                 </div>
             </div>
             <div class="youtube-save-row">
-                <div class="youtube-status" id="youtubeCaptureStatus">Video laden, pausieren, dann Position speichern.</div>
-                <button class="btn primary" id="saveYoutubeCaptureBtn" type="button" onclick="captureYoutubePositionTime()" disabled>Aktuelle Zeit übernehmen</button>
-                <button class="btn secondary" id="openYoutubeMarkersBtn" type="button" onclick="openYoutubeMarkers()" disabled>Bälle/Tisch Marker setzen</button>
+                <div class="youtube-status" id="youtubeCaptureStatus">Video laden, pausieren, dann Position übernehmen.</div>
+                <button class="btn primary" id="saveYoutubeCaptureBtn" type="button" onclick="startYoutubePositionCapture()" disabled>Position übernehmen</button>
             </div>
         </div>
     </div>
@@ -694,6 +695,14 @@
             const status = document.getElementById("youtubeCaptureStatus");
             if (status) status.innerText = text || "";
         }
+        function resetYoutubeCaptureDraft() {
+            youtubeCapturePendingSeconds = null;
+            youtubeCapturePendingTitle = "";
+            const titleInput = document.getElementById("youtubePositionTitleInput");
+            const timeInput = document.getElementById("youtubeTimestampInput");
+            if (titleInput) titleInput.value = "";
+            if (timeInput) timeInput.value = "Zeit: -";
+        }
         function loadYoutubeCaptureVideo() {
             const input = document.getElementById("youtubeCaptureInput");
             const parsed = parseYouTubeUrl(input?.value || "");
@@ -701,12 +710,8 @@
                 alert("Bitte einen gültigen YouTube-Link einfügen.");
                 return;
             }
-            youtubeCapturePendingSeconds = null;
-            youtubeCapturePendingTitle = "";
-            const titleInput = document.getElementById("youtubePositionTitleInput");
-            const timeInput = document.getElementById("youtubeTimestampInput");
-            if (titleInput) titleInput.value = "";
-            if (timeInput) timeInput.value = "Zeit: -";
+            closeYoutubeMarkers();
+            resetYoutubeCaptureDraft();
             youtubeCaptureUrl = buildYouTubeWatchUrl(parsed.id, parsed.start);
             youtubeCapturePlayer = null;
             youtubeCapturePlayerSrc = "";
@@ -714,17 +719,19 @@
             const iframe = document.getElementById("youtubeCapturePlayer");
             if (iframe) iframe.src = buildYouTubeEmbedUrl(parsed);
             const saveBtn = document.getElementById("saveYoutubeCaptureBtn");
-            const markerBtn = document.getElementById("openYoutubeMarkersBtn");
             if (saveBtn) saveBtn.disabled = false;
-            if (markerBtn) markerBtn.disabled = false;
-            setYoutubeCaptureStatus("Video bereit. Pausieren, aktuelle Zeit übernehmen, Marker setzen, Pos speichern.");
+            setYoutubeCaptureStatus("Video bereit. Abspielen, pausieren, dann Position übernehmen.");
             ensureYoutubeCapturePlayer();
         }
-        async function captureYoutubePositionTime() {
+        async function startYoutubePositionCapture() {
             if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             if (!parseYouTubeUrl(youtubeCaptureUrl)) {
                 alert("Bitte zuerst ein YouTube-Video laden.");
                 return;
+            }
+            const player = await ensureYoutubeCapturePlayer();
+            if (player && typeof player.pauseVideo === "function") {
+                try { player.pauseVideo(); } catch (_) {}
             }
             const seconds = Math.max(0, Math.floor(await getYoutubeCaptureTime()));
             const defaultTitle = `Position ${formatVideoTimestamp(seconds)}`;
@@ -734,7 +741,9 @@
             if (timeInput) timeInput.value = `Zeit: ${formatVideoTimestamp(seconds)}`;
             youtubeCapturePendingSeconds = seconds;
             youtubeCapturePendingTitle = String(titleInput?.value || defaultTitle).trim().slice(0, 120);
-            setYoutubeCaptureStatus(`Zeit übernommen: ${formatVideoTimestamp(seconds)}. Jetzt Marker setzen und Pos speichern.`);
+            youtubeMarkerActive = true;
+            resetYoutubeMarkers();
+            setYoutubeCaptureStatus(`Frame übernommen: ${formatVideoTimestamp(seconds)}. Daten bearbeiten, Marker setzen und Pos speichern.`);
         }
         function sizeYoutubeMarkerCanvas() {
             const canvas = document.getElementById("youtubeMarkerCanvas");
@@ -830,6 +839,9 @@
         function updateYoutubeMarkerUi() {
             document.getElementById("youtubeCaptureStage")?.classList.toggle("marker-active", youtubeMarkerActive);
             document.getElementById("youtubeMarkerTools")?.classList.toggle("visible", youtubeMarkerActive);
+            document.getElementById("youtubeEditPanel")?.classList.toggle("visible", youtubeMarkerActive);
+            const captureBtn = document.getElementById("saveYoutubeCaptureBtn");
+            if (captureBtn) captureBtn.style.display = youtubeMarkerActive ? "none" : "";
             document.getElementById("youtubeMarkerCornersBtn")?.classList.toggle("primary", youtubeMarkerStep === "corners");
             document.getElementById("youtubeMarkerBallsBtn")?.classList.toggle("primary", youtubeMarkerStep === "balls");
             const ballPicks = document.getElementById("youtubeMarkerBallPicks");
@@ -854,6 +866,7 @@
         function closeYoutubeMarkers() {
             youtubeMarkerActive = false;
             youtubeMarkerDrag = null;
+            resetYoutubeCaptureDraft();
             updateYoutubeMarkerUi();
         }
         function setYoutubeMarkerStep(step) {
@@ -1008,12 +1021,11 @@
                 alert("Position wurde gespeichert, aber Video-Link oder Ballgrafik wurden nicht vollständig zurückgegeben. Bitte SQL aus sql/training_position_library.sql in Supabase prüfen.");
                 return;
             }
-            youtubeCapturePendingSeconds = null;
-            youtubeCapturePendingTitle = "";
-            const timeInput = document.getElementById("youtubeTimestampInput");
-            if (timeInput) timeInput.value = "Zeit: -";
-            if (titleField) titleField.value = "";
+            closeYoutubeMarkers();
             setYoutubeCaptureStatus(`Gespeichert: ${title} (${discipline}, ${formatVideoTimestamp(seconds)})`);
+            if (youtubeCapturePlayer && typeof youtubeCapturePlayer.playVideo === "function") {
+                try { youtubeCapturePlayer.playVideo(); } catch (_) {}
+            }
             await loadLibrary();
         }
         async function init() {
