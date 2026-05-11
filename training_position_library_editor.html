@@ -1230,15 +1230,14 @@
             photoImportMobileCorners.forEach((pt, index) => {
                 drawPhotoImportTargetMarker(ctx, pt, index, photoImportMobileStep === "corners");
             });
-            const ballColors = ["#cf2e2e", "#e0bb20", "#f3f5fb"];
             photoImportMobileBalls.forEach((pt, index) => {
                 const isActive = photoImportMobileActiveBall === index;
-                ctx.strokeStyle = isActive ? "#ffd84a" : (ballColors[index] || "#ffffff");
-                ctx.lineWidth = isActive ? 6 : 4.5;
+                ctx.strokeStyle = "#111111";
+                ctx.lineWidth = isActive ? 1.5 : 1;
                 ctx.beginPath();
                 ctx.arc(pt.x, pt.y, photoImportMobileStep === "balls" ? 22 : 16, 0, Math.PI * 2);
                 ctx.stroke();
-                ctx.fillStyle = isActive ? "#ffd84a" : "#ffffff";
+                ctx.fillStyle = "#111111";
                 ctx.font = "bold 20px Arial";
                 ctx.textAlign = "left";
                 ctx.fillText(photoImportBallOrder[index], pt.x + 24, pt.y + 6);
