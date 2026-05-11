@@ -116,6 +116,9 @@
         .photo-ball-pick.yellow { background:#c8a113; color:#11192f; }
         .photo-ball-pick.white { background:#eef2ff; color:#0f1730; }
         .photo-ball-pick.active { box-shadow:0 0 0 3px rgba(255,216,74,.42); transform:translateY(1px); }
+        .photo-marker-size { display:none; align-items:center; gap:10px; margin:0 0 12px; font-size:13px; opacity:.88; }
+        .photo-marker-size input { width:180px; accent-color:#ffd84a; }
+        .photo-marker-size span { min-width:42px; font-weight:700; color:#dce6ff; }
         .photo-stage { position:relative; width:100%; background:#0b173a; border:1px solid #3557b7; border-radius:18px; overflow:hidden; }
         .photo-canvas { display:block; width:100%; height:auto; cursor:crosshair; }
         .photo-hint { margin-top:10px; font-size:13px; opacity:.8; }
@@ -315,6 +318,11 @@
                 <button class="photo-ball-pick yellow" id="photoImportMobileBallYellow" type="button" onclick="setPhotoImportMobileActiveBall(1)">Gelb</button>
                 <button class="photo-ball-pick white" id="photoImportMobileBallWhite" type="button" onclick="setPhotoImportMobileActiveBall(2)">Weiß</button>
             </div>
+            <label class="photo-marker-size" id="photoImportMarkerSizeWrap">
+                Markergröße
+                <input id="photoImportMarkerSize" type="range" min="6" max="32" step="1" value="16" oninput="setPhotoImportMarkerSize(this.value)">
+                <span id="photoImportMarkerSizeValue">16</span>
+            </label>
             <div class="photo-status" id="photoImportMobileStatus">Noch kein Foto geladen.</div>
             <div class="photo-stage">
                 <canvas id="photoImportMobileCanvas" class="photo-canvas"></canvas>
@@ -388,6 +396,7 @@
         let photoImportMobileBalls = [];
         let photoImportMobileStep = "corners";
         let photoImportMobileActiveBall = 0;
+        let photoImportMarkerRadius = 16;
         let photoImportMobileOrientation = "up";
         let photoImportMobileDrag = null;
         let referencePhotoDataUrl = "";
@@ -1095,10 +1104,14 @@
             if (photoImportMobileStep === "corners") {
                 return "Pruefe zuerst, wo im Bild die kurze Tischseite liegt. Danach die 4 gelben Fadenkreuze auf die Ecken der Spielflaeche ziehen." + calibrated;
             }
-            return "Ziehe Rot, Gelb und Weiß an die richtige Stelle. Ein Tipp auf freie Fläche setzt den aktuell aktiven Ball dort ab." + calibrated;
+            return "Waehle Rot, Gelb oder Weiß und setze genau diesen Marker. Ein Tipp auf freie Flaeche setzt den aktiven Ball dort ab." + calibrated;
         }
         function setPhotoImportMobileActiveBall(index) {
             photoImportMobileActiveBall = clamp(index, 0, 2);
+            updatePhotoImportMobileUi();
+        }
+        function setPhotoImportMarkerSize(value) {
+            photoImportMarkerRadius = clamp(Number(value) || 16, 6, 32);
             updatePhotoImportMobileUi();
         }
         function setPhotoImportMobileStep(step) {
@@ -1113,6 +1126,9 @@
             const cornersBtn = document.getElementById("photoImportMobileStepCorners");
             const ballsBtn = document.getElementById("photoImportMobileStepBalls");
             const ballPicks = document.getElementById("photoImportMobileBallPicks");
+            const markerSizeWrap = document.getElementById("photoImportMarkerSizeWrap");
+            const markerSizeInput = document.getElementById("photoImportMarkerSize");
+            const markerSizeValue = document.getElementById("photoImportMarkerSizeValue");
             const orientationUpBtn = document.getElementById("photoImportOrientationUp");
             const orientationRightBtn = document.getElementById("photoImportOrientationRight");
             const orientationDownBtn = document.getElementById("photoImportOrientationDown");
@@ -1125,6 +1141,9 @@
             if (ballsBtn) ballsBtn.classList.toggle("active", photoImportMobileStep === "balls");
             if (ballsBtn) ballsBtn.disabled = !photoImportMobileImage;
             if (ballPicks) ballPicks.style.display = photoImportMobileStep === "balls" ? "flex" : "none";
+            if (markerSizeWrap) markerSizeWrap.style.display = photoImportMobileStep === "balls" ? "flex" : "none";
+            if (markerSizeInput) markerSizeInput.value = String(photoImportMarkerRadius);
+            if (markerSizeValue) markerSizeValue.innerText = String(photoImportMarkerRadius);
             if (orientationUpBtn) orientationUpBtn.classList.toggle("active", photoImportMobileOrientation === "up");
             if (orientationRightBtn) orientationRightBtn.classList.toggle("active", photoImportMobileOrientation === "right");
             if (orientationDownBtn) orientationDownBtn.classList.toggle("active", photoImportMobileOrientation === "down");
@@ -1153,6 +1172,7 @@
             }
             photoImportMobileStep = "corners";
             photoImportMobileActiveBall = 0;
+            photoImportMarkerRadius = 16;
             updatePhotoImportMobileUi();
         }
         function handlePhotoImportMobileFile(event) {
@@ -1164,6 +1184,7 @@
                 photoImportMobileOrientation = "up";
                 photoImportMobileStep = "corners";
                 photoImportMobileActiveBall = 0;
+                photoImportMarkerRadius = 16;
                 const calibrationApplied = applyPhotoImportCalibration();
                 if (!calibrationApplied) setDefaultPhotoImportMobileAnchors();
                 updateReferencePhotoUi();
@@ -1235,7 +1256,7 @@
                 ctx.strokeStyle = "#111111";
                 ctx.lineWidth = isActive ? 1.5 : 1;
                 ctx.beginPath();
-                ctx.arc(pt.x, pt.y, photoImportMobileStep === "balls" ? 22 : 16, 0, Math.PI * 2);
+                ctx.arc(pt.x, pt.y, photoImportMobileStep === "balls" ? photoImportMarkerRadius : 16, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.fillStyle = "#111111";
                 ctx.font = "bold 20px Arial";
@@ -1276,8 +1297,7 @@
                 if (cornerIndex === -1) return;
                 photoImportMobileDrag = { type: "corner", index: cornerIndex, pointerId: event.pointerId };
             } else {
-                const ballIndex = hitTestPhotoImportMobile(point, photoImportMobileBalls, 38);
-                const targetIndex = ballIndex === -1 ? photoImportMobileActiveBall : ballIndex;
+                const targetIndex = photoImportMobileActiveBall;
                 photoImportMobileActiveBall = targetIndex;
                 photoImportMobileBalls[targetIndex] = point;
                 photoImportMobileDrag = { type: "ball", index: targetIndex, pointerId: event.pointerId };
