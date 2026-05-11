@@ -50,13 +50,24 @@
         .empty { padding:14px; border-radius:14px; border:1px dashed rgba(255,255,255,.18); opacity:.74; }
         .youtube-modal { position:fixed; inset:0; z-index:2000; display:none; align-items:center; justify-content:center; padding:18px; box-sizing:border-box; background:rgba(4,9,26,.82); }
         .youtube-modal.visible { display:flex; }
-        .youtube-panel { width:min(960px,96vw); max-height:94vh; overflow:auto; background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:18px; box-shadow:0 28px 60px rgba(0,0,0,.5); padding:14px; display:grid; gap:12px; }
+        .youtube-panel { width:min(1500px,98vw); max-height:94vh; overflow:auto; background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:18px; box-shadow:0 28px 60px rgba(0,0,0,.5); padding:14px; display:grid; gap:12px; }
         .youtube-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
         .youtube-title { font-size:20px; font-weight:800; }
         .youtube-row { display:flex; gap:8px; align-items:center; }
         .youtube-row input { flex:1; min-width:0; border:1px solid #3959ab; border-radius:10px; padding:10px 12px; color:#fff; background:#112659; font-size:14px; }
-        .youtube-player { width:100%; aspect-ratio:16/9; border:1px solid #3557b7; border-radius:14px; background:#050b1e; display:block; }
+        .youtube-stage { position:relative; width:100%; aspect-ratio:16/9; border:1px solid #3557b7; border-radius:14px; background:#050b1e; overflow:hidden; }
+        .youtube-player { position:absolute; inset:0; width:100%; height:100%; border:0; background:#050b1e; display:block; }
+        .youtube-marker-canvas { position:absolute; inset:0; width:100%; height:100%; z-index:3; display:none; cursor:crosshair; }
+        .youtube-stage.marker-active .youtube-marker-canvas { display:block; }
         .youtube-save-row { display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+        .youtube-marker-tools { display:none; gap:8px; flex-wrap:wrap; align-items:center; }
+        .youtube-marker-tools.visible { display:flex; }
+        .youtube-ball-picks { display:none; gap:8px; flex-wrap:wrap; }
+        .youtube-ball-pick { border:1px solid #3659bb; border-radius:999px; padding:8px 11px; background:#17306f; color:#fff; font-size:13px; font-weight:800; cursor:pointer; }
+        .youtube-ball-pick.active { outline:2px solid #ffd84a; }
+        .youtube-ball-pick.red { background:#922b35; }
+        .youtube-ball-pick.yellow { background:#8f7918; color:#111; }
+        .youtube-ball-pick.white { background:#e7ecf5; color:#111; }
         .youtube-status { font-size:13px; color:#dce6ff; opacity:.82; }
         @media (max-width: 980px) { .list { grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); } .item-text { -webkit-line-clamp:4; } }
     </style>
@@ -103,10 +114,27 @@
                 <input id="youtubeCaptureInput" type="url" placeholder="YouTube-Link einfügen">
                 <button class="btn secondary" type="button" onclick="loadYoutubeCaptureVideo()">Video laden</button>
             </div>
-            <iframe class="youtube-player" id="youtubeCapturePlayer" title="YouTube Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <div class="youtube-stage" id="youtubeCaptureStage">
+                <iframe class="youtube-player" id="youtubeCapturePlayer" title="YouTube Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                <canvas class="youtube-marker-canvas" id="youtubeMarkerCanvas"></canvas>
+            </div>
+            <div class="youtube-marker-tools" id="youtubeMarkerTools">
+                <button class="btn secondary" id="youtubeMarkerCornersBtn" type="button" onclick="setYoutubeMarkerStep('corners')">1. Tisch ausrichten</button>
+                <button class="btn secondary" id="youtubeMarkerBallsBtn" type="button" onclick="setYoutubeMarkerStep('balls')">2. Bälle setzen</button>
+                <button class="btn secondary" type="button" onclick="resetYoutubeMarkers()">Marker zurücksetzen</button>
+                <button class="btn secondary" id="saveYoutubeCalibrationBtn" type="button" onclick="saveYoutubeCalibration()">Kalibrierung speichern</button>
+                <button class="btn primary" type="button" onclick="saveYoutubeCapturePosition(true)">Pos speichern</button>
+                <button class="btn" type="button" onclick="closeYoutubeMarkers()">Marker schließen</button>
+                <div class="youtube-ball-picks" id="youtubeMarkerBallPicks">
+                    <button class="youtube-ball-pick red active" id="youtubeMarkerBallRed" type="button" onclick="setYoutubeMarkerActiveBall(0)">Rot</button>
+                    <button class="youtube-ball-pick yellow" id="youtubeMarkerBallYellow" type="button" onclick="setYoutubeMarkerActiveBall(1)">Gelb</button>
+                    <button class="youtube-ball-pick white" id="youtubeMarkerBallWhite" type="button" onclick="setYoutubeMarkerActiveBall(2)">Weiß</button>
+                </div>
+            </div>
             <div class="youtube-save-row">
                 <div class="youtube-status" id="youtubeCaptureStatus">Video laden, pausieren, dann Position speichern.</div>
                 <button class="btn primary" id="saveYoutubeCaptureBtn" type="button" onclick="saveYoutubeCapturePosition()" disabled>Position aus aktueller Zeit speichern</button>
+                <button class="btn secondary" id="openYoutubeMarkersBtn" type="button" onclick="openYoutubeMarkers()" disabled>Bälle/Tisch Marker setzen</button>
             </div>
         </div>
     </div>
@@ -133,7 +161,15 @@
             yellow: { x: 259, y: 214 },
             white: { x: 232, y: 201 }
         };
+        const bounds = { minX: 70, maxX: 605, minY: 58, maxY: 1143 };
         const POSITION_LIBRARY_NAV_KEY = "positionLibraryNavigationContext:v1";
+        const PHOTO_IMPORT_CALIBRATION_KEY = "positionLibraryPhotoImportCalibration:v1";
+        const photoImportTableCorners = [
+            { x: bounds.minX, y: bounds.minY },
+            { x: bounds.maxX, y: bounds.minY },
+            { x: bounds.maxX, y: bounds.maxY },
+            { x: bounds.minX, y: bounds.maxY }
+        ];
         const TABLE_RENDER_SPECS = {
             MB: { radius: 11.0, whiteStrokeWidth: 1.35 },
             TB: { radius: 14.9, whiteStrokeWidth: 1.86 }
@@ -149,6 +185,14 @@
         let youtubeCapturePlayer = null;
         let youtubeCapturePlayerSrc = "";
         let youtubeCapturePlayerInitPromise = null;
+        let youtubeMarkerActive = false;
+        let youtubeMarkerStep = "corners";
+        let youtubeMarkerCorners = [];
+        let youtubeMarkerBalls = [];
+        let youtubeMarkerActiveBall = 0;
+        let youtubeMarkerDrag = null;
+        let youtubeMarkerOrientation = "up";
+        let youtubeMarkerLayout = null;
 
         function setNotice(text, type) {
             const box = document.getElementById("noticeBox");
@@ -178,6 +222,36 @@
                 yellow: { ...defaultLayout.yellow },
                 white: { ...defaultLayout.white }
             };
+        }
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+        function getCanvasPoint(canvas, event) {
+            if (!canvas) return null;
+            const rect = canvas.getBoundingClientRect();
+            if (!rect.width || !rect.height) return null;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (event.clientX - rect.left) * scaleX,
+                y: (event.clientY - rect.top) * scaleY
+            };
+        }
+        function getCalibration() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(PHOTO_IMPORT_CALIBRATION_KEY) || "null");
+                if (!parsed || !Array.isArray(parsed.corners) || parsed.corners.length !== 4) return null;
+                return parsed;
+            } catch (_) {
+                return null;
+            }
+        }
+        function getTargetCorners(orientation) {
+            const base = photoImportTableCorners;
+            if (orientation === "right") return [base[1], base[2], base[3], base[0]];
+            if (orientation === "down") return [base[2], base[3], base[0], base[1]];
+            if (orientation === "left") return [base[3], base[0], base[1], base[2]];
+            return base;
         }
         function getTemplateForDiscipline(discipline) { return tableTemplates[discipline] || "assets/discipline-mb-47.png"; }
         function parseYouTubeTime(value) {
@@ -280,6 +354,57 @@
             } catch (_) {
                 return fallback;
             }
+        }
+        function solveLinearSystem(matrix, values) {
+            const n = values.length;
+            const a = matrix.map((row, rowIndex) => row.concat(values[rowIndex]));
+            for (let i = 0; i < n; i += 1) {
+                let maxRow = i;
+                for (let j = i + 1; j < n; j += 1) {
+                    if (Math.abs(a[j][i]) > Math.abs(a[maxRow][i])) maxRow = j;
+                }
+                if (Math.abs(a[maxRow][i]) < 1e-9) return null;
+                if (maxRow !== i) {
+                    const tmp = a[i];
+                    a[i] = a[maxRow];
+                    a[maxRow] = tmp;
+                }
+                const pivot = a[i][i];
+                for (let j = i; j <= n; j += 1) a[i][j] /= pivot;
+                for (let j = 0; j < n; j += 1) {
+                    if (j === i) continue;
+                    const factor = a[j][i];
+                    for (let k = i; k <= n; k += 1) a[j][k] -= factor * a[i][k];
+                }
+            }
+            return a.map((row) => row[n]);
+        }
+        function computeHomography(srcPoints, dstPoints) {
+            const matrix = [];
+            const values = [];
+            for (let i = 0; i < 4; i += 1) {
+                const src = srcPoints[i];
+                const dst = dstPoints[i];
+                matrix.push([src.x, src.y, 1, 0, 0, 0, -src.x * dst.x, -src.y * dst.x]);
+                values.push(dst.x);
+                matrix.push([0, 0, 0, src.x, src.y, 1, -src.x * dst.y, -src.y * dst.y]);
+                values.push(dst.y);
+            }
+            const solution = solveLinearSystem(matrix, values);
+            if (!solution) return null;
+            return [
+                [solution[0], solution[1], solution[2]],
+                [solution[3], solution[4], solution[5]],
+                [solution[6], solution[7], 1]
+            ];
+        }
+        function projectPoint(matrix, point) {
+            const denominator = (matrix[2][0] * point.x) + (matrix[2][1] * point.y) + matrix[2][2];
+            if (!denominator) return null;
+            return {
+                x: (((matrix[0][0] * point.x) + (matrix[0][1] * point.y) + matrix[0][2]) / denominator),
+                y: (((matrix[1][0] * point.x) + (matrix[1][1] * point.y) + matrix[1][2]) / denominator)
+            };
         }
         function setFilter(value) {
             activeFilter = value || "Alle";
@@ -532,6 +657,7 @@
         function closeYoutubeCapture() {
             const modal = document.getElementById("youtubeCaptureModal");
             const iframe = document.getElementById("youtubeCapturePlayer");
+            closeYoutubeMarkers();
             if (modal) {
                 modal.classList.remove("visible");
                 modal.setAttribute("aria-hidden", "true");
@@ -559,11 +685,220 @@
             const iframe = document.getElementById("youtubeCapturePlayer");
             if (iframe) iframe.src = buildYouTubeEmbedUrl(parsed);
             const saveBtn = document.getElementById("saveYoutubeCaptureBtn");
+            const markerBtn = document.getElementById("openYoutubeMarkersBtn");
             if (saveBtn) saveBtn.disabled = false;
+            if (markerBtn) markerBtn.disabled = false;
             setYoutubeCaptureStatus("Video bereit. Pausieren und Position speichern.");
             ensureYoutubeCapturePlayer();
         }
-        async function saveYoutubeCapturePosition() {
+        function sizeYoutubeMarkerCanvas() {
+            const canvas = document.getElementById("youtubeMarkerCanvas");
+            const stage = document.getElementById("youtubeCaptureStage");
+            if (!canvas || !stage) return null;
+            const rect = stage.getBoundingClientRect();
+            canvas.width = Math.max(320, Math.round(rect.width));
+            canvas.height = Math.max(180, Math.round(rect.height));
+            return canvas;
+        }
+        function drawYoutubeMarker(ctx, pt, index, highlighted) {
+            const arm = highlighted ? 18 : 14;
+            const gap = highlighted ? 5 : 4;
+            ctx.strokeStyle = "#10192f";
+            ctx.lineWidth = highlighted ? 5 : 4;
+            ctx.beginPath();
+            ctx.moveTo(pt.x - arm, pt.y);
+            ctx.lineTo(pt.x - gap, pt.y);
+            ctx.moveTo(pt.x + gap, pt.y);
+            ctx.lineTo(pt.x + arm, pt.y);
+            ctx.moveTo(pt.x, pt.y - arm);
+            ctx.lineTo(pt.x, pt.y - gap);
+            ctx.moveTo(pt.x, pt.y + gap);
+            ctx.lineTo(pt.x, pt.y + arm);
+            ctx.stroke();
+            ctx.strokeStyle = highlighted ? "#ffd84a" : "#9fdcff";
+            ctx.lineWidth = highlighted ? 3 : 2.5;
+            ctx.stroke();
+            ctx.fillStyle = highlighted ? "#ffd84a" : "#9fdcff";
+            ctx.font = "bold 18px Arial";
+            ctx.fillText(String(index + 1), pt.x + arm + 6, pt.y - arm + 6);
+        }
+        function resetYoutubeMarkers() {
+            const canvas = sizeYoutubeMarkerCanvas();
+            if (!canvas) return;
+            const calibration = getCalibration();
+            if (calibration) {
+                youtubeMarkerOrientation = ["up", "right", "down", "left"].includes(calibration.orientation) ? calibration.orientation : "up";
+                youtubeMarkerCorners = calibration.corners.map((point) => ({
+                    x: clamp(Number(point.x || 0) * canvas.width, 0, canvas.width),
+                    y: clamp(Number(point.y || 0) * canvas.height, 0, canvas.height)
+                }));
+            } else {
+                youtubeMarkerOrientation = "up";
+                const marginX = canvas.width * 0.16;
+                const marginY = canvas.height * 0.14;
+                youtubeMarkerCorners = [
+                    { x: marginX, y: marginY },
+                    { x: canvas.width - marginX, y: marginY },
+                    { x: canvas.width - marginX, y: canvas.height - marginY },
+                    { x: marginX, y: canvas.height - marginY }
+                ];
+            }
+            youtubeMarkerBalls = [
+                { x: canvas.width * 0.42, y: canvas.height * 0.55 },
+                { x: canvas.width * 0.50, y: canvas.height * 0.55 },
+                { x: canvas.width * 0.46, y: canvas.height * 0.64 }
+            ];
+            youtubeMarkerStep = "corners";
+            youtubeMarkerActiveBall = 0;
+            updateYoutubeMarkerUi();
+        }
+        function drawYoutubeMarkers() {
+            const canvas = sizeYoutubeMarkerCanvas();
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!youtubeMarkerActive) return;
+            ctx.fillStyle = "rgba(0,0,0,.04)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (youtubeMarkerCorners.length > 1) {
+                ctx.strokeStyle = "rgba(255,216,74,.95)";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                youtubeMarkerCorners.forEach((pt, index) => index ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y));
+                ctx.closePath();
+                ctx.stroke();
+            }
+            youtubeMarkerCorners.forEach((pt, index) => drawYoutubeMarker(ctx, pt, index, youtubeMarkerStep === "corners"));
+            youtubeMarkerBalls.forEach((pt, index) => {
+                ctx.strokeStyle = "#111";
+                ctx.lineWidth = youtubeMarkerActiveBall === index ? 1.5 : 1;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 16, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+        }
+        function updateYoutubeMarkerUi() {
+            document.getElementById("youtubeCaptureStage")?.classList.toggle("marker-active", youtubeMarkerActive);
+            document.getElementById("youtubeMarkerTools")?.classList.toggle("visible", youtubeMarkerActive);
+            document.getElementById("youtubeMarkerCornersBtn")?.classList.toggle("primary", youtubeMarkerStep === "corners");
+            document.getElementById("youtubeMarkerBallsBtn")?.classList.toggle("primary", youtubeMarkerStep === "balls");
+            const ballPicks = document.getElementById("youtubeMarkerBallPicks");
+            if (ballPicks) ballPicks.style.display = youtubeMarkerStep === "balls" ? "flex" : "none";
+            ["Red", "Yellow", "White"].forEach((name, index) => {
+                document.getElementById("youtubeMarkerBall" + name)?.classList.toggle("active", youtubeMarkerActiveBall === index);
+            });
+            drawYoutubeMarkers();
+        }
+        async function openYoutubeMarkers() {
+            if (!parseYouTubeUrl(youtubeCaptureUrl)) {
+                alert("Bitte zuerst ein YouTube-Video laden.");
+                return;
+            }
+            const player = await ensureYoutubeCapturePlayer();
+            if (player && typeof player.pauseVideo === "function") {
+                try { player.pauseVideo(); } catch (_) {}
+            }
+            youtubeMarkerActive = true;
+            resetYoutubeMarkers();
+        }
+        function closeYoutubeMarkers() {
+            youtubeMarkerActive = false;
+            youtubeMarkerDrag = null;
+            updateYoutubeMarkerUi();
+        }
+        function setYoutubeMarkerStep(step) {
+            youtubeMarkerStep = step === "balls" ? "balls" : "corners";
+            updateYoutubeMarkerUi();
+        }
+        function setYoutubeMarkerActiveBall(index) {
+            youtubeMarkerActiveBall = clamp(index, 0, 2);
+            updateYoutubeMarkerUi();
+        }
+        function saveYoutubeCalibration() {
+            const canvas = sizeYoutubeMarkerCanvas();
+            if (!canvas || youtubeMarkerCorners.length !== 4) return;
+            localStorage.setItem(PHOTO_IMPORT_CALIBRATION_KEY, JSON.stringify({
+                orientation: youtubeMarkerOrientation,
+                corners: youtubeMarkerCorners.map((point) => ({
+                    x: point.x / canvas.width,
+                    y: point.y / canvas.height
+                })),
+                savedAt: new Date().toISOString()
+            }));
+            setYoutubeCaptureStatus("Tisch-Kalibrierung gespeichert.");
+        }
+        function getYoutubeMarkerLayout() {
+            if (youtubeMarkerCorners.length !== 4 || youtubeMarkerBalls.length !== 3) return null;
+            const homography = computeHomography(youtubeMarkerCorners, getTargetCorners(youtubeMarkerOrientation));
+            if (!homography) return null;
+            const mapped = youtubeMarkerBalls.map((ballPoint) => projectPoint(homography, ballPoint));
+            if (mapped.some((pt) => !pt)) return null;
+            return {
+                red: { x: clamp(mapped[0].x, bounds.minX, bounds.maxX), y: clamp(mapped[0].y, bounds.minY, bounds.maxY) },
+                yellow: { x: clamp(mapped[1].x, bounds.minX, bounds.maxX), y: clamp(mapped[1].y, bounds.minY, bounds.maxY) },
+                white: { x: clamp(mapped[2].x, bounds.minX, bounds.maxX), y: clamp(mapped[2].y, bounds.minY, bounds.maxY) }
+            };
+        }
+        function hitTestMarker(point, list, radius) {
+            let bestIndex = -1;
+            let bestDistance = Number.POSITIVE_INFINITY;
+            list.forEach((entry, index) => {
+                const distance = Math.hypot(point.x - entry.x, point.y - entry.y);
+                if (distance <= radius && distance < bestDistance) {
+                    bestDistance = distance;
+                    bestIndex = index;
+                }
+            });
+            return bestIndex;
+        }
+        function updateYoutubeMarkerDragPoint(point) {
+            const canvas = document.getElementById("youtubeMarkerCanvas");
+            if (!canvas || !youtubeMarkerDrag) return;
+            const safePoint = {
+                x: clamp(point.x, 0, canvas.width),
+                y: clamp(point.y, 0, canvas.height)
+            };
+            if (youtubeMarkerDrag.type === "corner") youtubeMarkerCorners[youtubeMarkerDrag.index] = safePoint;
+            if (youtubeMarkerDrag.type === "ball") youtubeMarkerBalls[youtubeMarkerDrag.index] = safePoint;
+            drawYoutubeMarkers();
+        }
+        function handleYoutubeMarkerPointerDown(event) {
+            if (!youtubeMarkerActive) return;
+            const canvas = document.getElementById("youtubeMarkerCanvas");
+            const point = getCanvasPoint(canvas, event);
+            if (!canvas || !point) return;
+            if (youtubeMarkerStep === "corners") {
+                const cornerIndex = hitTestMarker(point, youtubeMarkerCorners, 34);
+                if (cornerIndex === -1) return;
+                youtubeMarkerDrag = { type: "corner", index: cornerIndex, pointerId: event.pointerId };
+            } else {
+                youtubeMarkerBalls[youtubeMarkerActiveBall] = point;
+                youtubeMarkerDrag = { type: "ball", index: youtubeMarkerActiveBall, pointerId: event.pointerId };
+            }
+            if (canvas.setPointerCapture) {
+                try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
+            }
+            updateYoutubeMarkerDragPoint(point);
+            updateYoutubeMarkerUi();
+            event.preventDefault();
+        }
+        function handleYoutubeMarkerPointerMove(event) {
+            if (!youtubeMarkerDrag || youtubeMarkerDrag.pointerId !== event.pointerId) return;
+            const point = getCanvasPoint(document.getElementById("youtubeMarkerCanvas"), event);
+            if (!point) return;
+            updateYoutubeMarkerDragPoint(point);
+            event.preventDefault();
+        }
+        function stopYoutubeMarkerDrag(event) {
+            if (!youtubeMarkerDrag) return;
+            const canvas = document.getElementById("youtubeMarkerCanvas");
+            if (canvas?.releasePointerCapture && event?.pointerId !== undefined) {
+                try { canvas.releasePointerCapture(event.pointerId); } catch (_) {}
+            }
+            youtubeMarkerDrag = null;
+        }
+        async function saveYoutubeCapturePosition(useMarkers = false) {
             if (!isPositionLibraryEditable(positionLibraryAccessMode)) return;
             const parsed = parseYouTubeUrl(youtubeCaptureUrl);
             if (!parsed) {
@@ -574,14 +909,15 @@
             const defaultTitle = `Position ${formatVideoTimestamp(seconds)}`;
             const title = String(prompt("Name der neuen Position:", defaultTitle) || "").trim().slice(0, 120);
             if (!title) return;
-            const tagDefault = activeTagFilter !== "Alle" ? activeTagFilter : "";
-            const tagInput = prompt("Tags für die neue Position, mit Komma getrennt:", tagDefault);
-            if (tagInput === null) return;
-            const tags = normalizeTags(String(tagInput).split(","));
             const discipline = activeFilter !== "Alle" ? activeFilter : "Cadre 47/2";
             const ownProfile = typeof getOwnProfile === "function" ? await getOwnProfile(currentUser.id) : null;
             const creatorName = (ownProfile?.full_name || (typeof getDisplayName === "function" ? getDisplayName(currentUser) : "") || currentUser.email || currentUser.id || "").trim();
-            const layout = cloneLayout(defaultLayout);
+            const markerLayout = useMarkers ? getYoutubeMarkerLayout() : null;
+            if (useMarkers && !markerLayout) {
+                alert("Bitte zuerst Tisch und Bälle markieren.");
+                return;
+            }
+            const layout = cloneLayout(markerLayout || defaultLayout);
             const page = {
                 ball_layout: cloneLayout(layout),
                 line_paths: [],
@@ -598,7 +934,7 @@
                     discipline,
                     description: `Aus YouTube-Video bei ${formatVideoTimestamp(seconds)}`,
                     reference_photo: "",
-                    tags,
+                    tags: [],
                     video_path: "",
                     video_name: "YouTube",
                     video_size: 0,
@@ -634,14 +970,22 @@
         window.addEventListener("keydown", (event) => {
             if (event.key === "Escape" && document.getElementById("youtubeCaptureModal")?.classList.contains("visible")) {
                 event.preventDefault();
-                closeYoutubeCapture();
+                if (youtubeMarkerActive) closeYoutubeMarkers();
+                else closeYoutubeCapture();
             }
         });
+        window.addEventListener("resize", drawYoutubeMarkers);
+        window.addEventListener("pointerup", stopYoutubeMarkerDrag);
+        window.addEventListener("pointercancel", stopYoutubeMarkerDrag);
         document.getElementById("youtubeCaptureInput").addEventListener("keydown", (event) => {
             if (event.key !== "Enter") return;
             event.preventDefault();
             loadYoutubeCaptureVideo();
         });
+        document.getElementById("youtubeMarkerCanvas").addEventListener("pointerdown", handleYoutubeMarkerPointerDown);
+        document.getElementById("youtubeMarkerCanvas").addEventListener("pointermove", handleYoutubeMarkerPointerMove);
+        document.getElementById("youtubeMarkerCanvas").addEventListener("pointerup", stopYoutubeMarkerDrag);
+        document.getElementById("youtubeMarkerCanvas").addEventListener("pointercancel", stopYoutubeMarkerDrag);
         updateFullscreenButton();
         init();
     </script>
