@@ -388,9 +388,10 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const positionId = params.get("id") || "";
-        const disciplines = ["Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
+        const disciplines = ["Freie Partie", "Freie Partie 2x", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
         const tableTemplates = {
             "Freie Partie": "assets/discipline-mb-libre.png",
+            "Freie Partie 2x": "assets/discipline-mb-libre.png",
             "Cadre 35/2": "assets/discipline-tb-35.png",
             "Cadre 52/2": "assets/discipline-tb-52.png",
             "Cadre 47/2": "assets/discipline-mb-47.png",

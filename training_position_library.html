@@ -116,7 +116,10 @@
                 <button class="btn secondary" type="button" onclick="loadYoutubeCaptureVideo()">Video laden</button>
             </div>
             <div class="youtube-row">
+                <label class="filter-label" for="youtubeDisciplineSelect" style="margin:0; min-width:78px;">Disziplin</label>
                 <select id="youtubeDisciplineSelect"></select>
+                <input id="youtubePositionTitleInput" type="text" maxlength="120" placeholder="Positionsname">
+                <input id="youtubeTimestampInput" type="text" readonly value="Zeit: -" style="max-width:120px;">
             </div>
             <div class="youtube-stage" id="youtubeCaptureStage">
                 <iframe class="youtube-player" id="youtubeCapturePlayer" title="YouTube Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
@@ -137,7 +140,7 @@
             </div>
             <div class="youtube-save-row">
                 <div class="youtube-status" id="youtubeCaptureStatus">Video laden, pausieren, dann Position speichern.</div>
-                <button class="btn primary" id="saveYoutubeCaptureBtn" type="button" onclick="captureYoutubePositionTime()" disabled>Position aus aktueller Zeit merken</button>
+                <button class="btn primary" id="saveYoutubeCaptureBtn" type="button" onclick="captureYoutubePositionTime()" disabled>Aktuelle Zeit übernehmen</button>
                 <button class="btn secondary" id="openYoutubeMarkersBtn" type="button" onclick="openYoutubeMarkers()" disabled>Bälle/Tisch Marker setzen</button>
             </div>
         </div>
@@ -149,9 +152,10 @@
     <script src="js/position_library_access.js"></script>
     <script src="js/user_menu.js"></script>
     <script>
-        const disciplines = ["Alle", "Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
+        const disciplines = ["Alle", "Freie Partie", "Freie Partie 2x", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
         const tableTemplates = {
             "Freie Partie": "assets/discipline-mb-libre.png",
+            "Freie Partie 2x": "assets/discipline-mb-libre.png",
             "Cadre 35/2": "assets/discipline-tb-35.png",
             "Cadre 52/2": "assets/discipline-tb-52.png",
             "Cadre 47/2": "assets/discipline-mb-47.png",
@@ -700,6 +704,10 @@
             }
             youtubeCapturePendingSeconds = null;
             youtubeCapturePendingTitle = "";
+            const titleInput = document.getElementById("youtubePositionTitleInput");
+            const timeInput = document.getElementById("youtubeTimestampInput");
+            if (titleInput) titleInput.value = "";
+            if (timeInput) timeInput.value = "Zeit: -";
             youtubeCaptureUrl = buildYouTubeWatchUrl(parsed.id, parsed.start);
             youtubeCapturePlayer = null;
             youtubeCapturePlayerSrc = "";
@@ -710,7 +718,7 @@
             const markerBtn = document.getElementById("openYoutubeMarkersBtn");
             if (saveBtn) saveBtn.disabled = false;
             if (markerBtn) markerBtn.disabled = false;
-            setYoutubeCaptureStatus("Video bereit. Pausieren und Position speichern.");
+            setYoutubeCaptureStatus("Video bereit. Pausieren, aktuelle Zeit übernehmen, Marker setzen, Pos speichern.");
             ensureYoutubeCapturePlayer();
         }
         async function captureYoutubePositionTime() {
@@ -721,11 +729,13 @@
             }
             const seconds = Math.max(0, Math.floor(await getYoutubeCaptureTime()));
             const defaultTitle = `Position ${formatVideoTimestamp(seconds)}`;
-            const title = String(prompt("Name der neuen Position:", defaultTitle) || "").trim().slice(0, 120);
-            if (!title) return;
+            const titleInput = document.getElementById("youtubePositionTitleInput");
+            const timeInput = document.getElementById("youtubeTimestampInput");
+            if (titleInput && !String(titleInput.value || "").trim()) titleInput.value = defaultTitle;
+            if (timeInput) timeInput.value = `Zeit: ${formatVideoTimestamp(seconds)}`;
             youtubeCapturePendingSeconds = seconds;
-            youtubeCapturePendingTitle = title;
-            setYoutubeCaptureStatus(`Position gemerkt: ${title} (${formatVideoTimestamp(seconds)}). Jetzt Marker setzen und Pos speichern.`);
+            youtubeCapturePendingTitle = String(titleInput?.value || defaultTitle).trim().slice(0, 120);
+            setYoutubeCaptureStatus(`Zeit übernommen: ${formatVideoTimestamp(seconds)}. Jetzt Marker setzen und Pos speichern.`);
         }
         function sizeYoutubeMarkerCanvas() {
             const canvas = document.getElementById("youtubeMarkerCanvas");
@@ -949,12 +959,13 @@
                 ? Math.max(0, Math.floor(Number(youtubeCapturePendingSeconds)))
                 : Math.max(0, Math.floor(await getYoutubeCaptureTime()));
             const defaultTitle = `Position ${formatVideoTimestamp(seconds)}`;
-            const title = String(youtubeCapturePendingTitle || prompt("Name der neuen Position:", defaultTitle) || "").trim().slice(0, 120);
+            const titleField = document.getElementById("youtubePositionTitleInput");
+            const title = String(titleField?.value || youtubeCapturePendingTitle || defaultTitle).trim().slice(0, 120);
             if (!title) return;
             const discipline = getYoutubeCaptureDiscipline();
             const ownProfile = typeof getOwnProfile === "function" ? await getOwnProfile(currentUser.id) : null;
             const creatorName = (ownProfile?.full_name || (typeof getDisplayName === "function" ? getDisplayName(currentUser) : "") || currentUser.email || currentUser.id || "").trim();
-            const markerLayout = useMarkers ? getYoutubeMarkerLayout() : null;
+            const markerLayout = getYoutubeMarkerLayout();
             if (useMarkers && !markerLayout) {
                 alert("Bitte zuerst Tisch und Bälle markieren.");
                 return;
@@ -1000,7 +1011,10 @@
             }
             youtubeCapturePendingSeconds = null;
             youtubeCapturePendingTitle = "";
-            setYoutubeCaptureStatus(`Gespeichert: ${title} (${formatVideoTimestamp(seconds)})`);
+            const timeInput = document.getElementById("youtubeTimestampInput");
+            if (timeInput) timeInput.value = "Zeit: -";
+            if (titleField) titleField.value = "";
+            setYoutubeCaptureStatus(`Gespeichert: ${title} (${discipline}, ${formatVideoTimestamp(seconds)})`);
             await loadLibrary();
         }
         async function init() {
