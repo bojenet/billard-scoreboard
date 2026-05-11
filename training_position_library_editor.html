@@ -1258,10 +1258,6 @@
                 ctx.beginPath();
                 ctx.arc(pt.x, pt.y, photoImportMobileStep === "balls" ? photoImportMarkerRadius : 16, 0, Math.PI * 2);
                 ctx.stroke();
-                ctx.fillStyle = "#111111";
-                ctx.font = "bold 20px Arial";
-                ctx.textAlign = "left";
-                ctx.fillText(photoImportBallOrder[index], pt.x + 24, pt.y + 6);
             });
         }
         function hitTestPhotoImportMobile(point, list, radius) {
