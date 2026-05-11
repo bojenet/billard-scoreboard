@@ -220,7 +220,7 @@
                         <button class="btn secondary compact" id="positionYoutubeBtn" type="button" onclick="setPositionYoutubeVideo()">YouTube verlinken</button>
                     </div>
                     <div class="position-video-actions" id="positionVideoActions">
-                        <button class="btn secondary compact" id="createPageFromVideoBtn" type="button" onclick="createPageFromCurrentVideoTimestamp()" style="display:none;">Neue Position aus Video-Zeit</button>
+                        <button class="btn secondary compact" id="createPageFromVideoBtn" type="button" onclick="createLibraryPositionFromCurrentVideoTimestamp()" style="display:none;">Position aus Video speichern</button>
                         <button class="btn danger compact" id="removePositionVideoBtn" type="button" onclick="removePositionVideo()" style="display:none;">Video entfernen</button>
                     </div>
                     <div class="position-video-note" id="positionVideoNote">Video wird beim Speichern hochgeladen.</div>
@@ -613,9 +613,13 @@
             if (!id) return null;
             const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
             const start = parseYouTubeTime(url.searchParams.get("t") || url.searchParams.get("start") || hashParams.get("t") || hashParams.get("start") || "");
-            const canonical = "https://www.youtube.com/watch?v=" + encodeURIComponent(id) + (start ? "&t=" + start + "s" : "");
+            const canonical = buildYouTubeWatchUrl(id, start);
             const embed = "https://www.youtube.com/embed/" + encodeURIComponent(id) + (start ? "?start=" + start : "");
             return { id, start, canonical, embed };
+        }
+        function buildYouTubeWatchUrl(id, seconds) {
+            const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+            return "https://www.youtube.com/watch?v=" + encodeURIComponent(id) + (safeSeconds ? "&t=" + safeSeconds + "s" : "");
         }
         function formatVideoTimestamp(seconds) {
             const total = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -1855,25 +1859,62 @@
             loadPage(currentPageIndex + 1);
             showEditorToast("Seite hinzugefügt");
         }
-        async function createPageFromCurrentVideoTimestamp() {
+        async function createLibraryPositionFromCurrentVideoTimestamp() {
             if (!isEditorEditable() || positionVideoProvider !== "youtube") return;
             const parsed = parseYouTubeUrl(positionVideoUrl);
             if (!parsed) {
                 alert("Bitte zuerst ein YouTube-Video verlinken.");
                 return;
             }
-            persistCurrentPageState();
             const seconds = Math.max(0, Math.floor(await getCurrentYouTubeTime()));
-            const current = positionPages[currentPageIndex] || createDefaultPage();
-            positionPages.splice(currentPageIndex + 1, 0, {
-                ball_layout: cloneLayout(current.ball_layout),
+            const defaultTitle = `Position ${formatVideoTimestamp(seconds)}`;
+            const title = String(prompt("Name der neuen Position:", defaultTitle) || "").trim().slice(0, 120);
+            if (!title) return;
+            const tagInput = prompt("Tags für die neue Position, mit Komma getrennt:", selectedTags.join(", "));
+            if (tagInput === null) return;
+            const newTags = normalizeTags(String(tagInput).split(","));
+            const ownProfile = await getOwnProfile(currentUser.id);
+            const creatorName = (ownProfile?.full_name || getDisplayName(currentUser) || currentUser.email || currentUser.id || "").trim();
+            const sourceLayout = cloneLayout(ballLayout);
+            const newPage = {
+                ball_layout: sourceLayout,
                 line_paths: [],
                 page_description: "",
                 is_followup: false,
                 video_timestamp: seconds
+            };
+            const { error } = await supabaseClient
+                .from("training_position_library")
+                .insert({
+                    user_id: currentUser.id,
+                    created_by_name: creatorName,
+                    title,
+                    discipline: selectedDiscipline,
+                    description: `Aus YouTube-Video bei ${formatVideoTimestamp(seconds)}`,
+                    reference_photo: "",
+                    tags: newTags,
+                    video_path: "",
+                    video_name: "YouTube",
+                    video_size: 0,
+                    video_type: "",
+                    video_provider: "youtube",
+                    video_url: buildYouTubeWatchUrl(parsed.id, seconds),
+                    ball_layout: cloneLayout(sourceLayout),
+                    line_paths: [],
+                    position_pages: [newPage]
+                })
+                .select("id")
+                .single();
+            if (error) {
+                alert("Position konnte nicht gespeichert werden: " + error.message);
+                return;
+            }
+            newTags.forEach((tag) => {
+                if (!availableTags.some((existing) => existing.toLowerCase() === tag.toLowerCase())) availableTags.push(tag);
             });
-            loadPage(currentPageIndex + 1);
-            showEditorToast(`Position aus Video ${formatVideoTimestamp(seconds)} angelegt`);
+            availableTags.sort((a, b) => a.localeCompare(b, "de"));
+            renderTagUi();
+            showEditorToast(`Position gespeichert: ${title}`);
         }
         function seekCurrentPageVideoTimestamp() {
             const seconds = Number(positionPages[currentPageIndex]?.video_timestamp);
