@@ -133,6 +133,7 @@
         .position-video-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
         .position-video-note { margin-top:8px; font-size:12px; color:#ffe27a; opacity:.9; display:none; }
         .position-video-error { padding:10px 12px; font-size:13px; color:#ffe7a0; background:rgba(94,73,10,.35); border-top:1px solid #7a6424; display:none; }
+        .video-timestamp-btn { border:1px solid #3659bb; border-radius:999px; background:#17306f; color:#dce6ff; font-size:13px; font-weight:800; padding:9px 12px; cursor:pointer; }
         .reference-photo-zoom { position:fixed; inset:0; z-index:1800; display:none; align-items:center; justify-content:center; padding:24px; background:rgba(4,8,19,.84); backdrop-filter:blur(6px); }
         .reference-photo-zoom.visible { display:flex; }
         .reference-photo-zoom-panel { width:min(1320px,96vw); max-height:94vh; display:grid; grid-template-rows:auto minmax(0,1fr); gap:12px; background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:20px; box-shadow:0 28px 60px rgba(0,0,0,.5); padding:14px; }
@@ -219,6 +220,7 @@
                         <button class="btn secondary compact" id="positionYoutubeBtn" type="button" onclick="setPositionYoutubeVideo()">YouTube verlinken</button>
                     </div>
                     <div class="position-video-actions" id="positionVideoActions">
+                        <button class="btn secondary compact" id="createPageFromVideoBtn" type="button" onclick="createPageFromCurrentVideoTimestamp()" style="display:none;">Neue Position aus Video-Zeit</button>
                         <button class="btn danger compact" id="removePositionVideoBtn" type="button" onclick="removePositionVideo()" style="display:none;">Video entfernen</button>
                     </div>
                     <div class="position-video-note" id="positionVideoNote">Video wird beim Speichern hochgeladen.</div>
@@ -247,6 +249,7 @@
                         <button class="icon-btn" id="prevPageBtn" type="button" onclick="goToPreviousPage()" title="Vorherige Seite" style="display:none;">←</button>
                         <button class="icon-btn" id="nextPageBtn" type="button" onclick="goToNextPage()" title="Nächste Seite" style="display:none;">→</button>
                         <button class="page-follow-btn" id="followUpPageBtn" type="button" onclick="toggleFollowUpPage()" title="Als Folgeposition der vorherigen markieren" style="display:none;">Folgeposition</button>
+                        <button class="video-timestamp-btn" id="pageVideoTimestampBtn" type="button" onclick="seekCurrentPageVideoTimestamp()" style="display:none;">Video 0:00</button>
                         <div class="section-sub" id="pageIndicator" style="display:none; margin:0 0 0 6px; min-width:110px;">Seite 1 / 1</div>
                     </div>
                     <div class="table-viewport" id="tableViewport">
@@ -419,6 +422,11 @@
         let pendingPositionVideoFile = null;
         let pendingPositionVideoObjectUrl = "";
         let pendingPositionVideoRemovalPath = "";
+        let youtubeApiPromise = null;
+        let youtubePlayerApi = null;
+        let youtubePlayerReady = false;
+        let youtubePlayerSrc = "";
+        let youtubePlayerInitPromise = null;
         let positionCreatedAt = "";
         let selectedTags = [];
         let availableTags = [];
@@ -457,15 +465,17 @@
             })) : [];
         }
         function clonePage(page) {
+            const rawTimestamp = Number(page?.video_timestamp);
             return {
                 ball_layout: cloneLayout(page?.ball_layout),
                 line_paths: cloneLines(page?.line_paths),
                 page_description: String(page?.page_description || ""),
-                is_followup: !!page?.is_followup
+                is_followup: !!page?.is_followup,
+                video_timestamp: Number.isFinite(rawTimestamp) && rawTimestamp >= 0 ? rawTimestamp : null
             };
         }
         function createDefaultPage() {
-            return { ball_layout: getDefaultLayout(), line_paths: [], page_description: "", is_followup: false };
+            return { ball_layout: getDefaultLayout(), line_paths: [], page_description: "", is_followup: false, video_timestamp: null };
         }
         function getFollowUpSuffix(index) {
             let value = Math.max(1, Number(index) || 1);
@@ -607,8 +617,90 @@
             const embed = "https://www.youtube.com/embed/" + encodeURIComponent(id) + (start ? "?start=" + start : "");
             return { id, start, canonical, embed };
         }
+        function formatVideoTimestamp(seconds) {
+            const total = Math.max(0, Math.floor(Number(seconds) || 0));
+            const hours = Math.floor(total / 3600);
+            const minutes = Math.floor((total % 3600) / 60);
+            const secs = total % 60;
+            return hours
+                ? `${hours}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
+                : `${minutes}:${String(secs).padStart(2, "0")}`;
+        }
+        function buildYouTubeEmbedUrl(parsed) {
+            if (!parsed?.id) return "";
+            const params = new URLSearchParams({
+                enablejsapi: "1",
+                origin: window.location.origin
+            });
+            if (parsed.start) params.set("start", String(parsed.start));
+            return "https://www.youtube.com/embed/" + encodeURIComponent(parsed.id) + "?" + params.toString();
+        }
         function getPositionYoutubeEmbedUrl() {
-            return positionVideoProvider === "youtube" ? (parseYouTubeUrl(positionVideoUrl)?.embed || "") : "";
+            return positionVideoProvider === "youtube" ? buildYouTubeEmbedUrl(parseYouTubeUrl(positionVideoUrl)) : "";
+        }
+        function loadYouTubeIframeApi() {
+            if (window.YT?.Player) return Promise.resolve(window.YT);
+            if (youtubeApiPromise) return youtubeApiPromise;
+            youtubeApiPromise = new Promise((resolve) => {
+                const previousCallback = window.onYouTubeIframeAPIReady;
+                window.onYouTubeIframeAPIReady = () => {
+                    if (typeof previousCallback === "function") previousCallback();
+                    resolve(window.YT);
+                };
+                if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+                    const script = document.createElement("script");
+                    script.src = "https://www.youtube.com/iframe_api";
+                    document.head.appendChild(script);
+                }
+            });
+            return youtubeApiPromise;
+        }
+        function ensureYouTubePlayerApi() {
+            const iframe = document.getElementById("positionYoutubePlayer");
+            const embedUrl = getPositionYoutubeEmbedUrl();
+            if (!iframe || !embedUrl) return Promise.resolve(null);
+            if (youtubePlayerApi && youtubePlayerSrc === embedUrl) return Promise.resolve(youtubePlayerApi);
+            if (youtubePlayerInitPromise && youtubePlayerSrc === embedUrl) return youtubePlayerInitPromise;
+            youtubePlayerSrc = embedUrl;
+            youtubePlayerInitPromise = loadYouTubeIframeApi().then((YT) => {
+                if (!YT?.Player) return null;
+                youtubePlayerReady = false;
+                youtubePlayerApi = new YT.Player(iframe, {
+                    events: {
+                        onReady: () => { youtubePlayerReady = true; }
+                    }
+                });
+                return youtubePlayerApi;
+            }).catch(() => null).finally(() => {
+                youtubePlayerInitPromise = null;
+            });
+            return youtubePlayerInitPromise;
+        }
+        async function getCurrentYouTubeTime() {
+            const fallback = parseYouTubeUrl(positionVideoUrl)?.start || 0;
+            const player = await ensureYouTubePlayerApi();
+            if (!player || typeof player.getCurrentTime !== "function") return fallback;
+            try {
+                const current = Number(player.getCurrentTime());
+                return Number.isFinite(current) && current >= 0 ? current : fallback;
+            } catch (_) {
+                return fallback;
+            }
+        }
+        async function seekYouTubeToTime(seconds) {
+            const parsed = parseYouTubeUrl(positionVideoUrl);
+            if (!parsed) return;
+            const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+            const player = await ensureYouTubePlayerApi();
+            if (player && typeof player.seekTo === "function") {
+                try {
+                    player.seekTo(safeSeconds, true);
+                    if (typeof player.pauseVideo === "function") player.pauseVideo();
+                    return;
+                } catch (_) {}
+            }
+            const iframe = document.getElementById("positionYoutubePlayer");
+            if (iframe) iframe.src = buildYouTubeEmbedUrl({ ...parsed, start: safeSeconds });
         }
         function getPositionVideoMimeType() {
             const rawType = String(pendingPositionVideoFile?.type || positionVideoType || "").toLowerCase();
@@ -734,6 +826,7 @@
             const youtubeRow = document.getElementById("positionYoutubeRow");
             const youtubeInput = document.getElementById("positionYoutubeInput");
             const removeBtn = document.getElementById("removePositionVideoBtn");
+            const createPageFromVideoBtn = document.getElementById("createPageFromVideoBtn");
             const note = document.getElementById("positionVideoNote");
             const displayUrl = getPositionVideoDisplayUrl();
             const displayName = pendingPositionVideoFile?.name || positionVideoName || "";
@@ -743,6 +836,7 @@
             if (youtubeRow) youtubeRow.style.display = readOnly ? "none" : "flex";
             if (youtubeInput && document.activeElement !== youtubeInput) youtubeInput.value = positionVideoProvider === "youtube" ? positionVideoUrl : "";
             if (removeBtn) removeBtn.style.display = !readOnly && hasVideo ? "inline-flex" : "none";
+            if (createPageFromVideoBtn) createPageFromVideoBtn.style.display = !readOnly && !!youtubeEmbedUrl ? "inline-flex" : "none";
             if (note) note.style.display = pendingPositionVideoFile ? "block" : "none";
             if (box) box.style.display = hasVideo ? "block" : "none";
             if (player) {
@@ -762,9 +856,20 @@
             }
             if (youtubePlayer) {
                 if (youtubeEmbedUrl) {
-                    if (youtubePlayer.getAttribute("src") !== youtubeEmbedUrl) youtubePlayer.setAttribute("src", youtubeEmbedUrl);
+                    if (youtubePlayer.getAttribute("src") !== youtubeEmbedUrl) {
+                        youtubePlayerApi = null;
+                        youtubePlayerReady = false;
+                        youtubePlayerSrc = "";
+                        youtubePlayerInitPromise = null;
+                        youtubePlayer.setAttribute("src", youtubeEmbedUrl);
+                    }
                     youtubePlayer.style.display = "block";
+                    ensureYouTubePlayerApi();
                 } else {
+                    youtubePlayerApi = null;
+                    youtubePlayerReady = false;
+                    youtubePlayerSrc = "";
+                    youtubePlayerInitPromise = null;
                     youtubePlayer.removeAttribute("src");
                     youtubePlayer.style.display = "none";
                 }
@@ -1642,7 +1747,8 @@
                 ball_layout: serializeLayout(),
                 line_paths: serializeLines(),
                 page_description: pageDescriptionVisible || pageDescription.trim() ? pageDescription : "",
-                is_followup: currentPageIndex > 0 && !!positionPages[currentPageIndex]?.is_followup
+                is_followup: currentPageIndex > 0 && !!positionPages[currentPageIndex]?.is_followup,
+                video_timestamp: Number.isFinite(Number(positionPages[currentPageIndex]?.video_timestamp)) ? Number(positionPages[currentPageIndex].video_timestamp) : null
             };
         }
         function loadPage(index) {
@@ -1689,9 +1795,11 @@
             const prevBtn = document.getElementById("prevPageBtn");
             const nextBtn = document.getElementById("nextPageBtn");
             const followUpBtn = document.getElementById("followUpPageBtn");
+            const timestampBtn = document.getElementById("pageVideoTimestampBtn");
             const hasMultiplePages = positionPages.length > 1;
             const editable = isEditorEditable();
             const labels = getPositionLabels(positionPages);
+            const videoTimestamp = Number(positionPages[currentPageIndex]?.video_timestamp);
             if (indicator) indicator.innerText = `${labels[currentPageIndex] || "Position 1"} · Seite ${currentPageIndex + 1} / ${Math.max(positionPages.length, 1)}`;
             if (indicator) indicator.style.display = hasMultiplePages ? "block" : "none";
             if (deleteBtn) deleteBtn.style.display = hasMultiplePages && editable ? "inline-flex" : "none";
@@ -1702,6 +1810,12 @@
                 followUpBtn.classList.toggle("active", isFollowUp);
                 followUpBtn.style.display = editable && currentPageIndex > 0 ? "inline-flex" : "none";
                 followUpBtn.innerText = isFollowUp ? "Folgeposition aktiv" : "Folgeposition";
+            }
+            if (timestampBtn) {
+                const hasTimestamp = positionVideoProvider === "youtube" && Number.isFinite(videoTimestamp) && videoTimestamp >= 0;
+                timestampBtn.style.display = hasTimestamp ? "inline-flex" : "none";
+                timestampBtn.innerText = hasTimestamp ? `Video ${formatVideoTimestamp(videoTimestamp)}` : "Video 0:00";
+                timestampBtn.title = hasTimestamp ? `YouTube auf ${formatVideoTimestamp(videoTimestamp)} setzen` : "";
             }
             updatePageDescriptionUi();
         }
@@ -1735,10 +1849,36 @@
                 ball_layout: cloneLayout(current.ball_layout),
                 line_paths: cloneLines(current.line_paths),
                 page_description: "",
-                is_followup: false
+                is_followup: false,
+                video_timestamp: null
             });
             loadPage(currentPageIndex + 1);
             showEditorToast("Seite hinzugefügt");
+        }
+        async function createPageFromCurrentVideoTimestamp() {
+            if (!isEditorEditable() || positionVideoProvider !== "youtube") return;
+            const parsed = parseYouTubeUrl(positionVideoUrl);
+            if (!parsed) {
+                alert("Bitte zuerst ein YouTube-Video verlinken.");
+                return;
+            }
+            persistCurrentPageState();
+            const seconds = Math.max(0, Math.floor(await getCurrentYouTubeTime()));
+            const current = positionPages[currentPageIndex] || createDefaultPage();
+            positionPages.splice(currentPageIndex + 1, 0, {
+                ball_layout: cloneLayout(current.ball_layout),
+                line_paths: [],
+                page_description: "",
+                is_followup: false,
+                video_timestamp: seconds
+            });
+            loadPage(currentPageIndex + 1);
+            showEditorToast(`Position aus Video ${formatVideoTimestamp(seconds)} angelegt`);
+        }
+        function seekCurrentPageVideoTimestamp() {
+            const seconds = Number(positionPages[currentPageIndex]?.video_timestamp);
+            if (positionVideoProvider !== "youtube" || !Number.isFinite(seconds) || seconds < 0) return;
+            seekYouTubeToTime(seconds);
         }
         function deleteCurrentPage() {
             if (!isEditorEditable()) return;
