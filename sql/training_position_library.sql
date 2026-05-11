@@ -10,6 +10,8 @@ create table if not exists public.training_position_library (
   video_name text not null default '',
   video_size bigint not null default 0,
   video_type text not null default '',
+  video_provider text not null default '',
+  video_url text not null default '',
   tags text[] not null default '{}'::text[],
   ball_layout jsonb not null default '{}'::jsonb,
   line_paths jsonb not null default '[]'::jsonb,
@@ -41,6 +43,12 @@ alter table public.training_position_library
 
 alter table public.training_position_library
   add column if not exists video_type text not null default '';
+
+alter table public.training_position_library
+  add column if not exists video_provider text not null default '';
+
+alter table public.training_position_library
+  add column if not exists video_url text not null default '';
 
 alter table public.training_position_library
   add column if not exists tags text[] not null default '{}'::text[];

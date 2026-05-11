@@ -127,6 +127,9 @@
         .reference-photo-empty { padding:18px; text-align:center; font-size:14px; opacity:.72; }
         .position-video-box { margin-top:12px; border:1px solid #3557b7; background:#0b173a; border-radius:16px; overflow:hidden; display:none; }
         .position-video-player { display:block; width:100%; min-height:180px; max-height:320px; background:#050b1e; }
+        .position-youtube-player { display:block; width:100%; aspect-ratio:16/9; border:0; background:#050b1e; }
+        .position-youtube-row { display:flex; gap:8px; align-items:center; margin-top:10px; }
+        .position-youtube-row input { flex:1; min-width:0; border:1px solid #3959ab; border-radius:10px; padding:10px 12px; color:#fff; background:#112659; font-size:14px; }
         .position-video-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
         .position-video-note { margin-top:8px; font-size:12px; color:#ffe27a; opacity:.9; display:none; }
         .position-video-error { padding:10px 12px; font-size:13px; color:#ffe7a0; background:rgba(94,73,10,.35); border-top:1px solid #7a6424; display:none; }
@@ -208,7 +211,12 @@
                     </div>
                     <div class="position-video-box" id="positionVideoBox">
                         <video class="position-video-player" id="positionVideoPlayer" controls playsinline preload="metadata"></video>
+                        <iframe class="position-youtube-player" id="positionYoutubePlayer" title="YouTube Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="display:none;"></iframe>
                         <div class="position-video-error" id="positionVideoError"></div>
+                    </div>
+                    <div class="position-youtube-row" id="positionYoutubeRow">
+                        <input id="positionYoutubeInput" type="url" placeholder="YouTube-Link mit Zeitmarke einfügen">
+                        <button class="btn secondary compact" id="positionYoutubeBtn" type="button" onclick="setPositionYoutubeVideo()">YouTube verlinken</button>
                     </div>
                     <div class="position-video-actions" id="positionVideoActions">
                         <button class="btn danger compact" id="removePositionVideoBtn" type="button" onclick="removePositionVideo()" style="display:none;">Video entfernen</button>
@@ -404,6 +412,8 @@
         let positionVideoName = "";
         let positionVideoSize = 0;
         let positionVideoType = "";
+        let positionVideoProvider = "";
+        let positionVideoUrl = "";
         let positionVideoPlaybackUrl = "";
         let positionVideoPlaybackError = "";
         let pendingPositionVideoFile = null;
@@ -533,6 +543,8 @@
                 text.includes("video_name") ||
                 text.includes("video_size") ||
                 text.includes("video_type") ||
+                text.includes("video_provider") ||
+                text.includes("video_url") ||
                 String(error?.code || "") === "PGRST204";
         }
         function formatFileSize(bytes) {
@@ -558,6 +570,45 @@
         }
         function getPositionVideoDisplayUrl() {
             return pendingPositionVideoObjectUrl || positionVideoPlaybackUrl || "";
+        }
+        function parseYouTubeTime(value) {
+            const raw = String(value || "").trim();
+            if (!raw) return 0;
+            if (/^\d+$/.test(raw)) return Number(raw);
+            if (/^\d+:\d{1,2}(:\d{1,2})?$/.test(raw)) {
+                return raw.split(":").map(Number).reduce((total, part) => (total * 60) + part, 0);
+            }
+            const hours = Number((raw.match(/(\d+)\s*h/) || [])[1] || 0);
+            const minutes = Number((raw.match(/(\d+)\s*m/) || [])[1] || 0);
+            const seconds = Number((raw.match(/(\d+)\s*s/) || [])[1] || 0);
+            return (hours * 3600) + (minutes * 60) + seconds;
+        }
+        function parseYouTubeUrl(value) {
+            const raw = String(value || "").trim();
+            if (!raw) return null;
+            let url = null;
+            try {
+                url = new URL(raw);
+            } catch (_) {
+                try { url = new URL("https://" + raw); } catch (_) { return null; }
+            }
+            const host = url.hostname.replace(/^www\./, "");
+            let id = "";
+            if (host === "youtu.be") id = url.pathname.split("/").filter(Boolean)[0] || "";
+            if (host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com")) {
+                if (url.pathname === "/watch") id = url.searchParams.get("v") || "";
+                else if (url.pathname.startsWith("/embed/") || url.pathname.startsWith("/shorts/")) id = url.pathname.split("/").filter(Boolean)[1] || "";
+            }
+            id = String(id || "").replace(/[^\w-]/g, "").slice(0, 20);
+            if (!id) return null;
+            const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+            const start = parseYouTubeTime(url.searchParams.get("t") || url.searchParams.get("start") || hashParams.get("t") || hashParams.get("start") || "");
+            const canonical = "https://www.youtube.com/watch?v=" + encodeURIComponent(id) + (start ? "&t=" + start + "s" : "");
+            const embed = "https://www.youtube.com/embed/" + encodeURIComponent(id) + (start ? "?start=" + start : "");
+            return { id, start, canonical, embed };
+        }
+        function getPositionYoutubeEmbedUrl() {
+            return positionVideoProvider === "youtube" ? (parseYouTubeUrl(positionVideoUrl)?.embed || "") : "";
         }
         function getPositionVideoMimeType() {
             const rawType = String(pendingPositionVideoFile?.type || positionVideoType || "").toLowerCase();
@@ -677,19 +728,25 @@
             const readOnly = !isEditorEditable();
             const box = document.getElementById("positionVideoBox");
             const player = document.getElementById("positionVideoPlayer");
+            const youtubePlayer = document.getElementById("positionYoutubePlayer");
             const errorBox = document.getElementById("positionVideoError");
             const uploadBtn = document.getElementById("positionVideoBtn");
+            const youtubeRow = document.getElementById("positionYoutubeRow");
+            const youtubeInput = document.getElementById("positionYoutubeInput");
             const removeBtn = document.getElementById("removePositionVideoBtn");
             const note = document.getElementById("positionVideoNote");
             const displayUrl = getPositionVideoDisplayUrl();
             const displayName = pendingPositionVideoFile?.name || positionVideoName || "";
-            const hasVideo = !!(displayUrl || displayName || positionVideoPath);
+            const youtubeEmbedUrl = getPositionYoutubeEmbedUrl();
+            const hasVideo = !!(youtubeEmbedUrl || displayUrl || displayName || positionVideoPath);
             if (uploadBtn) uploadBtn.style.display = readOnly ? "none" : "inline-flex";
+            if (youtubeRow) youtubeRow.style.display = readOnly ? "none" : "flex";
+            if (youtubeInput && document.activeElement !== youtubeInput) youtubeInput.value = positionVideoProvider === "youtube" ? positionVideoUrl : "";
             if (removeBtn) removeBtn.style.display = !readOnly && hasVideo ? "inline-flex" : "none";
             if (note) note.style.display = pendingPositionVideoFile ? "block" : "none";
             if (box) box.style.display = hasVideo ? "block" : "none";
             if (player) {
-                if (displayUrl) {
+                if (!youtubeEmbedUrl && displayUrl) {
                     if (player.getAttribute("src") !== displayUrl) {
                         player.pause();
                         player.setAttribute("src", displayUrl);
@@ -698,8 +755,18 @@
                     }
                     player.style.display = "block";
                 } else {
+                    try { player.pause(); } catch (_) {}
                     player.removeAttribute("src");
                     player.style.display = "none";
+                }
+            }
+            if (youtubePlayer) {
+                if (youtubeEmbedUrl) {
+                    if (youtubePlayer.getAttribute("src") !== youtubeEmbedUrl) youtubePlayer.setAttribute("src", youtubeEmbedUrl);
+                    youtubePlayer.style.display = "block";
+                } else {
+                    youtubePlayer.removeAttribute("src");
+                    youtubePlayer.style.display = "none";
                 }
             }
             if (errorBox) {
@@ -765,6 +832,30 @@
             pendingPositionVideoFile = file;
             pendingPositionVideoObjectUrl = URL.createObjectURL(file);
             pendingPositionVideoRemovalPath = "";
+            positionVideoProvider = "storage";
+            positionVideoUrl = "";
+            positionVideoPlaybackError = "";
+            updatePositionVideoUi();
+        }
+        function setPositionYoutubeVideo() {
+            if (!isEditorEditable()) return;
+            const input = document.getElementById("positionYoutubeInput");
+            const parsed = parseYouTubeUrl(input?.value || "");
+            if (!parsed) {
+                alert("Bitte einen gültigen YouTube-Link einfügen.");
+                return;
+            }
+            if (pendingPositionVideoObjectUrl) URL.revokeObjectURL(pendingPositionVideoObjectUrl);
+            pendingPositionVideoFile = null;
+            pendingPositionVideoObjectUrl = "";
+            if (positionVideoPath) pendingPositionVideoRemovalPath = positionVideoPath;
+            positionVideoPath = "";
+            positionVideoName = "YouTube";
+            positionVideoSize = 0;
+            positionVideoType = "";
+            positionVideoProvider = "youtube";
+            positionVideoUrl = parsed.canonical;
+            positionVideoPlaybackUrl = "";
             positionVideoPlaybackError = "";
             updatePositionVideoUi();
         }
@@ -778,6 +869,8 @@
             positionVideoName = "";
             positionVideoSize = 0;
             positionVideoType = "";
+            positionVideoProvider = "";
+            positionVideoUrl = "";
             positionVideoPlaybackUrl = "";
             positionVideoPlaybackError = "";
             updatePositionVideoUi();
@@ -806,12 +899,16 @@
                 video_path: path,
                 video_name: pendingPositionVideoFile.name,
                 video_size: pendingPositionVideoFile.size,
-                video_type: pendingPositionVideoFile.type || ""
+                video_type: pendingPositionVideoFile.type || "",
+                video_provider: "storage",
+                video_url: ""
             };
             positionVideoPath = uploaded.video_path;
             positionVideoName = uploaded.video_name;
             positionVideoSize = uploaded.video_size;
             positionVideoType = uploaded.video_type;
+            positionVideoProvider = uploaded.video_provider;
+            positionVideoUrl = "";
             positionVideoPlaybackError = "";
             if (pendingPositionVideoObjectUrl) URL.revokeObjectURL(pendingPositionVideoObjectUrl);
             pendingPositionVideoFile = null;
@@ -2217,6 +2314,8 @@
             positionVideoName = "";
             positionVideoSize = 0;
             positionVideoType = "";
+            positionVideoProvider = "";
+            positionVideoUrl = "";
             positionVideoPlaybackUrl = "";
             positionVideoPlaybackError = "";
             pendingPositionVideoFile = null;
@@ -2294,6 +2393,8 @@
             positionVideoName = data.video_name || "";
             positionVideoSize = Number(data.video_size || 0);
             positionVideoType = data.video_type || "";
+            positionVideoProvider = data.video_provider || (data.video_url ? "youtube" : (data.video_path ? "storage" : ""));
+            positionVideoUrl = data.video_url || "";
             positionVideoPlaybackUrl = "";
             positionVideoPlaybackError = "";
             pendingPositionVideoFile = null;
@@ -2343,6 +2444,8 @@
                 video_name: positionVideoName || "",
                 video_size: Number(positionVideoSize || 0),
                 video_type: positionVideoType || "",
+                video_provider: positionVideoProvider || (positionVideoPath ? "storage" : ""),
+                video_url: positionVideoProvider === "youtube" ? positionVideoUrl : "",
                 ball_layout: cloneLayout(firstPage.ball_layout),
                 line_paths: cloneLines(firstPage.line_paths),
                 position_pages: positionPages.map(clonePage)
@@ -2356,6 +2459,8 @@
                     delete next.video_name;
                     delete next.video_size;
                     delete next.video_type;
+                    delete next.video_provider;
+                    delete next.video_url;
                 }
                 return next;
             }
@@ -2402,7 +2507,7 @@
                 editingId = id;
                 history.replaceState({}, "", "training_position_library_editor.html?id=" + encodeURIComponent(id));
             }
-            if (missingOptional.video && (pendingPositionVideoFile || pendingPositionVideoRemovalPath)) {
+            if (missingOptional.video && (pendingPositionVideoFile || pendingPositionVideoRemovalPath || positionVideoProvider === "youtube")) {
                 alert("Position gespeichert. Videos werden erst mitgespeichert, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.");
                 return;
             } else if (id) {
@@ -2431,7 +2536,7 @@
             if (missingOptional.referencePhoto) missingParts.push("Referenzfoto");
             if (missingOptional.tags) missingParts.push("Tags");
             if (missingOptional.video) missingParts.push("Video");
-            if (missingParts.length && !(missingOptional.video && (pendingPositionVideoFile || pendingPositionVideoRemovalPath))) {
+            if (missingParts.length && !(missingOptional.video && (pendingPositionVideoFile || pendingPositionVideoRemovalPath || positionVideoProvider === "youtube"))) {
                 alert("Position gespeichert. " + missingParts.join(", ") + " werden erst mitgespeichert, nachdem das SQL aus sql/training_position_library.sql in Supabase ausgeführt wurde.");
             }
             editorEditMode = false;
@@ -2534,6 +2639,11 @@
         document.getElementById("positionVideoPlayer").addEventListener("waiting", handlePositionVideoWaiting);
         document.getElementById("positionVideoPlayer").addEventListener("stalled", handlePositionVideoWaiting);
         document.getElementById("positionVideoPlayer").addEventListener("playing", handlePositionVideoPlaying);
+        document.getElementById("positionYoutubeInput").addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            setPositionYoutubeVideo();
+        });
         document.getElementById("tagInput").addEventListener("keydown", (event) => {
             if (event.key !== "Enter" && event.key !== ",") return;
             event.preventDefault();
