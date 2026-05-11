@@ -224,6 +224,66 @@
             });
         }
 
+        async function loadRemoteMatchInvites(user) {
+            if (!user?.id) return;
+            const guestEmail = String(user.email || "").trim().toLowerCase();
+            const columns = "id,host_name,guest_name,host_discipline,guest_discipline,target_points,status,created_at";
+            const queries = [
+                supabaseClient
+                    .from("training_remote_match_sessions")
+                    .select(columns)
+                    .eq("guest_user_id", user.id)
+                    .eq("status", "active")
+                    .order("created_at", { ascending: false })
+                    .limit(3)
+            ];
+            if (guestEmail) {
+                queries.push(
+                    supabaseClient
+                        .from("training_remote_match_sessions")
+                        .select(columns)
+                        .ilike("guest_email", guestEmail)
+                        .eq("status", "active")
+                        .order("created_at", { ascending: false })
+                        .limit(3)
+                );
+            }
+
+            const results = await Promise.all(queries);
+            results.forEach((result) => {
+                if (result.error) console.warn("Remote-Match-Einladungen konnten nicht geladen werden:", result.error);
+            });
+
+            const invitesById = new Map();
+            results.forEach((result) => {
+                (result.data || []).forEach((invite) => invitesById.set(invite.id, invite));
+            });
+            const invites = Array.from(invitesById.values())
+                .sort((left, right) => new Date(right.created_at || 0) - new Date(left.created_at || 0))
+                .slice(0, 3);
+            if (invites.length === 0) {
+                return;
+            }
+
+            const grid = document.getElementById("mainGrid");
+            invites.reverse().forEach((invite) => {
+                const tile = document.createElement("div");
+                tile.className = "tile invite";
+                tile.onclick = () => {
+                    window.location.href = "training_remote_match_run.html?session=" + invite.id;
+                };
+
+                tile.innerHTML = `
+  <div class="tile-title">Remote Match Einladung</div>
+  <div class="tile-sub">${invite.host_name || "Spieler 1"} vs ${invite.guest_name || "du"}</div>
+  <div class="tile-sub" style="margin-top:8px;font-size:16px;opacity:0.9;">
+    ${invite.host_discipline || "-"} vs ${invite.guest_discipline || "-"} · ${invite.target_points || 0} Punkte
+  </div>
+`;
+                grid.prepend(tile);
+            });
+        }
+
         async function applyTrainingAccess(user) {
             const tile = document.getElementById("trainingTile");
             if (!tile) return;
@@ -247,10 +307,11 @@
                 usersTile.style.display = isAdmin ? "flex" : "none";
             }
 
-            const [_, __, ___, ownedNames] = await Promise.all([
+            const [_, __, ___, ____, ownedNames] = await Promise.all([
                 applyTrainingAccess(user),
                 applyTournamentAccess(user),
                 loadCountdownInvites(user),
+                loadRemoteMatchInvites(user),
                 getOwnedPlayerNames(user.id)
             ]);
 
