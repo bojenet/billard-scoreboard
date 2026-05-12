@@ -1675,7 +1675,17 @@
             const colorDistance = Math.hypot(r - cloth.r, g - cloth.g, b - cloth.b);
             const brightness = (r + g + b) / 3;
             const clothBrightness = (cloth.r + cloth.g + cloth.b) / 3;
-            return colorDistance > 44 || Math.abs(brightness - clothBrightness) > 32;
+            return colorDistance > 34 || Math.abs(brightness - clothBrightness) > 24;
+        }
+        function getPhotoImportPixelDifference(imageData, width, x, y, cloth) {
+            const px = Math.max(0, Math.min(width - 1, Math.round(x)));
+            const py = Math.max(0, Math.round(y));
+            const index = ((py * width) + px) * 4;
+            const r = imageData.data[index], g = imageData.data[index + 1], b = imageData.data[index + 2];
+            const colorDistance = Math.hypot(r - cloth.r, g - cloth.g, b - cloth.b);
+            const brightness = (r + g + b) / 3;
+            const clothBrightness = (cloth.r + cloth.g + cloth.b) / 3;
+            return colorDistance + (Math.abs(brightness - clothBrightness) * 0.8);
         }
         function getPhotoImportWindowRatio(imageData, canvas, center, radius, polygon, cloth, inner) {
             let changed = 0;
@@ -1697,19 +1707,21 @@
         }
         function detectPhotoImportBallCandidatesByWindow(imageData, canvas, polygon, cloth) {
             const candidates = [];
-            const radii = [12, 16, 20, 24, 28, 32].filter((radius) => radius < Math.min(canvas.width, canvas.height) * 0.05);
-            const scanStep = 7;
+            const radii = [10, 14, 18, 22, 26, 30, 34, 38].filter((radius) => radius < Math.min(canvas.width, canvas.height) * 0.075);
+            const scanStep = 5;
             radii.forEach((radius) => {
                 for (let y = radius; y < canvas.height - radius; y += scanStep) {
                     for (let x = radius; x < canvas.width - radius; x += scanStep) {
                         const center = { x, y };
                         if (!isPointInPolygon(center, polygon)) continue;
-                        if (getPointPolygonEdgeDistance(center, polygon) < radius * 1.25) continue;
+                        if (getPointPolygonEdgeDistance(center, polygon) < radius * 0.8) continue;
+                        const centerDifference = getPhotoImportPixelDifference(imageData, canvas.width, x, y, cloth);
+                        if (centerDifference < 28) continue;
                         const innerRatio = getPhotoImportWindowRatio(imageData, canvas, center, radius, polygon, cloth, true);
-                        if (innerRatio < 0.24) continue;
+                        if (innerRatio < 0.14) continue;
                         const outerRatio = getPhotoImportWindowRatio(imageData, canvas, center, radius, polygon, cloth, false);
-                        const score = (innerRatio * 1.15) - (outerRatio * 0.75);
-                        if (score < 0.16) continue;
+                        const score = (innerRatio * 1.25) - (outerRatio * 0.45) + Math.min(0.45, centerDifference / 260);
+                        if (score < 0.08) continue;
                         candidates.push({ center, radius, score, area: Math.PI * radius * radius, width: radius * 2, height: radius * 2 });
                     }
                 }
@@ -1788,23 +1800,17 @@
                 components.push({ center, score, area, width, height });
             }
             const selected = [];
-            components.sort((a, b) => b.score - a.score);
-            components.forEach((candidate) => {
+            const windowCandidates = detectPhotoImportBallCandidatesByWindow(imageData, canvas, polygon, cloth);
+            const combinedCandidates = windowCandidates.length >= 3
+                ? windowCandidates
+                : components.concat(windowCandidates);
+            combinedCandidates.sort((a, b) => b.score - a.score);
+            combinedCandidates.forEach((candidate) => {
                 if (selected.length >= 3) return;
-                const minDistance = Math.max(18, Math.min(candidate.width, candidate.height) * 0.9);
+                const minDistance = Math.max(18, Math.min(candidate.width || 0, candidate.height || 0) * 0.78, Number(candidate.radius || 0) * 1.25);
                 if (selected.some((entry) => Math.hypot(entry.center.x - candidate.center.x, entry.center.y - candidate.center.y) < minDistance)) return;
                 selected.push(candidate);
             });
-            if (selected.length < 3) {
-                detectPhotoImportBallCandidatesByWindow(imageData, canvas, polygon, cloth)
-                    .sort((a, b) => b.score - a.score)
-                    .forEach((candidate) => {
-                        if (selected.length >= 3) return;
-                        const minDistance = Math.max(24, candidate.radius * 1.55);
-                        if (selected.some((entry) => Math.hypot(entry.center.x - candidate.center.x, entry.center.y - candidate.center.y) < minDistance)) return;
-                        selected.push(candidate);
-                    });
-            }
             if (selected.length < 3) {
                 drawPhotoImportMobileCanvas();
                 alert("Es konnten nicht eindeutig drei Bälle erkannt werden. Bitte Marker manuell setzen.");
