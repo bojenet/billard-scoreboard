@@ -38,6 +38,13 @@
         .controls { display:flex; gap:12px; flex-wrap:wrap; }
         .action-btn { border:none; border-radius:16px; padding:16px 22px; font-size:22px; font-weight:700; color:white; background:#1c3380; cursor:pointer; border:1px solid #3458b8; }
         .action-btn.primary { background:#2f4fe0; border-color:#5572f0; min-width:300px; }
+        .finish-panel { display:none; margin:14px 0; padding:14px 16px; border:1px solid #5672d8; border-radius:18px; background:linear-gradient(180deg,rgba(35,67,160,.92),rgba(22,43,102,.92)); box-shadow:0 16px 34px rgba(0,0,0,.28); }
+        .finish-panel.visible { display:block; }
+        .finish-title { font-size:20px; font-weight:800; margin-bottom:5px; }
+        .finish-text { font-size:14px; opacity:.86; line-height:1.4; margin-bottom:12px; }
+        .finish-actions { display:flex; gap:10px; flex-wrap:wrap; }
+        .finish-actions .btn { font-size:15px; padding:10px 14px; }
+        .btn.success { background:#287a42; border-color:#45a861; }
         .readonly { opacity:.72; margin-top:8px; font-size:15px; }
         .chat { border-top:1px solid #27417f; padding:12px 14px 14px; }
         .chat-head { font-size:14px; font-weight:700; opacity:.9; margin-bottom:8px; }
@@ -85,6 +92,15 @@
             <div class="live-pill"><span class="live-dot" id="liveDot"></span><span id="liveStatus">Verbinde…</span></div>
             <button class="btn" onclick="showCurrentPosition(true)">Position zeigen</button>
             <button class="btn danger" onclick="finishRemoteMatch()">Beenden</button>
+        </div>
+        <div class="finish-panel" id="finishPanel">
+            <div class="finish-title" id="finishTitle">Remote-Match beendet</div>
+            <div class="finish-text" id="finishText">Du kannst das Ergebnis jetzt im normalen Archiv speichern.</div>
+            <div class="finish-actions">
+                <button class="btn success" id="saveRemoteResultBtn" type="button" onclick="saveRemoteMatchResult()">Ergebnis speichern</button>
+                <button class="btn" id="openRemoteArchiveBtn" type="button" onclick="openSavedRemoteMatch()" style="display:none;">Im Archiv öffnen</button>
+                <button class="btn" type="button" onclick="window.location.href='/'">Zur Startseite</button>
+            </div>
         </div>
         <div class="board">
             <div class="meta">
@@ -196,8 +212,11 @@
         let highlightTimer = null;
         let nextPositionTimer = null;
         let suppressAutoPositionUntil = 0;
+        let savedRemoteArchiveMatchId = "";
+        let remoteResultSaving = false;
 
         function setText(id, value) { const el = document.getElementById(id); if (el) el.innerText = value; }
+        function getRemoteArchiveStorageKey() { return "remote_match_archived_" + String(sessionId || ""); }
         function getOwnScore() { return Number(isHost ? sessionData?.host_score || 0 : sessionData?.guest_score || 0); }
         function getRemainingPoints() {
             const target = Number(sessionData?.target_points || 0);
@@ -367,7 +386,27 @@
             }
             if (commitBtn) commitBtn.disabled = disabled;
             if (sessionData.status === "finished") closePositionModal();
+            updateFinishPanel();
             renderChat();
+        }
+        function updateFinishPanel() {
+            const panel = document.getElementById("finishPanel");
+            if (!panel) return;
+            const finished = sessionData?.status === "finished";
+            panel.classList.toggle("visible", finished);
+            const saveBtn = document.getElementById("saveRemoteResultBtn");
+            const archiveBtn = document.getElementById("openRemoteArchiveBtn");
+            const text = document.getElementById("finishText");
+            if (saveBtn) {
+                saveBtn.disabled = !finished || remoteResultSaving || !!savedRemoteArchiveMatchId;
+                saveBtn.innerText = remoteResultSaving ? "Speichere..." : (savedRemoteArchiveMatchId ? "Gespeichert" : "Ergebnis speichern");
+            }
+            if (archiveBtn) archiveBtn.style.display = savedRemoteArchiveMatchId ? "inline-flex" : "none";
+            if (text) {
+                text.innerText = savedRemoteArchiveMatchId
+                    ? "Das Ergebnis wurde im normalen Archiv gespeichert."
+                    : "Du kannst das Ergebnis jetzt im normalen Archiv speichern.";
+            }
         }
         async function sendChatMessage() {
             const input = document.getElementById("chatInput");
@@ -446,7 +485,139 @@
             suppressAutoPositionUntil = Date.now() + 1400;
             scheduleNextPositionDisplay(updateObj.status === "finished" ? 0 : 900);
         }
-        async function finishRemoteMatch() { if (!sessionData?.id || sessionData.status === "finished") return; await supabaseClient.from("training_remote_match_sessions").update({ status: "finished" }).eq("id", sessionData.id); sessionData.status = "finished"; renderSession(); }
+        async function finishRemoteMatch() {
+            if (!sessionData?.id || sessionData.status === "finished") return;
+            if (!confirm("Remote-Match wirklich beenden?")) return;
+            const { data, error } = await supabaseClient
+                .from("training_remote_match_sessions")
+                .update({ status: "finished" })
+                .eq("id", sessionData.id)
+                .select("*")
+                .single();
+            if (error) {
+                alert("Remote-Match konnte nicht beendet werden: " + error.message);
+                return;
+            }
+            sessionData = data || { ...sessionData, status: "finished" };
+            renderSession();
+        }
+        function getRemoteMatchDurationSeconds() {
+            const start = new Date(sessionData?.created_at || Date.now()).getTime();
+            const end = new Date(sessionData?.updated_at || Date.now()).getTime();
+            if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
+            return Math.floor((end - start) / 1000);
+        }
+        function buildRemoteMatchArchivePayload() {
+            const hostSeries = parseSeries(sessionData?.host_series);
+            const guestSeries = parseSeries(sessionData?.guest_series);
+            const hostScore = Number(sessionData?.host_score || 0);
+            const guestScore = Number(sessionData?.guest_score || 0);
+            const hostInnings = Number(sessionData?.host_innings || hostSeries.length || 0);
+            const guestInnings = Number(sessionData?.guest_innings || guestSeries.length || 0);
+            const target = Number(sessionData?.target_points || 0);
+            return {
+                player1: sessionData?.host_name || "Spieler 1",
+                player2: sessionData?.guest_name || "Spieler 2",
+                discipline1: sessionData?.host_discipline || "",
+                discipline2: sessionData?.guest_discipline || "",
+                target1: target,
+                target2: target,
+                maxInnings: Math.max(hostInnings, guestInnings, hostSeries.length, guestSeries.length, 1),
+                score1: hostScore,
+                score2: guestScore,
+                inn1: hostInnings,
+                inn2: guestInnings,
+                totalInnings: Math.max(hostInnings, guestInnings, 1),
+                activePlayer: 1,
+                series1: 0,
+                series2: 0,
+                high1: Number(sessionData?.host_high || Math.max(0, ...hostSeries)),
+                high2: Number(sessionData?.guest_high || Math.max(0, ...guestSeries)),
+                status: 0,
+                finished: 1,
+                started_at: sessionData?.created_at || new Date().toISOString(),
+                controlMode: "remote_match",
+                created_by: currentUser?.id || sessionData?.host_user_id || null,
+                player1_id: sessionData?.host_user_id || null,
+                player2_id: sessionData?.guest_user_id || null,
+                series_log1: hostSeries,
+                series_log2: guestSeries
+            };
+        }
+        async function insertRemoteMatchArchivePayload(payload) {
+            const attempts = [];
+            attempts.push({ ...payload });
+            const withoutSeriesLogs = { ...payload };
+            delete withoutSeriesLogs.series_log1;
+            delete withoutSeriesLogs.series_log2;
+            attempts.push(withoutSeriesLogs);
+            const basePayload = { ...withoutSeriesLogs };
+            delete basePayload.player1_id;
+            delete basePayload.player2_id;
+            delete basePayload.created_by;
+            attempts.push(basePayload);
+
+            let lastError = null;
+            for (const attempt of attempts) {
+                const { data, error } = await supabaseClient
+                    .from("matches")
+                    .insert([attempt])
+                    .select("id")
+                    .single();
+                if (!error && data?.id) return data.id;
+                lastError = error;
+            }
+            throw lastError || new Error("Unbekannter Speicherfehler");
+        }
+        async function saveRemoteMatchResult() {
+            if (!sessionData?.id || sessionData.status !== "finished" || remoteResultSaving) return;
+            if (savedRemoteArchiveMatchId) {
+                openSavedRemoteMatch();
+                return;
+            }
+            remoteResultSaving = true;
+            updateFinishPanel();
+            try {
+                const payload = buildRemoteMatchArchivePayload();
+                const matchId = await insertRemoteMatchArchivePayload(payload);
+                const archiveData = {
+                    matchId,
+                    created_by: payload.created_by,
+                    player1: payload.player1,
+                    player2: payload.player2,
+                    score1: payload.score1,
+                    score2: payload.score2,
+                    innings: Math.max(payload.inn1, payload.inn2),
+                    avg1: payload.inn1 > 0 ? (payload.score1 / payload.inn1).toFixed(3) : "0.000",
+                    avg2: payload.inn2 > 0 ? (payload.score2 / payload.inn2).toFixed(3) : "0.000",
+                    hs1: payload.high1,
+                    hs2: payload.high2,
+                    series1: parseSeries(sessionData.host_series),
+                    series2: parseSeries(sessionData.guest_series),
+                    duration: getRemoteMatchDurationSeconds()
+                };
+                const { error: archiveError } = await supabaseClient.from("archive").insert([archiveData]);
+                if (archiveError) console.warn("Archiv-Zusatztabelle konnte nicht geschrieben werden:", archiveError);
+                savedRemoteArchiveMatchId = matchId;
+                try {
+                    localStorage.setItem(getRemoteArchiveStorageKey(), matchId);
+                    localStorage.setItem("series_" + matchId, JSON.stringify({
+                        series1: archiveData.series1,
+                        series2: archiveData.series2,
+                        savedAt: new Date().toISOString()
+                    }));
+                } catch (_) {}
+                updateFinishPanel();
+            } catch (error) {
+                alert("Ergebnis konnte nicht gespeichert werden: " + String(error?.message || error));
+            } finally {
+                remoteResultSaving = false;
+                updateFinishPanel();
+            }
+        }
+        function openSavedRemoteMatch() {
+            if (savedRemoteArchiveMatchId) window.location.href = "archive_detail.html?id=" + encodeURIComponent(savedRemoteArchiveMatchId);
+        }
         async function claimGuestSeatIfNeeded(data) {
             const myEmail = String(currentUser?.email || "").trim().toLowerCase();
             const guestEmail = String(data?.guest_email || "").trim().toLowerCase();
@@ -462,6 +633,7 @@
             const allowed = String(sessionData.host_user_id || "") === String(currentUser.id) || String(sessionData.guest_user_id || "") === String(currentUser.id) || (myEmail && myEmail === String(sessionData.guest_email || "").trim().toLowerCase());
             if (!allowed) { alert("Kein Zugriff auf diese Session."); window.location.href = "training_remote_match.html"; return false; }
             isHost = String(sessionData.host_user_id || "") === String(currentUser.id);
+            try { savedRemoteArchiveMatchId = localStorage.getItem(getRemoteArchiveStorageKey()) || ""; } catch (_) { savedRemoteArchiveMatchId = ""; }
             renderSession();
             await loadChatMessages();
             lastShownPositionIndex = null;
