@@ -103,6 +103,7 @@
         .photo-title { font-size:26px; font-weight:800; }
         .photo-copy { font-size:14px; line-height:1.45; opacity:.82; max-width:760px; }
         .photo-tools { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+        .photo-tools select { border:1px solid #3959ab; border-radius:12px; padding:10px 12px; color:#fff; background:#112659; font-size:14px; font-weight:700; min-width:210px; }
         .photo-status { margin:0 0 12px; font-size:14px; color:#ffe27a; min-height:20px; }
         .photo-steps { display:flex; gap:10px; flex-wrap:wrap; margin:0 0 12px; }
         .photo-step-btn { border:none; border-radius:999px; padding:10px 14px; background:#112659; color:#c8d6ff; border:1px solid #3557b7; font-size:14px; font-weight:700; cursor:pointer; }
@@ -307,6 +308,7 @@
                 <button class="btn" type="button" onclick="document.getElementById('photoImportMobileInput').click()">Foto wählen</button>
                 <button class="btn" type="button" onclick="resetPhotoImportMobilePoints()">Marker zurücksetzen</button>
                 <button class="btn" id="savePhotoCalibrationBtn" type="button" onclick="savePhotoImportCalibration()" disabled>Kalibrierung speichern</button>
+                <select id="photoCalibrationPresetSelect" onchange="applySelectedPhotoImportCalibration()"></select>
                 <button class="btn primary" id="applyPhotoImportMobileBtn" type="button" onclick="applyPhotoImportMobile()" disabled>Position übernehmen</button>
             </div>
             <div class="photo-steps">
@@ -438,6 +440,7 @@
         const baseTableHeight = 674;
         const loupeScale = 2.4;
         const PHOTO_IMPORT_CALIBRATION_KEY = "positionLibraryPhotoImportCalibration:v1";
+        const PHOTO_IMPORT_CALIBRATION_PRESETS_KEY = "positionLibraryPhotoImportCalibrationPresets:v1";
         const POSITION_VIDEO_BUCKET = "position-videos";
         const POSITION_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
         const POSITION_LIBRARY_NAV_KEY = "positionLibraryNavigationContext:v1";
@@ -1256,6 +1259,39 @@
                 return null;
             }
         }
+        function getPhotoImportCalibrationPresets() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(PHOTO_IMPORT_CALIBRATION_PRESETS_KEY) || "[]");
+                return Array.isArray(parsed)
+                    ? parsed.filter((item) => item && item.id && item.name && Array.isArray(item.corners) && item.corners.length === 4)
+                    : [];
+            } catch (_) {
+                return [];
+            }
+        }
+        function setPhotoImportCalibrationPresets(presets) {
+            localStorage.setItem(PHOTO_IMPORT_CALIBRATION_PRESETS_KEY, JSON.stringify(Array.isArray(presets) ? presets : []));
+        }
+        function updatePhotoImportCalibrationPresetUi() {
+            const select = document.getElementById("photoCalibrationPresetSelect");
+            if (!select) return;
+            const presets = getPhotoImportCalibrationPresets();
+            select.innerHTML = `<option value="">Kalibrierung laden</option>` + presets
+                .map((preset) => `<option value="${escapeHtml(preset.id)}">${escapeHtml(preset.name)}</option>`)
+                .join("");
+        }
+        function getCurrentPhotoImportCalibration() {
+            const canvas = document.getElementById("photoImportMobileCanvas");
+            if (!canvas || !canvas.width || !canvas.height || !getPhotoImportMobileAlignmentPointsReady()) return null;
+            return {
+                orientation: photoImportMobileOrientation,
+                corners: photoImportMobileCorners.map((point) => ({
+                    x: point.x / canvas.width,
+                    y: point.y / canvas.height
+                })),
+                savedAt: new Date().toISOString()
+            };
+        }
         function hasPhotoImportCalibration() {
             return !!getPhotoImportCalibration();
         }
@@ -1274,17 +1310,25 @@
         }
         function savePhotoImportCalibration() {
             if (!photoImportMobileImage || !getPhotoImportMobileAlignmentPointsReady()) return;
-            const canvas = document.getElementById("photoImportMobileCanvas");
-            if (!canvas || !canvas.width || !canvas.height) return;
-            const calibration = {
-                orientation: photoImportMobileOrientation,
-                corners: photoImportMobileCorners.map((point) => ({
-                    x: point.x / canvas.width,
-                    y: point.y / canvas.height
-                })),
-                savedAt: new Date().toISOString()
-            };
+            const calibration = getCurrentPhotoImportCalibration();
+            if (!calibration) return;
+            const name = String(prompt("Name für diese Tisch-Kalibrierung:", "") || "").trim();
+            if (!name) return;
+            const id = name.toLowerCase();
+            const presets = getPhotoImportCalibrationPresets().filter((preset) => preset.id !== id);
+            presets.push({ id, name, ...calibration });
+            presets.sort((a, b) => a.name.localeCompare(b.name, "de"));
+            setPhotoImportCalibrationPresets(presets);
             localStorage.setItem(PHOTO_IMPORT_CALIBRATION_KEY, JSON.stringify(calibration));
+            updatePhotoImportCalibrationPresetUi();
+            updatePhotoImportMobileUi();
+        }
+        function applySelectedPhotoImportCalibration() {
+            const select = document.getElementById("photoCalibrationPresetSelect");
+            const preset = getPhotoImportCalibrationPresets().find((item) => item.id === select?.value);
+            if (!preset) return;
+            localStorage.setItem(PHOTO_IMPORT_CALIBRATION_KEY, JSON.stringify(preset));
+            applyPhotoImportCalibration();
             updatePhotoImportMobileUi();
         }
         function setPhotoImportMobileOrientation(value) {
@@ -1402,6 +1446,7 @@
             if (markerSizeWrap) markerSizeWrap.style.display = photoImportMobileStep === "balls" ? "flex" : "none";
             if (markerSizeInput) markerSizeInput.value = String(photoImportMarkerRadius);
             if (markerSizeValue) markerSizeValue.innerText = String(photoImportMarkerRadius);
+            updatePhotoImportCalibrationPresetUi();
             if (orientationUpBtn) orientationUpBtn.classList.toggle("active", photoImportMobileOrientation === "up");
             if (orientationRightBtn) orientationRightBtn.classList.toggle("active", photoImportMobileOrientation === "right");
             if (orientationDownBtn) orientationDownBtn.classList.toggle("active", photoImportMobileOrientation === "down");

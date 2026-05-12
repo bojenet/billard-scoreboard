@@ -65,6 +65,7 @@
         .youtube-save-row { display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
         .youtube-marker-tools { display:none; gap:8px; flex-wrap:wrap; align-items:center; }
         .youtube-marker-tools.visible { display:flex; }
+        .youtube-marker-tools select { border:1px solid #3959ab; border-radius:10px; padding:10px 12px; color:#fff; background:#112659; font-size:14px; font-weight:700; min-width:210px; }
         .youtube-ball-picks { display:none; gap:8px; flex-wrap:wrap; }
         .youtube-ball-pick { border:1px solid #3659bb; border-radius:999px; padding:8px 11px; background:#17306f; color:#fff; font-size:13px; font-weight:800; cursor:pointer; }
         .youtube-ball-pick.active { outline:2px solid #ffd84a; }
@@ -136,6 +137,7 @@
                 <button class="btn secondary" id="youtubeMarkerBallsBtn" type="button" onclick="setYoutubeMarkerStep('balls')">2. Bälle setzen</button>
                 <button class="btn secondary" type="button" onclick="resetYoutubeMarkers()">Marker zurücksetzen</button>
                 <button class="btn secondary" id="saveYoutubeCalibrationBtn" type="button" onclick="saveYoutubeCalibration()">Kalibrierung speichern</button>
+                <select id="youtubeCalibrationPresetSelect" onchange="applySelectedYoutubeCalibration()"></select>
                 <button class="btn primary" type="button" onclick="saveYoutubeCapturePosition(true)">Pos speichern</button>
                 <button class="btn" type="button" onclick="closeYoutubeMarkers()">Marker schließen</button>
                 <div class="youtube-ball-picks" id="youtubeMarkerBallPicks">
@@ -181,6 +183,7 @@
         const bounds = { minX: 70, maxX: 605, minY: 58, maxY: 1143 };
         const POSITION_LIBRARY_NAV_KEY = "positionLibraryNavigationContext:v1";
         const PHOTO_IMPORT_CALIBRATION_KEY = "positionLibraryPhotoImportCalibration:v1";
+        const PHOTO_IMPORT_CALIBRATION_PRESETS_KEY = "positionLibraryPhotoImportCalibrationPresets:v1";
         const photoImportTableCorners = [
             { x: bounds.minX, y: bounds.minY },
             { x: bounds.maxX, y: bounds.minY },
@@ -265,6 +268,27 @@
             } catch (_) {
                 return null;
             }
+        }
+        function getCalibrationPresets() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(PHOTO_IMPORT_CALIBRATION_PRESETS_KEY) || "[]");
+                return Array.isArray(parsed)
+                    ? parsed.filter((item) => item && item.id && item.name && Array.isArray(item.corners) && item.corners.length === 4)
+                    : [];
+            } catch (_) {
+                return [];
+            }
+        }
+        function setCalibrationPresets(presets) {
+            localStorage.setItem(PHOTO_IMPORT_CALIBRATION_PRESETS_KEY, JSON.stringify(Array.isArray(presets) ? presets : []));
+        }
+        function updateYoutubeCalibrationPresetUi() {
+            const select = document.getElementById("youtubeCalibrationPresetSelect");
+            if (!select) return;
+            const presets = getCalibrationPresets();
+            select.innerHTML = `<option value="">Kalibrierung laden</option>` + presets
+                .map((preset) => `<option value="${escapeHtml(preset.id)}">${escapeHtml(preset.name)}</option>`)
+                .join("");
         }
         function getTargetCorners(orientation) {
             const base = photoImportTableCorners;
@@ -1067,6 +1091,7 @@
             if (markerSizeWrap) markerSizeWrap.style.display = youtubeMarkerStep === "balls" ? "flex" : "none";
             if (markerSizeInput) markerSizeInput.value = String(youtubeMarkerRadius);
             if (markerSizeValue) markerSizeValue.innerText = String(youtubeMarkerRadius);
+            updateYoutubeCalibrationPresetUi();
             ["Red", "Yellow", "White"].forEach((name, index) => {
                 document.getElementById("youtubeMarkerBall" + name)?.classList.toggle("active", youtubeMarkerActiveBall === index);
             });
@@ -1105,15 +1130,38 @@
         function saveYoutubeCalibration() {
             const canvas = sizeYoutubeMarkerCanvas();
             if (!canvas || youtubeMarkerCorners.length !== 4) return;
-            localStorage.setItem(PHOTO_IMPORT_CALIBRATION_KEY, JSON.stringify({
+            const name = String(prompt("Name für diese Tisch-Kalibrierung:", "") || "").trim();
+            if (!name) return;
+            const calibration = {
                 orientation: youtubeMarkerOrientation,
                 corners: youtubeMarkerCorners.map((point) => ({
                     x: point.x / canvas.width,
                     y: point.y / canvas.height
                 })),
                 savedAt: new Date().toISOString()
+            };
+            const id = name.toLowerCase();
+            const presets = getCalibrationPresets().filter((preset) => preset.id !== id);
+            presets.push({ id, name, ...calibration });
+            presets.sort((a, b) => a.name.localeCompare(b.name, "de"));
+            setCalibrationPresets(presets);
+            localStorage.setItem(PHOTO_IMPORT_CALIBRATION_KEY, JSON.stringify(calibration));
+            updateYoutubeCalibrationPresetUi();
+            setYoutubeCaptureStatus(`Tisch-Kalibrierung "${name}" gespeichert.`);
+        }
+        function applySelectedYoutubeCalibration() {
+            const select = document.getElementById("youtubeCalibrationPresetSelect");
+            const preset = getCalibrationPresets().find((item) => item.id === select?.value);
+            const canvas = sizeYoutubeMarkerCanvas();
+            if (!preset || !canvas) return;
+            localStorage.setItem(PHOTO_IMPORT_CALIBRATION_KEY, JSON.stringify(preset));
+            youtubeMarkerOrientation = ["up", "right", "down", "left"].includes(preset.orientation) ? preset.orientation : "up";
+            youtubeMarkerCorners = preset.corners.map((point) => ({
+                x: clamp(Number(point.x || 0) * canvas.width, 0, canvas.width),
+                y: clamp(Number(point.y || 0) * canvas.height, 0, canvas.height)
             }));
-            setYoutubeCaptureStatus("Tisch-Kalibrierung gespeichert.");
+            updateYoutubeMarkerUi();
+            setYoutubeCaptureStatus(`Tisch-Kalibrierung "${preset.name}" geladen.`);
         }
         function getYoutubeMarkerLayout() {
             if (youtubeMarkerCorners.length !== 4 || youtubeMarkerBalls.length !== 3) return null;
