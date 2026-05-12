@@ -325,6 +325,7 @@
                 <button class="photo-ball-pick red active" id="photoImportMobileBallRed" type="button" onclick="setPhotoImportMobileActiveBall(0)">Rot</button>
                 <button class="photo-ball-pick yellow" id="photoImportMobileBallYellow" type="button" onclick="setPhotoImportMobileActiveBall(1)">Gelb</button>
                 <button class="photo-ball-pick white" id="photoImportMobileBallWhite" type="button" onclick="setPhotoImportMobileActiveBall(2)">Weiß</button>
+                <button class="photo-step-btn" type="button" onclick="detectPhotoImportBallsByShape()">Bälle automatisch finden</button>
             </div>
             <label class="photo-marker-size" id="photoImportMarkerSizeWrap">
                 Markergröße
@@ -1622,6 +1623,127 @@
                 try { canvas.releasePointerCapture(event.pointerId); } catch (_) {}
             }
             photoImportMobileDrag = null;
+        }
+        function isPointInPolygon(point, polygon) {
+            let inside = false;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+                const xi = polygon[i].x, yi = polygon[i].y;
+                const xj = polygon[j].x, yj = polygon[j].y;
+                const intersect = ((yi > point.y) !== (yj > point.y)) &&
+                    (point.x < ((xj - xi) * (point.y - yi) / ((yj - yi) || 1e-9)) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+        function getMedian(values) {
+            const sorted = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+            return sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+        }
+        function getPhotoImportClothSample(imageData, canvas, polygon) {
+            const reds = [], greens = [], blues = [];
+            const step = Math.max(8, Math.round(Math.min(canvas.width, canvas.height) / 70));
+            for (let y = 0; y < canvas.height; y += step) {
+                for (let x = 0; x < canvas.width; x += step) {
+                    if (!isPointInPolygon({ x, y }, polygon)) continue;
+                    const index = ((y * canvas.width) + x) * 4;
+                    reds.push(imageData.data[index]);
+                    greens.push(imageData.data[index + 1]);
+                    blues.push(imageData.data[index + 2]);
+                }
+            }
+            return { r: getMedian(reds), g: getMedian(greens), b: getMedian(blues) };
+        }
+        function detectPhotoImportBallsByShape() {
+            if (!photoImportMobileImage || !getPhotoImportMobileAlignmentPointsReady()) return;
+            const canvas = document.getElementById("photoImportMobileCanvas");
+            if (!canvas) return;
+            sizePhotoCanvas(canvas, photoImportMobileImage);
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(photoImportMobileImage, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const polygon = photoImportMobileCorners;
+            const cloth = getPhotoImportClothSample(imageData, canvas, polygon);
+            const step = 3;
+            const gridW = Math.ceil(canvas.width / step);
+            const gridH = Math.ceil(canvas.height / step);
+            const mask = new Uint8Array(gridW * gridH);
+            for (let gy = 0; gy < gridH; gy += 1) {
+                for (let gx = 0; gx < gridW; gx += 1) {
+                    const x = Math.min(canvas.width - 1, gx * step);
+                    const y = Math.min(canvas.height - 1, gy * step);
+                    if (!isPointInPolygon({ x, y }, polygon)) continue;
+                    const index = ((y * canvas.width) + x) * 4;
+                    const r = imageData.data[index], g = imageData.data[index + 1], b = imageData.data[index + 2];
+                    const colorDistance = Math.hypot(r - cloth.r, g - cloth.g, b - cloth.b);
+                    const brightness = (r + g + b) / 3;
+                    const clothBrightness = (cloth.r + cloth.g + cloth.b) / 3;
+                    if (colorDistance > 48 || Math.abs(brightness - clothBrightness) > 38) {
+                        mask[(gy * gridW) + gx] = 1;
+                    }
+                }
+            }
+            const visited = new Uint8Array(mask.length);
+            const components = [];
+            const minArea = 12;
+            const maxArea = Math.round((canvas.width * canvas.height) / (step * step) * 0.012);
+            for (let start = 0; start < mask.length; start += 1) {
+                if (!mask[start] || visited[start]) continue;
+                const queue = [start];
+                visited[start] = 1;
+                let qi = 0, area = 0, sumX = 0, sumY = 0;
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                while (qi < queue.length) {
+                    const idx = queue[qi++];
+                    const gx = idx % gridW;
+                    const gy = Math.floor(idx / gridW);
+                    area += 1;
+                    sumX += gx;
+                    sumY += gy;
+                    minX = Math.min(minX, gx); maxX = Math.max(maxX, gx);
+                    minY = Math.min(minY, gy); maxY = Math.max(maxY, gy);
+                    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
+                        const nx = gx + dx, ny = gy + dy;
+                        if (nx < 0 || ny < 0 || nx >= gridW || ny >= gridH) return;
+                        const next = (ny * gridW) + nx;
+                        if (!mask[next] || visited[next]) return;
+                        visited[next] = 1;
+                        queue.push(next);
+                    });
+                }
+                if (area < minArea || area > maxArea) continue;
+                const width = (maxX - minX + 1) * step;
+                const height = (maxY - minY + 1) * step;
+                const aspect = width / Math.max(1, height);
+                if (aspect < 0.45 || aspect > 2.2) continue;
+                const fillRatio = area / Math.max(1, (maxX - minX + 1) * (maxY - minY + 1));
+                if (fillRatio < 0.22) continue;
+                const center = { x: (sumX / area) * step, y: (sumY / area) * step };
+                const roundnessPenalty = Math.abs(1 - aspect);
+                const score = area * fillRatio * (1 - Math.min(0.7, roundnessPenalty));
+                components.push({ center, score, area, width, height });
+            }
+            const selected = [];
+            components.sort((a, b) => b.score - a.score);
+            components.forEach((candidate) => {
+                if (selected.length >= 3) return;
+                const minDistance = Math.max(18, Math.min(candidate.width, candidate.height) * 0.9);
+                if (selected.some((entry) => Math.hypot(entry.center.x - candidate.center.x, entry.center.y - candidate.center.y) < minDistance)) return;
+                selected.push(candidate);
+            });
+            if (selected.length !== 3) {
+                drawPhotoImportMobileCanvas();
+                alert("Es konnten nicht eindeutig drei Bälle erkannt werden. Bitte Marker manuell setzen.");
+                return;
+            }
+            photoImportMobileBalls = selected
+                .map((entry) => entry.center)
+                .sort((a, b) => a.x - b.x);
+            photoImportMobileStep = "balls";
+            photoImportMobileActiveBall = 0;
+            updatePhotoImportMobileUi();
+            showEditorToast("Bälle gefunden");
         }
         function solveLinearSystem(matrix, values) {
             const n = values.length;
