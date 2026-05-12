@@ -349,7 +349,12 @@
             if (!parsed?.id) return "";
             const params = new URLSearchParams({
                 enablejsapi: "1",
-                origin: window.location.origin
+                origin: window.location.origin,
+                rel: "0",
+                modestbranding: "1",
+                iv_load_policy: "3",
+                playsinline: "1",
+                fs: "0"
             });
             if (parsed.start) params.set("start", String(parsed.start));
             return "https://www.youtube.com/embed/" + encodeURIComponent(parsed.id) + "?" + params.toString();
