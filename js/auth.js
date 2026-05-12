@@ -11,7 +11,7 @@ async function getOwnProfile(userId) {
   if (!userId) return null;
   const { data, error } = await supabaseClient
     .from("profiles")
-    .select("id,email,full_name")
+    .select("id,email,first_name,last_name,full_name")
     .eq("id", userId)
     .maybeSingle();
 

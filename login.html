@@ -122,9 +122,14 @@
         <p class="sub" id="subText">Mit deinem Konto anmelden</p>
 
         <div class="stack">
-            <div class="field" id="nameField" style="display:none;">
-                <label for="fullName">Name</label>
-                <input id="fullName" type="text" placeholder="Dein Name" autocomplete="name" />
+            <div class="field" id="firstNameField" style="display:none;">
+                <label for="firstName">Vorname</label>
+                <input id="firstName" type="text" placeholder="Vorname" autocomplete="given-name" />
+            </div>
+
+            <div class="field" id="lastNameField" style="display:none;">
+                <label for="lastName">Nachname</label>
+                <input id="lastName" type="text" placeholder="Nachname" autocomplete="family-name" />
             </div>
 
             <div class="field" id="emailField">
@@ -180,7 +185,8 @@
         function applyMode(mode) {
             currentMode = mode;
             const emailField = document.getElementById("emailField");
-            const nameField = document.getElementById("nameField");
+            const firstNameField = document.getElementById("firstNameField");
+            const lastNameField = document.getElementById("lastNameField");
             const passwordField = document.getElementById("passwordField");
             const confirmField = document.getElementById("confirmField");
             const title = document.getElementById("title");
@@ -191,7 +197,8 @@
             const tinyText = document.getElementById("tinyText");
 
             emailField.style.display = "flex";
-            nameField.style.display = "none";
+            firstNameField.style.display = "none";
+            lastNameField.style.display = "none";
             passwordField.style.display = "flex";
             confirmField.style.display = "none";
             secondaryBtn.style.display = "block";
@@ -215,7 +222,8 @@
                 primaryBtn.innerText = "Konto erstellen";
                 secondaryBtn.innerText = "Zum Login";
                 tertiaryBtn.style.display = "none";
-                nameField.style.display = "flex";
+                firstNameField.style.display = "flex";
+                lastNameField.style.display = "flex";
                 confirmField.style.display = "flex";
                 document.getElementById("password").autocomplete = "new-password";
                 tinyText.innerText = "Wenn E-Mail-Bestätigung aktiv ist, musst du danach dein Postfach prüfen.";
@@ -238,8 +246,16 @@
             return document.getElementById("email").value.trim();
         }
 
+        function getFirstName() {
+            return document.getElementById("firstName").value.trim();
+        }
+
+        function getLastName() {
+            return document.getElementById("lastName").value.trim();
+        }
+
         function getFullName() {
-            return document.getElementById("fullName").value.trim();
+            return [getFirstName(), getLastName()].filter(Boolean).join(" ").trim();
         }
 
         function getPassword() {
@@ -303,13 +319,15 @@
         }
 
         async function signUp() {
+            const firstName = getFirstName();
+            const lastName = getLastName();
             const fullName = getFullName();
             const email = getEmail();
             const password = getPassword();
             const confirmPassword = getConfirmPassword();
 
-            if (!fullName || fullName.length < 2) {
-                setMessage("Bitte deinen Namen eingeben.", "error");
+            if (!firstName || firstName.length < 2 || !lastName || lastName.length < 2) {
+                setMessage("Bitte Vorname und Nachname eingeben.", "error");
                 return;
             }
             if (!email || !password || password.length < 6) {
@@ -327,6 +345,8 @@
                 password,
                 options: {
                     data: {
+                        first_name: firstName,
+                        last_name: lastName,
                         display_name: fullName,
                         full_name: fullName
                     }
@@ -341,7 +361,8 @@
 
             setMessage("Konto erstellt. Bitte E-Mail-Bestätigung prüfen, falls sie aktiv ist.", "ok");
             applyMode("login");
-            document.getElementById("fullName").value = "";
+            document.getElementById("firstName").value = "";
+            document.getElementById("lastName").value = "";
             document.getElementById("password").value = "";
             document.getElementById("confirmPassword").value = "";
         }

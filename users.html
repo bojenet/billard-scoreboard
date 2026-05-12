@@ -128,6 +128,7 @@
       <table id="usersTable">
         <tr>
           <th>E-Mail</th>
+          <th>Name</th>
           <th>User ID</th>
           <th>Rolle</th>
           <th>Positions Library</th>
@@ -214,7 +215,7 @@
 
       const { data: profiles, error: profilesError } = await supabaseClient
         .from("profiles")
-        .select("id,email")
+        .select("id,email,first_name,last_name,full_name")
         .order("email", { ascending: true });
 
       if (profilesError) {
@@ -255,6 +256,7 @@
       table.innerHTML = `
         <tr>
           <th>E-Mail</th>
+          <th>Name</th>
           <th>User ID</th>
           <th>Rolle</th>
           <th>Positions Library</th>
@@ -279,6 +281,7 @@
         const tournamentAccess = normalizeTournamentAccess(roleInfo.tournament_access);
         row.innerHTML = `
           <td>${p.email || "-"}</td>
+          <td>${escapeHtml(p.full_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "-")}</td>
           <td class="uid">${p.id}</td>
           <td>
             <select id="role_${p.id}">

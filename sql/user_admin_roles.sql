@@ -4,8 +4,16 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
+  first_name text,
+  last_name text,
+  full_name text,
   created_at timestamptz not null default now()
 );
+
+alter table public.profiles
+  add column if not exists first_name text,
+  add column if not exists last_name text,
+  add column if not exists full_name text;
 
 create table if not exists public.user_roles (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -97,9 +105,19 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email)
-  values (new.id, new.email)
-  on conflict (id) do update set email = excluded.email;
+  insert into public.profiles (id, email, first_name, last_name, full_name)
+  values (
+    new.id,
+    new.email,
+    nullif(trim(coalesce(new.raw_user_meta_data ->> 'first_name', '')), ''),
+    nullif(trim(coalesce(new.raw_user_meta_data ->> 'last_name', '')), ''),
+    nullif(trim(coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'display_name', '')), '')
+  )
+  on conflict (id) do update set
+    email = excluded.email,
+    first_name = coalesce(public.profiles.first_name, excluded.first_name),
+    last_name = coalesce(public.profiles.last_name, excluded.last_name),
+    full_name = coalesce(public.profiles.full_name, excluded.full_name);
 
   insert into public.user_roles (user_id, role, position_library_access, training_access, tournament_access)
   values (new.id, 'member', 'edit', 'edit', 'edit')

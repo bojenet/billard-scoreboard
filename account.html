@@ -112,8 +112,13 @@
 
         <div class="card">
             <div class="field">
-                <label for="fullName">Name</label>
-                <input id="fullName" type="text" placeholder="Dein Name" autocomplete="name" />
+                <label for="firstName">Vorname</label>
+                <input id="firstName" type="text" placeholder="Vorname" autocomplete="given-name" />
+            </div>
+
+            <div class="field">
+                <label for="lastName">Nachname</label>
+                <input id="lastName" type="text" placeholder="Nachname" autocomplete="family-name" />
             </div>
 
             <div class="field">
@@ -146,21 +151,33 @@
 
             document.getElementById("email").value = currentUser.email || "";
 
+            let firstName = "";
+            let lastName = "";
             let displayName = getDisplayName(currentUser);
             if (typeof getOwnProfile === "function") {
                 const profile = await getOwnProfile(currentUser.id);
+                firstName = profile?.first_name || "";
+                lastName = profile?.last_name || "";
                 if (profile?.full_name) {
                     displayName = profile.full_name;
                 }
             }
-            document.getElementById("fullName").value = displayName && displayName !== currentUser.email ? displayName : "";
+            if ((!firstName || !lastName) && displayName && displayName !== currentUser.email) {
+                const parts = String(displayName).trim().split(/\s+/);
+                if (!firstName) firstName = parts.shift() || "";
+                if (!lastName) lastName = parts.join(" ");
+            }
+            document.getElementById("firstName").value = firstName;
+            document.getElementById("lastName").value = lastName;
         }
 
         async function saveAccount() {
             if (!currentUser) return;
-            const fullName = String(document.getElementById("fullName").value || "").trim();
-            if (!fullName || fullName.length < 2) {
-                setMessage("Bitte einen Namen mit mindestens 2 Zeichen eingeben.", "err");
+            const firstName = String(document.getElementById("firstName").value || "").trim();
+            const lastName = String(document.getElementById("lastName").value || "").trim();
+            const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+            if (!firstName || firstName.length < 2 || !lastName || lastName.length < 2) {
+                setMessage("Bitte Vorname und Nachname eingeben.", "err");
                 return;
             }
 
@@ -168,6 +185,8 @@
 
             const { data, error } = await supabaseClient.auth.updateUser({
                 data: {
+                    first_name: firstName,
+                    last_name: lastName,
                     display_name: fullName,
                     full_name: fullName,
                     name: fullName
@@ -183,6 +202,8 @@
             const profilePayload = {
                 id: user.id,
                 email: user.email || currentUser.email || null,
+                first_name: firstName,
+                last_name: lastName,
                 full_name: fullName
             };
 
