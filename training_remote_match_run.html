@@ -290,6 +290,7 @@
         function formatTimeShort(iso) { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
         function detectWinner(state) {
             const score1 = Number(state.host_score || 0), score2 = Number(state.guest_score || 0), inn1 = Number(state.host_innings || 0), inn2 = Number(state.guest_innings || 0), target = Number(state.target_points || 0);
+            if (target > 0 && (score1 >= target || score2 >= target)) { if (score1 > score2) return 1; if (score2 > score1) return 2; if (score1 === score2) return 0; }
             if (inn1 === inn2 && target > 0 && (score1 >= target || score2 >= target)) { if (score1 > score2) return 1; if (score2 > score1) return 2; if (score1 === score2 && score1 >= target) return 0; }
             return null;
         }
@@ -483,7 +484,12 @@
             document.getElementById("seriesInput").value = 0;
             renderSession();
             suppressAutoPositionUntil = Date.now() + 1400;
-            scheduleNextPositionDisplay(updateObj.status === "finished" ? 0 : 900);
+            if (updateObj.status === "finished") {
+                clearNextPositionTimer();
+                closePositionModal();
+                return;
+            }
+            scheduleNextPositionDisplay(900);
         }
         async function finishRemoteMatch() {
             if (!sessionData?.id || sessionData.status === "finished") return;
