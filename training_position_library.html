@@ -184,11 +184,12 @@
         const POSITION_LIBRARY_NAV_KEY = "positionLibraryNavigationContext:v1";
         const PHOTO_IMPORT_CALIBRATION_KEY = "positionLibraryPhotoImportCalibration:v1";
         const PHOTO_IMPORT_CALIBRATION_PRESETS_KEY = "positionLibraryPhotoImportCalibrationPresets:v1";
+        const photoImportTargetInset = { x: 26, y: 42 };
         const photoImportTableCorners = [
-            { x: bounds.minX, y: bounds.minY },
-            { x: bounds.maxX, y: bounds.minY },
-            { x: bounds.maxX, y: bounds.maxY },
-            { x: bounds.minX, y: bounds.maxY }
+            { x: bounds.minX + photoImportTargetInset.x, y: bounds.minY + photoImportTargetInset.y },
+            { x: bounds.maxX - photoImportTargetInset.x, y: bounds.minY + photoImportTargetInset.y },
+            { x: bounds.maxX - photoImportTargetInset.x, y: bounds.maxY - photoImportTargetInset.y },
+            { x: bounds.minX + photoImportTargetInset.x, y: bounds.maxY - photoImportTargetInset.y }
         ];
         const TABLE_RENDER_SPECS = {
             MB: { radius: 11.0, whiteStrokeWidth: 1.35 },
@@ -999,8 +1000,8 @@
             return canvas;
         }
         function drawYoutubeMarker(ctx, pt, index, highlighted) {
-            const arm = highlighted ? 18 : 14;
-            const gap = highlighted ? 5 : 4;
+            const arm = highlighted ? 14 : 11;
+            const gap = highlighted ? 7 : 6;
             const drawPath = () => {
                 ctx.beginPath();
                 ctx.moveTo(pt.x - arm, pt.y);
@@ -1013,16 +1014,16 @@
                 ctx.lineTo(pt.x, pt.y + arm);
             };
             ctx.strokeStyle = "#10192f";
-            ctx.lineWidth = highlighted ? 5 : 4;
+            ctx.lineWidth = highlighted ? 2.2 : 1.8;
             drawPath();
             ctx.stroke();
             ctx.strokeStyle = highlighted ? "#ffd84a" : "#9fdcff";
-            ctx.lineWidth = highlighted ? 3 : 2.5;
+            ctx.lineWidth = highlighted ? 1.1 : 1;
             drawPath();
             ctx.stroke();
             ctx.fillStyle = highlighted ? "#ffd84a" : "#9fdcff";
-            ctx.font = "bold 18px Arial";
-            ctx.fillText(String(index + 1), pt.x + arm + 6, pt.y - arm + 6);
+            ctx.font = "bold 13px Arial";
+            ctx.fillText(String(index + 1), pt.x + arm + 4, pt.y - arm + 4);
         }
         function resetYoutubeMarkers() {
             const canvas = sizeYoutubeMarkerCanvas();
@@ -1065,7 +1066,7 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             if (youtubeMarkerCorners.length > 1) {
                 ctx.strokeStyle = "rgba(255,216,74,.95)";
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 youtubeMarkerCorners.forEach((pt, index) => index ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y));
                 ctx.closePath();
