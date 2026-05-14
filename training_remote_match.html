@@ -154,7 +154,7 @@
                     </button>
                     <div class="positions-body" id="positionsBody">
                         <div class="positions-toolbar">
-                            <button class="position-library-btn" type="button" onclick="document.getElementById('positionLibraryModal').classList.add('open'); openPositionLibraryModal()">Positionen auswählen</button>
+                            <button class="position-library-btn" type="button" onclick="openPositionLibraryModal()">Positionen auswählen</button>
                         </div>
                         <div class="positions-grid" id="positionsGrid"></div>
                     </div>
@@ -607,16 +607,9 @@
             syncSelectedLibraryKeysFromCurrentPositions();
             document.getElementById("positionLibraryModalTitle").innerText = `Positionen aus Library wählen`;
             document.getElementById("positionLibrarySearch").value = "";
+            if (!libraryItems.length) await loadPositionLibraryItems();
+            renderPositionLibraryList();
             document.getElementById("positionLibraryModal").classList.add("open");
-            const wrap = document.getElementById("positionLibraryList");
-            if (wrap) wrap.innerHTML = `<div class="library-empty">Positionen werden geladen...</div>`;
-            try {
-                if (!libraryItems.length) await loadPositionLibraryItems();
-                renderPositionLibraryList();
-            } catch (error) {
-                console.warn("Positionen konnten nicht geladen werden:", error);
-                if (wrap) wrap.innerHTML = `<div class="library-empty">Positionen konnten nicht geladen werden.</div>`;
-            }
         }
         function closePositionLibraryModal() {
             document.getElementById("positionLibraryModal").classList.remove("open");
@@ -641,7 +634,6 @@
             renderPositions();
             closePositionLibraryModal();
         }
-        window.openPositionLibraryModal = openPositionLibraryModal;
         async function cancelInvite(sessionId) {
             if (!sessionId) return;
             const { error } = await supabaseClient.from("training_remote_match_sessions").update({ status: "cancelled" }).eq("id", sessionId).eq("host_user_id", currentUser.id).eq("status", "active");
