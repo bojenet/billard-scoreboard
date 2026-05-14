@@ -90,7 +90,7 @@
         <div class="topbar">
             <button class="btn" onclick="window.location.href='training_remote_match.html'">Zurück zum Setup</button>
             <div class="live-pill"><span class="live-dot" id="liveDot"></span><span id="liveStatus">Verbinde…</span></div>
-            <button class="btn" onclick="showCurrentPosition(true, true)">Position zeigen</button>
+            <button class="btn" onclick="showCurrentPosition(true)">Position zeigen</button>
             <button class="btn danger" onclick="finishRemoteMatch()">Beenden</button>
         </div>
         <div class="finish-panel" id="finishPanel">
@@ -288,23 +288,10 @@
         async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (_) {} finally { updateFullscreenButton(); } }
         function escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
         function formatTimeShort(iso) { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
-        function hasPlayerReachedTarget(state, player) {
-            const target = Number(state?.target_points || 0);
-            if (target <= 0) return false;
-            const score = Number(player === "host" ? state?.host_score : state?.guest_score) || 0;
-            return score >= target;
-        }
-        function haveBothPlayersReachedTarget(state) {
-            return hasPlayerReachedTarget(state, "host") && hasPlayerReachedTarget(state, "guest");
-        }
-        function hasCurrentPlayerReachedTarget(state = sessionData) {
-            return hasPlayerReachedTarget(state, isHost ? "host" : "guest");
-        }
         function detectWinner(state) {
             const score1 = Number(state.host_score || 0), score2 = Number(state.guest_score || 0), inn1 = Number(state.host_innings || 0), inn2 = Number(state.guest_innings || 0), target = Number(state.target_points || 0);
-            if (!haveBothPlayersReachedTarget(state)) return null;
-            if (target > 0) { if (score1 > score2) return 1; if (score2 > score1) return 2; if (score1 === score2) return 0; }
-            if (inn1 === inn2 && target > 0) { if (score1 > score2) return 1; if (score2 > score1) return 2; if (score1 === score2 && score1 >= target) return 0; }
+            if (target > 0 && (score1 >= target || score2 >= target)) { if (score1 > score2) return 1; if (score2 > score1) return 2; if (score1 === score2) return 0; }
+            if (inn1 === inn2 && target > 0 && (score1 >= target || score2 >= target)) { if (score1 > score2) return 1; if (score2 > score1) return 2; if (score1 === score2 && score1 >= target) return 0; }
             return null;
         }
         function renderPositionSvg(layout) {
@@ -350,9 +337,8 @@
                 showCurrentPosition(true);
             }, delayMs);
         }
-        function showCurrentPosition(force = false, allowReachedPlayer = false) {
+        function showCurrentPosition(force = false) {
             if (!sessionData || sessionData.status === "finished") return;
-            if (!allowReachedPlayer && hasCurrentPlayerReachedTarget()) return;
             const positions = getPositions();
             if (!positions.length) return;
             const index = getCurrentPositionIndex();
@@ -388,15 +374,12 @@
             setText("p2High", String(sessionData.guest_high || 0));
             setText("p2Avg", avg(Number(sessionData.guest_score || 0), Number(sessionData.guest_innings || 0)));
             setText("p2History", p2Series.length ? p2Series.join(", ") : "-");
-            const currentPlayerDone = hasCurrentPlayerReachedTarget();
             setText("readonlyInfo", sessionData.status === "finished"
                 ? "Remote-Match beendet."
-                : (currentPlayerDone
-                    ? "Du hast die Distanz erreicht. Warte, bis der andere Spieler ebenfalls fertig ist."
-                    : ((isHost ? "Du erfasst deine eigenen Aufnahmen als Spieler 1." : "Du erfasst deine eigenen Aufnahmen als Spieler 2.") + " Noch " + getRemainingPoints() + " Punkte bis zur Distanz.")));
+                : ((isHost ? "Du erfasst deine eigenen Aufnahmen als Spieler 1." : "Du erfasst deine eigenen Aufnahmen als Spieler 2.") + " Noch " + getRemainingPoints() + " Punkte bis zur Distanz."));
             const seriesInput = document.getElementById("seriesInput");
             const commitBtn = document.querySelector(".action-btn.primary");
-            const disabled = sessionData.status === "finished" || currentPlayerDone;
+            const disabled = sessionData.status === "finished";
             if (seriesInput) {
                 seriesInput.disabled = disabled;
                 seriesInput.max = String(getRemainingPoints());
@@ -478,7 +461,6 @@
         }
         async function commitInning() {
             if (!sessionData?.id || sessionData.status === "finished") return;
-            if (hasCurrentPlayerReachedTarget()) return;
             const remaining = getRemainingPoints();
             const series = clampSeriesInputValue(document.getElementById("seriesInput").value || 0);
             if (!Number.isFinite(series) || series < 0) { alert("Bitte eine gültige Serie eingeben."); return; }
@@ -489,12 +471,9 @@
                 ? { host_series: nextSeries, host_score: Number(sessionData.host_score || 0) + series, host_innings: Number(sessionData.host_innings || 0) + 1, host_high: Math.max(Number(sessionData.host_high || 0), series) }
                 : { guest_series: nextSeries, guest_score: Number(sessionData.guest_score || 0) + series, guest_innings: Number(sessionData.guest_innings || 0) + 1, guest_high: Math.max(Number(sessionData.guest_high || 0), series) };
             const positionCount = getPositionCount();
-            const nextOwnScore = Number(isHost ? updateObj.host_score : updateObj.guest_score) || 0;
-            const target = Number(sessionData.target_points || 0);
-            const ownPlayerStillActive = !(target > 0 && nextOwnScore >= target);
-            if (isHost && ownPlayerStillActive) {
+            if (isHost) {
                 updateObj.host_position_index = positionCount ? ((getCurrentPositionIndex() % positionCount) + 1) : 1;
-            } else if (!isHost && ownPlayerStillActive) {
+            } else {
                 updateObj.guest_position_index = positionCount ? ((getCurrentPositionIndex() % positionCount) + 1) : 1;
             }
             const winner = detectWinner({ ...sessionData, ...updateObj });
@@ -510,19 +489,10 @@
                 closePositionModal();
                 return;
             }
-            if (hasCurrentPlayerReachedTarget()) {
-                clearNextPositionTimer();
-                closePositionModal();
-                return;
-            }
             scheduleNextPositionDisplay(900);
         }
         async function finishRemoteMatch() {
             if (!sessionData?.id || sessionData.status === "finished") return;
-            if (!haveBothPlayersReachedTarget(sessionData)) {
-                alert("Das Remote-Match kann erst beendet werden, wenn beide Spieler die Distanz erreicht haben.");
-                return;
-            }
             if (!confirm("Remote-Match wirklich beenden?")) return;
             const { data, error } = await supabaseClient
                 .from("training_remote_match_sessions")
