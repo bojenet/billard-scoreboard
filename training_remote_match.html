@@ -266,6 +266,7 @@
         }
         function getChallengeTemplateForDiscipline(discipline) { return DISCIPLINE_TEMPLATES[discipline] || "assets/discipline-mb-47.png"; }
         function getActiveDiscipline() { return selectedHostDiscipline || selectedGuestDiscipline || "Cadre 47/2"; }
+        function getSelectedPositionDiscipline() { return selectedHostDiscipline || selectedGuestDiscipline || ""; }
         function hasLoadedChallengePosition(layout) { return !!(layout?.red && layout?.yellow && layout?.white); }
         function hasAllChallengePositionsLoaded() { return challengePositions.length > 0 && challengePositions.every((layout) => hasLoadedChallengePosition(layout)); }
         function serializeChallengePositions() {
@@ -560,7 +561,7 @@
         function renderPositionLibraryList() {
             const wrap = document.getElementById("positionLibraryList");
             const search = String(document.getElementById("positionLibrarySearch").value || "").trim().toLowerCase();
-            const activeDiscipline = getActiveDiscipline();
+            const activeDiscipline = getSelectedPositionDiscipline();
             const pages = libraryItems
                 .filter((item) => !activeDiscipline || item.discipline === activeDiscipline)
                 .flatMap((item) => getLibraryPages(item).map((page) => ({ item, page })))
@@ -602,10 +603,11 @@
                     .map((item) => `${item.source_library_id}::${Number(item.source_page_index) || 0}`)
             );
         }
-        function openPositionLibraryModal() {
+        async function openPositionLibraryModal() {
             syncSelectedLibraryKeysFromCurrentPositions();
             document.getElementById("positionLibraryModalTitle").innerText = `Positionen aus Library wählen`;
             document.getElementById("positionLibrarySearch").value = "";
+            if (!libraryItems.length) await loadPositionLibraryItems();
             renderPositionLibraryList();
             document.getElementById("positionLibraryModal").classList.add("open");
         }
@@ -615,7 +617,7 @@
         }
         function applySelectedLibraryPositions() {
             const selectedPages = libraryItems
-                .filter((item) => !getActiveDiscipline() || item.discipline === getActiveDiscipline())
+                .filter((item) => !getSelectedPositionDiscipline() || item.discipline === getSelectedPositionDiscipline())
                 .flatMap((item) => getLibraryPages(item).map((page) => ({ item, page })))
                 .filter(({ page }) => selectedLibraryKeys.has(page.selectionKey));
             challengePositions = selectedPages.map(({ item, page }, index) => ({
@@ -701,7 +703,6 @@
         window.addEventListener("pageshow", async () => {
             if (!currentUser) return;
             await refreshRemoteMatchSetupView();
-            window.setTimeout(() => { resetRemoteMatchSetupState(); }, 0);
         });
         init();
     </script>
