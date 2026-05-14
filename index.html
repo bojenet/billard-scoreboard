@@ -17,11 +17,6 @@
             font-family: Arial;
             background: linear-gradient(180deg, #1e1f29, #14151c);
             color: white;
-            visibility: hidden;
-        }
-
-        body.auth-ready {
-            visibility: visible;
         }
 
         #exitZone {
@@ -307,13 +302,17 @@
                 usersTile.style.display = isAdmin ? "flex" : "none";
             }
 
-            const [_, __, ___, ____, ownedNames] = await Promise.all([
+            const setupResults = await Promise.allSettled([
                 applyTrainingAccess(user),
                 applyTournamentAccess(user),
                 loadCountdownInvites(user),
                 loadRemoteMatchInvites(user),
                 getOwnedPlayerNames(user.id)
             ]);
+            setupResults.forEach((result) => {
+                if (result.status === "rejected") console.warn("Startseiten-Modul konnte nicht geladen werden:", result.reason);
+            });
+            const ownedNames = setupResults[4].status === "fulfilled" ? setupResults[4].value : [];
 
             const { data, error } = await supabaseClient
                 .from("matches")
