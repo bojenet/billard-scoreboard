@@ -558,16 +558,25 @@
             }
             libraryItems = data || [];
         }
+        function getPositionLibrarySearchTerms(value) {
+            const term = String(value || "").trim().toLowerCase();
+            if (!term) return [];
+            const terms = [term];
+            if (term.includes("cadre 72/2")) terms.push(term.replace("cadre 72/2", "cadre 71/2"));
+            if (term.includes("72/2")) terms.push(term.replace("72/2", "71/2"));
+            return [...new Set(terms)];
+        }
         function renderPositionLibraryList() {
             const wrap = document.getElementById("positionLibraryList");
-            const search = String(document.getElementById("positionLibrarySearch").value || "").trim().toLowerCase();
-            const activeDiscipline = getSelectedPositionDiscipline();
+            const searchTerms = getPositionLibrarySearchTerms(document.getElementById("positionLibrarySearch").value);
             const pages = libraryItems
-                .filter((item) => !activeDiscipline || item.discipline === activeDiscipline)
                 .flatMap((item) => getLibraryPages(item).map((page) => ({ item, page })))
-                .filter(({ item }) => {
-                    if (!search) return true;
-                    return [item.title, item.description, item.created_by_name].some((value) => String(value || "").toLowerCase().includes(search));
+                .filter(({ item, page }) => {
+                    if (!searchTerms.length) return true;
+                    const haystack = [item.title, item.description, item.created_by_name, item.discipline, page.pageLabel]
+                        .map((value) => String(value || "").toLowerCase())
+                        .join(" ");
+                    return searchTerms.some((term) => haystack.includes(term));
                 });
             if (!pages.length) {
                 wrap.innerHTML = `<div class="library-empty">Keine passende Library-Position gefunden.</div>`;
@@ -624,7 +633,6 @@
         }
         function applySelectedLibraryPositions() {
             const selectedPages = libraryItems
-                .filter((item) => !getSelectedPositionDiscipline() || item.discipline === getSelectedPositionDiscipline())
                 .flatMap((item) => getLibraryPages(item).map((page) => ({ item, page })))
                 .filter(({ page }) => selectedLibraryKeys.has(page.selectionKey));
             challengePositions = selectedPages.map(({ item, page }, index) => ({
