@@ -723,7 +723,6 @@
                 guest_name: selectedGuestUser.display_name || selectedGuestUser.email || "Spieler 2",
                 guest_discipline: selectedGuestDiscipline,
                 target_points: targetPoints,
-                finish_mode: getFinishMode(),
                 challenge_positions: serializeChallengePositions(),
                 host_position_index: 1,
                 guest_position_index: 1,
@@ -731,6 +730,13 @@
             };
             const { data, error } = await supabaseClient.from("training_remote_match_sessions").insert(payload).select("id").single();
             if (error || !data?.id) { alert("Remote-Match konnte nicht gestartet werden: " + (error?.message || "Unbekannter Fehler")); return; }
+            if (getFinishMode() === "both_to_target") {
+                await supabaseClient
+                    .from("training_remote_match_sessions")
+                    .update({ finish_mode: "both_to_target" })
+                    .eq("id", data.id)
+                    .eq("host_user_id", currentUser.id);
+            }
             window.location.href = "training_remote_match_run.html?session=" + data.id;
         }
         async function init() {
