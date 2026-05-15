@@ -613,6 +613,23 @@
         return;
       }
 
+      async function readFunctionError(error) {
+        try {
+          const context = error?.context;
+          if (context && typeof context.json === "function") {
+            const body = await context.json();
+            return body?.message || body?.error || error.message;
+          }
+          if (context && typeof context.text === "function") {
+            const text = await context.text();
+            return text || error.message;
+          }
+        } catch (parseError) {
+          console.warn("Function-Fehler konnte nicht gelesen werden:", parseError);
+        }
+        return error?.message || "Unbekannter Fehler";
+      }
+
       saveBtn.disabled = true;
       saveBtn.innerText = "Speichert...";
       const { data, error } = await supabaseClient.functions.invoke("admin-upsert-user", {
@@ -622,7 +639,7 @@
       saveBtn.innerText = "Speichern";
 
       if (error) {
-        setMsg("User speichern fehlgeschlagen: " + error.message, "err");
+        setMsg("User speichern fehlgeschlagen: " + await readFunctionError(error), "err");
         return;
       }
       if (data?.error) {

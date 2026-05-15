@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +39,7 @@ function normalizeAccess(value: unknown) {
   return ["hidden", "read", "edit"].includes(text) ? text : "edit";
 }
 
-Deno.serve(async (request) => {
+serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -66,14 +67,21 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: "not-authenticated" }, 401);
     }
 
+    const metadataRole = cleanText(
+      requester.app_metadata?.role || requester.user_metadata?.role,
+    );
     const { data: requesterRole, error: requesterRoleError } = await adminClient
       .from("user_roles")
       .select("role")
       .eq("user_id", requester.id)
       .maybeSingle();
 
-    if (requesterRoleError || requesterRole?.role !== "admin") {
-      return jsonResponse({ error: "admin-required" }, 403);
+    const requesterIsAdmin = metadataRole === "admin" || requesterRole?.role === "admin";
+    if (requesterRoleError || !requesterIsAdmin) {
+      return jsonResponse({
+        error: "admin-required",
+        message: requesterRoleError?.message || "Admin-Rechte erforderlich.",
+      }, 403);
     }
 
     const payload = (await request.json()) as UserPayload;
