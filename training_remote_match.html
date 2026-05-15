@@ -77,6 +77,7 @@
         .library-title { font-size:18px; font-weight:700; }
         .library-tools { display:flex; gap:10px; flex-wrap:wrap; padding:14px 16px; border-bottom:1px solid #27417f; }
         .library-search { flex:1; min-width:220px; border: 1px solid #3959ab; border-radius: 10px; padding: 10px 12px; font-size: 15px; color: #fff; background: #112659; }
+        .library-discipline-filter { min-width:190px; border: 1px solid #3959ab; border-radius: 10px; padding: 10px 12px; font-size: 15px; color: #fff; background: #112659; }
         .library-list { overflow:auto; padding:16px; display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:14px; }
         .library-card { border: 1px solid #3557b7; border-radius: 16px; background: rgba(12, 28, 72, 0.74); padding: 12px; box-shadow: 0 14px 28px rgba(0,0,0,.24); display:grid; gap:10px; }
         .library-card.selected { border-color:#ffe27a; box-shadow:0 0 0 2px rgba(255,226,122,.35), 0 14px 28px rgba(0,0,0,.24); }
@@ -210,6 +211,7 @@
                 </div>
             </div>
             <div class="library-tools">
+                <select id="positionLibraryDisciplineFilter" class="library-discipline-filter" onchange="renderPositionLibraryList()"></select>
                 <input id="positionLibrarySearch" class="library-search" type="text" placeholder="Titel oder Beschreibung suchen">
             </div>
             <div class="library-list" id="positionLibraryList"></div>
@@ -250,6 +252,7 @@
         let activePositionOrderDragId = 0;
         let currentPositionZoom = 1;
         let selectedLibraryKeys = new Set();
+        let positionLibraryDisciplineFilter = "Alle";
         const REMOTE_MATCH_DRAFT_KEY = "training_remote_match_setup_draft_v1";
 
         function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
@@ -574,7 +577,9 @@
         function renderPositionLibraryList() {
             const wrap = document.getElementById("positionLibraryList");
             const search = String(document.getElementById("positionLibrarySearch").value || "").trim().toLowerCase();
+            positionLibraryDisciplineFilter = document.getElementById("positionLibraryDisciplineFilter")?.value || "Alle";
             const pages = libraryItems
+                .filter((item) => positionLibraryDisciplineFilter === "Alle" || item.discipline === positionLibraryDisciplineFilter)
                 .flatMap((item) => getLibraryPages(item).map((page) => ({ item, page })))
                 .filter(({ item }) => {
                     if (!search) return true;
@@ -618,6 +623,14 @@
             syncSelectedLibraryKeysFromCurrentPositions();
             document.getElementById("positionLibraryModalTitle").innerText = `Positionen aus Library wählen`;
             document.getElementById("positionLibrarySearch").value = "";
+            positionLibraryDisciplineFilter = "Alle";
+            const disciplineSelect = document.getElementById("positionLibraryDisciplineFilter");
+            if (disciplineSelect) {
+                disciplineSelect.innerHTML = ["Alle", ...disciplines]
+                    .map((discipline) => `<option value="${discipline}">${discipline === "Alle" ? "Alle Disziplinen" : discipline}</option>`)
+                    .join("");
+                disciplineSelect.value = positionLibraryDisciplineFilter;
+            }
             renderPositionLibraryList();
             document.getElementById("positionLibraryModal").classList.add("open");
         }
