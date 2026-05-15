@@ -562,13 +562,11 @@
         function renderPositionLibraryList() {
             const wrap = document.getElementById("positionLibraryList");
             const search = String(document.getElementById("positionLibrarySearch").value || "").trim().toLowerCase();
-            const activeDiscipline = getActiveDiscipline();
             const pages = libraryItems
-                .filter((item) => !activeDiscipline || item.discipline === activeDiscipline)
                 .flatMap((item) => getLibraryPages(item).map((page) => ({ item, page })))
                 .filter(({ item }) => {
                     if (!search) return true;
-                    return [item.title, item.description, item.created_by_name].some((value) => String(value || "").toLowerCase().includes(search));
+                    return [item.title, item.description, item.created_by_name, item.discipline].some((value) => String(value || "").toLowerCase().includes(search));
                 });
             if (!pages.length) {
                 wrap.innerHTML = `<div class="library-empty">Keine passende Library-Position gefunden.</div>`;
@@ -617,7 +615,6 @@
         }
         function applySelectedLibraryPositions() {
             const selectedPages = libraryItems
-                .filter((item) => !getActiveDiscipline() || item.discipline === getActiveDiscipline())
                 .flatMap((item) => getLibraryPages(item).map((page) => ({ item, page })))
                 .filter(({ page }) => selectedLibraryKeys.has(page.selectionKey));
             challengePositions = selectedPages.map(({ item, page }, index) => ({
