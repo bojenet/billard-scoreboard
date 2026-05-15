@@ -12,7 +12,7 @@
     }
 
     .page {
-      width: min(1500px, 96vw);
+      width: min(1320px, 96vw);
       margin: 34px auto 30px;
     }
 
@@ -56,17 +56,8 @@
       border-bottom: none;
     }
 
-    .uid {
-      opacity: 0.7;
-      font-size: 12px;
-      white-space: nowrap;
-      word-break: normal;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
     #usersTable {
-      min-width: 1320px;
+      min-width: 1120px;
       table-layout: fixed;
     }
 
@@ -77,52 +68,56 @@
 
     #usersTable th:nth-child(2),
     #usersTable td:nth-child(2) {
-      width: 110px;
+      width: 150px;
     }
 
     #usersTable th:nth-child(3),
     #usersTable td:nth-child(3) {
-      width: 120px;
+      width: 125px;
     }
 
     #usersTable th:nth-child(4),
     #usersTable td:nth-child(4) {
-      width: 125px;
+      width: 170px;
     }
 
     #usersTable th:nth-child(5),
     #usersTable td:nth-child(5) {
-      width: 170px;
-    }
-
-    #usersTable th:nth-child(6),
-    #usersTable td:nth-child(6),
-    #usersTable th:nth-child(7),
-    #usersTable td:nth-child(7) {
-      width: 160px;
-    }
-
-    #usersTable th:nth-child(8),
-    #usersTable td:nth-child(8) {
       width: 150px;
     }
 
-    #usersTable th:nth-child(9),
-    #usersTable td:nth-child(9) {
-      width: 110px;
+    #usersTable th:nth-child(6),
+    #usersTable td:nth-child(6) {
+      width: 150px;
     }
 
-    #usersTable select {
-      width: 100%;
-    }
-
-    #loginEventsTable {
-      min-width: 820px;
+    #usersTable th:nth-child(7),
+    #usersTable td:nth-child(7) {
+      width: 150px;
     }
 
     .muted {
       opacity: 0.72;
       font-size: 13px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin: 0 0 14px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid #3659bb;
+      border-radius: 9px;
+      background: #1c3380;
+      font-size: 14px;
+      font-weight: 700;
+      color: #eef3ff;
     }
 
     .section-title {
@@ -153,6 +148,11 @@
       white-space: nowrap;
     }
 
+    .secondary-btn {
+      background: #1c3380;
+      border: 1px solid #3659bb;
+    }
+
     .actions {
       margin-top: 16px;
       display: flex;
@@ -180,17 +180,108 @@
 
     .msg.ok { color: #b6f5c4; }
     .msg.err { color: #ffb6b6; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(4, 10, 25, 0.72);
+      z-index: 20;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(720px, 96vw);
+      max-height: 92vh;
+      overflow: auto;
+      background: linear-gradient(180deg, #162b66, #0f1c3f);
+      border: 1px solid #3659bb;
+      border-radius: 18px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+      padding: 22px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 800;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .form-field.full {
+      grid-column: 1 / -1;
+    }
+
+    .form-field label {
+      font-size: 13px;
+      font-weight: 800;
+      color: rgba(255, 255, 255, 0.76);
+    }
+
+    .form-field input {
+      min-height: 42px;
+      border: 1px solid #3659bb;
+      border-radius: 9px;
+      background: #0f2153;
+      color: white;
+      font-size: 16px;
+      padding: 0 12px;
+    }
+
+    .form-field select {
+      min-height: 44px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    @media (max-width: 720px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="page">
     <h1>Userverwaltung</h1>
+    <div class="toolbar">
+      <button class="btn" type="button" onclick="openUserModal()">User erstellen</button>
+    </div>
     <div class="card">
       <table id="usersTable">
         <tr>
           <th>E-Mail</th>
           <th>Name</th>
-          <th>User ID</th>
           <th>Rolle</th>
           <th>Positions Library</th>
           <th>Training</th>
@@ -207,7 +298,6 @@
         <tr>
           <th>Zeit</th>
           <th>E-Mail</th>
-          <th>User ID</th>
           <th>Browser</th>
         </tr>
       </table>
@@ -219,6 +309,69 @@
     </div>
   </div>
 
+  <div id="userModalBackdrop" class="modal-backdrop" onclick="closeUserModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="userModalTitle" class="modal-title">User erstellen</h2>
+        <button class="save-btn secondary-btn" type="button" onclick="closeUserModal()">Schließen</button>
+      </div>
+      <div class="form-grid">
+        <input id="editUserId" type="hidden" />
+        <div class="form-field full">
+          <label for="editEmail">E-Mail</label>
+          <input id="editEmail" type="email" autocomplete="off" />
+        </div>
+        <div class="form-field">
+          <label for="editFirstName">Vorname</label>
+          <input id="editFirstName" type="text" autocomplete="off" />
+        </div>
+        <div class="form-field">
+          <label for="editLastName">Nachname</label>
+          <input id="editLastName" type="text" autocomplete="off" />
+        </div>
+        <div class="form-field full">
+          <label for="editPassword">Passwort</label>
+          <input id="editPassword" type="password" autocomplete="new-password" placeholder="Bei bestehenden Usern leer lassen, wenn unverändert" />
+        </div>
+        <div class="form-field">
+          <label for="editRole">Rolle</label>
+          <select id="editRole">
+            <option value="member">member</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="editPositionLibraryAccess">Positions Library</label>
+          <select id="editPositionLibraryAccess">
+            <option value="hidden">ausblenden</option>
+            <option value="read">lesen</option>
+            <option value="edit">editieren</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="editTrainingAccess">Training</label>
+          <select id="editTrainingAccess">
+            <option value="hidden">ausblenden</option>
+            <option value="read">lesen</option>
+            <option value="edit">editieren</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="editTournamentAccess">Turnier</label>
+          <select id="editTournamentAccess">
+            <option value="hidden">ausblenden</option>
+            <option value="read">lesen</option>
+            <option value="edit">editieren</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="save-btn secondary-btn" type="button" onclick="closeUserModal()">Abbrechen</button>
+        <button id="saveUserBtn" class="save-btn" type="button" onclick="saveUser()">Speichern</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js"></script>
   <script src="js/auth.js"></script>
@@ -227,6 +380,8 @@
   <script src="js/tournament_access.js"></script>
   <script src="js/user_menu.js"></script>
   <script>
+    let userRows = [];
+
     function setMsg(text, type) {
       const el = document.getElementById("msg");
       el.className = "msg " + (type || "");
@@ -255,13 +410,6 @@
       });
     }
 
-    function formatUserId(value) {
-      const id = String(value || "");
-      if (!id) return "-";
-      if (id.length <= 14) return id;
-      return `${id.slice(0, 8)}...${id.slice(-4)}`;
-    }
-
     function summarizeUserAgent(value) {
       const ua = String(value || "");
       if (!ua) return "-";
@@ -275,6 +423,43 @@
         ua.includes("Windows") ? "Windows" :
         ua.includes("Android") ? "Android" : "";
       return [browser, platform].filter(Boolean).join(" / ");
+    }
+
+    function accessLabel(value) {
+      const normalized = String(value || "");
+      if (normalized === "hidden") return "ausblenden";
+      if (normalized === "read") return "lesen";
+      return "editieren";
+    }
+
+    function getUserDisplayName(profile) {
+      return profile?.full_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "-";
+    }
+
+    function setModalValue(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.value = value || "";
+    }
+
+    function openUserModal(userId = "") {
+      const existing = userRows.find((user) => String(user.id) === String(userId));
+      document.getElementById("userModalTitle").innerText = existing ? "User bearbeiten" : "User erstellen";
+      setModalValue("editUserId", existing?.id || "");
+      setModalValue("editEmail", existing?.email || "");
+      setModalValue("editFirstName", existing?.first_name || "");
+      setModalValue("editLastName", existing?.last_name || "");
+      setModalValue("editPassword", "");
+      setModalValue("editRole", existing?.role || "member");
+      setModalValue("editPositionLibraryAccess", existing?.position_library_access || "edit");
+      setModalValue("editTrainingAccess", existing?.training_access || "edit");
+      setModalValue("editTournamentAccess", existing?.tournament_access || "edit");
+      document.getElementById("userModalBackdrop").classList.add("open");
+      setTimeout(() => document.getElementById("editEmail")?.focus(), 0);
+    }
+
+    function closeUserModal(event) {
+      if (event && event.target !== event.currentTarget) return;
+      document.getElementById("userModalBackdrop").classList.remove("open");
     }
 
     async function loadUsers() {
@@ -325,7 +510,6 @@
         <tr>
           <th>E-Mail</th>
           <th>Name</th>
-          <th>User ID</th>
           <th>Rolle</th>
           <th>Positions Library</th>
           <th>Training</th>
@@ -340,47 +524,29 @@
         if (!latestLoginByUser[entry.user_id]) latestLoginByUser[entry.user_id] = entry;
       });
 
-      (profiles || []).forEach((p) => {
-        const row = document.createElement("tr");
+      userRows = (profiles || []).map((p) => {
         const roleInfo = roleByUser[p.id] || {};
-        const role = roleInfo.role || "member";
-        const positionLibraryAccess = normalizePositionLibraryAccess(roleInfo.position_library_access);
-        const trainingAccess = normalizeTrainingAccess(roleInfo.training_access);
-        const tournamentAccess = normalizeTournamentAccess(roleInfo.tournament_access);
+        return {
+          ...p,
+          role: roleInfo.role || "member",
+          position_library_access: normalizePositionLibraryAccess(roleInfo.position_library_access),
+          training_access: normalizeTrainingAccess(roleInfo.training_access),
+          tournament_access: normalizeTournamentAccess(roleInfo.tournament_access)
+        };
+      });
+
+      userRows.forEach((p) => {
+        const row = document.createElement("tr");
         row.innerHTML = `
-          <td>${p.email || "-"}</td>
-          <td>${escapeHtml(p.full_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "-")}</td>
-          <td class="uid" title="${escapeHtml(p.id)}">${escapeHtml(formatUserId(p.id))}</td>
-          <td>
-            <select id="role_${p.id}">
-              <option value="member" ${role === "member" ? "selected" : ""}>member</option>
-              <option value="admin" ${role === "admin" ? "selected" : ""}>admin</option>
-            </select>
-          </td>
-          <td>
-            <select id="position_library_access_${p.id}">
-              <option value="hidden" ${positionLibraryAccess === "hidden" ? "selected" : ""}>ausblenden</option>
-              <option value="read" ${positionLibraryAccess === "read" ? "selected" : ""}>lesen</option>
-              <option value="edit" ${positionLibraryAccess === "edit" ? "selected" : ""}>editieren</option>
-            </select>
-          </td>
-          <td>
-            <select id="training_access_${p.id}">
-              <option value="hidden" ${trainingAccess === "hidden" ? "selected" : ""}>ausblenden</option>
-              <option value="read" ${trainingAccess === "read" ? "selected" : ""}>lesen</option>
-              <option value="edit" ${trainingAccess === "edit" ? "selected" : ""}>editieren</option>
-            </select>
-          </td>
-          <td>
-            <select id="tournament_access_${p.id}">
-              <option value="hidden" ${tournamentAccess === "hidden" ? "selected" : ""}>ausblenden</option>
-              <option value="read" ${tournamentAccess === "read" ? "selected" : ""}>lesen</option>
-              <option value="edit" ${tournamentAccess === "edit" ? "selected" : ""}>editieren</option>
-            </select>
-          </td>
+          <td>${escapeHtml(p.email || "-")}</td>
+          <td>${escapeHtml(getUserDisplayName(p))}</td>
+          <td><span class="pill">${escapeHtml(p.role)}</span></td>
+          <td>${escapeHtml(accessLabel(p.position_library_access))}</td>
+          <td>${escapeHtml(accessLabel(p.training_access))}</td>
+          <td>${escapeHtml(accessLabel(p.tournament_access))}</td>
           <td>${formatDateTime(latestLoginByUser[p.id]?.created_at)}</td>
           <td>
-            <button class="save-btn" onclick="saveRole('${p.id}')">Speichern</button>
+            <button class="save-btn" type="button" onclick="openUserModal('${p.id}')">Bearbeiten</button>
           </td>
         `;
         table.appendChild(row);
@@ -395,14 +561,13 @@
         <tr>
           <th>Zeit</th>
           <th>E-Mail</th>
-          <th>User ID</th>
           <th>Browser</th>
         </tr>
       `;
 
       if (!events.length) {
         const row = document.createElement("tr");
-        row.innerHTML = `<td colspan="4" class="muted">Noch keine Login-Einträge vorhanden.</td>`;
+        row.innerHTML = `<td colspan="3" class="muted">Noch keine Login-Einträge vorhanden.</td>`;
         table.appendChild(row);
         return;
       }
@@ -412,32 +577,62 @@
         row.innerHTML = `
           <td>${formatDateTime(entry.created_at)}</td>
           <td>${escapeHtml(entry.email || "-")}</td>
-          <td class="uid" title="${escapeHtml(entry.user_id || "-")}">${escapeHtml(formatUserId(entry.user_id || "-"))}</td>
           <td class="muted">${escapeHtml(summarizeUserAgent(entry.user_agent))}</td>
         `;
         table.appendChild(row);
       });
     }
 
-    async function saveRole(userId) {
+    async function saveUser() {
       const admin = await requireAdmin();
       if (!admin) return;
       setMsg("", "");
 
-      const role = document.getElementById("role_" + userId).value;
-      const positionLibraryAccess = normalizePositionLibraryAccess(document.getElementById("position_library_access_" + userId).value);
-      const trainingAccess = normalizeTrainingAccess(document.getElementById("training_access_" + userId).value);
-      const tournamentAccess = normalizeTournamentAccess(document.getElementById("tournament_access_" + userId).value);
-      const { error } = await supabaseClient
-        .from("user_roles")
-        .upsert([{ user_id: userId, role, position_library_access: positionLibraryAccess, training_access: trainingAccess, tournament_access: tournamentAccess }], { onConflict: "user_id" });
+      const saveBtn = document.getElementById("saveUserBtn");
+      const userId = document.getElementById("editUserId").value;
+      const firstName = document.getElementById("editFirstName").value.trim();
+      const lastName = document.getElementById("editLastName").value.trim();
+      const payload = {
+        user_id: userId || undefined,
+        email: document.getElementById("editEmail").value.trim(),
+        password: document.getElementById("editPassword").value,
+        first_name: firstName,
+        last_name: lastName,
+        role: document.getElementById("editRole").value,
+        position_library_access: normalizePositionLibraryAccess(document.getElementById("editPositionLibraryAccess").value),
+        training_access: normalizeTrainingAccess(document.getElementById("editTrainingAccess").value),
+        tournament_access: normalizeTournamentAccess(document.getElementById("editTournamentAccess").value)
+      };
 
-      if (error) {
-        setMsg("Rolle speichern fehlgeschlagen: " + error.message, "err");
+      if (!payload.email || !firstName || !lastName) {
+        setMsg("Bitte E-Mail, Vorname und Nachname eingeben.", "err");
+        return;
+      }
+      if (!userId && (!payload.password || payload.password.length < 6)) {
+        setMsg("Bitte ein Passwort mit mindestens 6 Zeichen eingeben.", "err");
         return;
       }
 
-      setMsg("Rolle gespeichert.", "ok");
+      saveBtn.disabled = true;
+      saveBtn.innerText = "Speichert...";
+      const { data, error } = await supabaseClient.functions.invoke("admin-upsert-user", {
+        body: payload
+      });
+      saveBtn.disabled = false;
+      saveBtn.innerText = "Speichern";
+
+      if (error) {
+        setMsg("User speichern fehlgeschlagen: " + error.message, "err");
+        return;
+      }
+      if (data?.error) {
+        setMsg("User speichern fehlgeschlagen: " + (data.message || data.error), "err");
+        return;
+      }
+
+      closeUserModal();
+      setMsg(userId ? "User gespeichert." : "User erstellt.", "ok");
+      await loadUsers();
     }
 
     loadUsers();
