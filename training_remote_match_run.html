@@ -288,10 +288,31 @@
         async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (_) {} finally { updateFullscreenButton(); } }
         function escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
         function formatTimeShort(iso) { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+        function getFinishMode(state = sessionData) {
+            return state?.finish_mode === "both_to_target" ? "both_to_target" : "first_to_target";
+        }
+        function hasPlayerReachedTarget(state, player) {
+            const target = Number(state?.target_points || 0);
+            if (target <= 0) return false;
+            const score = Number(player === "host" ? state?.host_score : state?.guest_score) || 0;
+            return score >= target;
+        }
+        function hasCurrentPlayerReachedTarget(state = sessionData) {
+            return hasPlayerReachedTarget(state, isHost ? "host" : "guest");
+        }
+        function shouldFinishRemoteMatch(state) {
+            const target = Number(state?.target_points || 0);
+            if (target <= 0) return false;
+            if (getFinishMode(state) === "both_to_target") {
+                return hasPlayerReachedTarget(state, "host") && hasPlayerReachedTarget(state, "guest");
+            }
+            return hasPlayerReachedTarget(state, "host") || hasPlayerReachedTarget(state, "guest");
+        }
         function detectWinner(state) {
             const score1 = Number(state.host_score || 0), score2 = Number(state.guest_score || 0), inn1 = Number(state.host_innings || 0), inn2 = Number(state.guest_innings || 0), target = Number(state.target_points || 0);
-            if (target > 0 && (score1 >= target || score2 >= target)) { if (score1 > score2) return 1; if (score2 > score1) return 2; if (score1 === score2) return 0; }
-            if (inn1 === inn2 && target > 0 && (score1 >= target || score2 >= target)) { if (score1 > score2) return 1; if (score2 > score1) return 2; if (score1 === score2 && score1 >= target) return 0; }
+            if (!shouldFinishRemoteMatch(state)) return null;
+            if (target > 0) { if (score1 > score2) return 1; if (score2 > score1) return 2; if (score1 === score2) return 0; }
+            if (inn1 === inn2 && target > 0) { if (score1 > score2) return 1; if (score2 > score1) return 2; if (score1 === score2 && score1 >= target) return 0; }
             return null;
         }
         function renderPositionSvg(layout) {
@@ -339,6 +360,7 @@
         }
         function showCurrentPosition(force = false) {
             if (!sessionData || sessionData.status === "finished") return;
+            if (!force && getFinishMode() === "both_to_target" && hasCurrentPlayerReachedTarget()) return;
             const positions = getPositions();
             if (!positions.length) return;
             const index = getCurrentPositionIndex();
@@ -379,7 +401,7 @@
                 : ((isHost ? "Du erfasst deine eigenen Aufnahmen als Spieler 1." : "Du erfasst deine eigenen Aufnahmen als Spieler 2.") + " Noch " + getRemainingPoints() + " Punkte bis zur Distanz."));
             const seriesInput = document.getElementById("seriesInput");
             const commitBtn = document.querySelector(".action-btn.primary");
-            const disabled = sessionData.status === "finished";
+            const disabled = sessionData.status === "finished" || (getFinishMode() === "both_to_target" && hasCurrentPlayerReachedTarget());
             if (seriesInput) {
                 seriesInput.disabled = disabled;
                 seriesInput.max = String(getRemainingPoints());
@@ -461,6 +483,7 @@
         }
         async function commitInning() {
             if (!sessionData?.id || sessionData.status === "finished") return;
+            if (getFinishMode() === "both_to_target" && hasCurrentPlayerReachedTarget()) return;
             const remaining = getRemainingPoints();
             const series = clampSeriesInputValue(document.getElementById("seriesInput").value || 0);
             if (!Number.isFinite(series) || series < 0) { alert("Bitte eine gültige Serie eingeben."); return; }
@@ -485,6 +508,11 @@
             renderSession();
             suppressAutoPositionUntil = Date.now() + 1400;
             if (updateObj.status === "finished") {
+                clearNextPositionTimer();
+                closePositionModal();
+                return;
+            }
+            if (getFinishMode() === "both_to_target" && hasCurrentPlayerReachedTarget()) {
                 clearNextPositionTimer();
                 closePositionModal();
                 return;

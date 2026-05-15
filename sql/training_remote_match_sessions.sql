@@ -11,6 +11,7 @@ create table if not exists public.training_remote_match_sessions (
   guest_name text,
   guest_discipline text,
   target_points int not null check (target_points > 0),
+  finish_mode text not null default 'first_to_target' check (finish_mode in ('first_to_target','both_to_target')),
   status text not null default 'active' check (status in ('active','finished','cancelled')),
   challenge_positions jsonb not null default '[]'::jsonb,
   host_position_index int not null default 1,
@@ -35,6 +36,15 @@ alter table public.training_remote_match_sessions
 
 alter table public.training_remote_match_sessions
   add column if not exists guest_position_index int not null default 1;
+
+alter table public.training_remote_match_sessions
+  add column if not exists finish_mode text not null default 'first_to_target';
+
+alter table public.training_remote_match_sessions
+  drop constraint if exists training_remote_match_sessions_finish_mode_check;
+alter table public.training_remote_match_sessions
+  add constraint training_remote_match_sessions_finish_mode_check
+  check (finish_mode in ('first_to_target','both_to_target'));
 
 alter table public.training_remote_match_sessions
   drop constraint if exists training_remote_match_sessions_host_position_index_check;
