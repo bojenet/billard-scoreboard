@@ -549,12 +549,24 @@
                 libraryItems = [];
                 return;
             }
-            const { data, error } = await supabaseClient
+            let query = supabaseClient
                 .from("training_position_library")
-                .select("*")
+                .select("id,title,discipline,updated_at,created_by_name,description,ball_layout,line_paths,position_pages")
                 .order("updated_at", { ascending: false });
+            if (isPositionLibraryEditable(accessMode)) {
+                query = query.eq("user_id", currentUser.id);
+            }
+            const { data, error } = await query;
             if (error) {
-                libraryItems = [];
+                let fallbackQuery = supabaseClient
+                    .from("training_position_library")
+                    .select("id,title,discipline,updated_at,created_by_name,description,ball_layout,line_paths")
+                    .order("updated_at", { ascending: false });
+                if (isPositionLibraryEditable(accessMode)) {
+                    fallbackQuery = fallbackQuery.eq("user_id", currentUser.id);
+                }
+                const fallback = await fallbackQuery;
+                libraryItems = fallback.error ? [] : (fallback.data || []);
                 return;
             }
             libraryItems = data || [];
