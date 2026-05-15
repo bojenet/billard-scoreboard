@@ -322,8 +322,10 @@
             const box = document.getElementById("selectedGuestBox");
             const name = document.getElementById("selectedGuestName");
             const meta = document.getElementById("selectedGuestMeta");
-            if (!selectedGuestUser) { box.classList.remove("active"); name.innerText = ""; meta.innerText = ""; return; }
+            const results = document.getElementById("guestUserResults");
+            if (!selectedGuestUser) { box.classList.remove("active"); name.innerText = ""; meta.innerText = ""; if (results) results.style.display = ""; return; }
             box.classList.add("active"); name.innerText = selectedGuestUser.display_name || selectedGuestUser.email || "User"; meta.innerText = selectedGuestUser.email || "";
+            if (results) results.style.display = "none";
         }
         function syncDisciplineButtons(containerId, selectedValue) {
             const container = document.getElementById(containerId);
@@ -693,7 +695,11 @@
             await loadPositionLibraryItems();
             renderDraftCard();
             document.getElementById("positionLibrarySearch").addEventListener("input", renderPositionLibraryList);
-            document.getElementById("guestUserSearch").addEventListener("input", () => loadChallengeUsers(document.getElementById("guestUserSearch").value || ""));
+            document.getElementById("guestUserSearch").addEventListener("input", () => {
+                const results = document.getElementById("guestUserResults");
+                if (results) results.style.display = "";
+                loadChallengeUsers(document.getElementById("guestUserSearch").value || "");
+            });
             await refreshRemoteMatchSetupView();
         }
         document.addEventListener("fullscreenchange", updateFullscreenButton);
