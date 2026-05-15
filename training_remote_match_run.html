@@ -66,6 +66,7 @@
         .live-dot { width:10px; height:10px; border-radius:50%; background:#9aa8d8; box-shadow:0 0 0 0 rgba(154,168,216,.45); transition:background .15s ease; }
         .live-dot.online { background:#58d06f; box-shadow:0 0 0 8px rgba(88,208,111,.08); }
         .live-dot.fallback { background:#ffd84a; box-shadow:0 0 0 8px rgba(255,216,74,.08); }
+        .obs-link-btn { background:#244299; border-color:#4e6fe3; }
         .position-modal { position: fixed; inset: 0; z-index: 1450; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(3,8,22,.78); backdrop-filter:blur(6px); }
         .position-modal.open { display:flex; }
         .position-dialog { width:min(1240px,98vw); max-height:96vh; border-radius:24px; border:1px solid #3557b7; background:linear-gradient(180deg,#162b66,#0f1c3f); box-shadow:0 32px 70px rgba(0,0,0,.55); overflow:hidden; display:grid; grid-template-rows:auto 1fr; }
@@ -94,6 +95,7 @@
         <div class="topbar">
             <button class="btn" onclick="window.location.href='training_remote_match.html'">Zurück zum Setup</button>
             <div class="live-pill"><span class="live-dot" id="liveDot"></span><span id="liveStatus">Verbinde…</span></div>
+            <button class="btn obs-link-btn" type="button" onclick="copyRemoteObsLink()">OBS-Link kopieren</button>
             <button class="btn" onclick="showCurrentPosition(true)">Position zeigen</button>
             <button class="btn danger" id="finishRemoteMatchBtn" type="button">Beenden</button>
         </div>
@@ -220,6 +222,50 @@
         let remoteResultSaving = false;
 
         function setText(id, value) { const el = document.getElementById(id); if (el) el.innerText = value; }
+        function generateStreamToken() {
+            if (window.crypto && typeof window.crypto.randomUUID === "function") {
+                return window.crypto.randomUUID().replace(/-/g, "");
+            }
+            return Math.random().toString(36).slice(2) + Date.now().toString(36);
+        }
+        function buildRemoteObsOverlayLink() {
+            const url = new URL(window.location.origin + "/stream_remote_match.html");
+            url.searchParams.set("session", sessionData?.id || sessionId);
+            url.searchParams.set("token", sessionData?.stream_token || "");
+            return url.toString();
+        }
+        async function ensureRemoteStreamToken() {
+            if (!sessionData?.id) return "";
+            const existingToken = String(sessionData.stream_token || "").trim();
+            if (existingToken) return existingToken;
+            const nextToken = generateStreamToken();
+            const { data, error } = await supabaseClient
+                .from("training_remote_match_sessions")
+                .update({ stream_token: nextToken })
+                .eq("id", sessionData.id)
+                .select("*")
+                .single();
+            if (error) {
+                console.warn("Remote-OBS-Token konnte nicht gespeichert werden:", error);
+                return "";
+            }
+            sessionData = data || { ...sessionData, stream_token: nextToken };
+            return String(sessionData.stream_token || nextToken);
+        }
+        async function copyRemoteObsLink() {
+            const token = await ensureRemoteStreamToken();
+            if (!token) {
+                alert("OBS-Link konnte nicht erzeugt werden. Bitte SQL für stream_token ausführen.");
+                return;
+            }
+            const link = buildRemoteObsOverlayLink();
+            try {
+                await navigator.clipboard.writeText(link);
+                alert("OBS-Link kopiert.");
+            } catch (_) {
+                window.prompt("OBS-Link kopieren:", link);
+            }
+        }
         function getRemoteArchiveStorageKey() { return "remote_match_archived_" + String(sessionId || ""); }
         function getOwnScore() { return Number(isHost ? sessionData?.host_score || 0 : sessionData?.guest_score || 0); }
         function getRemainingPoints() {
@@ -682,6 +728,7 @@
             const allowed = String(sessionData.host_user_id || "") === String(currentUser.id) || String(sessionData.guest_user_id || "") === String(currentUser.id) || (myEmail && myEmail === String(sessionData.guest_email || "").trim().toLowerCase());
             if (!allowed) { alert("Kein Zugriff auf diese Session."); window.location.href = "training_remote_match.html"; return false; }
             isHost = String(sessionData.host_user_id || "") === String(currentUser.id);
+            await ensureRemoteStreamToken();
             try { savedRemoteArchiveMatchId = localStorage.getItem(getRemoteArchiveStorageKey()) || ""; } catch (_) { savedRemoteArchiveMatchId = ""; }
             renderSession();
             await loadChatMessages();

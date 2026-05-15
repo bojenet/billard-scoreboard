@@ -12,6 +12,7 @@ create table if not exists public.training_remote_match_sessions (
   guest_discipline text,
   target_points int not null check (target_points > 0),
   finish_mode text not null default 'first_to_target' check (finish_mode in ('first_to_target','both_to_target')),
+  stream_token text not null default '',
   status text not null default 'active' check (status in ('active','finished','cancelled')),
   challenge_positions jsonb not null default '[]'::jsonb,
   host_position_index int not null default 1,
@@ -41,6 +42,9 @@ alter table public.training_remote_match_sessions
   add column if not exists finish_mode text not null default 'first_to_target';
 
 alter table public.training_remote_match_sessions
+  add column if not exists stream_token text not null default '';
+
+alter table public.training_remote_match_sessions
   drop constraint if exists training_remote_match_sessions_finish_mode_check;
 alter table public.training_remote_match_sessions
   add constraint training_remote_match_sessions_finish_mode_check
@@ -62,6 +66,7 @@ create index if not exists idx_remote_match_host on public.training_remote_match
 create index if not exists idx_remote_match_guest_user on public.training_remote_match_sessions(guest_user_id);
 create index if not exists idx_remote_match_guest_email on public.training_remote_match_sessions(lower(guest_email));
 create index if not exists idx_remote_match_status on public.training_remote_match_sessions(status);
+create index if not exists idx_remote_match_stream_token on public.training_remote_match_sessions(stream_token);
 
 create or replace function public.training_remote_match_touch_updated_at()
 returns trigger
