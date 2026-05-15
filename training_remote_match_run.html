@@ -95,7 +95,7 @@
             <button class="btn" onclick="window.location.href='training_remote_match.html'">Zurück zum Setup</button>
             <div class="live-pill"><span class="live-dot" id="liveDot"></span><span id="liveStatus">Verbinde…</span></div>
             <button class="btn" onclick="showCurrentPosition(true)">Position zeigen</button>
-            <button class="btn danger" onclick="finishRemoteMatch()">Beenden</button>
+            <button class="btn danger" id="finishRemoteMatchBtn" type="button">Beenden</button>
         </div>
         <div class="finish-panel" id="finishPanel">
             <div class="finish-title" id="finishTitle">Remote-Match beendet</div>
@@ -528,6 +528,11 @@
         async function finishRemoteMatch() {
             if (!sessionData?.id || sessionData.status === "finished") return;
             if (!confirm("Remote-Match wirklich beenden?")) return;
+            const finishBtn = document.getElementById("finishRemoteMatchBtn");
+            if (finishBtn) {
+                finishBtn.disabled = true;
+                finishBtn.innerText = "Beende...";
+            }
             const { data, error } = await supabaseClient
                 .from("training_remote_match_sessions")
                 .update({ status: "finished" })
@@ -536,6 +541,10 @@
                 .single();
             if (error) {
                 alert("Remote-Match konnte nicht beendet werden: " + error.message);
+                if (finishBtn) {
+                    finishBtn.disabled = false;
+                    finishBtn.innerText = "Beenden";
+                }
                 return;
             }
             sessionData = data || { ...sessionData, status: "finished" };
@@ -750,6 +759,7 @@
             event.preventDefault();
             sendChatMessage();
         });
+        document.getElementById("finishRemoteMatchBtn")?.addEventListener("click", finishRemoteMatch);
         window.addEventListener("keydown", (event) => {
             const activeId = document.activeElement?.id || "";
             if (event.key === "Escape") {
