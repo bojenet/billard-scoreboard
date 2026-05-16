@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 type UserPayload = {
+  action?: string;
   user_id?: string;
   email?: string;
   password?: string;
@@ -85,7 +86,22 @@ serve(async (request) => {
     }
 
     const payload = (await request.json()) as UserPayload;
+    const action = cleanText(payload.action) === "delete" ? "delete" : "upsert";
     const userId = cleanText(payload.user_id);
+    if (action === "delete") {
+      if (!userId) {
+        return jsonResponse({ error: "user-id-required", message: "User-ID ist erforderlich." }, 400);
+      }
+      if (userId === requester.id) {
+        return jsonResponse({ error: "cannot-delete-self", message: "Du kannst deinen eigenen Admin-User hier nicht löschen." }, 400);
+      }
+      const { error } = await adminClient.auth.admin.deleteUser(userId);
+      if (error) {
+        return jsonResponse({ error: "auth-delete-failed", message: error.message }, 400);
+      }
+      return jsonResponse({ deleted_user_id: userId });
+    }
+
     const email = cleanText(payload.email).toLowerCase();
     const password = cleanText(payload.password);
     const firstName = cleanText(payload.first_name);

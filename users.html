@@ -153,6 +153,11 @@
       border: 1px solid #3659bb;
     }
 
+    .danger-btn {
+      background: #9f3434;
+      border: 1px solid #be5757;
+    }
+
     .actions {
       margin-top: 16px;
       display: flex;
@@ -259,9 +264,15 @@
 
     .modal-actions {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
       gap: 10px;
       margin-top: 18px;
+    }
+
+    .modal-main-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
     }
 
     @media (max-width: 720px) {
@@ -366,8 +377,11 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button class="save-btn secondary-btn" type="button" onclick="closeUserModal()">Abbrechen</button>
-        <button id="saveUserBtn" class="save-btn" type="button" onclick="saveUser()">Speichern</button>
+        <button id="deleteUserBtn" class="save-btn danger-btn" type="button" onclick="deleteUser()">User löschen</button>
+        <div class="modal-main-actions">
+          <button class="save-btn secondary-btn" type="button" onclick="closeUserModal()">Abbrechen</button>
+          <button id="saveUserBtn" class="save-btn" type="button" onclick="saveUser()">Speichern</button>
+        </div>
       </div>
     </div>
   </div>
@@ -453,6 +467,8 @@
       setModalValue("editPositionLibraryAccess", existing?.position_library_access || "edit");
       setModalValue("editTrainingAccess", existing?.training_access || "edit");
       setModalValue("editTournamentAccess", existing?.tournament_access || "edit");
+      const deleteBtn = document.getElementById("deleteUserBtn");
+      if (deleteBtn) deleteBtn.style.visibility = existing ? "visible" : "hidden";
       document.getElementById("userModalBackdrop").classList.add("open");
       setTimeout(() => document.getElementById("editEmail")?.focus(), 0);
     }
@@ -583,6 +599,64 @@
       });
     }
 
+    async function readFunctionError(error) {
+      try {
+        const context = error?.context;
+        if (context && typeof context.json === "function") {
+          const body = await context.json();
+          return body?.message || body?.error || error.message;
+        }
+        if (context && typeof context.text === "function") {
+          const text = await context.text();
+          return text || error.message;
+        }
+      } catch (parseError) {
+        console.warn("Function-Fehler konnte nicht gelesen werden:", parseError);
+      }
+      return error?.message || "Unbekannter Fehler";
+    }
+
+    async function invokeAdminUpsertUser(body) {
+      const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+      const accessToken = sessionData?.session?.access_token || "";
+      if (sessionError || !accessToken) {
+        throw new Error(sessionError?.message || "Keine aktive Anmeldung gefunden.");
+      }
+
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/admin-upsert-user`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": supabaseKey,
+            "Authorization": `Bearer ${accessToken}`
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal
+        });
+        const text = await response.text();
+        let result = null;
+        try {
+          result = text ? JSON.parse(text) : null;
+        } catch (_) {
+          result = { message: text };
+        }
+        if (!response.ok || result?.error) {
+          throw new Error(result?.message || result?.error || ("HTTP " + response.status));
+        }
+        return result || {};
+      } catch (error) {
+        if (error?.name === "AbortError") {
+          throw new Error("Edge Function antwortet nicht innerhalb von 15 Sekunden.");
+        }
+        throw error;
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    }
+
     async function saveUser() {
       const admin = await requireAdmin();
       if (!admin) return;
@@ -613,64 +687,6 @@
         return;
       }
 
-      async function readFunctionError(error) {
-        try {
-          const context = error?.context;
-          if (context && typeof context.json === "function") {
-            const body = await context.json();
-            return body?.message || body?.error || error.message;
-          }
-          if (context && typeof context.text === "function") {
-            const text = await context.text();
-            return text || error.message;
-          }
-        } catch (parseError) {
-          console.warn("Function-Fehler konnte nicht gelesen werden:", parseError);
-        }
-        return error?.message || "Unbekannter Fehler";
-      }
-
-      async function invokeAdminUpsertUser(body) {
-        const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
-        const accessToken = sessionData?.session?.access_token || "";
-        if (sessionError || !accessToken) {
-          throw new Error(sessionError?.message || "Keine aktive Anmeldung gefunden.");
-        }
-
-        const controller = new AbortController();
-        const timeoutId = window.setTimeout(() => controller.abort(), 15000);
-        try {
-          const response = await fetch(`${supabaseUrl}/functions/v1/admin-upsert-user`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "apikey": supabaseKey,
-              "Authorization": `Bearer ${accessToken}`
-            },
-            body: JSON.stringify(body),
-            signal: controller.signal
-          });
-          const text = await response.text();
-          let result = null;
-          try {
-            result = text ? JSON.parse(text) : null;
-          } catch (_) {
-            result = { message: text };
-          }
-          if (!response.ok || result?.error) {
-            throw new Error(result?.message || result?.error || ("HTTP " + response.status));
-          }
-          return result || {};
-        } catch (error) {
-          if (error?.name === "AbortError") {
-            throw new Error("Edge Function antwortet nicht innerhalb von 15 Sekunden.");
-          }
-          throw error;
-        } finally {
-          window.clearTimeout(timeoutId);
-        }
-      }
-
       saveBtn.disabled = true;
       saveBtn.innerText = "Speichert...";
       try {
@@ -683,6 +699,39 @@
       } finally {
         saveBtn.disabled = false;
         saveBtn.innerText = "Speichern";
+      }
+    }
+
+    async function deleteUser() {
+      const admin = await requireAdmin();
+      if (!admin) return;
+      setMsg("", "");
+
+      const userId = document.getElementById("editUserId").value;
+      const email = document.getElementById("editEmail").value.trim();
+      if (!userId) return;
+      if (String(userId) === String(admin.id)) {
+        setMsg("Du kannst deinen eigenen Admin-User hier nicht löschen.", "err");
+        return;
+      }
+      if (!confirm(`User wirklich löschen?\n\n${email || userId}`)) return;
+
+      const deleteBtn = document.getElementById("deleteUserBtn");
+      const saveBtn = document.getElementById("saveUserBtn");
+      deleteBtn.disabled = true;
+      if (saveBtn) saveBtn.disabled = true;
+      deleteBtn.innerText = "Löscht...";
+      try {
+        await invokeAdminUpsertUser({ action: "delete", user_id: userId });
+        closeUserModal();
+        setMsg("User gelöscht.", "ok");
+        await loadUsers();
+      } catch (error) {
+        setMsg("User löschen fehlgeschlagen: " + await readFunctionError(error), "err");
+      } finally {
+        deleteBtn.disabled = false;
+        if (saveBtn) saveBtn.disabled = false;
+        deleteBtn.innerText = "User löschen";
       }
     }
 
