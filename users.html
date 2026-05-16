@@ -12,7 +12,7 @@
     }
 
     .page {
-      width: min(1320px, 96vw);
+      width: min(1120px, 96vw);
       margin: 34px auto 30px;
     }
 
@@ -57,13 +57,13 @@
     }
 
     #usersTable {
-      min-width: 1120px;
+      min-width: 900px;
       table-layout: fixed;
     }
 
     #usersTable th:nth-child(1),
     #usersTable td:nth-child(1) {
-      width: 260px;
+      width: 250px;
     }
 
     #usersTable th:nth-child(2),
@@ -73,22 +73,22 @@
 
     #usersTable th:nth-child(3),
     #usersTable td:nth-child(3) {
-      width: 125px;
+      width: 105px;
     }
 
     #usersTable th:nth-child(4),
     #usersTable td:nth-child(4) {
-      width: 170px;
+      width: 76px;
     }
 
     #usersTable th:nth-child(5),
     #usersTable td:nth-child(5) {
-      width: 150px;
+      width: 76px;
     }
 
     #usersTable th:nth-child(6),
     #usersTable td:nth-child(6) {
-      width: 150px;
+      width: 76px;
     }
 
     #usersTable th:nth-child(7),
@@ -118,6 +118,45 @@
       font-size: 14px;
       font-weight: 700;
       color: #eef3ff;
+    }
+
+    .access-cell {
+      text-align: center;
+    }
+
+    .access-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid #3659bb;
+      background: #1c3380;
+      color: #ffffff;
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .access-icon.read {
+      background: #1f5f78;
+      border-color: #43a0bd;
+    }
+
+    .access-icon.edit {
+      background: #245d42;
+      border-color: #51a972;
+    }
+
+    .access-icon.hidden {
+      background: #653244;
+      border-color: #a85a72;
+    }
+
+    .access-head {
+      text-align: center;
+      white-space: nowrap;
     }
 
     .section-title {
@@ -446,6 +485,13 @@
       return "editieren";
     }
 
+    function accessIcon(value) {
+      const normalized = String(value || "") === "hidden" ? "hidden" : (String(value || "") === "read" ? "read" : "edit");
+      const label = accessLabel(normalized);
+      const icon = normalized === "hidden" ? "×" : (normalized === "read" ? "👁" : "✎");
+      return `<span class="access-icon ${normalized}" title="${label}" aria-label="${label}">${icon}</span>`;
+    }
+
     function getUserDisplayName(profile) {
       return profile?.full_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "-";
     }
@@ -527,9 +573,9 @@
           <th>E-Mail</th>
           <th>Name</th>
           <th>Rolle</th>
-          <th>Positions Library</th>
-          <th>Training</th>
-          <th>Turnier</th>
+          <th class="access-head" title="Positions Library">Pos.</th>
+          <th class="access-head">Training</th>
+          <th class="access-head">Turnier</th>
           <th>Letzter Login</th>
           <th>Aktion</th>
         </tr>
@@ -557,9 +603,9 @@
           <td>${escapeHtml(p.email || "-")}</td>
           <td>${escapeHtml(getUserDisplayName(p))}</td>
           <td><span class="pill">${escapeHtml(p.role)}</span></td>
-          <td>${escapeHtml(accessLabel(p.position_library_access))}</td>
-          <td>${escapeHtml(accessLabel(p.training_access))}</td>
-          <td>${escapeHtml(accessLabel(p.tournament_access))}</td>
+          <td class="access-cell">${accessIcon(p.position_library_access)}</td>
+          <td class="access-cell">${accessIcon(p.training_access)}</td>
+          <td class="access-cell">${accessIcon(p.tournament_access)}</td>
           <td>${formatDateTime(latestLoginByUser[p.id]?.created_at)}</td>
           <td>
             <button class="save-btn" type="button" onclick="openUserModal('${p.id}')">Bearbeiten</button>
