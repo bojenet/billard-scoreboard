@@ -1,2 +1,5 @@
 [functions.get-stream-match]
 verify_jwt = false
+
+[functions.get-stream-remote-match]
+verify_jwt = false
