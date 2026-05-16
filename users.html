@@ -207,6 +207,17 @@
     .msg.ok { color: #b6f5c4; }
     .msg.err { color: #ffb6b6; }
 
+    .modal-msg {
+      min-height: 20px;
+      margin-top: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.78);
+    }
+
+    .modal-msg.ok { color: #b6f5c4; }
+    .modal-msg.err { color: #ffb6b6; }
+
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -397,6 +408,7 @@
           </select>
         </div>
       </div>
+      <div id="userModalMsg" class="modal-msg"></div>
       <div class="modal-actions">
         <button id="deleteUserBtn" class="save-btn danger-btn" type="button" onclick="deleteUser()">User löschen</button>
         <div class="modal-main-actions">
@@ -420,6 +432,13 @@
     function setMsg(text, type) {
       const el = document.getElementById("msg");
       el.className = "msg " + (type || "");
+      el.innerText = text || "";
+    }
+
+    function setUserModalMsg(text, type) {
+      const el = document.getElementById("userModalMsg");
+      if (!el) return;
+      el.className = "modal-msg " + (type || "");
       el.innerText = text || "";
     }
 
@@ -485,6 +504,8 @@
 
     function openUserModal(userId = "") {
       const existing = userRows.find((user) => String(user.id) === String(userId));
+      setMsg("", "");
+      setUserModalMsg("", "");
       document.getElementById("userModalTitle").innerText = existing ? "User bearbeiten" : "User erstellen";
       setModalValue("editUserId", existing?.id || "");
       setModalValue("editEmail", existing?.email || "");
@@ -504,6 +525,7 @@
     function closeUserModal(event) {
       if (event && event.target !== event.currentTarget) return;
       document.getElementById("userModalBackdrop").classList.remove("open");
+      setUserModalMsg("", "");
     }
 
     async function loadUsers() {
@@ -689,6 +711,7 @@
       const admin = await requireAdmin();
       if (!admin) return;
       setMsg("", "");
+      setUserModalMsg("", "");
 
       const saveBtn = document.getElementById("saveUserBtn");
       const userId = document.getElementById("editUserId").value;
@@ -707,30 +730,31 @@
       };
 
       if (!payload.email || !firstName || !lastName) {
-        setMsg("Bitte E-Mail, Vorname und Nachname eingeben.", "err");
+        setUserModalMsg("Bitte Login E-Mail, Vorname und Nachname eingeben.", "err");
         return;
       }
       if (!userId && (!payload.password || payload.password.length < 6)) {
-        setMsg("Bitte ein Passwort mit mindestens 6 Zeichen eingeben.", "err");
+        setUserModalMsg("Bitte ein Passwort mit mindestens 6 Zeichen eingeben.", "err");
         return;
       }
       if (!userId) {
         const emailExists = userRows.some((user) => String(user.email || "").trim().toLowerCase() === payload.email.toLowerCase());
         if (emailExists) {
-          setMsg("Diese Login E-Mail existiert bereits.", "err");
+          setUserModalMsg("Diese Login E-Mail existiert bereits.", "err");
           return;
         }
       }
 
       saveBtn.disabled = true;
       saveBtn.innerText = "Speichert...";
+      setUserModalMsg("Speichert...", "");
       try {
         await invokeAdminUpsertUser(payload);
         closeUserModal();
         setMsg(userId ? "User gespeichert." : "User erstellt.", "ok");
         await loadUsers();
       } catch (error) {
-        setMsg("User speichern fehlgeschlagen: " + await readFunctionError(error), "err");
+        setUserModalMsg("User speichern fehlgeschlagen: " + await readFunctionError(error), "err");
       } finally {
         saveBtn.disabled = false;
         saveBtn.innerText = "Speichern";
@@ -741,12 +765,13 @@
       const admin = await requireAdmin();
       if (!admin) return;
       setMsg("", "");
+      setUserModalMsg("", "");
 
       const userId = document.getElementById("editUserId").value;
       const email = document.getElementById("editEmail").value.trim();
       if (!userId) return;
       if (String(userId) === String(admin.id)) {
-        setMsg("Du kannst deinen eigenen Admin-User hier nicht löschen.", "err");
+        setUserModalMsg("Du kannst deinen eigenen Admin-User hier nicht löschen.", "err");
         return;
       }
       if (!confirm(`User wirklich löschen?\n\n${email || userId}`)) return;
@@ -756,13 +781,14 @@
       deleteBtn.disabled = true;
       if (saveBtn) saveBtn.disabled = true;
       deleteBtn.innerText = "Löscht...";
+      setUserModalMsg("Löscht...", "");
       try {
         await invokeAdminUpsertUser({ action: "delete", user_id: userId });
         closeUserModal();
         setMsg("User gelöscht.", "ok");
         await loadUsers();
       } catch (error) {
-        setMsg("User löschen fehlgeschlagen: " + await readFunctionError(error), "err");
+        setUserModalMsg("User löschen fehlgeschlagen: " + await readFunctionError(error), "err");
       } finally {
         deleteBtn.disabled = false;
         if (saveBtn) saveBtn.disabled = false;
