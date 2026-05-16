@@ -124,6 +124,19 @@ serve(async (request) => {
     if (userId && password && password.length < 6) {
       return jsonResponse({ error: "password-too-short", message: "Passwort muss mindestens 6 Zeichen haben." }, 400);
     }
+    if (!userId) {
+      const { data: existingProfile, error: existingProfileError } = await adminClient
+        .from("profiles")
+        .select("id")
+        .ilike("email", email)
+        .maybeSingle();
+      if (existingProfileError) {
+        return jsonResponse({ error: "email-check-failed", message: existingProfileError.message }, 400);
+      }
+      if (existingProfile?.id) {
+        return jsonResponse({ error: "email-already-exists", message: "Diese Login E-Mail existiert bereits." }, 400);
+      }
+    }
 
     const userMeta = {
       first_name: firstName,
@@ -157,6 +170,10 @@ serve(async (request) => {
         user_metadata: userMeta,
       });
       if (error) {
+        const message = String(error.message || "");
+        if (message.toLowerCase().includes("already") || message.toLowerCase().includes("registered")) {
+          return jsonResponse({ error: "email-already-exists", message: "Diese Login E-Mail existiert bereits." }, 400);
+        }
         return jsonResponse({ error: "auth-create-failed", message: error.message }, 400);
       }
       targetUserId = data.user.id;

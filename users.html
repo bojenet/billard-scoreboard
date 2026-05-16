@@ -312,7 +312,7 @@
     <div class="card">
       <table id="usersTable">
         <tr>
-          <th>E-Mail</th>
+          <th>Login E-Mail</th>
           <th>Name</th>
           <th>Rolle</th>
           <th>Positions Library</th>
@@ -350,7 +350,7 @@
       <div class="form-grid">
         <input id="editUserId" type="hidden" />
         <div class="form-field full">
-          <label for="editEmail">E-Mail</label>
+          <label for="editEmail">Login E-Mail</label>
           <input id="editEmail" type="email" autocomplete="off" />
         </div>
         <div class="form-field">
@@ -552,7 +552,7 @@
       const table = document.getElementById("usersTable");
       table.innerHTML = `
         <tr>
-          <th>E-Mail</th>
+          <th>Login E-Mail</th>
           <th>Name</th>
           <th>Rolle</th>
           <th class="access-head" title="Positions Library">Pos.</th>
@@ -713,6 +713,13 @@
       if (!userId && (!payload.password || payload.password.length < 6)) {
         setMsg("Bitte ein Passwort mit mindestens 6 Zeichen eingeben.", "err");
         return;
+      }
+      if (!userId) {
+        const emailExists = userRows.some((user) => String(user.email || "").trim().toLowerCase() === payload.email.toLowerCase());
+        if (emailExists) {
+          setMsg("Diese Login E-Mail existiert bereits.", "err");
+          return;
+        }
       }
 
       saveBtn.disabled = true;
