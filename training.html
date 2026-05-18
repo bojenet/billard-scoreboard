@@ -161,6 +161,11 @@
             <div class="tile-sub">Roger Conti 1-62</div>
         </div>
 
+        <div class="tile" id="stressSimulationTile" onclick="window.location.href='training_stress.html'" style="display:none;">
+            <div class="tile-title">Stress Simulation</div>
+            <div class="tile-sub">Zielpunkte aus einer festen Position erzwingen</div>
+        </div>
+
         <div class="tile" id="positionLibraryTile" onclick="window.location.href='training_position_library.html'" style="display:none;">
             <div class="tile-title">Positions Library</div>
             <div class="tile-sub">Eigene Positionen speichern und filtern</div>
@@ -211,10 +216,12 @@
     }
     async function applyPositionLibraryAccess() {
         const tile = document.getElementById("positionLibraryTile");
-        if (!tile) return;
+        const stressTile = document.getElementById("stressSimulationTile");
         const user = await getCurrentUser();
         const accessMode = await getPositionLibraryAccess(user);
-        tile.style.display = isPositionLibraryVisible(accessMode) ? "" : "none";
+        const visible = isPositionLibraryVisible(accessMode);
+        if (tile) tile.style.display = visible ? "" : "none";
+        if (stressTile) stressTile.style.display = visible ? "" : "none";
     }
     async function loadRemoteMatchInvites(user) {
         if (!user?.email) return;

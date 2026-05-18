@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Stress Simulation</title>
+    <style>
+        html { min-height:100%; background:linear-gradient(180deg,#0f1c3f,#0a122b); }
+        body { margin:0; min-height:100vh; font-family:'Segoe UI', Arial, sans-serif; background:linear-gradient(180deg,#0f1c3f,#0a122b); color:white; visibility:hidden; }
+        body.auth-ready { visibility:visible; }
+        .fullscreen-btn { position:fixed; top:10px; right:10px; z-index:1200; width:34px; height:34px; border:1px solid #3659bb; border-radius:10px; background:rgba(28,51,128,.92); color:white; font-size:16px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .page { width:min(1180px,94%); margin:22px auto 34px; }
+        .header { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin-bottom:18px; flex-wrap:wrap; }
+        h1 { margin:0; font-size:42px; line-height:1; }
+        .sub { margin-top:7px; opacity:.75; font-size:16px; }
+        .btn { border:none; border-radius:12px; padding:11px 15px; color:white; background:#1c3380; border:1px solid #3659bb; font-size:15px; font-weight:800; cursor:pointer; }
+        .btn.primary { background:#2f4fe0; border-color:#5572f0; }
+        .btn.danger { background:#8a3340; border-color:#be5757; }
+        .btn.success { background:#287a42; border-color:#45a861; }
+        .card { background:linear-gradient(180deg,#162b66,#0f1c3f); border:1px solid #2d488f; border-radius:24px; box-shadow:0 26px 60px rgba(0,0,0,.48); overflow:hidden; }
+        .section { padding:18px; border-bottom:1px solid #27417f; }
+        .section:last-child { border-bottom:none; }
+        .section-title { font-size:22px; font-weight:900; margin:0 0 6px; }
+        .section-sub { font-size:14px; opacity:.75; margin-bottom:14px; }
+        .setup-grid { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:16px; align-items:start; }
+        .field { display:flex; flex-direction:column; gap:7px; }
+        .field label { font-size:14px; font-weight:800; opacity:.84; }
+        .field input, .field select { box-sizing:border-box; width:100%; border:1px solid #3959ab; border-radius:11px; padding:11px 12px; font-size:16px; color:white; background:#112659; }
+        .tools { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+        .library-tools { display:grid; grid-template-columns:1fr 210px; gap:10px; margin-bottom:14px; }
+        .library-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; max-height:620px; overflow:auto; padding-right:4px; }
+        .position-card { border:1px solid #3557b7; border-radius:16px; background:rgba(12,28,72,.74); padding:12px; display:grid; gap:10px; cursor:pointer; box-shadow:0 14px 28px rgba(0,0,0,.24); }
+        .position-card.selected { border-color:#ffe27a; box-shadow:0 0 0 2px rgba(255,226,122,.36), 0 14px 28px rgba(0,0,0,.24); }
+        .position-title { font-size:15px; font-weight:900; }
+        .position-sub { margin-top:2px; font-size:12px; opacity:.72; }
+        .position-table-wrap { position:relative; width:68%; justify-self:center; border-radius:14px; overflow:hidden; background:#f7f7f4; aspect-ratio:674/1200; box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); }
+        .run-grid { display:grid; grid-template-columns:430px minmax(0,1fr); gap:18px; align-items:start; }
+        .run-position { position:relative; width:100%; max-width:430px; border-radius:20px; overflow:hidden; background:#f7f7f4; aspect-ratio:674/1200; box-shadow:0 20px 44px rgba(0,0,0,.3); }
+        .table-bg { width:100%; height:100%; display:block; object-fit:cover; }
+        .table-overlay { position:absolute; inset:0; width:100%; height:100%; display:block; }
+        .score-panel { display:grid; gap:14px; }
+        .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+        .stat { border:1px solid #3659bb; border-radius:14px; padding:12px; background:rgba(17,38,89,.7); text-align:center; }
+        .stat-label { font-size:12px; opacity:.72; margin-bottom:5px; }
+        .stat-value { font-size:28px; font-weight:900; font-variant-numeric:tabular-nums; }
+        .attempt-form { display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end; }
+        .attempt-input { border:1px solid #3959ab; border-radius:14px; padding:17px; background:#f4f7ff; color:#141827; font-size:36px; font-weight:900; width:100%; box-sizing:border-box; }
+        .attempt-list { display:grid; gap:8px; }
+        .attempt-row { display:grid; grid-template-columns:80px 1fr auto; gap:10px; align-items:center; padding:10px 12px; border:1px solid #27417f; border-radius:12px; background:rgba(8,20,54,.42); }
+        .attempt-no { opacity:.74; font-weight:800; }
+        .attempt-points { font-size:18px; font-weight:900; }
+        .attempt-reached { color:#b6f5c4; font-weight:900; }
+        .notice { min-height:22px; margin-top:12px; font-size:14px; font-weight:800; color:#ffb6b6; }
+        .notice.ok { color:#b6f5c4; }
+        .hidden { display:none !important; }
+        .empty { padding:16px; border:1px dashed #4564c4; border-radius:14px; text-align:center; opacity:.76; }
+        .history-list { display:grid; gap:8px; }
+        .history-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:12px; padding:10px 12px; border:1px solid #27417f; border-radius:12px; background:rgba(8,20,54,.42); align-items:center; }
+        .history-title { font-weight:900; }
+        .history-sub { margin-top:2px; font-size:12px; opacity:.72; }
+        @media (max-width: 960px) { .setup-grid, .run-grid, .library-tools { grid-template-columns:1fr; } .library-list { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media (max-width: 640px) { h1 { font-size:34px; } .library-list, .stats-grid, .attempt-form, .history-row { grid-template-columns:1fr; } }
+    </style>
+</head>
+<body>
+    <button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()">⛶</button>
+    <div class="page">
+        <div class="header">
+            <div>
+                <h1>Stress Simulation</h1>
+                <div class="sub">Eine Position, ein Ziel, so viele Versuche bis es erreicht ist</div>
+            </div>
+            <div class="tools">
+                <button class="btn" type="button" onclick="resetSetup()">Neu</button>
+                <button class="btn" type="button" onclick="window.location.href='training.html'">Zurück</button>
+            </div>
+        </div>
+
+        <div class="card" id="setupCard">
+            <div class="section">
+                <div class="section-title">Setup</div>
+                <div class="section-sub">Wähle eine Position aus der Library und gib die Zielpunkte ein.</div>
+                <div class="setup-grid">
+                    <div class="library-tools">
+                        <input id="positionSearch" type="text" placeholder="Titel oder Beschreibung suchen">
+                        <select id="disciplineFilter"></select>
+                    </div>
+                    <div class="field">
+                        <label for="targetPointsInput">Zielpunkte</label>
+                        <input id="targetPointsInput" type="number" min="1" value="20">
+                    </div>
+                </div>
+                <div class="library-list" id="positionList"></div>
+                <div class="notice" id="setupNotice"></div>
+            </div>
+            <div class="section">
+                <button class="btn primary" type="button" onclick="startStressSession()">Stress Simulation starten</button>
+            </div>
+        </div>
+
+        <div class="card hidden" id="runCard">
+            <div class="section">
+                <div class="run-grid">
+                    <div class="run-position" id="runPosition"></div>
+                    <div class="score-panel">
+                        <div>
+                            <div class="section-title" id="runTitle">Position</div>
+                            <div class="section-sub" id="runSub">-</div>
+                        </div>
+                        <div class="stats-grid">
+                            <div class="stat"><div class="stat-label">Ziel</div><div class="stat-value" id="targetStat">20</div></div>
+                            <div class="stat"><div class="stat-label">Versuche</div><div class="stat-value" id="attemptCountStat">0</div></div>
+                            <div class="stat"><div class="stat-label">Bester</div><div class="stat-value" id="bestStat">0</div></div>
+                            <div class="stat"><div class="stat-label">Schnitt</div><div class="stat-value" id="avgStat">0.0</div></div>
+                        </div>
+                        <div class="attempt-form">
+                            <div class="field">
+                                <label for="attemptPointsInput">Punkte in diesem Versuch</label>
+                                <input id="attemptPointsInput" class="attempt-input" type="number" min="0" value="0">
+                            </div>
+                            <button class="btn success" type="button" onclick="saveAttempt()">Versuch speichern</button>
+                        </div>
+                        <div class="notice" id="runNotice"></div>
+                        <div>
+                            <div class="section-title">Versuche</div>
+                            <div class="attempt-list" id="attemptList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+            <div class="section">
+                <div class="section-title">Letzte Stress Simulationen</div>
+                <div class="history-list" id="historyList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/training_access.js"></script>
+    <script src="js/position_library_access.js"></script>
+    <script src="js/user_menu.js"></script>
+    <script>
+        const disciplines = ["Alle", "Freie Partie", "Cadre 35/2", "Cadre 52/2", "Cadre 47/2", "Cadre 47/1", "Cadre 71/2", "Einband", "Dreiband"];
+        const tableTemplates = {
+            "Freie Partie": "assets/discipline-mb-libre.png",
+            "Cadre 35/2": "assets/discipline-tb-35.png",
+            "Cadre 52/2": "assets/discipline-tb-52.png",
+            "Cadre 47/2": "assets/discipline-mb-47.png",
+            "Cadre 47/1": "assets/discipline-mb-47.png",
+            "Cadre 71/2": "assets/discipline-mb-71.png",
+            "Einband": "assets/discipline-mb-bande.png",
+            "Dreiband": "assets/discipline-mb-bande.png"
+        };
+        const TABLE_RENDER_SPECS = {
+            MB: { radius: 11.0, glareRadius: 4.1, glareOffset: 3.7, strokeWidth: 1.35, whiteStrokeWidth: 1.35 },
+            TB: { radius: 14.9, glareRadius: 5.6, glareOffset: 5.0, strokeWidth: 1.86, whiteStrokeWidth: 1.86 }
+        };
+        const fallbackLayout = { red: { x: 236, y: 166 }, yellow: { x: 259, y: 214 }, white: { x: 232, y: 201 } };
+        let currentUser = null;
+        let libraryItems = [];
+        let selectablePages = [];
+        let selectedKey = "";
+        let activeSession = null;
+
+        function updateFullscreenButton() { const btn = document.getElementById("fullscreenBtn"); if (!btn) return; const active = !!document.fullscreenElement; btn.innerText = active ? "×" : "⛶"; }
+        async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (_) {} finally { updateFullscreenButton(); } }
+        function escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
+        function cloneLayout(layout) { return { red: { ...(layout?.red || fallbackLayout.red) }, yellow: { ...(layout?.yellow || fallbackLayout.yellow) }, white: { ...(layout?.white || fallbackLayout.white) } }; }
+        function cloneLines(lines) { return Array.isArray(lines) ? lines.map((line) => ({ points: Array.isArray(line.points) ? line.points.map((pt) => ({ x: pt.x, y: pt.y })) : [] })) : []; }
+        function getTemplateForDiscipline(discipline) { return tableTemplates[discipline] || "assets/discipline-mb-47.png"; }
+        function getTableTypeForDiscipline(discipline) { return discipline === "Cadre 35/2" || discipline === "Cadre 52/2" ? "TB" : "MB"; }
+        function getBallSpec(discipline) { return TABLE_RENDER_SPECS[getTableTypeForDiscipline(discipline)] || TABLE_RENDER_SPECS.MB; }
+        function setSetupNotice(text, ok = false) { const el = document.getElementById("setupNotice"); el.innerText = text || ""; el.classList.toggle("ok", !!ok); }
+        function setRunNotice(text, ok = false) { const el = document.getElementById("runNotice"); el.innerText = text || ""; el.classList.toggle("ok", !!ok); }
+        function parseAttempts(value) { return Array.isArray(value) ? value.map((x) => ({ attempt: Number(x.attempt || 0), points: Number(x.points || 0), created_at: x.created_at || "" })) : []; }
+
+        function renderLineMarkup(lines) {
+            return cloneLines(lines).map((line) => {
+                const pts = Array.isArray(line.points) ? line.points.map((pt) => `${pt.x},${pt.y}`).join(" ") : "";
+                return pts ? `<polyline points="${pts}" fill="none" stroke="#7fd8ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>` : "";
+            }).join("");
+        }
+
+        function renderBallMarkup(layout, discipline) {
+            const spec = getBallSpec(discipline);
+            const safe = cloneLayout(layout);
+            return `
+                <g transform="translate(${safe.red.x} ${safe.red.y})"><circle r="${spec.radius}" fill="#e02f2f" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.42"></circle></g>
+                <g transform="translate(${safe.yellow.x} ${safe.yellow.y})"><circle r="${spec.radius}" fill="#ffe500" stroke="#2a2a2a" stroke-opacity="0.55" stroke-width="${spec.strokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.42"></circle></g>
+                <g transform="translate(${safe.white.x} ${safe.white.y})"><circle r="${spec.radius}" fill="#fbfbfb" stroke="#6e6e6e" stroke-opacity="0.7" stroke-width="${spec.whiteStrokeWidth}"></circle><circle r="${spec.glareRadius}" cx="-${spec.glareOffset}" cy="-${spec.glareOffset}" fill="#ffffff" fill-opacity="0.72"></circle></g>`;
+        }
+
+        function renderPositionMarkup(page, discipline, className = "table-overlay") {
+            return `<img class="table-bg" src="${getTemplateForDiscipline(discipline)}" alt="Position">
+                <svg class="${className}" viewBox="0 0 674 1200" aria-hidden="true">${renderLineMarkup(page.line_paths)}${renderBallMarkup(page.ball_layout, discipline)}</svg>`;
+        }
+
+        function getLibraryPages(item) {
+            const pages = Array.isArray(item.position_pages) && item.position_pages.length ? item.position_pages : [{ ball_layout: item.ball_layout, line_paths: item.line_paths, page_description: "" }];
+            return pages.map((page, index) => ({
+                key: `${item.id}::${index}`,
+                item,
+                pageIndex: index,
+                pageLabel: pages.length > 1 ? `Position ${index + 1}/${pages.length}` : "Position 1",
+                ball_layout: cloneLayout(page.ball_layout || item.ball_layout),
+                line_paths: cloneLines(page.line_paths || item.line_paths)
+            }));
+        }
+
+        function buildDisciplineFilter() {
+            const select = document.getElementById("disciplineFilter");
+            select.innerHTML = disciplines.map((discipline) => `<option value="${escapeHtml(discipline)}">${discipline === "Alle" ? "Alle Disziplinen" : escapeHtml(discipline)}</option>`).join("");
+        }
+
+        async function loadLibrary() {
+            const accessMode = await getPositionLibraryAccess(currentUser);
+            if (!isPositionLibraryVisible(accessMode)) {
+                setSetupNotice("Die Positions Library ist für deinen User nicht sichtbar.");
+                return;
+            }
+            let query = supabaseClient
+                .from("training_position_library")
+                .select("id,title,discipline,description,created_by_name,ball_layout,line_paths,position_pages")
+                .order("updated_at", { ascending: false });
+            if (isPositionLibraryEditable(accessMode)) query = query.eq("user_id", currentUser.id);
+            const { data, error } = await query;
+            if (error) {
+                setSetupNotice("Positionen konnten nicht geladen werden: " + error.message);
+                return;
+            }
+            libraryItems = data || [];
+            selectablePages = libraryItems.flatMap((item) => getLibraryPages(item));
+            renderPositionList();
+        }
+
+        function renderPositionList() {
+            const wrap = document.getElementById("positionList");
+            const search = String(document.getElementById("positionSearch").value || "").trim().toLowerCase();
+            const discipline = document.getElementById("disciplineFilter").value || "Alle";
+            const pages = selectablePages.filter(({ item }) => {
+                const disciplineMatches = discipline === "Alle" || item.discipline === discipline;
+                const searchMatches = !search || [item.title, item.description, item.created_by_name, item.discipline].some((value) => String(value || "").toLowerCase().includes(search));
+                return disciplineMatches && searchMatches;
+            });
+            if (!pages.length) {
+                wrap.innerHTML = `<div class="empty">Keine passende Position gefunden.</div>`;
+                return;
+            }
+            wrap.innerHTML = "";
+            pages.forEach((page) => {
+                const card = document.createElement("div");
+                card.className = "position-card" + (page.key === selectedKey ? " selected" : "");
+                card.innerHTML = `
+                    <div><div class="position-title">${escapeHtml(page.item.title || "Ohne Titel")}</div><div class="position-sub">${escapeHtml(page.item.discipline || "-")} · ${escapeHtml(page.pageLabel)}</div></div>
+                    <div class="position-table-wrap">${renderPositionMarkup(page, page.item.discipline)}</div>`;
+                card.onclick = () => { selectedKey = page.key; renderPositionList(); };
+                wrap.appendChild(card);
+            });
+        }
+
+        function getSelectedPage() {
+            return selectablePages.find((page) => page.key === selectedKey) || null;
+        }
+
+        async function startStressSession() {
+            setSetupNotice("");
+            const page = getSelectedPage();
+            const target = Number(document.getElementById("targetPointsInput").value || 0);
+            if (!page) { setSetupNotice("Bitte eine Position auswählen."); return; }
+            if (!Number.isInteger(target) || target < 1) { setSetupNotice("Bitte gültige Zielpunkte eingeben."); return; }
+            const payload = {
+                user_id: currentUser.id,
+                position_library_id: page.item.id,
+                position_page_index: page.pageIndex,
+                position_title: page.item.title || "",
+                position_page_label: page.pageLabel || "",
+                discipline: page.item.discipline || "",
+                target_points: target,
+                ball_layout: page.ball_layout,
+                line_paths: page.line_paths,
+                attempts: [],
+                completed: false
+            };
+            const { data, error } = await supabaseClient.from("training_stress_sessions").insert([payload]).select("*").single();
+            if (error) {
+                setSetupNotice("Stress Simulation konnte nicht gestartet werden. Bitte SQL aus sql/training_stress_sessions.sql ausführen. " + error.message);
+                return;
+            }
+            activeSession = data;
+            document.getElementById("setupCard").classList.add("hidden");
+            document.getElementById("runCard").classList.remove("hidden");
+            renderRun();
+        }
+
+        function renderRun() {
+            if (!activeSession) return;
+            const attempts = parseAttempts(activeSession.attempts);
+            const target = Number(activeSession.target_points || 0);
+            const best = attempts.length ? Math.max(...attempts.map((x) => x.points)) : 0;
+            const avg = attempts.length ? (attempts.reduce((sum, x) => sum + x.points, 0) / attempts.length).toFixed(1) : "0.0";
+            document.getElementById("runPosition").innerHTML = renderPositionMarkup({ ball_layout: activeSession.ball_layout, line_paths: activeSession.line_paths }, activeSession.discipline);
+            document.getElementById("runTitle").innerText = activeSession.position_title || "Position";
+            document.getElementById("runSub").innerText = `${activeSession.discipline || "-"} · ${activeSession.position_page_label || "Position"} · Ziel ${target}`;
+            document.getElementById("targetStat").innerText = String(target);
+            document.getElementById("attemptCountStat").innerText = String(attempts.length);
+            document.getElementById("bestStat").innerText = String(best);
+            document.getElementById("avgStat").innerText = avg;
+            document.getElementById("attemptList").innerHTML = attempts.length
+                ? attempts.map((attempt) => `<div class="attempt-row"><div class="attempt-no">#${attempt.attempt}</div><div class="attempt-points">${attempt.points} Punkte</div><div class="${attempt.points >= target ? "attempt-reached" : ""}">${attempt.points >= target ? "Ziel erreicht" : "weiter"}</div></div>`).join("")
+                : `<div class="empty">Noch kein Versuch gespeichert.</div>`;
+            setRunNotice(activeSession.completed ? "Ziel erreicht. Simulation abgeschlossen." : "");
+            document.getElementById("attemptPointsInput").disabled = !!activeSession.completed;
+        }
+
+        async function saveAttempt() {
+            if (!activeSession || activeSession.completed) return;
+            setRunNotice("");
+            const points = Number(document.getElementById("attemptPointsInput").value || 0);
+            if (!Number.isFinite(points) || points < 0) { setRunNotice("Bitte gültige Punkte eingeben."); return; }
+            const attempts = parseAttempts(activeSession.attempts);
+            const nextAttempt = { attempt: attempts.length + 1, points, created_at: new Date().toISOString() };
+            const nextAttempts = [...attempts, nextAttempt];
+            const completed = points >= Number(activeSession.target_points || 0);
+            const update = {
+                attempts: nextAttempts,
+                completed,
+                completed_at: completed ? new Date().toISOString() : null
+            };
+            const { data, error } = await supabaseClient.from("training_stress_sessions").update(update).eq("id", activeSession.id).select("*").single();
+            if (error) { setRunNotice("Versuch konnte nicht gespeichert werden: " + error.message); return; }
+            activeSession = data;
+            document.getElementById("attemptPointsInput").value = "0";
+            renderRun();
+            if (completed) {
+                setRunNotice(`Ziel erreicht nach ${nextAttempts.length} Versuch${nextAttempts.length === 1 ? "" : "en"}.`, true);
+                await loadHistory();
+            }
+        }
+
+        function resetSetup() {
+            activeSession = null;
+            document.getElementById("runCard").classList.add("hidden");
+            document.getElementById("setupCard").classList.remove("hidden");
+            document.getElementById("attemptPointsInput").value = "0";
+            setRunNotice("");
+            setSetupNotice("");
+        }
+
+        async function loadHistory() {
+            const { data, error } = await supabaseClient
+                .from("training_stress_sessions")
+                .select("id,position_title,position_page_label,discipline,target_points,attempts,completed,created_at")
+                .eq("user_id", currentUser.id)
+                .order("created_at", { ascending: false })
+                .limit(12);
+            const wrap = document.getElementById("historyList");
+            if (error) {
+                wrap.innerHTML = `<div class="empty">Historie konnte nicht geladen werden.</div>`;
+                return;
+            }
+            if (!data?.length) {
+                wrap.innerHTML = `<div class="empty">Noch keine Stress Simulation gespeichert.</div>`;
+                return;
+            }
+            wrap.innerHTML = data.map((session) => {
+                const attempts = parseAttempts(session.attempts);
+                const best = attempts.length ? Math.max(...attempts.map((x) => x.points)) : 0;
+                const date = new Date(session.created_at).toLocaleDateString("de-DE");
+                return `<div class="history-row"><div><div class="history-title">${escapeHtml(session.position_title || "Position")}</div><div class="history-sub">${escapeHtml(session.discipline || "-")} · ${escapeHtml(session.position_page_label || "")} · ${date}</div></div><div>${attempts.length} Versuche</div><div>${best}/${session.target_points}</div></div>`;
+            }).join("");
+        }
+
+        async function init() {
+            currentUser = await requireAuth();
+            if (!currentUser) return;
+            const trainingAccess = await getTrainingAccess(currentUser);
+            if (!isTrainingVisible(trainingAccess)) { window.location.href = "index.html"; return; }
+            document.body.classList.add("auth-ready");
+            updateFullscreenButton();
+            buildDisciplineFilter();
+            document.getElementById("positionSearch").addEventListener("input", renderPositionList);
+            document.getElementById("disciplineFilter").addEventListener("change", renderPositionList);
+            await loadLibrary();
+            await loadHistory();
+        }
+
+        document.addEventListener("fullscreenchange", updateFullscreenButton);
+        window.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && !document.getElementById("runCard").classList.contains("hidden")) {
+                event.preventDefault();
+                saveAttempt();
+            }
+        });
+        init();
+    </script>
+</body>
+</html>
