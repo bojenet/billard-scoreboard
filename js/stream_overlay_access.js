@@ -21,6 +21,5 @@ async function getUserStreamOverlayAccess(userId) {
 }
 
 async function getStreamOverlayAccess(user) {
-  if (user && await hasAdminAccess(user)) return true;
   return getUserStreamOverlayAccess(user?.id);
 }
