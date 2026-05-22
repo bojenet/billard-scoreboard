@@ -18,6 +18,7 @@ type UserPayload = {
   position_library_access?: string;
   training_access?: string;
   tournament_access?: string;
+  stream_overlay_access?: boolean;
 };
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
@@ -38,6 +39,12 @@ function normalizeRole(value: unknown) {
 function normalizeAccess(value: unknown) {
   const text = cleanText(value);
   return ["hidden", "read", "edit"].includes(text) ? text : "edit";
+}
+
+function normalizeBooleanAccess(value: unknown) {
+  if (typeof value === "boolean") return value;
+  const text = cleanText(value).toLowerCase();
+  return !["false", "0", "no", "nein", "hidden", "disabled"].includes(text);
 }
 
 serve(async (request) => {
@@ -111,6 +118,7 @@ serve(async (request) => {
     const positionLibraryAccess = normalizeAccess(payload.position_library_access);
     const trainingAccess = normalizeAccess(payload.training_access);
     const tournamentAccess = normalizeAccess(payload.tournament_access);
+    const streamOverlayAccess = normalizeBooleanAccess(payload.stream_overlay_access);
 
     if (!email) {
       return jsonResponse({ error: "email-required", message: "E-Mail ist erforderlich." }, 400);
@@ -193,7 +201,7 @@ serve(async (request) => {
       return jsonResponse({ error: "profile-save-failed", message: profileError.message }, 400);
     }
 
-    const { error: roleError } = await adminClient
+    let { error: roleError } = await adminClient
       .from("user_roles")
       .upsert([{
         user_id: targetUserId,
@@ -201,7 +209,21 @@ serve(async (request) => {
         position_library_access: positionLibraryAccess,
         training_access: trainingAccess,
         tournament_access: tournamentAccess,
+        stream_overlay_access: streamOverlayAccess,
       }], { onConflict: "user_id" });
+
+    if (roleError && String(roleError.message || "").toLowerCase().includes("stream_overlay_access")) {
+      const fallback = await adminClient
+        .from("user_roles")
+        .upsert([{
+          user_id: targetUserId,
+          role,
+          position_library_access: positionLibraryAccess,
+          training_access: trainingAccess,
+          tournament_access: tournamentAccess,
+        }], { onConflict: "user_id" });
+      roleError = fallback.error;
+    }
 
     if (roleError) {
       return jsonResponse({ error: "role-save-failed", message: roleError.message }, 400);

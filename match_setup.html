@@ -549,12 +549,12 @@
         </div>
         <div id="formMessage" class="form-message"></div>
         <div id="obsBox" class="obs-box">
-            <div class="obs-title">OBS Overlay</div>
-            <div class="obs-sub">Diesen Link als Browser-Quelle in OBS nutzen.</div>
+            <div id="obsTitle" class="obs-title">OBS Overlay</div>
+            <div id="obsSub" class="obs-sub">Diesen Link als Browser-Quelle in OBS nutzen.</div>
             <input id="obsOverlayLink" class="obs-link" type="text" readonly value="">
             <div class="obs-actions">
-                <button type="button" onclick="copyObsLink()">OBS-Link kopieren</button>
-                <button type="button" onclick="openObsOverlay()">Overlay öffnen</button>
+                <button id="copyObsLinkBtn" type="button" onclick="copyObsLink()">OBS-Link kopieren</button>
+                <button id="openObsOverlayBtn" type="button" onclick="openObsOverlay()">Overlay öffnen</button>
                 <button type="button" onclick="openScoreboardMatch()">Zum Scoreboard</button>
             </div>
         </div>
@@ -562,6 +562,7 @@
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         <script src="js/supabase.js"></script>
         <script src="js/auth.js"></script>
+        <script src="js/stream_overlay_access.js"></script>
     <script src="js/user_menu.js"></script>
 
 
@@ -573,6 +574,7 @@
             let availablePlayers = [];
             let lastCreatedMatchId = "";
             let lastCreatedStreamToken = "";
+            let currentCanCreateStreamOverlay = true;
             const LAST_MATCH_SETUP_KEY = "last_match_setup_v1";
 
 
@@ -818,13 +820,31 @@
                 return url.toString();
             }
 
-            function showObsBox(matchId, streamToken) {
+            function showObsBox(matchId, streamToken, canCreateStreamOverlay = true) {
                 lastCreatedMatchId = String(matchId || "");
                 lastCreatedStreamToken = String(streamToken || "");
                 const obsBox = document.getElementById("obsBox");
                 const obsLink = document.getElementById("obsOverlayLink");
-                if (!obsBox || !obsLink) return;
-                obsLink.value = buildObsOverlayLink(lastCreatedMatchId, lastCreatedStreamToken);
+                const obsTitle = document.getElementById("obsTitle");
+                const obsSub = document.getElementById("obsSub");
+                const copyBtn = document.getElementById("copyObsLinkBtn");
+                const openBtn = document.getElementById("openObsOverlayBtn");
+                if (!obsBox || !obsLink || !obsTitle || !obsSub || !copyBtn || !openBtn) return;
+                if (canCreateStreamOverlay && lastCreatedStreamToken) {
+                    obsTitle.innerText = "OBS Overlay";
+                    obsSub.innerText = "Diesen Link als Browser-Quelle in OBS nutzen.";
+                    obsLink.value = buildObsOverlayLink(lastCreatedMatchId, lastCreatedStreamToken);
+                    obsLink.style.display = "";
+                    copyBtn.style.display = "";
+                    openBtn.style.display = "";
+                } else {
+                    obsTitle.innerText = "Match erstellt";
+                    obsSub.innerText = "OBS-Link ist für deinen User deaktiviert.";
+                    obsLink.value = "";
+                    obsLink.style.display = "none";
+                    copyBtn.style.display = "none";
+                    openBtn.style.display = "none";
+                }
                 obsBox.classList.add("visible");
             }
 
@@ -924,7 +944,7 @@
                         status: 1,
                         finished: false,
                         controlMode: selectedMode,
-                        stream_token: generateStreamToken()
+                        stream_token: currentCanCreateStreamOverlay ? generateStreamToken() : ""
                     };
 
                     let player1Id = null;
@@ -984,8 +1004,8 @@
 
                     const matchId = data[0].id;
                     const streamToken = String((data[0] && data[0].stream_token) || basePayload.stream_token || "");
-                    showObsBox(matchId, streamToken);
-                    setFormMessage("Match erstellt. OBS-Link ist bereit.", "ok");
+                    showObsBox(matchId, streamToken, currentCanCreateStreamOverlay);
+                    setFormMessage(currentCanCreateStreamOverlay ? "Match erstellt. OBS-Link ist bereit." : "Match erstellt.", "ok");
                 } catch (e) {
                     console.error("startMatch Ausnahme:", e);
                     setFormMessage("Match-Start fehlgeschlagen: " + ((e && e.message) || "Unbekannter Fehler"), "error");
@@ -1032,6 +1052,7 @@
                 const user = await requireAuth();
                 if (!user) return;
                 currentUserId = user.id;
+                currentCanCreateStreamOverlay = await getStreamOverlayAccess(user);
                 ownedPlayerNames = await getOwnedPlayerNames(currentUserId);
                 if (!ownedPlayerNames.length) {
                     alert("Dein Benutzer ist noch keinem Spieler zugeordnet. Bitte in der Spielerverwaltung anlegen.");

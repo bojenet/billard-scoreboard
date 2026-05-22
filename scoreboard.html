@@ -1198,19 +1198,19 @@
             }
             let nachstoss = document.getElementById("nachstossLabel");
 
+            const player2HasNachstoss = inn1 > inn2;
             const showNachstossByTargetP1 =
+                player2HasNachstoss &&
                 target1 > 0 &&
-                score1 >= target1 &&
-                inn1 > inn2;
+                score1 >= target1;
 
-            const showNachstossByMaxForP2 =
+            const showNachstossByMaxInnings =
+                player2HasNachstoss &&
                 maxInnings > 0 &&
-                activePlayer === 2 &&
-                inn1 >= maxInnings &&
-                inn1 > inn2;
+                inn1 >= maxInnings;
 
             nachstoss.style.display =
-                (showNachstossByTargetP1 || showNachstossByMaxForP2)
+                (showNachstossByTargetP1 || showNachstossByMaxInnings)
                     ? "block"
                     : "none";
 

@@ -57,7 +57,7 @@
     }
 
     #usersTable {
-      min-width: 1040px;
+      min-width: 1100px;
       table-layout: fixed;
     }
 
@@ -93,6 +93,11 @@
 
     #usersTable th:nth-child(7),
     #usersTable td:nth-child(7) {
+      width: 76px;
+    }
+
+    #usersTable th:nth-child(8),
+    #usersTable td:nth-child(8) {
       width: 170px;
     }
 
@@ -329,6 +334,7 @@
           <th>Positions Library</th>
           <th>Training</th>
           <th>Turnier</th>
+          <th>OBS</th>
           <th>Letzter Login</th>
           <th>Aktion</th>
         </tr>
@@ -407,6 +413,13 @@
             <option value="edit">editieren</option>
           </select>
         </div>
+        <div class="form-field">
+          <label for="editStreamOverlayAccess">OBS Streaming Link</label>
+          <select id="editStreamOverlayAccess">
+            <option value="true">erlauben</option>
+            <option value="false">sperren</option>
+          </select>
+        </div>
       </div>
       <div id="userModalMsg" class="modal-msg"></div>
       <div class="modal-actions">
@@ -425,6 +438,7 @@
   <script src="js/position_library_access.js"></script>
   <script src="js/training_access.js"></script>
   <script src="js/tournament_access.js"></script>
+  <script src="js/stream_overlay_access.js"></script>
   <script src="js/user_menu.js"></script>
   <script>
     let userRows = [];
@@ -493,6 +507,13 @@
       return `<span class="access-icon ${normalized}" title="${label}" aria-label="${label}">${icon}</span>`;
     }
 
+    function booleanAccessIcon(value) {
+      const enabled = normalizeStreamOverlayAccess(value);
+      const label = enabled ? "erlaubt" : "gesperrt";
+      const icon = enabled ? "✓" : "×";
+      return `<span class="access-icon" title="${label}" aria-label="${label}">${icon}</span>`;
+    }
+
     function getUserDisplayName(profile) {
       return profile?.full_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "-";
     }
@@ -516,6 +537,7 @@
       setModalValue("editPositionLibraryAccess", existing?.position_library_access || "edit");
       setModalValue("editTrainingAccess", existing?.training_access || "edit");
       setModalValue("editTournamentAccess", existing?.tournament_access || "edit");
+      setModalValue("editStreamOverlayAccess", normalizeStreamOverlayAccess(existing?.stream_overlay_access) ? "true" : "false");
       const deleteBtn = document.getElementById("deleteUserBtn");
       if (deleteBtn) deleteBtn.style.visibility = existing ? "visible" : "hidden";
       document.getElementById("userModalBackdrop").classList.add("open");
@@ -542,9 +564,17 @@
         return;
       }
 
-      const { data: roles, error: rolesError } = await supabaseClient
+      let { data: roles, error: rolesError } = await supabaseClient
         .from("user_roles")
-        .select("user_id,role,position_library_access,training_access,tournament_access");
+        .select("user_id,role,position_library_access,training_access,tournament_access,stream_overlay_access");
+
+      if (rolesError && String(rolesError.message || "").toLowerCase().includes("stream_overlay_access")) {
+        const fallback = await supabaseClient
+          .from("user_roles")
+          .select("user_id,role,position_library_access,training_access,tournament_access");
+        roles = fallback.data;
+        rolesError = fallback.error;
+      }
 
       if (rolesError) {
         setMsg("Rollen laden fehlgeschlagen: " + rolesError.message, "err");
@@ -567,7 +597,8 @@
           role: r.role || "member",
           position_library_access: r.position_library_access || "edit",
           training_access: r.training_access || "edit",
-          tournament_access: r.tournament_access || "edit"
+          tournament_access: r.tournament_access || "edit",
+          stream_overlay_access: normalizeStreamOverlayAccess(r.stream_overlay_access)
         };
       });
 
@@ -580,6 +611,7 @@
           <th class="access-head" title="Positions Library">Pos.</th>
           <th class="access-head">Training</th>
           <th class="access-head">Turnier</th>
+          <th class="access-head">OBS</th>
           <th>Letzter Login</th>
           <th>Aktion</th>
         </tr>
@@ -597,7 +629,8 @@
           role: roleInfo.role || "member",
           position_library_access: normalizePositionLibraryAccess(roleInfo.position_library_access),
           training_access: normalizeTrainingAccess(roleInfo.training_access),
-          tournament_access: normalizeTournamentAccess(roleInfo.tournament_access)
+          tournament_access: normalizeTournamentAccess(roleInfo.tournament_access),
+          stream_overlay_access: normalizeStreamOverlayAccess(roleInfo.stream_overlay_access)
         };
       });
 
@@ -610,6 +643,7 @@
           <td class="access-cell">${accessIcon(p.position_library_access)}</td>
           <td class="access-cell">${accessIcon(p.training_access)}</td>
           <td class="access-cell">${accessIcon(p.tournament_access)}</td>
+          <td class="access-cell">${booleanAccessIcon(p.stream_overlay_access)}</td>
           <td>${formatDateTime(latestLoginByUser[p.id]?.created_at)}</td>
           <td>
             <button class="save-btn" type="button" onclick="openUserModal('${p.id}')">Bearbeiten</button>
@@ -726,7 +760,8 @@
         role: document.getElementById("editRole").value,
         position_library_access: normalizePositionLibraryAccess(document.getElementById("editPositionLibraryAccess").value),
         training_access: normalizeTrainingAccess(document.getElementById("editTrainingAccess").value),
-        tournament_access: normalizeTournamentAccess(document.getElementById("editTournamentAccess").value)
+        tournament_access: normalizeTournamentAccess(document.getElementById("editTournamentAccess").value),
+        stream_overlay_access: normalizeStreamOverlayAccess(document.getElementById("editStreamOverlayAccess").value)
       };
 
       if (!payload.email || !firstName || !lastName) {
