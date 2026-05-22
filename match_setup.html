@@ -1004,8 +1004,12 @@
 
                     const matchId = data[0].id;
                     const streamToken = String((data[0] && data[0].stream_token) || basePayload.stream_token || "");
+                    if (!currentCanCreateStreamOverlay) {
+                        window.location.href = "/scoreboard.html?match=" + matchId;
+                        return;
+                    }
                     showObsBox(matchId, streamToken, currentCanCreateStreamOverlay);
-                    setFormMessage(currentCanCreateStreamOverlay ? "Match erstellt. OBS-Link ist bereit." : "Match erstellt.", "ok");
+                    setFormMessage("Match erstellt. OBS-Link ist bereit.", "ok");
                 } catch (e) {
                     console.error("startMatch Ausnahme:", e);
                     setFormMessage("Match-Start fehlgeschlagen: " + ((e && e.message) || "Unbekannter Fehler"), "error");
