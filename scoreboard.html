@@ -791,7 +791,6 @@
     </div>
 
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
@@ -1071,7 +1070,6 @@
             showEndIfFinished();
 
             applyControlMode();
-            showQRTemporarily();
             showSwapButtonTemporarily();
 
 
@@ -1104,33 +1102,6 @@
                 controls.style.display = "flex";
             }
         }
-
-
-
-
-        function showQRTemporarily() {
-
-            const qrBox = document.getElementById("qrBox");
-            if (!qrBox) return;
-
-            const remoteUrl =
-                window.location.origin +
-                "/remote.html?match=" + matchId;
-
-            qrBox.style.display = "block";
-            document.getElementById("qrcode").innerHTML = "";
-
-            new QRCode(document.getElementById("qrcode"), {
-                text: remoteUrl,
-                width: 180,
-                height: 180
-            });
-
-            setTimeout(() => {
-                qrBox.style.display = "none";
-            }, 60000);
-        }
-
         function showSwapButtonTemporarily() {
             const swapBtn = document.getElementById("swapPlayersBtn");
             if (!swapBtn) return;
@@ -2113,24 +2084,6 @@
         updateFullscreenButton();
 
     </script>
-
-    <div id="qrBox" style="
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    background: rgba(0,0,0,0.6);
-    padding: 20px;
-    border-radius: 20px;
-    display: none;
-    text-align:center;
-">
-        <div style="font-size:14px; opacity:.6; margin-bottom:10px;">
-            Remote öffnen
-        </div>
-        <div id="qrcode"></div>
-    </div>
-
-
 
 </body>
 

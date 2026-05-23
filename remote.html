@@ -328,7 +328,6 @@
         </div>
         <div class="utility-row">
             <button id="voiceBtn" onclick="toggleVoice()">Sprache aus</button>
-            <div id="wakeStatus" class="status-pill">Wake Lock aus</div>
         </div>
         <div id="voiceStatus" class="sr-only" aria-live="polite">Sprache bereit</div>
     </div>
@@ -349,12 +348,10 @@ let remoteChannel = null;
 let pollId = null;
 let remoteHistory = [];
 let matchSeriesStorageAvailable = false;
-let wakeLockSentinel = null;
 let voiceRecognition = null;
 let voiceActive = false;
 let voiceSupported = false;
 let pwaReady = false;
-let wakeLockRequestedOnce = false;
 let finishedRedirectTimeout = null;
 
 function showLoadedMatchUi() {
@@ -387,13 +384,6 @@ function returnToMatchPicker() {
     window.location.href = next.toString();
 }
 
-function setWakeStatus(text, type = "") {
-    const el = document.getElementById("wakeStatus");
-    if (!el) return;
-    el.className = "status-pill" + (type ? " " + type : "");
-    el.innerText = text;
-}
-
 function setVoiceStatus(text, type = "") {
     const el = document.getElementById("voiceStatus");
     if (!el) return;
@@ -407,29 +397,6 @@ function updateVoiceButton() {
     btn.innerText = voiceActive ? "Sprache an" : "Sprache aus";
     btn.classList.toggle("mic-active", voiceActive);
     btn.disabled = !voiceSupported;
-}
-
-async function enableWakeLock() {
-    if (!("wakeLock" in navigator) || !navigator.wakeLock?.request) {
-        setWakeStatus("Wake Lock nicht verfuegbar", "warn");
-        return;
-    }
-    try {
-        wakeLockSentinel = await navigator.wakeLock.request("screen");
-        setWakeStatus("Wake Lock aktiv", "ok");
-        wakeLockSentinel.addEventListener("release", () => {
-            setWakeStatus("Wake Lock pausiert", "warn");
-        });
-    } catch (error) {
-        console.warn("Wake Lock fehlgeschlagen:", error);
-        setWakeStatus("Wake Lock tippen", "warn");
-    }
-}
-
-async function ensureWakeLockFromGesture() {
-    if (wakeLockSentinel || wakeLockRequestedOnce) return;
-    wakeLockRequestedOnce = true;
-    await enableWakeLock();
 }
 
 function parseVoiceCommand(raw) {
@@ -1147,15 +1114,7 @@ window.addEventListener("beforeunload", () => {
 document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
         pollMatch();
-        wakeLockRequestedOnce = false;
-        ensureWakeLockFromGesture();
     }
-});
-
-["pointerdown", "touchstart", "click"].forEach((eventName) => {
-    window.addEventListener(eventName, () => {
-        ensureWakeLockFromGesture();
-    }, { passive: true, once: false });
 });
 
 </script>
