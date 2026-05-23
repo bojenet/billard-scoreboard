@@ -455,10 +455,16 @@
         }
 
         function getSeriesSource(match) {
-            const archiveSeries1 = toSeries(match?.series1);
-            const archiveSeries2 = toSeries(match?.series2);
-            if (archiveSeries1.length || archiveSeries2.length) {
-                return { series1: archiveSeries1, series2: archiveSeries2 };
+            const directSeries1 = toSeries(match?.series1);
+            const directSeries2 = toSeries(match?.series2);
+            if (directSeries1.length || directSeries2.length) {
+                return { series1: directSeries1, series2: directSeries2 };
+            }
+
+            const logSeries1 = toSeries(match?.series_log1);
+            const logSeries2 = toSeries(match?.series_log2);
+            if (logSeries1.length || logSeries2.length) {
+                return { series1: logSeries1, series2: logSeries2 };
             }
 
             try {
@@ -518,7 +524,7 @@
                         discipline2: currentMatch.discipline2 || "",
                         target1: Number(currentMatch.target1 || 0),
                         target2: Number(currentMatch.target2 || 0),
-                        maxInnings: Number(currentMatch.max_innings || 0),
+                        maxInnings: Number(currentMatch.maxInnings || currentMatch.max_innings || 0),
                         startedAt: currentMatch.started_at || currentMatch.created_at || "",
                         finishedAt: currentMatch.finished_at || currentMatch.updated_at || currentMatch.created_at || ""
                     }
@@ -610,7 +616,6 @@
                 document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf diese Partie.</div>";
                 return;
             }
-            currentMatch = match;
             document.getElementById("sendEmailBtn").style.display = "inline-block";
 
             const { data: archiveRows, error: archiveError } = await supabaseClient
@@ -671,6 +676,7 @@
                     ? { ...match, series1: localSeries.series1, series2: localSeries.series2 }
                     : match;
 
+            currentMatch = matchForSeries;
             buildRows(matchForSeries);
         }
 
