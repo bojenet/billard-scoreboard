@@ -851,6 +851,9 @@
         let seconds = 0;
         let maxInnings = 0;
         let startedAtIso = "";
+        let activeSeconds1 = 0;
+        let activeSeconds2 = 0;
+        let activeTurnStartedAtMs = 0;
         let player1Label = "";
         let player2Label = "";
         let discipline1Label = "";
@@ -1020,8 +1023,34 @@
             return Math.max(0, Math.floor((Date.now() - startTime) / 1000));
         }
 
-        function calculatePace(pointsValue) {
-            const elapsedSeconds = getElapsedSeconds();
+        function resetActivePaceTracking() {
+            activeSeconds1 = 0;
+            activeSeconds2 = 0;
+            activeTurnStartedAtMs = Date.now();
+        }
+
+        function captureElapsedActiveSeconds() {
+            if (!activeTurnStartedAtMs) return 0;
+            return Math.max(0, Math.floor((Date.now() - activeTurnStartedAtMs) / 1000));
+        }
+
+        function commitActiveTurnTime() {
+            const elapsed = captureElapsedActiveSeconds();
+            if (elapsed > 0) {
+                if (activePlayer === 1) activeSeconds1 += elapsed;
+                else activeSeconds2 += elapsed;
+            }
+            activeTurnStartedAtMs = Date.now();
+        }
+
+        function getPlayerActiveSeconds(playerNumber) {
+            const base = playerNumber === 1 ? activeSeconds1 : activeSeconds2;
+            if (activePlayer !== playerNumber) return base;
+            return base + captureElapsedActiveSeconds();
+        }
+
+        function calculatePace(pointsValue, activeSecondsValue) {
+            const elapsedSeconds = Number(activeSecondsValue || 0);
             if (elapsedSeconds <= 0) return "0";
             const pace = (Number(pointsValue || 0) * 3600) / elapsedSeconds;
             if (!Number.isFinite(pace) || pace <= 0) return "0";
@@ -1033,8 +1062,8 @@
             const pace2El = document.getElementById("pace2");
             const livePoints1 = Number(score1 || 0) + Number(series1 || 0);
             const livePoints2 = Number(score2 || 0) + Number(series2 || 0);
-            if (pace1El) pace1El.innerText = calculatePace(livePoints1);
-            if (pace2El) pace2El.innerText = calculatePace(livePoints2);
+            if (pace1El) pace1El.innerText = calculatePace(livePoints1, getPlayerActiveSeconds(1));
+            if (pace2El) pace2El.innerText = calculatePace(livePoints2, getPlayerActiveSeconds(2));
         }
 
 
@@ -1102,6 +1131,7 @@
             renderMatchMeta();
             updateUI();
             startedAtIso = d.started_at || "";
+            resetActivePaceTracking();
             startTimer(d.started_at);
             subscribeToMatch();
             showEndIfFinished();
@@ -1294,6 +1324,7 @@
             if (p === activePlayer) return;
 
             saveState();
+            commitActiveTurnTime();
             const previousActivePlayer = activePlayer;
             const isFreeGame2x = isFreeGame2xPlayer(previousActivePlayer);
             const isSecondFreeGame2xSwitch = isFreeGame2x && freeGame2xPendingPlayer === previousActivePlayer;
@@ -1358,6 +1389,7 @@
 
             if (keepSamePlayerForSecondInning) {
                 activePlayer = previousActivePlayer;
+                activeTurnStartedAtMs = Date.now();
                 updateUI();
                 checkWinner();
                 updateMatchInDB();
@@ -1369,6 +1401,7 @@
                 totalInnings++;
 
             activePlayer = p;
+            activeTurnStartedAtMs = Date.now();
 
             updateUI();
             checkWinner();
@@ -1448,6 +1481,8 @@
                 series2
             };
 
+            commitActiveTurnTime();
+
             syncRemoteSeriesFromDelta(previous, d);
 
             score1 = Number(d.score1 || 0);
@@ -1474,6 +1509,7 @@
             high2 = Number(d.high2 || 0);
             maxInnings = Number(d.maxInnings || 0);
             startedAtIso = d.started_at || startedAtIso;
+            activeTurnStartedAtMs = Date.now();
             if (matchSeriesStorageAvailable) {
                 innings1 = toSeriesArray(d.series_log1);
                 innings2 = toSeriesArray(d.series_log2);
@@ -1525,6 +1561,7 @@
             if (finished) return;
 
             saveState();
+            commitActiveTurnTime();
 
             [player1Label, player2Label] = [player2Label, player1Label];
             [player1Id, player2Id] = [player2Id, player1Id];
@@ -1535,10 +1572,12 @@
             [series1, series2] = [series2, series1];
             [high1, high2] = [high2, high1];
             [innings1, innings2] = [innings2, innings1];
+            [activeSeconds1, activeSeconds2] = [activeSeconds2, activeSeconds1];
             [freeGame2xPendingSeries1, freeGame2xPendingSeries2] = [freeGame2xPendingSeries2, freeGame2xPendingSeries1];
             if (freeGame2xPendingPlayer === 1) freeGame2xPendingPlayer = 2;
             else if (freeGame2xPendingPlayer === 2) freeGame2xPendingPlayer = 1;
             activePlayer = activePlayer === 1 ? 2 : 1;
+            activeTurnStartedAtMs = Date.now();
             lastAnnouncedRemainingKey = "";
 
             renderMatchMeta();
@@ -1616,6 +1655,8 @@
                 player1Id, player2Id,
                 innings1: [...innings1],
                 innings2: [...innings2],
+                activeSeconds1,
+                activeSeconds2,
                 freeGame2xPendingPlayer,
                 freeGame2xPendingSeries1,
                 freeGame2xPendingSeries2
@@ -1646,6 +1687,9 @@
             player2Id = prev.player2Id;
             innings1 = [...prev.innings1];
             innings2 = [...prev.innings2];
+            activeSeconds1 = Number(prev.activeSeconds1 || 0);
+            activeSeconds2 = Number(prev.activeSeconds2 || 0);
+            activeTurnStartedAtMs = Date.now();
             freeGame2xPendingPlayer = prev.freeGame2xPendingPlayer || 0;
             freeGame2xPendingSeries1 = prev.freeGame2xPendingSeries1 || 0;
             freeGame2xPendingSeries2 = prev.freeGame2xPendingSeries2 || 0;
@@ -2010,6 +2054,7 @@
                     (payload) => {
 
                         const d = payload.new;
+                        commitActiveTurnTime();
                         const previous = {
                             score1,
                             score2,
@@ -2042,6 +2087,7 @@
                         series2 = d.series2 || 0;
                         high1 = d.high1 || 0;
                         high2 = d.high2 || 0;
+                        activeTurnStartedAtMs = Date.now();
                         reconcileInningsLists();
 
                         renderMatchMeta();
