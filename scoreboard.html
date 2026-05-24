@@ -1020,10 +1020,10 @@
             return Math.max(0, Math.floor((Date.now() - startTime) / 1000));
         }
 
-        function calculatePace(inningsCount) {
+        function calculatePace(pointsValue) {
             const elapsedSeconds = getElapsedSeconds();
             if (elapsedSeconds <= 0) return "0";
-            const pace = (Number(inningsCount || 0) * 3600) / elapsedSeconds;
+            const pace = (Number(pointsValue || 0) * 3600) / elapsedSeconds;
             if (!Number.isFinite(pace) || pace <= 0) return "0";
             return String(Math.round(pace));
         }
@@ -1031,8 +1031,10 @@
         function updatePaceDisplays() {
             const pace1El = document.getElementById("pace1");
             const pace2El = document.getElementById("pace2");
-            if (pace1El) pace1El.innerText = calculatePace(inn1);
-            if (pace2El) pace2El.innerText = calculatePace(inn2);
+            const livePoints1 = Number(score1 || 0) + Number(series1 || 0);
+            const livePoints2 = Number(score2 || 0) + Number(series2 || 0);
+            if (pace1El) pace1El.innerText = calculatePace(livePoints1);
+            if (pace2El) pace2El.innerText = calculatePace(livePoints2);
         }
 
 
