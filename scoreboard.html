@@ -619,6 +619,11 @@
                     <span class="stat-title">HR</span>
                     <span id="hs1">0</span>
                 </div>
+
+                <div class="stat-flat">
+                    <span class="stat-title">PACE</span>
+                    <span id="pace1">0</span>
+                </div>
             </div>
 
             <div id="list1" style="margin-top:15px;"></div>
@@ -673,6 +678,11 @@
                 <div class="stat-flat">
                     <span class="stat-title">HR</span>
                     <span id="hs2">0</span>
+                </div>
+
+                <div class="stat-flat">
+                    <span class="stat-title">PACE</span>
+                    <span id="pace2">0</span>
                 </div>
             </div>
 
@@ -997,7 +1007,32 @@
                     String(m).padStart(2, "0") + ":" +
                     String(s).padStart(2, "0");
 
+                updatePaceDisplays();
+
             }, 1000);
+        }
+
+        function getElapsedSeconds() {
+            if (seconds > 0) return seconds;
+            if (!startedAtIso) return 0;
+            const startTime = new Date(startedAtIso).getTime();
+            if (!Number.isFinite(startTime)) return 0;
+            return Math.max(0, Math.floor((Date.now() - startTime) / 1000));
+        }
+
+        function calculatePace(inningsCount) {
+            const elapsedSeconds = getElapsedSeconds();
+            if (elapsedSeconds <= 0) return "0";
+            const pace = (Number(inningsCount || 0) * 3600) / elapsedSeconds;
+            if (!Number.isFinite(pace) || pace <= 0) return "0";
+            return String(Math.round(pace));
+        }
+
+        function updatePaceDisplays() {
+            const pace1El = document.getElementById("pace1");
+            const pace2El = document.getElementById("pace2");
+            if (pace1El) pace1El.innerText = calculatePace(inn1);
+            if (pace2El) pace2El.innerText = calculatePace(inn2);
         }
 
 
@@ -1139,6 +1174,7 @@
             document.getElementById("hs2").innerText = high2;
             document.getElementById("inn1Display").innerText = inn1;
             document.getElementById("inn2Display").innerText = inn2;
+            updatePaceDisplays();
 
             document.getElementById("list1").innerText = innings1.join(",");
             document.getElementById("list2").innerText = innings2.join(",");
