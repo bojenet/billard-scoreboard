@@ -230,6 +230,10 @@
             height: 34px;
         }
 
+        .seed-entry-table td {
+            vertical-align: middle;
+        }
+
         .seed-rank-wrap {
             display: flex;
             align-items: center;
@@ -419,6 +423,35 @@
             color: #6b7280;
         }
 
+        .mode-card {
+            background: #f8fafc;
+            border: 1px solid #d7dde5;
+            border-radius: 4px;
+            padding: 12px 14px;
+        }
+
+        .mode-card-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: #475467;
+            margin-bottom: 6px;
+        }
+
+        .mode-card-main {
+            font-size: 16px;
+            font-weight: 700;
+            color: #24364d;
+            margin-bottom: 4px;
+        }
+
+        .mode-card-sub {
+            font-size: 13px;
+            color: #667085;
+            line-height: 1.45;
+        }
+
         .print-sheet {
             display: none;
         }
@@ -551,68 +584,7 @@
                                     <th>Name</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>
-                                        <div class="seed-rank-wrap">
-                                            <span class="seed-rank-label">1</span>
-                                            <button class="seed-move-btn" id="seedUp1" type="button" onclick="moveSeedPlayer(1, -1)">↑</button>
-                                            <button class="seed-move-btn" id="seedDown1" type="button" onclick="moveSeedPlayer(1, 1)">↓</button>
-                                        </div>
-                                    </td>
-                                    <td class="seed-name-cell">
-                                        <input id="seedPlayer1" type="text" placeholder="Spieler 1">
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="seed-rank-wrap">
-                                            <span class="seed-rank-label">2</span>
-                                            <button class="seed-move-btn" id="seedUp2" type="button" onclick="moveSeedPlayer(2, -1)">↑</button>
-                                            <button class="seed-move-btn" id="seedDown2" type="button" onclick="moveSeedPlayer(2, 1)">↓</button>
-                                        </div>
-                                    </td>
-                                    <td class="seed-name-cell">
-                                        <input id="seedPlayer2" type="text" placeholder="Spieler 2">
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="seed-rank-wrap">
-                                            <span class="seed-rank-label">3</span>
-                                            <button class="seed-move-btn" id="seedUp3" type="button" onclick="moveSeedPlayer(3, -1)">↑</button>
-                                            <button class="seed-move-btn" id="seedDown3" type="button" onclick="moveSeedPlayer(3, 1)">↓</button>
-                                        </div>
-                                    </td>
-                                    <td class="seed-name-cell">
-                                        <input id="seedPlayer3" type="text" placeholder="Spieler 3">
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="seed-rank-wrap">
-                                            <span class="seed-rank-label">4</span>
-                                            <button class="seed-move-btn" id="seedUp4" type="button" onclick="moveSeedPlayer(4, -1)">↑</button>
-                                            <button class="seed-move-btn" id="seedDown4" type="button" onclick="moveSeedPlayer(4, 1)">↓</button>
-                                        </div>
-                                    </td>
-                                    <td class="seed-name-cell">
-                                        <input id="seedPlayer4" type="text" placeholder="Spieler 4">
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="seed-rank-wrap">
-                                            <span class="seed-rank-label">5</span>
-                                            <button class="seed-move-btn" id="seedUp5" type="button" onclick="moveSeedPlayer(5, -1)">↑</button>
-                                            <button class="seed-move-btn" id="seedDown5" type="button" onclick="moveSeedPlayer(5, 1)">↓</button>
-                                        </div>
-                                    </td>
-                                    <td class="seed-name-cell">
-                                        <input id="seedPlayer5" type="text" placeholder="Spieler 5">
-                                    </td>
-                                </tr>
-                            </tbody>
+                            <tbody id="seedTableBody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -622,7 +594,27 @@
                         <select id="playerCount" onchange="handlePlayerCountChange()">
                             <option value="4">4 Spieler</option>
                             <option value="5">5 Spieler</option>
+                            <option value="6">6 Spieler</option>
+                            <option value="7">7 Spieler</option>
+                            <option value="8">8 Spieler</option>
+                            <option value="9">9 Spieler</option>
+                            <option value="10">10 Spieler</option>
+                            <option value="11">11 Spieler</option>
+                            <option value="12">12 Spieler</option>
+                            <option value="13">13 Spieler</option>
+                            <option value="14">14 Spieler</option>
+                            <option value="15">15 Spieler</option>
+                            <option value="16">16 Spieler</option>
                         </select>
+                    </div>
+                    <div>
+                        <div class="field-title">Turniermodus</div>
+                        <select id="modeSelect" onchange="handleModeChange()"></select>
+                    </div>
+                    <div class="mode-card">
+                        <div class="mode-card-title">Schema aus Turnierordnung</div>
+                        <div id="modeInfoMain" class="mode-card-main">T3 · Jeder gegen jeden</div>
+                        <div id="modeInfoSub" class="mode-card-sub">4 Teilnehmer, 2 Billards, 3 Spielrunden, 1 Turniertag.</div>
                     </div>
                     <div>
                         <div class="field-title">Turniername</div>
@@ -733,7 +725,60 @@
     <script src="js/user_menu.js"></script>
     <script>
         const STORAGE_KEY = "tournament_round_robin_v3";
-        const MAX_TABLES = 2;
+        const MAX_PARTICIPANTS = 16;
+        const SUPPORTED_PLAYER_COUNTS = Array.from({ length: 13 }, (_, index) => index + 4);
+        const TOURNAMENT_MODES = {
+            4: [
+                { id: "T3", label: "Jeder gegen jeden", rounds: 3, tables: 2, days: 1, format: "round_robin", supported: true }
+            ],
+            5: [
+                { id: "T4", label: "Jeder gegen jeden", rounds: 5, tables: 2, days: 1, format: "round_robin", supported: true },
+                { id: "T5", label: "Jeder gegen jeden", rounds: 6, tables: 2, days: 2, format: "round_robin", supported: true }
+            ],
+            6: [
+                { id: "T6", label: "2 Gruppen a 3, Platzierung + Halbfinale + Finale", rounds: 5, tables: 3, days: 1, format: "groups_knockout", supported: false },
+                { id: "T7", label: "Jeder gegen jeden", rounds: 5, tables: 3, days: 1, format: "round_robin", supported: true },
+                { id: "T8", label: "Jeder gegen jeden", rounds: 5, tables: 3, days: 2, format: "round_robin", supported: true }
+            ],
+            7: [
+                { id: "T9", label: "2 Gruppen a 3 und 4, Platzierung + Finale", rounds: 4, tables: 3, days: 1, format: "groups_final", supported: false },
+                { id: "T10", label: "2 Gruppen a 3 und 4, Platzierung + Halbfinale + Finale", rounds: 5, tables: 3, days: 1, format: "groups_knockout", supported: false },
+                { id: "T11", label: "Jeder gegen jeden", rounds: 7, tables: 3, days: 2, format: "round_robin", supported: true },
+                { id: "T12", label: "Jeder gegen jeden (verkürzte Distanz)", rounds: 7, tables: 3, days: 1, format: "round_robin", supported: true, shortenedDistance: true }
+            ],
+            8: [
+                { id: "T13", label: "2 Gruppen a 4, Platzierung + Finale", rounds: 4, tables: 4, days: 1, format: "groups_final", supported: false },
+                { id: "T14", label: "2 Gruppen a 4, Platzierung + Halbfinale + Finale", rounds: 5, tables: 4, days: 2, format: "groups_knockout", supported: false },
+                { id: "T15", label: "2 Gruppen a 4, Platzierung + Halbfinale + Finale", rounds: 5, tables: 4, days: 1, format: "groups_knockout", supported: false }
+            ],
+            9: [
+                { id: "T16", label: "3 Gruppen a 3, Platzierung + Halbfinale + Finale", rounds: 5, tables: 4, days: 1, format: "groups_knockout", supported: false }
+            ],
+            10: [
+                { id: "T18", label: "2 Gruppen a 5, Halbfinale + Platzierungen + Finale", rounds: 7, tables: 4, days: 1, format: "groups_knockout", supported: false, shortenedDistance: true },
+                { id: "T19", label: "2 Gruppen a 5, Halbfinale + Platzierungen + Finale", rounds: 7, tables: 4, days: 2, format: "groups_knockout", supported: false },
+                { id: "T20", label: "2 Gruppen a 5, Platzierungen + Finale", rounds: 7, tables: 4, days: 1, format: "groups_final", supported: false, shortenedDistance: true }
+            ],
+            11: [
+                { id: "T21", label: "3 Gruppen a 3, 4 und 4, Halbfinale + Platzierungen + Finale", rounds: 6, tables: 4, days: 1, format: "groups_knockout", supported: false }
+            ],
+            12: [
+                { id: "T23", label: "3 Gruppen a 4, Platzierungsgruppen + Halbfinale + Finale", rounds: 9, tables: 4, days: 2, format: "groups_classification", supported: false },
+                { id: "T24", label: "3 Gruppen a 4, Halbfinale + Platzierungen + Finale", rounds: 7, tables: 4, days: 1, format: "groups_knockout", supported: false, shortenedDistance: true }
+            ],
+            13: [
+                { id: "T25", label: "1 Gruppe a 4 und 3 Gruppen a 3, Halbfinale + Platzierungen + Finale", rounds: 6, tables: 4, days: 1, format: "groups_knockout", supported: false }
+            ],
+            14: [
+                { id: "T26", label: "2 Gruppen a 4 und 2 Gruppen a 3, Halbfinale + Platzierungen + Finale", rounds: 7, tables: 4, days: 1, format: "groups_knockout", supported: false, shortenedDistance: true }
+            ],
+            15: [
+                { id: "T27", label: "3 Gruppen a 4 und 1 Gruppe a 3, Halbfinale + Platzierungen + Finale", rounds: 8, tables: 4, days: 1, format: "groups_knockout", supported: false, shortenedDistance: true }
+            ],
+            16: [
+                { id: "T28", label: "4 Gruppen a 4, Halbfinale + Platzierungen + Finale", rounds: 8, tables: 4, days: 1, format: "groups_knockout", supported: false, shortenedDistance: true }
+            ]
+        };
         let currentUser = null;
         let tournamentAccessMode = "edit";
         let currentTournamentId = "";
@@ -744,6 +789,99 @@
             players: [],
             matches: []
         };
+
+        function getPlayerCountValue() {
+            const count = Number(document.getElementById("playerCount")?.value || 4);
+            return SUPPORTED_PLAYER_COUNTS.includes(count) ? count : 4;
+        }
+
+        function getModesForPlayerCount(playerCount) {
+            return TOURNAMENT_MODES[playerCount] || [];
+        }
+
+        function getSelectedModeId() {
+            return String(document.getElementById("modeSelect")?.value || "");
+        }
+
+        function getSelectedModeConfig() {
+            const playerCount = getPlayerCountValue();
+            const modes = getModesForPlayerCount(playerCount);
+            const selectedId = getSelectedModeId();
+            return modes.find((mode) => mode.id === selectedId) || modes[0] || null;
+        }
+
+        function getCurrentTableCount() {
+            const selectedMode = getSelectedModeConfig();
+            if (selectedMode?.tables) return selectedMode.tables;
+            const roundGroups = groupMatchesByRound(tournamentState.matches);
+            const derived = roundGroups.length ? Math.max(...roundGroups.map((group) => group.matches.length)) : 2;
+            return Math.max(derived, 2);
+        }
+
+        function describeMode(mode, playerCount) {
+            if (!mode) return "";
+            const dayLabel = `${mode.days} Turniertag${mode.days === 1 ? "" : "e"}`;
+            const distanceLabel = mode.shortenedDistance ? " Verkürzte Distanz laut Turnierordnung." : "";
+            return `${playerCount} Teilnehmer, ${mode.tables} Billard${mode.tables === 1 ? "" : "s"}, ${mode.rounds} Spielrunde${mode.rounds === 1 ? "" : "n"}, ${dayLabel}.${distanceLabel}`;
+        }
+
+        function renderSeedRows() {
+            const tbody = document.getElementById("seedTableBody");
+            if (!tbody) return;
+            tbody.innerHTML = Array.from({ length: MAX_PARTICIPANTS }, (_, index) => {
+                const seed = index + 1;
+                return `
+                    <tr data-seed-row="${seed}">
+                        <td>
+                            <div class="seed-rank-wrap">
+                                <span class="seed-rank-label">${seed}</span>
+                                <button class="seed-move-btn" id="seedUp${seed}" type="button" onclick="moveSeedPlayer(${seed}, -1)">↑</button>
+                                <button class="seed-move-btn" id="seedDown${seed}" type="button" onclick="moveSeedPlayer(${seed}, 1)">↓</button>
+                            </div>
+                        </td>
+                        <td class="seed-name-cell">
+                            <input id="seedPlayer${seed}" type="text" placeholder="Spieler ${seed}">
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        function updateModeOptions(preferredModeId) {
+            const select = document.getElementById("modeSelect");
+            if (!select) return;
+            const playerCount = getPlayerCountValue();
+            const modes = getModesForPlayerCount(playerCount);
+            const current = preferredModeId || select.value;
+            select.innerHTML = modes.map((mode) => `
+                <option value="${mode.id}">${mode.id} · ${mode.label}</option>
+            `).join("");
+            const validMode = modes.find((mode) => mode.id === current);
+            select.value = validMode ? validMode.id : (modes[0]?.id || "");
+            renderModeInfo();
+        }
+
+        function renderModeInfo() {
+            const mode = getSelectedModeConfig();
+            const main = document.getElementById("modeInfoMain");
+            const sub = document.getElementById("modeInfoSub");
+            if (!mode) {
+                if (main) main.textContent = "Kein Modus verfügbar";
+                if (sub) sub.textContent = "";
+                return;
+            }
+            if (main) main.textContent = `${mode.id} · ${mode.label}`;
+            if (sub) {
+                const supportLabel = mode.supported
+                    ? "Dieser Modus kann bereits automatisch erzeugt werden."
+                    : "Dieser Modus ist als Vorlage hinterlegt; die automatische Spielplan-Erzeugung folgt im nächsten Schritt.";
+                sub.textContent = `${describeMode(mode, getPlayerCountValue())} ${supportLabel}`;
+            }
+        }
+
+        function handleModeChange() {
+            renderModeInfo();
+        }
 
         function showMessage(text, type) {
             const el = document.getElementById("message");
@@ -758,28 +896,17 @@
             if (saveButton) saveButton.style.display = readOnly ? "none" : "";
             const setupSelectors = [
                 "#playerCount",
-                "#tournamentTitle",
-                "#seedPlayer1",
-                "#seedPlayer2",
-                "#seedPlayer3",
-                "#seedPlayer4",
-                "#seedPlayer5",
-                "#seedUp1",
-                "#seedDown1",
-                "#seedUp2",
-                "#seedDown2",
-                "#seedUp3",
-                "#seedDown3",
-                "#seedUp4",
-                "#seedDown4",
-                "#seedUp5",
-                "#seedDown5"
+                "#modeSelect",
+                "#tournamentTitle"
             ];
             setupSelectors.forEach((selector) => {
                 const node = document.querySelector(selector);
                 if (!node) return;
                 if (node.tagName === "INPUT" || node.tagName === "SELECT") node.disabled = readOnly;
                 if (node.tagName === "BUTTON") node.disabled = readOnly;
+            });
+            document.querySelectorAll("#seedTableBody input, #seedTableBody button").forEach((node) => {
+                node.disabled = readOnly || node.disabled;
             });
             document.querySelectorAll(".button-row .btn").forEach((btn) => {
                 const text = (btn.textContent || "").trim();
@@ -821,7 +948,7 @@
         }
 
         function getPlayersFromSeedInputs() {
-            const count = Number(document.getElementById("playerCount").value || 4);
+            const count = getPlayerCountValue();
             const values = [];
 
             for (let i = 1; i <= count; i += 1) {
@@ -834,7 +961,7 @@
 
         function getSeedInputValues() {
             const values = [];
-            for (let i = 1; i <= 5; i += 1) {
+            for (let i = 1; i <= MAX_PARTICIPANTS; i += 1) {
                 const input = document.getElementById("seedPlayer" + i);
                 values.push(input ? input.value : "");
             }
@@ -842,7 +969,7 @@
         }
 
         function setSeedInputValues(values) {
-            for (let i = 1; i <= 5; i += 1) {
+            for (let i = 1; i <= MAX_PARTICIPANTS; i += 1) {
                 const input = document.getElementById("seedPlayer" + i);
                 if (input) input.value = values[i - 1] || "";
             }
@@ -855,8 +982,9 @@
         function rebuildTournamentFromSeedInputs(preserveResults) {
             const players = getPlayersFromSeedInputs();
             const title = document.getElementById("tournamentTitle").value.trim() || tournamentState.title || getDefaultTitle();
+            const selectedMode = getSelectedModeConfig();
 
-            if (players.length !== 4 && players.length !== 5) {
+            if (players.length !== getPlayerCountValue() || !selectedMode?.supported) {
                 return false;
             }
 
@@ -986,6 +1114,7 @@
         function saveLocalState() {
             const snapshot = {
                 id: currentTournamentId,
+                modeId: getSelectedModeId(),
                 title: tournamentState.title,
                 players: tournamentState.players,
                 matches: tournamentState.matches
@@ -1003,6 +1132,10 @@
                     players: raw.players,
                     matches: raw.matches
                 };
+                const restoredCount = SUPPORTED_PLAYER_COUNTS.includes(raw.players.length) ? raw.players.length : 4;
+                const countSelect = document.getElementById("playerCount");
+                if (countSelect) countSelect.value = String(restoredCount);
+                updateModeOptions(raw.modeId || "");
                 return true;
             } catch (error) {
                 console.warn("Lokaler Turnierstand konnte nicht geladen werden:", error);
@@ -1099,7 +1232,7 @@
                 <div class="round-block">
                     <div class="round-head">
                         <div class="round-title">Spielrunde ${group.round_number}</div>
-                        <div class="round-sub">${group.matches.length} Partie${group.matches.length === 1 ? "" : "n"} auf ${MAX_TABLES} Tischen</div>
+                        <div class="round-sub">${group.matches.length} Partie${group.matches.length === 1 ? "" : "n"} auf ${getCurrentTableCount()} Tischen</div>
                     </div>
                     <div style="padding:10px; display:grid; gap:10px;">
                         ${group.matches.map((match) => {
@@ -1404,10 +1537,13 @@
         function syncFormFromState() {
             document.getElementById("tournamentTitle").value = tournamentState.title || "";
             document.getElementById("savedTournamentSelect").value = currentTournamentId || "";
-            document.getElementById("playerCount").value = String(tournamentState.players.length === 5 ? 5 : 4);
+            const currentCount = getPlayerCountValue();
+            const count = SUPPORTED_PLAYER_COUNTS.includes(tournamentState.players.length) ? tournamentState.players.length : currentCount;
+            document.getElementById("playerCount").value = String(count);
+            updateModeOptions();
             updateSeedInputAvailability();
 
-            for (let i = 1; i <= 5; i += 1) {
+            for (let i = 1; i <= MAX_PARTICIPANTS; i += 1) {
                 const input = document.getElementById("seedPlayer" + i);
                 if (input) {
                     input.value = tournamentState.players[i - 1] || "";
@@ -1416,12 +1552,14 @@
         }
 
         function updateSeedInputAvailability() {
-            const count = Number(document.getElementById("playerCount").value || 4);
-            for (let i = 1; i <= 5; i += 1) {
+            const count = getPlayerCountValue();
+            for (let i = 1; i <= MAX_PARTICIPANTS; i += 1) {
                 const input = document.getElementById("seedPlayer" + i);
                 const upBtn = document.getElementById("seedUp" + i);
                 const downBtn = document.getElementById("seedDown" + i);
+                const row = document.querySelector(`[data-seed-row="${i}"]`);
                 if (!input) continue;
+                if (row) row.style.display = i > count ? "none" : "";
                 input.disabled = i > count;
                 if (i > count) input.value = "";
                 if (upBtn) upBtn.disabled = i === 1 || i > count;
@@ -1431,15 +1569,21 @@
 
         function handlePlayerCountChange() {
             if (!isTournamentEditable(tournamentAccessMode)) return;
+            updateModeOptions();
             updateSeedInputAvailability();
             if (tournamentState.matches.length > 0) {
-                rebuildTournamentFromSeedInputs(true);
+                const rebuilt = rebuildTournamentFromSeedInputs(true);
+                if (!rebuilt) {
+                    tournamentState.matches = [];
+                    saveLocalState();
+                    renderAll();
+                }
             }
         }
 
         function moveSeedPlayer(index, direction) {
             if (!isTournamentEditable(tournamentAccessMode)) return;
-            const count = Number(document.getElementById("playerCount").value || 4);
+            const count = getPlayerCountValue();
             const targetIndex = index + direction;
             if (index < 1 || index > count || targetIndex < 1 || targetIndex > count) return;
 
@@ -1513,6 +1657,7 @@
         function fillExample() {
             if (!isTournamentEditable(tournamentAccessMode)) return;
             document.getElementById("playerCount").value = "5";
+            updateModeOptions("T4");
             document.getElementById("seedPlayer1").value = "Anna";
             document.getElementById("seedPlayer2").value = "Ben";
             document.getElementById("seedPlayer3").value = "Chris";
@@ -1557,16 +1702,22 @@
 
         function generateTournament() {
             if (!isTournamentEditable(tournamentAccessMode)) return;
-            const playerCount = Number(document.getElementById("playerCount").value || 4);
+            const playerCount = getPlayerCountValue();
             const players = getPlayersFromSeedInputs();
+            const selectedMode = getSelectedModeConfig();
 
             if (players.length !== playerCount) {
-                showMessage("Bitte genau 4 oder 5 Spieler in Setzlisten-Reihenfolge eingeben.", "error");
+                showMessage(`Bitte genau ${playerCount} Spieler in Setzlisten-Reihenfolge eingeben.`, "error");
+                return;
+            }
+
+            if (!selectedMode?.supported) {
+                showMessage(`${selectedMode?.id || "Der gewählte Modus"} ist als offizielles Schema hinterlegt, die automatische Generierung folgt aber noch. Nutze vorerst einen Modus "Jeder gegen jeden".`, "error");
                 return;
             }
 
             rebuildTournamentFromSeedInputs(true);
-            showMessage("Turnier mit " + players.length + " Spielern wurde erzeugt.", "ok");
+            showMessage(`Turnier mit ${players.length} Spielern im Modus ${selectedMode.id} wurde erzeugt.`, "ok");
         }
 
         async function loadTournamentOptions() {
@@ -1610,7 +1761,7 @@
             if (currentTournamentId) return currentTournamentId;
             if (!currentUser) return "";
 
-            const playerCount = Number(document.getElementById("playerCount").value || 4);
+            const playerCount = getPlayerCountValue();
             const players = getPlayersFromSeedInputs();
             const title = document.getElementById("tournamentTitle").value.trim() || tournamentState.title || getDefaultTitle();
 
@@ -1724,12 +1875,18 @@
                 return;
             }
 
-            const playerCount = Number(document.getElementById("playerCount").value || 4);
+            const playerCount = getPlayerCountValue();
             const players = getPlayersFromSeedInputs();
             const title = document.getElementById("tournamentTitle").value.trim() || tournamentState.title || getDefaultTitle();
+            const selectedMode = getSelectedModeConfig();
 
             if (players.length !== playerCount) {
-                showMessage("Bitte genau 4 oder 5 Spieler in Setzlisten-Reihenfolge eingeben.", "error");
+                showMessage(`Bitte genau ${playerCount} Spieler in Setzlisten-Reihenfolge eingeben.`, "error");
+                return;
+            }
+
+            if (!selectedMode?.supported) {
+                showMessage(`${selectedMode?.id || "Der gewählte Modus"} ist schon hinterlegt, kann aber noch nicht automatisch gespeichert werden, weil die Spielplan-Erzeugung dafür noch folgt.`, "error");
                 return;
             }
 
@@ -1857,7 +2014,7 @@
             }
 
             const players = getPlayersFromSeedInputs();
-            const playerCount = Number(document.getElementById("playerCount").value || 4);
+            const playerCount = getPlayerCountValue();
             if (players.length !== playerCount) {
                 if (!silent) showMessage("Bitte zuerst die Setzliste vollständig eintragen.", "error");
                 return;
@@ -1919,6 +2076,8 @@
                 return;
             }
 
+            renderSeedRows();
+            updateModeOptions();
             const restoredLocal = loadLocalState();
             renderAll();
             applyTournamentAccessUi();
