@@ -736,7 +736,7 @@
                 { id: "T5", label: "Jeder gegen jeden", rounds: 6, tables: 2, days: 2, format: "round_robin", supported: true }
             ],
             6: [
-                { id: "T6", label: "2 Gruppen a 3, Platzierung + Halbfinale + Finale", rounds: 5, tables: 3, days: 1, format: "groups_knockout", supported: false },
+                { id: "T6", label: "2 Gruppen a 3, Platzierung + Halbfinale + Finale", rounds: 5, tables: 3, days: 1, format: "groups_knockout", supported: true },
                 { id: "T7", label: "Jeder gegen jeden", rounds: 5, tables: 3, days: 1, format: "round_robin", supported: true },
                 { id: "T8", label: "Jeder gegen jeden", rounds: 5, tables: 3, days: 2, format: "round_robin", supported: true }
             ],
@@ -818,6 +818,41 @@
             return Math.max(derived, 2);
         }
 
+        function isKnownPlayer(name) {
+            return tournamentState.players.includes(String(name || ""));
+        }
+
+        function createMatchRecord({
+            id,
+            round,
+            table,
+            playerA,
+            playerB,
+            stage = "main",
+            groupName = "",
+            sourceA = null,
+            sourceB = null
+        }) {
+            return {
+                client_id: "m" + id,
+                sort_order: id,
+                round_number: round,
+                table_number: table,
+                playerA,
+                playerB,
+                scoreA: "",
+                scoreB: "",
+                inningsA: "",
+                inningsB: "",
+                highRunA: "",
+                highRunB: "",
+                stage,
+                groupName,
+                sourceA,
+                sourceB
+            };
+        }
+
         function describeMode(mode, playerCount) {
             if (!mode) return "";
             const dayLabel = `${mode.days} Turniertag${mode.days === 1 ? "" : "e"}`;
@@ -881,6 +916,14 @@
 
         function handleModeChange() {
             renderModeInfo();
+        }
+
+        function inferModeId(playerCount, matchCount) {
+            if (playerCount === 6 && matchCount === 10) return "T6";
+            if (playerCount === 6 && matchCount === 15) return "T7";
+            if (playerCount === 5 && matchCount === 10) return "T4";
+            if (playerCount === 4 && matchCount === 6) return "T3";
+            return getModesForPlayerCount(playerCount)[0]?.id || "";
         }
 
         function showMessage(text, type) {
@@ -989,14 +1032,16 @@
             }
 
             const oldMatchesByPair = new Map();
+            const oldMatchesById = new Map();
             if (preserveResults) {
                 tournamentState.matches.forEach((match) => {
+                    oldMatchesById.set(match.client_id, match);
                     oldMatchesByPair.set(getPairKey(match.playerA, match.playerB), match);
                 });
             }
 
-            const rebuiltMatches = createMatches(players).map((match) => {
-                const previous = oldMatchesByPair.get(getPairKey(match.playerA, match.playerB));
+            const rebuiltMatches = createMatches(players, selectedMode).map((match) => {
+                const previous = oldMatchesById.get(match.client_id) || oldMatchesByPair.get(getPairKey(match.playerA, match.playerB));
                 if (!previous) return match;
                 const sameOrientation = previous.playerA === match.playerA && previous.playerB === match.playerB;
                 return {
@@ -1010,6 +1055,7 @@
                 };
             });
 
+            resolveDependentMatches(rebuiltMatches, players, selectedMode);
             tournamentState = {
                 title,
                 players,
@@ -1021,7 +1067,15 @@
             return true;
         }
 
-        function createMatches(players) {
+        function createMatches(players, selectedMode = getSelectedModeConfig()) {
+            if (selectedMode?.id === "T6") {
+                return createMatchesT6(players);
+            }
+
+            return createRoundRobinMatches(players);
+        }
+
+        function createRoundRobinMatches(players) {
             const working = players.slice();
             if (working.length % 2 === 1) {
                 working.push(null);
@@ -1066,6 +1120,231 @@
             return matches;
         }
 
+        function createMatchesT6(players) {
+            const groupOne = [players[0], players[2], players[5]];
+            const groupTwo = [players[1], players[3], players[4]];
+            const matches = [];
+            let id = 1;
+
+            const groupRounds = [
+                [2, 3],
+                [1, 3],
+                [1, 2]
+            ];
+
+            groupRounds.forEach((pairing, index) => {
+                const [leftSeed, rightSeed] = pairing;
+                matches.push(createMatchRecord({
+                    id: id++,
+                    round: index + 1,
+                    table: 1,
+                    playerA: groupOne[leftSeed - 1],
+                    playerB: groupOne[rightSeed - 1],
+                    stage: "group",
+                    groupName: "Gruppe 1"
+                }));
+                matches.push(createMatchRecord({
+                    id: id++,
+                    round: index + 1,
+                    table: 2,
+                    playerA: groupTwo[leftSeed - 1],
+                    playerB: groupTwo[rightSeed - 1],
+                    stage: "group",
+                    groupName: "Gruppe 2"
+                }));
+            });
+
+            matches.push(createMatchRecord({
+                id: id++,
+                round: 4,
+                table: 1,
+                playerA: "1. Gruppe 1",
+                playerB: "2. Gruppe 2",
+                stage: "semi",
+                sourceA: { type: "group_rank", groupName: "Gruppe 1", rank: 1 },
+                sourceB: { type: "group_rank", groupName: "Gruppe 2", rank: 2 }
+            }));
+            matches.push(createMatchRecord({
+                id: id++,
+                round: 4,
+                table: 2,
+                playerA: "1. Gruppe 2",
+                playerB: "2. Gruppe 1",
+                stage: "semi",
+                sourceA: { type: "group_rank", groupName: "Gruppe 2", rank: 1 },
+                sourceB: { type: "group_rank", groupName: "Gruppe 1", rank: 2 }
+            }));
+            matches.push(createMatchRecord({
+                id: id++,
+                round: 4,
+                table: 3,
+                playerA: "3. Gruppe 1",
+                playerB: "3. Gruppe 2",
+                stage: "placement",
+                sourceA: { type: "group_rank", groupName: "Gruppe 1", rank: 3 },
+                sourceB: { type: "group_rank", groupName: "Gruppe 2", rank: 3 }
+            }));
+            matches.push(createMatchRecord({
+                id: id++,
+                round: 5,
+                table: 1,
+                playerA: "Sieger HF1",
+                playerB: "Sieger HF2",
+                stage: "final",
+                sourceA: { type: "match_result", matchId: "m7", result: "winner" },
+                sourceB: { type: "match_result", matchId: "m8", result: "winner" }
+            }));
+            matches.push(createMatchRecord({
+                id: id++,
+                round: 5,
+                table: 2,
+                playerA: "Verlierer HF1",
+                playerB: "Verlierer HF2",
+                stage: "placement",
+                sourceA: { type: "match_result", matchId: "m7", result: "loser" },
+                sourceB: { type: "match_result", matchId: "m8", result: "loser" }
+            }));
+
+            return matches;
+        }
+
+        function buildStatsRows(matches, playerNames) {
+            const statsMap = {};
+
+            playerNames.forEach((player) => {
+                statsMap[player] = {
+                    name: player,
+                    matches: 0,
+                    wins: 0,
+                    draws: 0,
+                    losses: 0,
+                    tournamentPoints: 0,
+                    scoredPoints: 0,
+                    concededPoints: 0,
+                    innings: 0,
+                    bestSeries: 0,
+                    bestWinningAverage: null
+                };
+            });
+
+            matches.forEach((match) => {
+                if (!isMatchComplete(match)) return;
+
+                const scoreA = parseNumber(match.scoreA);
+                const scoreB = parseNumber(match.scoreB);
+                const inningsA = parseNumber(match.inningsA);
+                const inningsB = parseNumber(match.inningsB);
+                const highRunA = parseNumber(match.highRunA);
+                const highRunB = parseNumber(match.highRunB);
+
+                if ([scoreA, scoreB, inningsA, inningsB, highRunA, highRunB].some((value) => value === null)) return;
+
+                const a = statsMap[match.playerA];
+                const b = statsMap[match.playerB];
+                if (!a || !b) return;
+
+                a.matches += 1;
+                b.matches += 1;
+
+                a.scoredPoints += scoreA;
+                a.concededPoints += scoreB;
+                a.innings += inningsA;
+                a.bestSeries = Math.max(a.bestSeries, highRunA);
+
+                b.scoredPoints += scoreB;
+                b.concededPoints += scoreA;
+                b.innings += inningsB;
+                b.bestSeries = Math.max(b.bestSeries, highRunB);
+
+                const avgA = getMatchAverage(scoreA, inningsA);
+                const avgB = getMatchAverage(scoreB, inningsB);
+
+                if (scoreA > scoreB) {
+                    a.wins += 1;
+                    b.losses += 1;
+                    a.tournamentPoints += 2;
+                    if (avgA !== null) {
+                        a.bestWinningAverage = a.bestWinningAverage === null ? avgA : Math.max(a.bestWinningAverage, avgA);
+                    }
+                } else if (scoreB > scoreA) {
+                    b.wins += 1;
+                    a.losses += 1;
+                    b.tournamentPoints += 2;
+                    if (avgB !== null) {
+                        b.bestWinningAverage = b.bestWinningAverage === null ? avgB : Math.max(b.bestWinningAverage, avgB);
+                    }
+                } else {
+                    a.draws += 1;
+                    b.draws += 1;
+                    a.tournamentPoints += 1;
+                    b.tournamentPoints += 1;
+                }
+            });
+
+            return Object.values(statsMap)
+                .map((entry) => ({
+                    ...entry,
+                    average: entry.innings > 0 ? entry.scoredPoints / entry.innings : null
+                }))
+                .sort((left, right) => {
+                    if (right.tournamentPoints !== left.tournamentPoints) return right.tournamentPoints - left.tournamentPoints;
+                    const rightAverage = right.average || 0;
+                    const leftAverage = left.average || 0;
+                    if (rightAverage !== leftAverage) return rightAverage - leftAverage;
+                    return left.name.localeCompare(right.name, "de");
+                });
+        }
+
+        function getResolvedPlayerName(source, matches, players) {
+            if (!source) return "";
+
+            if (source.type === "group_rank") {
+                const groupMatches = matches.filter((match) => match.stage === "group" && match.groupName === source.groupName);
+                const groupPlayers = players.filter((player) => groupMatches.some((match) => match.playerA === player || match.playerB === player));
+                if (!groupPlayers.length || groupMatches.some((match) => !isMatchComplete(match))) return "";
+                const rows = buildStatsRows(groupMatches, groupPlayers);
+                return rows[source.rank - 1]?.name || "";
+            }
+
+            if (source.type === "match_result") {
+                const match = matches.find((entry) => entry.client_id === source.matchId);
+                if (!match || !isMatchComplete(match)) return "";
+                const scoreA = parseNumber(match.scoreA);
+                const scoreB = parseNumber(match.scoreB);
+                if (scoreA === null || scoreB === null || scoreA === scoreB) return "";
+                const winner = scoreA > scoreB ? match.playerA : match.playerB;
+                const loser = scoreA > scoreB ? match.playerB : match.playerA;
+                return source.result === "winner" ? winner : loser;
+            }
+
+            return "";
+        }
+
+        function resolveDependentMatches(matches, players, selectedMode = getSelectedModeConfig()) {
+            if (selectedMode?.id !== "T6") return matches;
+
+            let changed = true;
+            let safety = 0;
+            while (changed && safety < 6) {
+                changed = false;
+                safety += 1;
+                matches.forEach((match) => {
+                    const resolvedA = getResolvedPlayerName(match.sourceA, matches, players);
+                    const resolvedB = getResolvedPlayerName(match.sourceB, matches, players);
+                    if (resolvedA && match.playerA !== resolvedA) {
+                        match.playerA = resolvedA;
+                        changed = true;
+                    }
+                    if (resolvedB && match.playerB !== resolvedB) {
+                        match.playerB = resolvedB;
+                        changed = true;
+                    }
+                });
+            }
+
+            return matches;
+        }
+
         function groupMatchesByRound(matches) {
             const roundMap = new Map();
 
@@ -1096,7 +1375,7 @@
                 if (match.playerB) activePlayers.add(match.playerB);
             });
 
-            return tournamentState.players.find((player) => !activePlayers.has(player)) || "";
+            return tournamentState.players.filter((player) => !activePlayers.has(player)).join(", ");
         }
 
         function getDefaultTitle() {
@@ -1168,6 +1447,31 @@
             ].join("|");
         }
 
+        function canEditMatch(match) {
+            return isKnownPlayer(match?.playerA) && isKnownPlayer(match?.playerB);
+        }
+
+        function getMatchStatusText(match) {
+            if (!canEditMatch(match)) {
+                return "Wartet auf vorherige Runde";
+            }
+            return match.saveState || (isMatchComplete(match) ? "Erfasst" : "Offen");
+        }
+
+        function getMatchSubtitle(match) {
+            if (match.stage === "group" && match.groupName) {
+                return match.groupName;
+            }
+            if (match.stage === "semi") return "Halbfinale";
+            if (match.stage === "final") return "Finale";
+            if (match.stage === "placement") return "Platzierung";
+
+            const seedA = tournamentState.players.indexOf(match.playerA) + 1;
+            const seedB = tournamentState.players.indexOf(match.playerB) + 1;
+            if (seedA > 0 && seedB > 0) return `Setzplatz ${seedA} gegen ${seedB}`;
+            return "Turnierpartie";
+        }
+
         function updateOverview() {
             const playersCount = tournamentState.players.length;
             const matchesCount = tournamentState.matches.length;
@@ -1210,7 +1514,7 @@
                             <tr>
                                 <td>${index === 0 ? group.round_number : ""}</td>
                                 <td>Tisch ${match.table_number || "-"}</td>
-                                <td>${escapeHtml(match.playerA)} - ${escapeHtml(match.playerB)}${index === 0 && byePlayer ? ' · spielfrei: ' + escapeHtml(byePlayer) : ""}</td>
+                                <td>${escapeHtml(match.playerA)} - ${escapeHtml(match.playerB)}${match.groupName ? ' · ' + escapeHtml(match.groupName) : ""}${index === 0 && byePlayer ? ' · spielfrei: ' + escapeHtml(byePlayer) : ""}</td>
                             </tr>
                         `).join("");
                         }).join("")}
@@ -1244,17 +1548,16 @@
                             const avgB = getMatchAverage(scoreB, inningsB);
                             const playerA = escapeHtml(match.playerA);
                             const playerB = escapeHtml(match.playerB);
-                            const seedA = tournamentState.players.indexOf(match.playerA) + 1;
-                            const seedB = tournamentState.players.indexOf(match.playerB) + 1;
+                            const editable = canEditMatch(match);
 
                             return `
                 <div class="match-card">
                     <div class="match-head">
                         <div>
                             <div class="match-title">Tisch ${match.table_number || "-"}: ${playerA} vs ${playerB}</div>
-                            <div class="match-sub">Setzplatz ${seedA} gegen ${seedB}</div>
+                            <div class="match-sub">${escapeHtml(getMatchSubtitle(match))}</div>
                         </div>
-                        <div class="match-sub" id="${match.client_id}_status">${match.saveState || (isMatchComplete(match) ? "Erfasst" : "Offen")}</div>
+                        <div class="match-sub" id="${match.client_id}_status">${getMatchStatusText(match)}</div>
                     </div>
                     <div class="match-grid">
                         <div class="player-box">
@@ -1262,15 +1565,15 @@
                             <div class="field-grid">
                                 <div class="field">
                                     <label for="${match.client_id}_scoreA">Bälle</label>
-                                    <input id="${match.client_id}_scoreA" type="number" min="0" value="${match.scoreA}" oninput="updateMatch('${match.client_id}', 'scoreA', this.value)">
+                                    <input id="${match.client_id}_scoreA" type="number" min="0" value="${match.scoreA}" oninput="updateMatch('${match.client_id}', 'scoreA', this.value)" ${editable ? "" : "disabled"}>
                                 </div>
                                 <div class="field">
                                     <label for="${match.client_id}_inningsA">Aufnahmen</label>
-                                    <input id="${match.client_id}_inningsA" type="number" min="0" value="${match.inningsA}" oninput="updateMatch('${match.client_id}', 'inningsA', this.value)">
+                                    <input id="${match.client_id}_inningsA" type="number" min="0" value="${match.inningsA}" oninput="updateMatch('${match.client_id}', 'inningsA', this.value)" ${editable ? "" : "disabled"}>
                                 </div>
                                 <div class="field">
                                     <label for="${match.client_id}_highRunA">Höchstserie</label>
-                                    <input id="${match.client_id}_highRunA" type="number" min="0" value="${match.highRunA}" oninput="updateMatch('${match.client_id}', 'highRunA', this.value)">
+                                    <input id="${match.client_id}_highRunA" type="number" min="0" value="${match.highRunA}" oninput="updateMatch('${match.client_id}', 'highRunA', this.value)" ${editable ? "" : "disabled"}>
                                 </div>
                                 <div class="field">
                                     <label for="${match.client_id}_avgA">Durchschnitt</label>
@@ -1283,7 +1586,7 @@
                             <div class="field-grid">
                                 <div class="field">
                                     <label for="${match.client_id}_scoreB">Bälle</label>
-                                    <input id="${match.client_id}_scoreB" type="number" min="0" value="${match.scoreB}" oninput="updateMatch('${match.client_id}', 'scoreB', this.value)">
+                                    <input id="${match.client_id}_scoreB" type="number" min="0" value="${match.scoreB}" oninput="updateMatch('${match.client_id}', 'scoreB', this.value)" ${editable ? "" : "disabled"}>
                                 </div>
                                 <div class="field">
                                     <label for="${match.client_id}_inningsB">Aufnahmen</label>
@@ -1291,7 +1594,7 @@
                                 </div>
                                 <div class="field">
                                     <label for="${match.client_id}_highRunB">Höchstserie</label>
-                                    <input id="${match.client_id}_highRunB" type="number" min="0" value="${match.highRunB}" oninput="updateMatch('${match.client_id}', 'highRunB', this.value)">
+                                    <input id="${match.client_id}_highRunB" type="number" min="0" value="${match.highRunB}" oninput="updateMatch('${match.client_id}', 'highRunB', this.value)" ${editable ? "" : "disabled"}>
                                 </div>
                                 <div class="field">
                                     <label for="${match.client_id}_avgB">Durchschnitt</label>
@@ -1310,90 +1613,10 @@
         }
 
         function buildTableRows() {
-            const statsMap = {};
-
-            tournamentState.players.forEach((player) => {
-                statsMap[player] = {
-                    name: player,
-                    matches: 0,
-                    wins: 0,
-                    draws: 0,
-                    losses: 0,
-                    tournamentPoints: 0,
-                    scoredPoints: 0,
-                    concededPoints: 0,
-                    innings: 0,
-                    bestSeries: 0,
-                    bestWinningAverage: null
-                };
-            });
-
-            tournamentState.matches.forEach((match) => {
-                if (!isMatchComplete(match)) return;
-
-                const scoreA = parseNumber(match.scoreA);
-                const scoreB = parseNumber(match.scoreB);
-                const inningsA = parseNumber(match.inningsA);
-                const inningsB = parseNumber(match.inningsB);
-                const highRunA = parseNumber(match.highRunA);
-                const highRunB = parseNumber(match.highRunB);
-
-                if ([scoreA, scoreB, inningsA, inningsB, highRunA, highRunB].some((value) => value === null)) return;
-
-                const a = statsMap[match.playerA];
-                const b = statsMap[match.playerB];
-                if (!a || !b) return;
-
-                a.matches += 1;
-                b.matches += 1;
-
-                a.scoredPoints += scoreA;
-                a.concededPoints += scoreB;
-                a.innings += inningsA;
-                a.bestSeries = Math.max(a.bestSeries, highRunA);
-
-                b.scoredPoints += scoreB;
-                b.concededPoints += scoreA;
-                b.innings += inningsB;
-                b.bestSeries = Math.max(b.bestSeries, highRunB);
-
-                const avgA = getMatchAverage(scoreA, inningsA);
-                const avgB = getMatchAverage(scoreB, inningsB);
-
-                if (scoreA > scoreB) {
-                    a.wins += 1;
-                    b.losses += 1;
-                    a.tournamentPoints += 2;
-                    if (avgA !== null) {
-                        a.bestWinningAverage = a.bestWinningAverage === null ? avgA : Math.max(a.bestWinningAverage, avgA);
-                    }
-                } else if (scoreB > scoreA) {
-                    b.wins += 1;
-                    a.losses += 1;
-                    b.tournamentPoints += 2;
-                    if (avgB !== null) {
-                        b.bestWinningAverage = b.bestWinningAverage === null ? avgB : Math.max(b.bestWinningAverage, avgB);
-                    }
-                } else {
-                    a.draws += 1;
-                    b.draws += 1;
-                    a.tournamentPoints += 1;
-                    b.tournamentPoints += 1;
-                }
-            });
-
-            return Object.values(statsMap)
-                .map((entry) => ({
-                    ...entry,
-                    average: entry.innings > 0 ? entry.scoredPoints / entry.innings : null
-                }))
-                .sort((left, right) => {
-                    if (right.tournamentPoints !== left.tournamentPoints) return right.tournamentPoints - left.tournamentPoints;
-                    const rightAverage = right.average || 0;
-                    const leftAverage = left.average || 0;
-                    if (rightAverage !== leftAverage) return rightAverage - leftAverage;
-                    return left.name.localeCompare(right.name, "de");
-                });
+            return buildStatsRows(
+                tournamentState.matches.filter((match) => canEditMatch(match)),
+                tournamentState.players
+            );
         }
 
         function renderTable() {
@@ -1499,7 +1722,7 @@
             container.innerHTML = `
                 <div class="print-page">
                     <div class="print-title">${title}</div>
-                    <div class="print-sub">${playerCount} Spieler · 2 Tische · Export ${dateLabel}</div>
+                    <div class="print-sub">${playerCount} Spieler · ${getCurrentTableCount()} Tische · Export ${dateLabel}</div>
 
                     <div class="print-block">
                         <h3>Tabelle</h3>
@@ -1628,7 +1851,7 @@
             if (avgAEl) avgAEl.value = formatAverage(avgA);
             if (avgBEl) avgBEl.value = formatAverage(avgB);
             if (inningsBEl) inningsBEl.value = match.inningsB || "";
-            if (statusEl) statusEl.textContent = match.saveState || (isMatchComplete(match) ? "Erfasst" : "Offen");
+            if (statusEl) statusEl.textContent = getMatchStatusText(match);
         }
 
         function sanitizeNumberInput(value) {
@@ -1641,16 +1864,16 @@
             if (!isTournamentEditable(tournamentAccessMode)) return;
             const match = tournamentState.matches.find((entry) => entry.client_id === matchId);
             if (!match) return;
+            if (!canEditMatch(match)) return;
 
             match[field] = sanitizeNumberInput(value);
             if (field === "inningsA") {
                 match.inningsB = match.inningsA;
             }
             match.saveState = "";
+            resolveDependentMatches(tournamentState.matches, tournamentState.players, getSelectedModeConfig());
             saveLocalState();
-            updateOverview();
-            updateMatchDisplay(match);
-            renderTable();
+            renderAll();
             await autoSaveMatchIfComplete(match);
         }
 
@@ -1794,25 +2017,37 @@
         }
 
         function applyLoadedTournament(tournamentRow, matchRows) {
+            const players = Array.isArray(tournamentRow.players) ? tournamentRow.players : [];
+            const inferredModeId = inferModeId(players.length, (matchRows || []).length);
+            document.getElementById("playerCount").value = String(SUPPORTED_PLAYER_COUNTS.includes(players.length) ? players.length : 4);
+            updateModeOptions(inferredModeId);
+            const baseMatches = createMatches(players, getSelectedModeConfig());
+            const incomingById = new Map((matchRows || []).map((row, index) => [row.client_id || "m" + (index + 1), row]));
+
             currentTournamentId = tournamentRow.id;
             tournamentState = {
                 title: tournamentRow.title || "",
-                players: Array.isArray(tournamentRow.players) ? tournamentRow.players : [],
-                matches: (matchRows || []).map((row, index) => ({
-                    client_id: row.client_id || "m" + (index + 1),
-                    sort_order: row.sort_order || index + 1,
-                    round_number: row.round_number || 1,
-                    table_number: row.table_number || 1,
-                    playerA: row.player_a,
-                    playerB: row.player_b,
-                    scoreA: row.score_a === null ? "" : String(row.score_a),
-                    scoreB: row.score_b === null ? "" : String(row.score_b),
-                    inningsA: row.innings_a === null ? "" : String(row.innings_a),
-                    inningsB: row.innings_b === null ? "" : String(row.innings_b),
-                    highRunA: row.high_run_a === null ? "" : String(row.high_run_a),
-                    highRunB: row.high_run_b === null ? "" : String(row.high_run_b)
-                }))
+                players,
+                matches: baseMatches.map((match, index) => {
+                    const row = incomingById.get(match.client_id) || (matchRows || [])[index] || {};
+                    return {
+                        ...match,
+                        client_id: row.client_id || match.client_id,
+                        sort_order: row.sort_order || match.sort_order || index + 1,
+                        round_number: row.round_number || match.round_number || 1,
+                        table_number: row.table_number || match.table_number || 1,
+                        playerA: row.player_a || match.playerA,
+                        playerB: row.player_b || match.playerB,
+                        scoreA: row.score_a === null || typeof row.score_a === "undefined" ? "" : String(row.score_a),
+                        scoreB: row.score_b === null || typeof row.score_b === "undefined" ? "" : String(row.score_b),
+                        inningsA: row.innings_a === null || typeof row.innings_a === "undefined" ? "" : String(row.innings_a),
+                        inningsB: row.innings_b === null || typeof row.innings_b === "undefined" ? "" : String(row.innings_b),
+                        highRunA: row.high_run_a === null || typeof row.high_run_a === "undefined" ? "" : String(row.high_run_a),
+                        highRunB: row.high_run_b === null || typeof row.high_run_b === "undefined" ? "" : String(row.high_run_b)
+                    };
+                })
             };
+            resolveDependentMatches(tournamentState.matches, tournamentState.players, getSelectedModeConfig());
 
             lastSavedMatchSignature.clear();
             tournamentState.matches.forEach((match) => {
