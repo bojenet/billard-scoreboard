@@ -1208,7 +1208,8 @@
             return matches;
         }
 
-        function buildStatsRows(matches, playerNames) {
+        function buildStatsRows(matches, playerNames, options = {}) {
+            const allowPartialRanking = Boolean(options.allowPartialRanking);
             const statsMap = {};
 
             playerNames.forEach((player) => {
@@ -1228,7 +1229,7 @@
             });
 
             matches.forEach((match) => {
-                if (!isMatchComplete(match)) return;
+                if (allowPartialRanking ? !hasMatchRankingData(match) : !isMatchComplete(match)) return;
 
                 const scoreA = parseNumber(match.scoreA);
                 const scoreB = parseNumber(match.scoreB);
@@ -1237,7 +1238,7 @@
                 const highRunA = parseNumber(match.highRunA);
                 const highRunB = parseNumber(match.highRunB);
 
-                if ([scoreA, scoreB, inningsA, inningsB, highRunA, highRunB].some((value) => value === null)) return;
+                if ([scoreA, scoreB, inningsA, inningsB].some((value) => value === null)) return;
 
                 const a = statsMap[match.playerA];
                 const b = statsMap[match.playerB];
@@ -1249,12 +1250,12 @@
                 a.scoredPoints += scoreA;
                 a.concededPoints += scoreB;
                 a.innings += inningsA;
-                a.bestSeries = Math.max(a.bestSeries, highRunA);
+                a.bestSeries = Math.max(a.bestSeries, highRunA ?? 0);
 
                 b.scoredPoints += scoreB;
                 b.concededPoints += scoreA;
                 b.innings += inningsB;
-                b.bestSeries = Math.max(b.bestSeries, highRunB);
+                b.bestSeries = Math.max(b.bestSeries, highRunB ?? 0);
 
                 const avgA = getMatchAverage(scoreA, inningsA);
                 const avgB = getMatchAverage(scoreB, inningsB);
@@ -1301,14 +1302,14 @@
             if (source.type === "group_rank") {
                 const groupMatches = matches.filter((match) => match.stage === "group" && match.groupName === source.groupName);
                 const groupPlayers = players.filter((player) => groupMatches.some((match) => match.playerA === player || match.playerB === player));
-                if (!groupPlayers.length || groupMatches.some((match) => !isMatchComplete(match))) return "";
-                const rows = buildStatsRows(groupMatches, groupPlayers);
+                if (!groupPlayers.length || groupMatches.some((match) => !hasMatchRankingData(match))) return "";
+                const rows = buildStatsRows(groupMatches, groupPlayers, { allowPartialRanking: true });
                 return rows[source.rank - 1]?.name || "";
             }
 
             if (source.type === "match_result") {
                 const match = matches.find((entry) => entry.client_id === source.matchId);
-                if (!match || !isMatchComplete(match)) return "";
+                if (!match || !hasMatchScores(match)) return "";
                 const scoreA = parseNumber(match.scoreA);
                 const scoreB = parseNumber(match.scoreB);
                 if (scoreA === null || scoreB === null || scoreA === scoreB) return "";
@@ -1445,6 +1446,16 @@
                 match.highRunA || "",
                 match.highRunB || ""
             ].join("|");
+        }
+
+        function hasMatchScores(match) {
+            return [match?.scoreA, match?.scoreB]
+                .every((value) => value !== "" && value !== null && typeof value !== "undefined" && Number.isFinite(Number(value)));
+        }
+
+        function hasMatchRankingData(match) {
+            return [match?.scoreA, match?.scoreB, match?.inningsA, match?.inningsB]
+                .every((value) => value !== "" && value !== null && typeof value !== "undefined" && Number.isFinite(Number(value)));
         }
 
         function canEditMatch(match) {
