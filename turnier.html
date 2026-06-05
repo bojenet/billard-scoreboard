@@ -1240,45 +1240,17 @@
             `).join("");
         }
 
-        function parseNbvCalendarHtml(html) {
-            const doc = new DOMParser().parseFromString(html, "text/html");
-            const result = [];
-            doc.querySelectorAll("a.cc_bluelink").forEach((link) => {
-                const row = link.closest("tr");
-                if (!row) return;
-                const cells = row.querySelectorAll("td");
-                if (cells.length < 3) return;
-                const dateText = String(cells[1]?.textContent || "").trim();
-                const isoDate = parseGermanDateToIso(dateText);
-                const title = String(link.textContent || "").trim();
-                const rowText = cells[2]?.textContent || "";
-                const lines = rowText.split("\n").map((line) => line.trim()).filter(Boolean);
-                const location = lines.slice(1).join(" ").trim();
-                if (!isoDate || !title) return;
-                result.push({
-                    id: `nbv-${isoDate}-${title}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
-                    date: isoDate,
-                    time: "",
-                    title,
-                    location,
-                    note: "Importiert aus NBV Einzelkalender",
-                    source: "nbv",
-                    link: new URL(link.getAttribute("href") || "", "https://www.ndbv.de/").toString()
-                });
-            });
-            return result;
-        }
-
         async function refreshTournamentCalendar() {
             setCalendarSourceStatus("NBV lädt...");
             showCalendarMessage("", "");
             try {
-                const response = await fetch(NBV_FP_KB_URL, { method: "GET" });
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                const { data, error } = await supabaseClient.functions.invoke("get-nbv-calendar", {
+                    body: { sourceUrl: NBV_FP_KB_URL }
+                });
+                if (error) {
+                    throw error;
                 }
-                const html = await response.text();
-                importedCalendarEvents = parseNbvCalendarHtml(html);
+                importedCalendarEvents = Array.isArray(data?.events) ? data.events : [];
                 setCalendarSourceStatus(`NBV geladen: ${importedCalendarEvents.length} Termine`);
                 showCalendarMessage("NBV-Termine wurden aktualisiert.", "ok");
             } catch (error) {
