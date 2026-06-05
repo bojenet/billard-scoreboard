@@ -13,6 +13,8 @@ type CalendarEvent = {
   note: string;
   source: "nbv";
   link: string;
+  disciplineId: string;
+  disciplineLabel: string;
 };
 
 type CalendarRequest = {
@@ -20,6 +22,7 @@ type CalendarRequest = {
   disciplineId?: string;
   disciplineLabel?: string;
   season?: string;
+  disciplines?: Array<{ id: string; label: string }>;
 };
 
 function parseGermanDateToIso(value: string) {
@@ -64,6 +67,10 @@ function createEventId(date: string, title: string) {
     .replace(/^-|-$/g, "");
 }
 
+function buildSourceUrl(season: string, disciplineId: string) {
+  return `https://www.ndbv.de/sb_meisterschaft.php?p=20--${season}---${disciplineId}-1--100000--`;
+}
+
 async function fetchHtml(url: string) {
   const response = await fetch(url, {
     headers: {
@@ -78,8 +85,12 @@ async function fetchHtml(url: string) {
   return await response.text();
 }
 
-function parseListing(html: string): Array<{ date: string; title: string; location: string; link: string }> {
-  const result: Array<{ date: string; title: string; location: string; link: string }> = [];
+function parseListing(
+  html: string,
+  disciplineId: string,
+  disciplineLabel: string,
+): CalendarEvent[] {
+  const result: CalendarEvent[] = [];
   const rowRegex = /<tr class='(?:odd|even)'>[\s\S]*?<td class='bb1' align='center'>\d+<\/td><td class='bb1' align='center'>([^<]+)<\/td><td class='bb1'[^>]*><a href='([^']+)'[^>]*title='([^']+)'[\s\S]*?<\/a><br>([\s\S]*?)<\/td>/gi;
   let match: RegExpExecArray | null;
 
@@ -89,36 +100,26 @@ function parseListing(html: string): Array<{ date: string; title: string; locati
     const title = stripTags(match[3]);
     const location = stripTags(match[4]);
     if (!date || !title) continue;
-    result.push({ date, title, location, link });
+    result.push({
+      id: `${createEventId(date, title)}-${disciplineId}`,
+      date,
+      time: "",
+      title,
+      location,
+      note: "Importiert aus NBV Einzelkalender",
+      source: "nbv",
+      link,
+      disciplineId,
+      disciplineLabel,
+    });
   }
 
   return result;
 }
 
-async function enrichEvents(rows: Array<{ date: string; title: string; location: string; link: string }>) {
-  const events: CalendarEvent[] = [];
-
-  for (const row of rows) {
-    let time = "";
-    try {
-      const detailHtml = await fetchHtml(row.link);
-      time = parseTimeFromDetailHtml(detailHtml);
-    } catch (error) {
-      console.warn("NBV detail fetch failed", { link: row.link, error: error instanceof Error ? error.message : String(error) });
-    }
-
-    events.push({
-      id: createEventId(row.date, row.title),
-      date: row.date,
-      time,
-      title: row.title,
-      location: row.location,
-      note: "Importiert aus NBV Einzelkalender",
-      source: "nbv",
-      link: row.link,
-    });
-  }
-
+async function loadDisciplineEvents(season: string, disciplineId: string, disciplineLabel: string, sourceUrl?: string) {
+  const html = await fetchHtml(sourceUrl || buildSourceUrl(season, disciplineId));
+  const events = parseListing(html, disciplineId, disciplineLabel);
   return events;
 }
 
@@ -129,16 +130,30 @@ Deno.serve(async (request) => {
 
   try {
     const body = request.method === "POST" ? await request.json().catch(() => ({})) as CalendarRequest : {};
-    const sourceUrl = String(body?.sourceUrl || "https://www.ndbv.de/sb_meisterschaft.php?p=20--2025/2026---8-1--100000--").trim();
-    const disciplineId = String(body?.disciplineId || "8").trim();
-    const disciplineLabel = String(body?.disciplineLabel || "Freie Partie (kleines Billard)").trim();
     const season = String(body?.season || "2025/2026").trim();
+    const requestedDisciplines = Array.isArray(body?.disciplines) && body.disciplines.length
+      ? body.disciplines
+      : [{
+          id: String(body?.disciplineId || "8").trim(),
+          label: String(body?.disciplineLabel || "Freie Partie (kleines Billard)").trim(),
+        }];
 
-    const html = await fetchHtml(sourceUrl);
-    const rows = parseListing(html);
-    const events = await enrichEvents(rows);
+    const allEvents = await Promise.all(requestedDisciplines.map((discipline, index) =>
+      loadDisciplineEvents(
+        season,
+        String(discipline.id || "").trim(),
+        String(discipline.label || "").trim(),
+        index === 0 && body?.sourceUrl ? String(body.sourceUrl).trim() : undefined,
+      )
+    ));
 
-    return new Response(JSON.stringify({ events, sourceUrl, disciplineId, disciplineLabel, season }), {
+    const events = allEvents.flat().sort((left, right) => {
+      const leftKey = `${left.date} ${left.title}`;
+      const rightKey = `${right.date} ${right.title}`;
+      return leftKey.localeCompare(rightKey, "de");
+    });
+
+    return new Response(JSON.stringify({ events, season, disciplineCount: requestedDisciplines.length }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

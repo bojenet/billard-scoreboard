@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Kalender</title>
+    <style>
+        :root {
+            --bg: #eef1f5;
+            --panel: #ffffff;
+            --line: #d7dde5;
+            --text: #1f2937;
+            --muted: #667085;
+            --head: #24364d;
+            --blue: #2f5d8a;
+            --green: #2f6f55;
+            --soft: #f8fafc;
+            --soft-head: #eef3f8;
+        }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, sans-serif;
+        }
+
+        .header {
+            text-align: center;
+            padding: 28px 16px 6px;
+            font-size: 34px;
+            font-weight: 700;
+            color: var(--blue);
+        }
+
+        .sub {
+            text-align: center;
+            color: #4b5563;
+            font-size: 15px;
+            margin-bottom: 18px;
+        }
+
+        .page {
+            width: min(1500px, 96%);
+            margin: 0 auto;
+            padding-bottom: 30px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            padding: 16px 18px;
+            margin-bottom: 14px;
+        }
+
+        .panel h2 {
+            margin: 0 0 8px;
+            font-size: 20px;
+            color: var(--text);
+        }
+
+        .panel-sub {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .toolbar-left,
+        .toolbar-right {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid var(--line);
+            background: var(--soft);
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-size: 13px;
+            color: #475467;
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .filter-btn {
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+            cursor: pointer;
+        }
+
+        .filter-btn.active {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .calendar-month {
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            overflow: hidden;
+            background: #fbfcfe;
+        }
+
+        .calendar-month-head {
+            padding: 12px 14px;
+            border-bottom: 1px solid #dde3ea;
+            background: var(--soft-head);
+        }
+
+        .calendar-month-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--head);
+        }
+
+        .calendar-month-sub {
+            margin-top: 3px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .calendar-events {
+            display: grid;
+            gap: 10px;
+            padding: 12px;
+        }
+
+        .calendar-event {
+            border: 1px solid var(--line);
+            border-left: 4px solid var(--blue);
+            border-radius: 6px;
+            background: #ffffff;
+            padding: 12px;
+            display: grid;
+            gap: 6px;
+        }
+
+        .calendar-event.manual {
+            border-left-color: var(--green);
+        }
+
+        .event-top {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            justify-content: space-between;
+        }
+
+        .event-date {
+            min-width: 94px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--head);
+        }
+
+        .event-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .event-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 4px;
+        }
+
+        .event-tag {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            background: #e8eef6;
+            color: #355270;
+        }
+
+        .event-tag.manual {
+            background: #e7f5ee;
+            color: #28543f;
+        }
+
+        .event-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.35;
+        }
+
+        .event-meta,
+        .event-note {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        .event-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .mini-btn {
+            padding: 6px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            background: #fff;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .mini-btn.danger {
+            border-color: #e2b2b2;
+            color: #8b2d2d;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .field-full {
+            grid-column: 1 / -1;
+        }
+
+        .field-title {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #374151;
+        }
+
+        input, select {
+            box-sizing: border-box;
+            width: 100%;
+            border: 1px solid #bfc7d2;
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-size: 14px;
+            background: #fff;
+            color: #10131c;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .btn {
+            padding: 9px 14px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .btn-primary { background: var(--blue); border-color: #274e75; }
+        .btn-save { background: var(--green); border-color: #285f49; }
+        .btn-secondary { background: #6b7280; border-color: #5b6471; }
+
+        .message {
+            min-height: 20px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .message.error { color: #b42318; }
+        .message.ok { color: #157347; }
+        .empty-state { color: var(--muted); font-size: 13px; }
+
+        @media (max-width: 1100px) {
+            .calendar-grid,
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .header { font-size: 28px; padding-top: 22px; }
+            .toolbar, .toolbar-left, .toolbar-right { align-items: stretch; }
+            .button-row .btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">Kalender</div>
+    <div class="sub">Alle NBV-Termine auf einen Blick, Disziplinen als Filter, eigene Termine direkt ergänzbar.</div>
+
+    <div class="page">
+        <div class="panel">
+            <h2>Übersicht</h2>
+            <div class="panel-sub">Standardmäßig werden alle unterstützten Disziplinen geladen und gemeinsam angezeigt.</div>
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <div id="calendarSourceStatus" class="badge">Noch nicht geladen</div>
+                    <div id="calendarCountBadge" class="badge">0 Termine</div>
+                </div>
+                <div class="toolbar-right">
+                    <button class="btn btn-primary" type="button" onclick="refreshCalendar()">NBV Termine laden</button>
+                    <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
+                </div>
+            </div>
+            <div id="calendarFilters" class="filters"></div>
+            <div id="calendarMessage" class="message"></div>
+            <div id="calendarGrid" class="calendar-grid">
+                <div class="empty-state">Noch keine Kalenderdaten vorhanden.</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Manueller Termin</h2>
+            <div class="panel-sub">Eigene Vereinstermine oder interne Hinweise ergänzen. Diese bleiben lokal auf dem Gerät gespeichert.</div>
+            <div class="form-grid">
+                <div>
+                    <label class="field-title" for="manualEventDate">Datum</label>
+                    <input id="manualEventDate" type="date">
+                </div>
+                <div>
+                    <label class="field-title" for="manualEventTime">Uhrzeit</label>
+                    <input id="manualEventTime" type="time">
+                </div>
+                <div>
+                    <label class="field-title" for="manualEventDiscipline">Disziplin</label>
+                    <select id="manualEventDiscipline"></select>
+                </div>
+                <div class="field-full">
+                    <label class="field-title" for="manualEventTitle">Titel</label>
+                    <input id="manualEventTitle" type="text" placeholder="z. B. Vereinsabend Freie Partie">
+                </div>
+                <div class="field-full">
+                    <label class="field-title" for="manualEventLocation">Ort</label>
+                    <input id="manualEventLocation" type="text" placeholder="z. B. BG Hamburg">
+                </div>
+                <div class="field-full">
+                    <label class="field-title" for="manualEventNote">Notiz</label>
+                    <input id="manualEventNote" type="text" placeholder="Optionaler Hinweis">
+                </div>
+            </div>
+            <div class="button-row">
+                <button class="btn btn-save" type="button" onclick="addManualEvent()">Termin hinzufügen</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/tournament_access.js"></script>
+    <script src="js/user_menu.js"></script>
+    <script>
+        const CALENDAR_MANUAL_STORAGE_KEY = "standalone_calendar_manual_v1";
+        const CALENDAR_FILTER_STORAGE_KEY = "standalone_calendar_filter_v1";
+        const NBV_CALENDAR_SEASON = "2025/2026";
+        const NBV_DISCIPLINES = {
+            "56": "Biathlon",
+            "36": "Billard Kegeln",
+            "9": "Cadre 35/2",
+            "10": "Cadre 47/2",
+            "11": "Cadre 52/2",
+            "12": "Cadre 71/2",
+            "5": "Dreiband (großes Billard)",
+            "6": "Dreiband (kleines Billard)",
+            "14": "Einband (großes Billard)",
+            "13": "Einband (kleines Billard)",
+            "31": "Eurokegel",
+            "7": "Freie Partie (großes Billard)",
+            "8": "Freie Partie (kleines Billard)"
+        };
+
+        let currentUser = null;
+        let tournamentAccessMode = "edit";
+        let importedEvents = [];
+        let activeDisciplineFilter = "all";
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function showCalendarMessage(text, type) {
+            const el = document.getElementById("calendarMessage");
+            if (!el) return;
+            el.textContent = text || "";
+            el.className = "message" + (type ? " " + type : "");
+        }
+
+        function formatMonthLabel(monthKey) {
+            const [year, month] = String(monthKey || "").split("-");
+            const date = new Date(`${year}-${month || "01"}-01T00:00:00`);
+            if (Number.isNaN(date.getTime())) return monthKey;
+            return new Intl.DateTimeFormat("de-DE", {
+                month: "long",
+                year: "numeric"
+            }).format(date);
+        }
+
+        function formatDateLabel(dateValue, timeValue) {
+            if (!dateValue) return "-";
+            const date = new Date(`${dateValue}T00:00:00`);
+            if (Number.isNaN(date.getTime())) return dateValue;
+            const base = new Intl.DateTimeFormat("de-DE", {
+                weekday: "short",
+                day: "2-digit",
+                month: "2-digit"
+            }).format(date);
+            return timeValue ? `${base} · ${timeValue}` : base;
+        }
+
+        function getMonthKey(dateValue) {
+            return String(dateValue || "").slice(0, 7);
+        }
+
+        function getManualEvents() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(CALENDAR_MANUAL_STORAGE_KEY) || "[]");
+                return Array.isArray(raw) ? raw : [];
+            } catch (error) {
+                console.warn("Manuelle Kalendertermine konnten nicht geladen werden:", error);
+                return [];
+            }
+        }
+
+        function saveManualEvents(events) {
+            localStorage.setItem(CALENDAR_MANUAL_STORAGE_KEY, JSON.stringify(events || []));
+        }
+
+        function getAllEvents() {
+            return [...importedEvents, ...getManualEvents()]
+                .filter((entry) => entry && entry.date && entry.title)
+                .sort((left, right) => {
+                    const leftKey = `${left.date} ${left.time || "99:99"} ${left.title}`;
+                    const rightKey = `${right.date} ${right.time || "99:99"} ${right.title}`;
+                    return leftKey.localeCompare(rightKey, "de");
+                });
+        }
+
+        function getFilteredEvents() {
+            const allEvents = getAllEvents();
+            if (activeDisciplineFilter === "all") return allEvents;
+            return allEvents.filter((event) => String(event.disciplineId || "") === activeDisciplineFilter);
+        }
+
+        function updateStatusBadges() {
+            const count = document.getElementById("calendarCountBadge");
+            const events = getFilteredEvents();
+            if (count) count.textContent = `${events.length} Termin${events.length === 1 ? "" : "e"}`;
+        }
+
+        function renderFilters() {
+            const wrap = document.getElementById("calendarFilters");
+            if (!wrap) return;
+            const buttons = [
+                { id: "all", label: "Alle" },
+                ...Object.entries(NBV_DISCIPLINES).map(([id, label]) => ({ id, label }))
+            ];
+            wrap.innerHTML = buttons.map((item) => `
+                <button
+                    type="button"
+                    class="filter-btn ${activeDisciplineFilter === item.id ? "active" : ""}"
+                    onclick="setDisciplineFilter('${escapeHtml(item.id)}')"
+                >${escapeHtml(item.label)}</button>
+            `).join("");
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById("calendarGrid");
+            if (!grid) return;
+            const events = getFilteredEvents();
+            updateStatusBadges();
+
+            if (!events.length) {
+                grid.innerHTML = '<div class="empty-state">Für den aktuellen Filter sind noch keine Termine vorhanden.</div>';
+                return;
+            }
+
+            const monthMap = new Map();
+            events.forEach((event) => {
+                const monthKey = getMonthKey(event.date);
+                if (!monthMap.has(monthKey)) monthMap.set(monthKey, []);
+                monthMap.get(monthKey).push(event);
+            });
+
+            grid.innerHTML = Array.from(monthMap.entries()).map(([monthKey, monthEvents]) => `
+                <div class="calendar-month">
+                    <div class="calendar-month-head">
+                        <div class="calendar-month-title">${escapeHtml(formatMonthLabel(monthKey))}</div>
+                        <div class="calendar-month-sub">${monthEvents.length} Termin${monthEvents.length === 1 ? "" : "e"}</div>
+                    </div>
+                    <div class="calendar-events">
+                        ${monthEvents.map((event) => `
+                            <div class="calendar-event ${event.source === "manual" ? "manual" : ""}">
+                                <div class="event-top">
+                                    <div class="event-date">${escapeHtml(formatDateLabel(event.date, event.time))}</div>
+                                    <div class="event-main">
+                                        <div class="event-tags">
+                                            <span class="event-tag">${escapeHtml(event.disciplineLabel || "Ohne Disziplin")}</span>
+                                            ${event.source === "manual" ? '<span class="event-tag manual">Manuell</span>' : ""}
+                                        </div>
+                                        <div class="event-title">${escapeHtml(event.title)}</div>
+                                        <div class="event-meta">${escapeHtml(event.location || "Ort folgt")}</div>
+                                        ${event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
+                                        ${event.link ? `<div class="event-note"><a class="cc_bluelink" href="${escapeHtml(event.link)}" target="_blank" rel="noreferrer">NBV Details</a></div>` : ""}
+                                    </div>
+                                </div>
+                                ${event.source === "manual" ? `
+                                    <div class="event-actions">
+                                        <button class="mini-btn danger" type="button" onclick="removeManualEvent('${escapeHtml(event.id)}')">Löschen</button>
+                                    </div>
+                                ` : ""}
+                            </div>
+                        `).join("")}
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        function setDisciplineFilter(filterId) {
+            activeDisciplineFilter = filterId || "all";
+            localStorage.setItem(CALENDAR_FILTER_STORAGE_KEY, activeDisciplineFilter);
+            renderFilters();
+            populateManualDisciplineSelect();
+            renderCalendar();
+        }
+
+        function loadSavedFilter() {
+            const saved = String(localStorage.getItem(CALENDAR_FILTER_STORAGE_KEY) || "all");
+            activeDisciplineFilter = saved === "all" || NBV_DISCIPLINES[saved] ? saved : "all";
+        }
+
+        async function refreshCalendar() {
+            showCalendarMessage("", "");
+            const source = document.getElementById("calendarSourceStatus");
+            if (source) source.textContent = "NBV lädt...";
+
+            try {
+                const disciplines = Object.entries(NBV_DISCIPLINES).map(([id, label]) => ({ id, label }));
+                const { data, error } = await supabaseClient.functions.invoke("get-nbv-calendar", {
+                    body: {
+                        season: NBV_CALENDAR_SEASON,
+                        disciplines
+                    }
+                });
+                if (error) throw error;
+                importedEvents = Array.isArray(data?.events) ? data.events : [];
+                if (source) source.textContent = `NBV geladen · ${disciplines.length} Disziplinen`;
+                showCalendarMessage("NBV-Termine wurden aktualisiert.", "ok");
+            } catch (error) {
+                console.warn("Kalender konnte nicht geladen werden:", error);
+                importedEvents = [];
+                if (source) source.textContent = "NBV Abruf fehlgeschlagen";
+                showCalendarMessage("NBV-Termine konnten nicht geladen werden. Manuelle Einträge bleiben verfügbar.", "error");
+            }
+
+            renderCalendar();
+        }
+
+        function populateManualDisciplineSelect() {
+            const select = document.getElementById("manualEventDiscipline");
+            if (!select) return;
+            select.innerHTML = [
+                `<option value="">Allgemein</option>`,
+                ...Object.entries(NBV_DISCIPLINES).map(([id, label]) => `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`)
+            ].join("");
+            select.value = activeDisciplineFilter !== "all" ? activeDisciplineFilter : "";
+        }
+
+        function addManualEvent() {
+            const date = String(document.getElementById("manualEventDate")?.value || "").trim();
+            const time = String(document.getElementById("manualEventTime")?.value || "").trim();
+            const disciplineId = String(document.getElementById("manualEventDiscipline")?.value || "").trim();
+            const title = String(document.getElementById("manualEventTitle")?.value || "").trim();
+            const location = String(document.getElementById("manualEventLocation")?.value || "").trim();
+            const note = String(document.getElementById("manualEventNote")?.value || "").trim();
+
+            if (!date || !title) {
+                showCalendarMessage("Bitte mindestens Datum und Titel eintragen.", "error");
+                return;
+            }
+
+            const events = getManualEvents();
+            events.push({
+                id: `manual-${Date.now()}`,
+                date,
+                time,
+                title,
+                location,
+                note,
+                source: "manual",
+                link: "",
+                disciplineId,
+                disciplineLabel: disciplineId ? (NBV_DISCIPLINES[disciplineId] || "Allgemein") : "Allgemein"
+            });
+            saveManualEvents(events);
+
+            document.getElementById("manualEventDate").value = "";
+            document.getElementById("manualEventTime").value = "";
+            document.getElementById("manualEventTitle").value = "";
+            document.getElementById("manualEventLocation").value = "";
+            document.getElementById("manualEventNote").value = "";
+
+            showCalendarMessage("Manueller Termin wurde hinzugefügt.", "ok");
+            renderCalendar();
+        }
+
+        function removeManualEvent(eventId) {
+            saveManualEvents(getManualEvents().filter((event) => event.id !== eventId));
+            showCalendarMessage("Manueller Termin wurde entfernt.", "ok");
+            renderCalendar();
+        }
+
+        function applyAccessUi() {
+            const readOnly = !isTournamentEditable(tournamentAccessMode);
+            document.querySelectorAll("#manualEventDate, #manualEventTime, #manualEventDiscipline, #manualEventTitle, #manualEventLocation, #manualEventNote").forEach((input) => {
+                input.disabled = readOnly;
+            });
+            document.querySelectorAll(".btn-save, .mini-btn.danger").forEach((button) => {
+                button.disabled = readOnly;
+            });
+        }
+
+        async function initPage() {
+            currentUser = await requireAuth();
+            if (!currentUser) return;
+            tournamentAccessMode = await getTournamentAccess(currentUser);
+            if (!isTournamentVisible(tournamentAccessMode)) {
+                window.location.href = "index.html";
+                return;
+            }
+
+            loadSavedFilter();
+            populateManualDisciplineSelect();
+            renderFilters();
+            renderCalendar();
+            applyAccessUi();
+            const source = document.getElementById("calendarSourceStatus");
+            if (source) source.textContent = `NBV Saison ${NBV_CALENDAR_SEASON}`;
+            await refreshCalendar();
+        }
+
+        initPage();
+    </script>
+</body>
+</html>
