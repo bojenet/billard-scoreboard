@@ -17,16 +17,15 @@ type CalendarEvent = {
 
 type CalendarRequest = {
   sourceUrl?: string;
+  disciplineId?: string;
+  disciplineLabel?: string;
+  season?: string;
 };
 
 function parseGermanDateToIso(value: string) {
   const match = String(value || "").trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
   if (!match) return "";
   return `${match[3]}-${match[2]}-${match[1]}`;
-}
-
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function stripTags(value: string) {
@@ -131,12 +130,15 @@ Deno.serve(async (request) => {
   try {
     const body = request.method === "POST" ? await request.json().catch(() => ({})) as CalendarRequest : {};
     const sourceUrl = String(body?.sourceUrl || "https://www.ndbv.de/sb_meisterschaft.php?p=20--2025/2026---8-1--100000--").trim();
+    const disciplineId = String(body?.disciplineId || "8").trim();
+    const disciplineLabel = String(body?.disciplineLabel || "Freie Partie (kleines Billard)").trim();
+    const season = String(body?.season || "2025/2026").trim();
 
     const html = await fetchHtml(sourceUrl);
     const rows = parseListing(html);
     const events = await enrichEvents(rows);
 
-    return new Response(JSON.stringify({ events, sourceUrl }), {
+    return new Response(JSON.stringify({ events, sourceUrl, disciplineId, disciplineLabel, season }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

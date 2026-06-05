@@ -822,10 +822,24 @@
 
         <div class="panel">
             <h2>Kalender</h2>
-            <div class="panel-sub">NBV-Termine für Freie Partie (kleines Billard) plus eigene manuelle Einträge in einer gemeinsamen Monatsübersicht.</div>
+            <div class="panel-sub">NBV-Termine je Disziplin plus eigene manuelle Einträge in einer gemeinsamen Monatsübersicht.</div>
             <div class="calendar-toolbar">
                 <div class="calendar-toolbar-left">
-                    <div class="calendar-badge">NBV Quelle: Freie Partie (kleines Billard)</div>
+                    <select id="calendarDisciplineSelect" onchange="handleCalendarDisciplineChange()" style="min-width:320px;">
+                        <option value="56">Biathlon</option>
+                        <option value="36">Billard Kegeln</option>
+                        <option value="9">Cadre 35/2</option>
+                        <option value="10">Cadre 47/2</option>
+                        <option value="11">Cadre 52/2</option>
+                        <option value="12">Cadre 71/2</option>
+                        <option value="5">Dreiband (großes Billard)</option>
+                        <option value="6">Dreiband (kleines Billard)</option>
+                        <option value="14">Einband (großes Billard)</option>
+                        <option value="13">Einband (kleines Billard)</option>
+                        <option value="31">Eurokegel</option>
+                        <option value="7">Freie Partie (großes Billard)</option>
+                        <option value="8" selected>Freie Partie (kleines Billard)</option>
+                    </select>
                     <div id="calendarSourceStatus" class="calendar-badge">Noch nicht geladen</div>
                 </div>
                 <div class="calendar-toolbar-right">
@@ -930,7 +944,24 @@
     <script>
         const STORAGE_KEY = "tournament_round_robin_v3";
         const CALENDAR_MANUAL_STORAGE_KEY = "tournament_manual_calendar_v1";
-        const NBV_FP_KB_URL = "https://www.ndbv.de/sb_meisterschaft.php?p=20--2025/2026---8-1--100000--";
+        const NBV_CALENDAR_STORAGE_KEY = "tournament_calendar_settings_v1";
+        const NBV_CALENDAR_SEASON = "2025/2026";
+        const NBV_DISCIPLINES = {
+            "56": "Biathlon",
+            "36": "Billard Kegeln",
+            "9": "Cadre 35/2",
+            "10": "Cadre 47/2",
+            "11": "Cadre 52/2",
+            "12": "Cadre 71/2",
+            "5": "Dreiband (großes Billard)",
+            "6": "Dreiband (kleines Billard)",
+            "14": "Einband (großes Billard)",
+            "13": "Einband (kleines Billard)",
+            "31": "Eurokegel",
+            "7": "Freie Partie (großes Billard)",
+            "8": "Freie Partie (kleines Billard)"
+        };
+        const DEFAULT_NBV_DISCIPLINE_ID = "8";
         const MAX_PARTICIPANTS = 16;
         const SUPPORTED_PLAYER_COUNTS = Array.from({ length: 13 }, (_, index) => index + 4);
         const TOURNAMENT_MODES = {
@@ -1132,6 +1163,37 @@
             el.className = "message" + (type ? " " + type : "");
         }
 
+        function getSelectedCalendarDisciplineId() {
+            const select = document.getElementById("calendarDisciplineSelect");
+            const value = String(select?.value || DEFAULT_NBV_DISCIPLINE_ID);
+            return NBV_DISCIPLINES[value] ? value : DEFAULT_NBV_DISCIPLINE_ID;
+        }
+
+        function getSelectedCalendarDisciplineLabel() {
+            return NBV_DISCIPLINES[getSelectedCalendarDisciplineId()] || NBV_DISCIPLINES[DEFAULT_NBV_DISCIPLINE_ID];
+        }
+
+        function buildNbvCalendarSourceUrl(disciplineId) {
+            return `https://www.ndbv.de/sb_meisterschaft.php?p=20--${NBV_CALENDAR_SEASON}---${disciplineId}-1--100000--`;
+        }
+
+        function loadCalendarSettings() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(NBV_CALENDAR_STORAGE_KEY) || "{}");
+                const disciplineId = NBV_DISCIPLINES[String(raw?.disciplineId || "")] ? String(raw.disciplineId) : DEFAULT_NBV_DISCIPLINE_ID;
+                const select = document.getElementById("calendarDisciplineSelect");
+                if (select) select.value = disciplineId;
+            } catch (error) {
+                console.warn("Kalender-Einstellungen konnten nicht geladen werden:", error);
+            }
+        }
+
+        function saveCalendarSettings() {
+            localStorage.setItem(NBV_CALENDAR_STORAGE_KEY, JSON.stringify({
+                disciplineId: getSelectedCalendarDisciplineId()
+            }));
+        }
+
         function setCalendarSourceStatus(text) {
             const el = document.getElementById("calendarSourceStatus");
             if (el) el.textContent = text;
@@ -1240,18 +1302,30 @@
             `).join("");
         }
 
+        function handleCalendarDisciplineChange() {
+            saveCalendarSettings();
+            void refreshTournamentCalendar();
+        }
+
         async function refreshTournamentCalendar() {
             setCalendarSourceStatus("NBV lädt...");
             showCalendarMessage("", "");
             try {
+                const disciplineId = getSelectedCalendarDisciplineId();
+                const disciplineLabel = getSelectedCalendarDisciplineLabel();
                 const { data, error } = await supabaseClient.functions.invoke("get-nbv-calendar", {
-                    body: { sourceUrl: NBV_FP_KB_URL }
+                    body: {
+                        sourceUrl: buildNbvCalendarSourceUrl(disciplineId),
+                        disciplineId,
+                        disciplineLabel,
+                        season: NBV_CALENDAR_SEASON
+                    }
                 });
                 if (error) {
                     throw error;
                 }
                 importedCalendarEvents = Array.isArray(data?.events) ? data.events : [];
-                setCalendarSourceStatus(`NBV geladen: ${importedCalendarEvents.length} Termine`);
+                setCalendarSourceStatus(`${disciplineLabel}: ${importedCalendarEvents.length} Termin${importedCalendarEvents.length === 1 ? "" : "e"}`);
                 showCalendarMessage("NBV-Termine wurden aktualisiert.", "ok");
             } catch (error) {
                 console.warn("NBV-Kalender konnte nicht geladen werden:", error);
@@ -1346,6 +1420,8 @@
                 if (input.readOnly) return;
                 input.disabled = readOnly;
             });
+            const calendarDisciplineSelect = document.getElementById("calendarDisciplineSelect");
+            if (calendarDisciplineSelect) calendarDisciplineSelect.disabled = readOnly;
             document.querySelectorAll("#manualEventDate, #manualEventTime, #manualEventTitle, #manualEventLocation, #manualEventNote").forEach((input) => {
                 input.disabled = readOnly;
             });
@@ -2717,6 +2793,7 @@
 
             renderSeedRows();
             updateModeOptions();
+            loadCalendarSettings();
             const restoredLocal = loadLocalState();
             renderAll();
             applyTournamentAccessUi();
