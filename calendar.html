@@ -5,16 +5,22 @@
     <title>Kalender</title>
     <style>
         :root {
-            --bg: #eef1f5;
+            --bg: #f3f1ea;
             --panel: #ffffff;
-            --line: #d7dde5;
-            --text: #1f2937;
-            --muted: #667085;
-            --head: #24364d;
-            --blue: #2f5d8a;
+            --line: #c8ccd2;
+            --text: #161616;
+            --muted: #5b6470;
+            --head: #111827;
+            --blue: #2d5880;
             --green: #2f6f55;
-            --soft: #f8fafc;
-            --soft-head: #eef3f8;
+            --soft: #fbfbf8;
+            --soft-head: #f4f4ef;
+            --accent: #8fb1d9;
+            --weekend: #f3f5f8;
+            --manual-bg: #e8f4ea;
+            --manual-border: #7ca384;
+            --legend-dbu: #9fb8d7;
+            --legend-other: #9ad14b;
         }
 
         html, body {
@@ -28,9 +34,9 @@
         .header {
             text-align: center;
             padding: 28px 16px 6px;
-            font-size: 34px;
+            font-size: 36px;
             font-weight: 700;
-            color: var(--blue);
+            color: var(--head);
         }
 
         .sub {
@@ -43,14 +49,14 @@
         .page {
             width: min(1500px, 96%);
             margin: 0 auto;
-            padding-bottom: 30px;
+            padding-bottom: 34px;
         }
 
         .panel {
             background: var(--panel);
             border: 1px solid var(--line);
-            border-radius: 6px;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
             padding: 16px 18px;
             margin-bottom: 14px;
         }
@@ -73,7 +79,7 @@
             gap: 10px;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
 
         .toolbar-left,
@@ -88,11 +94,66 @@
             display: inline-flex;
             align-items: center;
             border: 1px solid var(--line);
-            background: var(--soft);
-            border-radius: 999px;
+            background: #fff;
+            border-radius: 4px;
             padding: 7px 12px;
             font-size: 13px;
             color: #475467;
+        }
+
+        .plan-meta {
+            display: grid;
+            grid-template-columns: minmax(0, 2.4fr) minmax(220px, 1.2fr) minmax(220px, 1.2fr);
+            gap: 14px;
+            margin-bottom: 18px;
+            align-items: start;
+        }
+
+        .plan-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--head);
+            line-height: 1.2;
+        }
+
+        .plan-legend,
+        .plan-stamp {
+            border: 1px solid var(--line);
+            background: #fff;
+        }
+
+        .plan-legend-row,
+        .plan-stamp-row {
+            display: grid;
+            grid-template-columns: 48px 1fr;
+            min-height: 24px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .plan-stamp-row {
+            grid-template-columns: 1fr;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .plan-legend-row:last-child,
+        .plan-stamp-row:last-child {
+            border-bottom: 0;
+        }
+
+        .legend-color {
+            border-right: 1px solid var(--line);
+        }
+
+        .legend-color.dbu { background: var(--legend-dbu); }
+        .legend-color.other { background: var(--legend-other); }
+
+        .legend-text {
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 14px;
+            font-weight: 700;
         }
 
         .filters {
@@ -105,7 +166,7 @@
         .filter-btn {
             border: 1px solid #cbd5e1;
             background: #fff;
-            border-radius: 999px;
+            border-radius: 4px;
             padding: 8px 12px;
             font-size: 13px;
             font-weight: 700;
@@ -121,86 +182,99 @@
 
         .calendar-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 22px 18px;
         }
 
         .calendar-month {
-            border: 1px solid var(--line);
-            border-radius: 6px;
-            overflow: hidden;
-            background: #fbfcfe;
+            display: grid;
+            gap: 4px;
         }
 
         .calendar-month-head {
-            padding: 12px 14px;
-            border-bottom: 1px solid #dde3ea;
-            background: var(--soft-head);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 4px;
         }
 
         .calendar-month-title {
-            font-size: 17px;
+            font-size: 18px;
             font-weight: 700;
-            color: var(--head);
+            color: #1b1b1b;
         }
 
         .calendar-month-sub {
-            margin-top: 3px;
             font-size: 12px;
             color: var(--muted);
         }
 
-        .calendar-events {
+        .calendar-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            background: #fff;
+        }
+
+        .calendar-table td {
+            border: 1px solid var(--line);
+            padding: 3px 6px;
+            vertical-align: top;
+            font-size: 13px;
+        }
+
+        .calendar-row-weekend td {
+            background: var(--weekend);
+        }
+
+        .calendar-dow {
+            width: 28px;
+            font-weight: 400;
+        }
+
+        .calendar-date {
+            width: 50px;
+            white-space: nowrap;
+        }
+
+        .calendar-date.weekend,
+        .calendar-dow.weekend {
+            font-weight: 700;
+        }
+
+        .calendar-event-cell {
             display: grid;
-            gap: 10px;
-            padding: 12px;
+            gap: 4px;
+            min-height: 20px;
         }
 
         .calendar-event {
-            border: 1px solid var(--line);
-            border-left: 4px solid var(--blue);
-            border-radius: 6px;
-            background: #ffffff;
-            padding: 12px;
             display: grid;
-            gap: 6px;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: start;
+            padding: 2px 4px;
+            border-left: 3px solid var(--blue);
+            background: #fff;
         }
 
         .calendar-event.manual {
-            border-left-color: var(--green);
-        }
-
-        .event-top {
-            display: flex;
-            gap: 12px;
-            align-items: flex-start;
-            justify-content: space-between;
-        }
-
-        .event-date {
-            min-width: 94px;
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--head);
-        }
-
-        .event-main {
-            flex: 1;
-            min-width: 0;
+            border-left-color: var(--manual-border);
+            background: var(--manual-bg);
         }
 
         .event-tags {
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .event-tag {
             display: inline-block;
-            padding: 3px 8px;
-            border-radius: 999px;
-            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
             font-weight: 700;
             background: #e8eef6;
             color: #355270;
@@ -212,7 +286,7 @@
         }
 
         .event-title {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
             color: var(--text);
             line-height: 1.35;
@@ -220,7 +294,7 @@
 
         .event-meta,
         .event-note {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--muted);
             line-height: 1.45;
         }
@@ -228,15 +302,24 @@
         .event-actions {
             display: flex;
             justify-content: flex-end;
+            align-items: flex-start;
+        }
+
+        .event-side {
+            white-space: nowrap;
+            font-size: 12px;
+            font-weight: 700;
+            color: #252525;
+            padding-top: 18px;
         }
 
         .mini-btn {
-            padding: 6px 10px;
+            padding: 4px 8px;
             border: 1px solid #cbd5e1;
-            border-radius: 4px;
+            border-radius: 3px;
             background: #fff;
             color: #334155;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             cursor: pointer;
         }
@@ -308,8 +391,17 @@
         .message.ok { color: #157347; }
         .empty-state { color: var(--muted); font-size: 13px; }
 
+        @media (max-width: 1280px) {
+            .calendar-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .plan-meta {
+                grid-template-columns: 1fr;
+            }
+        }
+
         @media (max-width: 1100px) {
-            .calendar-grid,
             .form-grid {
                 grid-template-columns: 1fr;
             }
@@ -319,6 +411,10 @@
             .header { font-size: 28px; padding-top: 22px; }
             .toolbar, .toolbar-left, .toolbar-right { align-items: stretch; }
             .button-row .btn { width: 100%; }
+            .calendar-grid { grid-template-columns: 1fr; }
+            .calendar-table td { font-size: 12px; }
+            .calendar-dow { width: 26px; }
+            .calendar-date { width: 46px; }
         }
     </style>
 </head>
@@ -330,6 +426,23 @@
         <div class="panel">
             <h2>Übersicht</h2>
             <div class="panel-sub">Standardmäßig werden alle unterstützten Disziplinen geladen und gemeinsam angezeigt.</div>
+            <div class="plan-meta">
+                <div class="plan-title">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</div>
+                <div class="plan-stamp">
+                    <div class="plan-stamp-row">Stand 20.08.2025</div>
+                    <div class="plan-stamp-row">V1</div>
+                </div>
+                <div class="plan-legend">
+                    <div class="plan-legend-row">
+                        <div class="legend-color dbu"></div>
+                        <div class="legend-text">DBU</div>
+                    </div>
+                    <div class="plan-legend-row">
+                        <div class="legend-color other"></div>
+                        <div class="legend-text">sonstiges</div>
+                    </div>
+                </div>
+            </div>
             <div class="toolbar">
                 <div class="toolbar-left">
                     <div id="calendarSourceStatus" class="badge">Noch nicht geladen</div>
@@ -438,20 +551,46 @@
             }).format(date);
         }
 
-        function formatDateLabel(dateValue, timeValue) {
-            if (!dateValue) return "-";
+        function formatDayName(dateValue) {
+            if (!dateValue) return "";
             const date = new Date(`${dateValue}T00:00:00`);
-            if (Number.isNaN(date.getTime())) return dateValue;
-            const base = new Intl.DateTimeFormat("de-DE", {
-                weekday: "short",
+            if (Number.isNaN(date.getTime())) return "";
+            return new Intl.DateTimeFormat("de-DE", { weekday: "short" })
+                .format(date)
+                .replace(".", "");
+        }
+
+        function formatDayNumber(dateValue) {
+            if (!dateValue) return "";
+            const date = new Date(`${dateValue}T00:00:00`);
+            if (Number.isNaN(date.getTime())) return "";
+            return new Intl.DateTimeFormat("de-DE", {
                 day: "2-digit",
                 month: "2-digit"
             }).format(date);
-            return timeValue ? `${base} · ${timeValue}` : base;
         }
 
         function getMonthKey(dateValue) {
             return String(dateValue || "").slice(0, 7);
+        }
+
+        function isWeekendDate(dateValue) {
+            const date = new Date(`${dateValue}T00:00:00`);
+            if (Number.isNaN(date.getTime())) return false;
+            const day = date.getDay();
+            return day === 0 || day === 6;
+        }
+
+        function getDaysOfMonth(monthKey) {
+            const [yearText, monthText] = String(monthKey || "").split("-");
+            const year = Number(yearText);
+            const month = Number(monthText);
+            if (!year || !month) return [];
+            const daysInMonth = new Date(year, month, 0).getDate();
+            return Array.from({ length: daysInMonth }, (_, index) => {
+                const day = String(index + 1).padStart(2, "0");
+                return `${yearText}-${monthText}-${day}`;
+            });
         }
 
         function getManualEvents() {
@@ -530,30 +669,44 @@
                         <div class="calendar-month-title">${escapeHtml(formatMonthLabel(monthKey))}</div>
                         <div class="calendar-month-sub">${monthEvents.length} Termin${monthEvents.length === 1 ? "" : "e"}</div>
                     </div>
-                    <div class="calendar-events">
-                        ${monthEvents.map((event) => `
-                            <div class="calendar-event ${event.source === "manual" ? "manual" : ""}">
-                                <div class="event-top">
-                                    <div class="event-date">${escapeHtml(formatDateLabel(event.date, event.time))}</div>
-                                    <div class="event-main">
-                                        <div class="event-tags">
-                                            <span class="event-tag">${escapeHtml(event.disciplineLabel || "Ohne Disziplin")}</span>
-                                            ${event.source === "manual" ? '<span class="event-tag manual">Manuell</span>' : ""}
-                                        </div>
-                                        <div class="event-title">${escapeHtml(event.title)}</div>
-                                        <div class="event-meta">${escapeHtml(event.location || "Ort folgt")}</div>
-                                        ${event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
-                                        ${event.link ? `<div class="event-note"><a class="cc_bluelink" href="${escapeHtml(event.link)}" target="_blank" rel="noreferrer">NBV Details</a></div>` : ""}
-                                    </div>
-                                </div>
-                                ${event.source === "manual" ? `
-                                    <div class="event-actions">
-                                        <button class="mini-btn danger" type="button" onclick="removeManualEvent('${escapeHtml(event.id)}')">Löschen</button>
-                                    </div>
-                                ` : ""}
-                            </div>
-                        `).join("")}
-                    </div>
+                    <table class="calendar-table">
+                        <tbody>
+                            ${getDaysOfMonth(monthKey).map((dateValue) => {
+                                const dayEvents = monthEvents.filter((event) => event.date === dateValue);
+                                const weekend = isWeekendDate(dateValue);
+                                return `
+                                    <tr class="${weekend ? "calendar-row-weekend" : ""}">
+                                        <td class="calendar-dow ${weekend ? "weekend" : ""}">${escapeHtml(formatDayName(dateValue))}</td>
+                                        <td class="calendar-date ${weekend ? "weekend" : ""}">${escapeHtml(formatDayNumber(dateValue))}</td>
+                                        <td>
+                                            <div class="calendar-event-cell">
+                                                ${dayEvents.map((event) => `
+                                                    <div class="calendar-event ${event.source === "manual" ? "manual" : ""}">
+                                                        <div>
+                                                            <div class="event-tags">
+                                                                <span class="event-tag">${escapeHtml(event.disciplineLabel || "Ohne Disziplin")}</span>
+                                                                ${event.source === "manual" ? '<span class="event-tag manual">Manuell</span>' : ""}
+                                                                ${event.time ? `<span class="event-tag">${escapeHtml(event.time)}</span>` : ""}
+                                                            </div>
+                                                            <div class="event-title">${escapeHtml(event.title)}</div>
+                                                            ${event.source === "manual" && event.location ? `<div class="event-meta">${escapeHtml(event.location)}</div>` : ""}
+                                                            ${event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
+                                                            ${event.link ? `<div class="event-note"><a class="cc_bluelink" href="${escapeHtml(event.link)}" target="_blank" rel="noreferrer">NBV Details</a></div>` : ""}
+                                                        </div>
+                                                        ${event.source === "manual" ? `
+                                                            <div class="event-actions">
+                                                                <button class="mini-btn danger" type="button" onclick="removeManualEvent('${escapeHtml(event.id)}')">Löschen</button>
+                                                            </div>
+                                                        ` : `<div class="event-side">${escapeHtml(event.location || "")}</div>`}
+                                                    </div>
+                                                `).join("")}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join("")}
+                        </tbody>
+                    </table>
                 </div>
             `).join("");
         }
@@ -587,7 +740,12 @@
                 if (error) throw error;
                 importedEvents = Array.isArray(data?.events) ? data.events : [];
                 if (source) source.textContent = `NBV geladen · ${disciplines.length} Disziplinen`;
-                showCalendarMessage("NBV-Termine wurden aktualisiert.", "ok");
+                const failedDisciplines = Array.isArray(data?.failedDisciplines) ? data.failedDisciplines : [];
+                if (failedDisciplines.length) {
+                    showCalendarMessage(`${failedDisciplines.length} Disziplin${failedDisciplines.length === 1 ? "" : "en"} konnten nicht geladen werden. Die übrigen Termine werden angezeigt.`, "error");
+                } else {
+                    showCalendarMessage("NBV-Termine wurden aktualisiert.", "ok");
+                }
             } catch (error) {
                 console.warn("Kalender konnte nicht geladen werden:", error);
                 importedEvents = [];

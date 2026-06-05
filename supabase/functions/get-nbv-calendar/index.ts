@@ -71,7 +71,16 @@ function buildSourceUrl(season: string, disciplineId: string) {
   return `https://www.ndbv.de/sb_meisterschaft.php?p=20--${season}---${disciplineId}-1--100000--`;
 }
 
-async function fetchHtml(url: string) {
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableFetchError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /refused stream|http2 error|sendrequest|connection reset|network|tempor/i.test(message);
+}
+
+async function fetchHtml(url: string, attempt = 1): Promise<string> {
   const response = await fetch(url, {
     headers: {
       "User-Agent": "billard-scoreboard-calendar/1.0",
@@ -83,6 +92,24 @@ async function fetchHtml(url: string) {
   }
 
   return await response.text();
+}
+
+async function fetchHtmlWithRetry(url: string, maxAttempts = 4) {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetchHtml(url, attempt);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= maxAttempts || !isRetryableFetchError(error)) {
+        throw error;
+      }
+      await delay(250 * attempt);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 function parseListing(
@@ -118,7 +145,7 @@ function parseListing(
 }
 
 async function loadDisciplineEvents(season: string, disciplineId: string, disciplineLabel: string, sourceUrl?: string) {
-  const html = await fetchHtml(sourceUrl || buildSourceUrl(season, disciplineId));
+  const html = await fetchHtmlWithRetry(sourceUrl || buildSourceUrl(season, disciplineId));
   const events = parseListing(html, disciplineId, disciplineLabel);
   return events;
 }
@@ -138,22 +165,46 @@ Deno.serve(async (request) => {
           label: String(body?.disciplineLabel || "Freie Partie (kleines Billard)").trim(),
         }];
 
-    const allEvents = await Promise.all(requestedDisciplines.map((discipline, index) =>
-      loadDisciplineEvents(
-        season,
-        String(discipline.id || "").trim(),
-        String(discipline.label || "").trim(),
-        index === 0 && body?.sourceUrl ? String(body.sourceUrl).trim() : undefined,
-      )
-    ));
+    const events: CalendarEvent[] = [];
+    const failedDisciplines: Array<{ id: string; label: string; message: string }> = [];
 
-    const events = allEvents.flat().sort((left, right) => {
+    for (const [index, discipline] of requestedDisciplines.entries()) {
+      const disciplineId = String(discipline.id || "").trim();
+      const disciplineLabel = String(discipline.label || "").trim();
+      try {
+        const disciplineEvents = await loadDisciplineEvents(
+          season,
+          disciplineId,
+          disciplineLabel,
+          index === 0 && body?.sourceUrl ? String(body.sourceUrl).trim() : undefined,
+        );
+        events.push(...disciplineEvents);
+      } catch (error) {
+        failedDisciplines.push({
+          id: disciplineId,
+          label: disciplineLabel,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+      await delay(120);
+    }
+
+    if (!events.length && failedDisciplines.length) {
+      throw new Error(`NBV-Abruf fehlgeschlagen: ${failedDisciplines[0].label} - ${failedDisciplines[0].message}`);
+    }
+
+    events.sort((left, right) => {
       const leftKey = `${left.date} ${left.title}`;
       const rightKey = `${right.date} ${right.title}`;
       return leftKey.localeCompare(rightKey, "de");
     });
 
-    return new Response(JSON.stringify({ events, season, disciplineCount: requestedDisciplines.length }), {
+    return new Response(JSON.stringify({
+      events,
+      season,
+      disciplineCount: requestedDisciplines.length,
+      failedDisciplines,
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
