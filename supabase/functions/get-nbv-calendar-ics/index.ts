@@ -183,10 +183,14 @@ function formatDateOnly(dateValue: string) {
 }
 
 function addDays(dateValue: string, amount: number) {
-  const date = new Date(`${dateValue}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return "";
-  date.setDate(date.getDate() + amount);
-  return date.toISOString().slice(0, 10);
+  const parts = String(dateValue || "").split("-").map(Number);
+  if (parts.length !== 3 || parts.some((value) => !Number.isFinite(value))) return "";
+  const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+  date.setUTCDate(date.getUTCDate() + amount);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function formatDateTimeLocal(dateValue: string, timeValue: string) {
