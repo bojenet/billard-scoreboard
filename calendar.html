@@ -159,6 +159,32 @@
             gap: 6px;
         }
 
+        .admin-settings {
+            display: none;
+            gap: 10px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: var(--soft);
+        }
+
+        .admin-settings.open {
+            display: grid;
+        }
+
+        .admin-settings-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .admin-settings-meta {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
         .feed-heading {
             font-size: 13px;
             font-weight: 700;
@@ -569,7 +595,7 @@
     </style>
 </head>
 <body>
-    <div class="header">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</div>
+    <div id="calendarHeader" class="header">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</div>
 
     <div class="page">
         <div class="panel">
@@ -607,6 +633,18 @@
                         <span class="legend-pill"><span class="legend-dot dbu"></span>DBU</span>
                         <span class="legend-pill"><span class="legend-dot other"></span>Sonstiges</span>
                     </div>
+                </div>
+                <div id="calendarAdminSettings" class="admin-settings">
+                    <div class="feed-heading">Admin: NBV-Quelle</div>
+                    <div class="feed-copy">Hier die NBV-Kalender-URL hinterlegen. Die Saison wird automatisch daraus gelesen und fuer den gesamten Kalender verwendet.</div>
+                    <div class="admin-settings-row">
+                        <div>
+                            <label class="field-title" for="calendarSourceUrlInput">NBV URL</label>
+                            <input id="calendarSourceUrlInput" type="url" placeholder="https://www.ndbv.de/sb_meisterschaft.php?p=20--2026/2027---8-1--100000--" oninput="previewCalendarSeasonFromUrl()">
+                        </div>
+                        <button id="calendarSourceUrlSaveBtn" class="btn btn-save" type="button" onclick="saveCalendarSettings()">Quelle speichern</button>
+                    </div>
+                    <div id="calendarSourceUrlInfo" class="admin-settings-meta">Saison wird aus der URL gelesen.</div>
                 </div>
                 <div class="feed-actions">
                     <button id="manualEventOpenBtn" class="btn btn-save" type="button" onclick="openManualEventModal()" style="display:none;">Manuellen Termin anlegen</button>
@@ -681,7 +719,9 @@
         const CALENDAR_MANUAL_STORAGE_KEY = "standalone_calendar_manual_v1";
         const CALENDAR_FILTER_STORAGE_KEY = "standalone_calendar_filter_v1";
         const CALENDAR_TYPE_FILTER_STORAGE_KEY = "standalone_calendar_type_filter_v1";
-        const NBV_CALENDAR_SEASON = "2025/2026";
+        const CALENDAR_SETTINGS_KEY = "nbv_public_calendar";
+        const DEFAULT_NBV_CALENDAR_SEASON = "2025/2026";
+        const DEFAULT_CALENDAR_HEADER_PREFIX = "Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison ";
         const PUBLIC_SUPABASE_URL = "https://kstqhcaazuuxchqtnyfc.supabase.co";
         const MANUAL_CATEGORY_ID = "other";
         const MANUAL_CATEGORY_LABEL = "Sonstige";
@@ -714,6 +754,8 @@
         let activeTournamentTypeFilter = "all";
         let isCalendarAdmin = false;
         let editingManualEventId = null;
+        let currentCalendarSeason = DEFAULT_NBV_CALENDAR_SEASON;
+        let currentCalendarSourceUrl = "";
 
         function escapeHtml(value) {
             return String(value || "")
@@ -722,6 +764,47 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#39;");
+        }
+
+        function decodeUrlValue(value) {
+            try {
+                return decodeURIComponent(String(value || "").trim());
+            } catch (error) {
+                return String(value || "").trim();
+            }
+        }
+
+        function extractSeasonFromSourceUrl(sourceUrl) {
+            const normalized = decodeUrlValue(sourceUrl);
+            const match = normalized.match(/\b(20\d{2}\/20\d{2})\b/);
+            return match ? match[1] : "";
+        }
+
+        function updateCalendarSeasonUi() {
+            const season = currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON;
+            const titleText = `${DEFAULT_CALENDAR_HEADER_PREFIX}${season}`;
+            const header = document.getElementById("calendarHeader");
+            if (header) {
+                header.textContent = titleText;
+            }
+            document.title = titleText;
+        }
+
+        function previewCalendarSeasonFromUrl() {
+            const info = document.getElementById("calendarSourceUrlInfo");
+            const input = document.getElementById("calendarSourceUrlInput");
+            if (!info || !input) return;
+            const sourceUrl = String(input.value || "").trim();
+            const season = extractSeasonFromSourceUrl(sourceUrl);
+            if (!sourceUrl) {
+                info.textContent = `Keine URL hinterlegt. Es bleibt Saison ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON}.`;
+                return;
+            }
+            if (!season) {
+                info.textContent = "In dieser URL wurde keine Saison im Format 2026/2027 gefunden.";
+                return;
+            }
+            info.textContent = `Erkannte Saison: ${season}`;
         }
 
         function showCalendarMessage(text, type) {
@@ -988,7 +1071,7 @@
 
         function getCalendarFeedUrl() {
             const baseUrl = `${PUBLIC_SUPABASE_URL}/functions/v1/get-nbv-calendar-ics`;
-            const params = new URLSearchParams({ season: NBV_CALENDAR_SEASON });
+            const params = new URLSearchParams({ season: currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON });
             if (activeDisciplineFilter !== "all" && activeDisciplineFilter !== MANUAL_CATEGORY_ID) {
                 params.set("disciplineId", activeDisciplineFilter);
                 params.set("disciplineLabel", NBV_DISCIPLINES[activeDisciplineFilter] || "");
@@ -1180,6 +1263,72 @@
             localStorage.setItem(CALENDAR_TYPE_FILTER_STORAGE_KEY, "all");
         }
 
+        async function loadCalendarSettings() {
+            currentCalendarSeason = DEFAULT_NBV_CALENDAR_SEASON;
+            currentCalendarSourceUrl = "";
+            try {
+                const { data, error } = await supabaseClient
+                    .from("calendar_settings")
+                    .select("source_url, season")
+                    .eq("key", CALENDAR_SETTINGS_KEY)
+                    .maybeSingle();
+                if (error) throw error;
+                currentCalendarSourceUrl = String(data?.source_url || "").trim();
+                currentCalendarSeason = String(data?.season || "").trim() || DEFAULT_NBV_CALENDAR_SEASON;
+                const derivedSeason = extractSeasonFromSourceUrl(currentCalendarSourceUrl);
+                if (derivedSeason) {
+                    currentCalendarSeason = derivedSeason;
+                }
+            } catch (error) {
+                console.warn("Kalender-Einstellungen konnten nicht geladen werden:", error);
+            }
+
+            const sourceUrlInput = document.getElementById("calendarSourceUrlInput");
+            if (sourceUrlInput) {
+                sourceUrlInput.value = currentCalendarSourceUrl;
+            }
+            updateCalendarSeasonUi();
+            previewCalendarSeasonFromUrl();
+        }
+
+        async function saveCalendarSettings() {
+            if (!isCalendarAdmin) return;
+            const input = document.getElementById("calendarSourceUrlInput");
+            const sourceUrl = String(input?.value || "").trim();
+            const derivedSeason = extractSeasonFromSourceUrl(sourceUrl);
+            const nextSeason = derivedSeason || DEFAULT_NBV_CALENDAR_SEASON;
+
+            if (sourceUrl && !derivedSeason) {
+                showCalendarMessage("Aus der NBV-URL konnte keine Saison gelesen werden. Erwartet wird zum Beispiel 2026/2027.", "error");
+                previewCalendarSeasonFromUrl();
+                return;
+            }
+
+            try {
+                const payload = {
+                    key: CALENDAR_SETTINGS_KEY,
+                    source_url: sourceUrl,
+                    season: nextSeason,
+                    updated_at: new Date().toISOString(),
+                    updated_by: currentUser?.id || null
+                };
+                const { error } = await supabaseClient
+                    .from("calendar_settings")
+                    .upsert(payload, { onConflict: "key" });
+                if (error) throw error;
+                currentCalendarSourceUrl = sourceUrl;
+                currentCalendarSeason = nextSeason;
+                updateCalendarSeasonUi();
+                previewCalendarSeasonFromUrl();
+                updateCalendarFeedUi();
+                showCalendarMessage(`NBV-Quelle gespeichert. Kalender laedt jetzt Saison ${currentCalendarSeason}.`, "ok");
+                await refreshCalendar();
+            } catch (error) {
+                console.warn("Kalender-Einstellungen konnten nicht gespeichert werden:", error);
+                showCalendarMessage("Die NBV-Quelle konnte nicht gespeichert werden.", "error");
+            }
+        }
+
         async function refreshCalendar() {
             showCalendarMessage("", "");
             setCalendarLoading(true, "NBV-Termine werden geladen...");
@@ -1188,12 +1337,17 @@
                 const disciplines = Object.entries(NBV_DISCIPLINES).map(([id, label]) => ({ id, label }));
                 const { data, error } = await supabaseClient.functions.invoke("get-nbv-calendar", {
                     body: {
-                        season: NBV_CALENDAR_SEASON,
+                        season: currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON,
                         disciplines
                     }
                 });
                 if (error) throw error;
                 importedEvents = Array.isArray(data?.events) ? data.events : [];
+                if (data?.season) {
+                    currentCalendarSeason = String(data.season).trim() || currentCalendarSeason;
+                    updateCalendarSeasonUi();
+                    updateCalendarFeedUi();
+                }
                 const failedDisciplines = Array.isArray(data?.failedDisciplines) ? data.failedDisciplines : [];
                 if (failedDisciplines.length) {
                     showCalendarMessage(`${failedDisciplines.length} Disziplin${failedDisciplines.length === 1 ? "" : "en"} konnten nicht geladen werden. Die übrigen Termine werden angezeigt.`, "error");
@@ -1275,8 +1429,12 @@
         function applyAccessUi() {
             const readOnly = !isCalendarAdmin;
             const openBtn = document.getElementById("manualEventOpenBtn");
+            const settingsBlock = document.getElementById("calendarAdminSettings");
             if (openBtn) {
                 openBtn.style.display = isCalendarAdmin ? "" : "none";
+            }
+            if (settingsBlock) {
+                settingsBlock.classList.toggle("open", isCalendarAdmin);
             }
             document.querySelectorAll("#manualEventDate, #manualEventTime, #manualEventTitle, #manualEventLocation, #manualEventNote").forEach((input) => {
                 input.disabled = readOnly;
@@ -1301,6 +1459,7 @@
             isCalendarAdmin = currentUser ? await hasAdminAccess(currentUser) : false;
             tournamentAccessMode = isCalendarAdmin ? "edit" : "read";
 
+            await loadCalendarSettings();
             loadSavedFilter();
             renderFilters();
             updateCalendarFeedUi();
