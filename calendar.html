@@ -315,6 +315,9 @@
             font-weight: 700;
             color: var(--text);
             line-height: 1.35;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .event-meta,
@@ -610,6 +613,17 @@
             }).format(date);
         }
 
+        function simplifyVenueName(locationValue) {
+            const location = String(locationValue || "").trim();
+            if (!location) return "";
+            if (/bg\s+hamburg/i.test(location)) return "BG Hamburg";
+            if (/bc\s+wedel/i.test(location)) return "BC Wedel";
+            return location
+                .replace(/^Vereinsheim:\s*/i, "")
+                .replace(/\s+Vereinsheim$/i, "")
+                .trim();
+        }
+
         function getMonthKey(dateValue) {
             return String(dateValue || "").slice(0, 7);
         }
@@ -788,20 +802,19 @@
                                                     <div class="calendar-event ${event.source === "manual" ? "manual" : ""}">
                                                         <div>
                                                             <div class="event-tags">
-                                                                <span class="event-tag">${escapeHtml(event.disciplineLabel || "Ohne Disziplin")}</span>
-                                                                ${event.source === "manual" ? '<span class="event-tag manual">Manuell</span>' : ""}
                                                                 ${event.time ? `<span class="event-tag">${escapeHtml(event.time)}</span>` : ""}
+                                                                ${event.source === "manual" ? '<span class="event-tag manual">Manuell</span>' : ""}
                                                             </div>
                                                             <div class="event-title">${escapeHtml(event.title)}</div>
                                                             ${event.source === "manual" && event.location ? `<div class="event-meta">${escapeHtml(event.location)}</div>` : ""}
-                                                            ${event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
+                                                            ${event.source === "manual" && event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
                                                             ${event.link ? `<div class="event-note"><a class="cc_bluelink" href="${escapeHtml(event.link)}" target="_blank" rel="noreferrer">NBV Details</a></div>` : ""}
                                                         </div>
                                                         ${event.source === "manual" ? `
                                                             <div class="event-actions">
                                                                 <button class="mini-btn danger" type="button" onclick="removeManualEvent('${escapeHtml(event.id)}')">Löschen</button>
                                                             </div>
-                                                        ` : `<div class="event-side">${escapeHtml(event.location || "")}</div>`}
+                                                        ` : `<div class="event-side">${escapeHtml(simplifyVenueName(event.location || ""))}</div>`}
                                                     </div>
                                                 `).join("")}
                                             </div>
