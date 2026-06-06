@@ -614,7 +614,7 @@
             <div class="footer-tools">
                 <div class="footer-tool-block">
                     <div class="feed-heading">Kalender-Abo</div>
-                    <div class="feed-copy">NBV-Termine plus aktuell lokale manuelle Termine. Bei Änderungen an manuellen Einträgen die URL neu kopieren oder neu abonnieren.</div>
+                    <div class="feed-copy">NBV-Termine plus manuelle Termine aus dem oeffentlichen Kalender. Bei Änderungen an manuellen Einträgen die URL neu kopieren oder neu abonnieren.</div>
                     <div id="calendarFeedUrl" class="feed-url">ICS-Feed wird vorbereitet...</div>
                 </div>
                 <div class="footer-tool-block">
@@ -662,7 +662,7 @@
             <div class="modal-head">
                 <div>
                     <h2 id="manualEventModalTitle" class="modal-title">Manueller Termin</h2>
-                    <div class="panel-sub">Eigene Vereinstermine oder interne Hinweise ergänzen. Diese bleiben lokal auf dem Gerät gespeichert.</div>
+                    <div class="panel-sub">Eigene Vereinstermine oder interne Hinweise ergänzen. Diese werden zentral gespeichert und sind auch in der oeffentlichen Ansicht sichtbar.</div>
                 </div>
                 <button class="modal-close" type="button" onclick="closeManualEventModal()" aria-label="Schließen">&times;</button>
             </div>
@@ -756,6 +756,7 @@
         let editingManualEventId = null;
         let currentCalendarSeason = DEFAULT_NBV_CALENDAR_SEASON;
         let currentCalendarSourceUrl = "";
+        let manualEvents = [];
 
         function escapeHtml(value) {
             return String(value || "")
@@ -923,7 +924,7 @@
             });
         }
 
-        function getManualEvents() {
+        function getLegacyLocalManualEvents() {
             try {
                 const raw = JSON.parse(localStorage.getItem(CALENDAR_MANUAL_STORAGE_KEY) || "[]");
                 return Array.isArray(raw) ? raw : [];
@@ -933,8 +934,78 @@
             }
         }
 
-        function saveManualEvents(events) {
-            localStorage.setItem(CALENDAR_MANUAL_STORAGE_KEY, JSON.stringify(events || []));
+        function clearLegacyLocalManualEvents() {
+            localStorage.removeItem(CALENDAR_MANUAL_STORAGE_KEY);
+        }
+
+        function normalizeManualEventRecord(event) {
+            return {
+                id: String(event?.id || "").trim(),
+                date: String(event?.date || "").trim(),
+                time: String(event?.time || "").trim(),
+                endDate: String(event?.end_date || event?.endDate || "").trim(),
+                allDay: Boolean(event?.all_day ?? event?.allDay),
+                title: String(event?.title || "").trim(),
+                location: String(event?.location || "").trim(),
+                note: String(event?.note || "").trim(),
+                source: "manual",
+                link: "",
+                disciplineId: String(event?.discipline_id || event?.disciplineId || MANUAL_CATEGORY_ID).trim() || MANUAL_CATEGORY_ID,
+                disciplineLabel: String(event?.discipline_label || event?.disciplineLabel || MANUAL_CATEGORY_LABEL).trim() || MANUAL_CATEGORY_LABEL
+            };
+        }
+
+        function getManualEvents() {
+            return Array.isArray(manualEvents) ? manualEvents : [];
+        }
+
+        async function loadManualEvents() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from("calendar_manual_events")
+                    .select("id, date, time, end_date, all_day, title, location, note, discipline_id, discipline_label")
+                    .order("date", { ascending: true })
+                    .order("time", { ascending: true });
+                if (error) throw error;
+                manualEvents = Array.isArray(data) ? data.map(normalizeManualEventRecord) : [];
+            } catch (error) {
+                console.warn("Zentrale manuelle Kalendertermine konnten nicht geladen werden:", error);
+                manualEvents = [];
+            }
+        }
+
+        async function migrateLegacyLocalManualEvents() {
+            if (!isCalendarAdmin) return;
+            const legacyEvents = getLegacyLocalManualEvents()
+                .map(normalizeManualEventRecord)
+                .filter((event) => event.id && event.date && event.title);
+            if (!legacyEvents.length) return;
+            const payload = legacyEvents.map((event) => ({
+                id: event.id,
+                date: event.date,
+                time: event.time || "",
+                end_date: event.endDate || null,
+                all_day: Boolean(event.allDay),
+                title: event.title,
+                location: event.location || "",
+                note: event.note || "",
+                discipline_id: event.disciplineId || MANUAL_CATEGORY_ID,
+                discipline_label: event.disciplineLabel || MANUAL_CATEGORY_LABEL,
+                updated_at: new Date().toISOString(),
+                updated_by: currentUser?.id || null
+            }));
+
+            try {
+                const { error } = await supabaseClient
+                    .from("calendar_manual_events")
+                    .upsert(payload, { onConflict: "id" });
+                if (error) throw error;
+                clearLegacyLocalManualEvents();
+                await loadManualEvents();
+                showCalendarMessage("Lokale manuelle Termine wurden in den oeffentlichen Kalender uebernommen.", "ok");
+            } catch (error) {
+                console.warn("Lokale manuelle Termine konnten nicht migriert werden:", error);
+            }
         }
 
         function resetManualEventForm() {
@@ -1362,6 +1433,7 @@
                 setCalendarLoading(false);
             }
 
+            await loadManualEvents();
             renderCalendar();
         }
 
@@ -1369,7 +1441,7 @@
             return;
         }
 
-        function saveManualEvent() {
+        async function saveManualEvent() {
             const date = String(document.getElementById("manualEventDate")?.value || "").trim();
             const time = String(document.getElementById("manualEventTime")?.value || "").trim();
             const durationMode = String(document.getElementById("manualEventMultiDay")?.value || "single").trim();
@@ -1389,41 +1461,57 @@
                 return;
             }
 
-            const events = getManualEvents();
             const payload = {
                 id: editingManualEventId || `manual-${Date.now()}`,
                 date,
                 time: allDay ? "" : time,
-                endDate: allDay ? endDate : "",
-                allDay: allDay || Boolean(endDate),
+                end_date: allDay ? endDate : null,
+                all_day: allDay || Boolean(endDate),
                 title,
                 location,
                 note,
-                source: "manual",
-                link: "",
-                disciplineId: MANUAL_CATEGORY_ID,
-                disciplineLabel: MANUAL_CATEGORY_LABEL
+                discipline_id: MANUAL_CATEGORY_ID,
+                discipline_label: MANUAL_CATEGORY_LABEL,
+                updated_at: new Date().toISOString(),
+                updated_by: currentUser?.id || null
             };
-            const nextEvents = editingManualEventId
-                ? events.map((event) => event.id === editingManualEventId ? payload : event)
-                : [...events, payload];
-            saveManualEvents(nextEvents);
-            const wasEditing = Boolean(editingManualEventId);
-            resetManualEventForm();
-            closeManualEventModal();
-            showCalendarMessage(wasEditing ? "Manueller Termin wurde aktualisiert." : "Manueller Termin wurde hinzugefügt.", "ok");
-            updateCalendarFeedUi();
-            renderCalendar();
+
+            try {
+                const { error } = await supabaseClient
+                    .from("calendar_manual_events")
+                    .upsert(payload, { onConflict: "id" });
+                if (error) throw error;
+                const wasEditing = Boolean(editingManualEventId);
+                await loadManualEvents();
+                resetManualEventForm();
+                closeManualEventModal();
+                showCalendarMessage(wasEditing ? "Manueller Termin wurde aktualisiert." : "Manueller Termin wurde hinzugefügt.", "ok");
+                updateCalendarFeedUi();
+                renderCalendar();
+            } catch (error) {
+                console.warn("Manueller Termin konnte nicht gespeichert werden:", error);
+                showCalendarMessage("Manueller Termin konnte nicht gespeichert werden.", "error");
+            }
         }
 
-        function removeManualEvent(eventId) {
-            saveManualEvents(getManualEvents().filter((event) => event.id !== eventId));
-            if (editingManualEventId === eventId) {
-                resetManualEventForm();
+        async function removeManualEvent(eventId) {
+            try {
+                const { error } = await supabaseClient
+                    .from("calendar_manual_events")
+                    .delete()
+                    .eq("id", eventId);
+                if (error) throw error;
+                if (editingManualEventId === eventId) {
+                    resetManualEventForm();
+                }
+                await loadManualEvents();
+                showCalendarMessage("Manueller Termin wurde entfernt.", "ok");
+                updateCalendarFeedUi();
+                renderCalendar();
+            } catch (error) {
+                console.warn("Manueller Termin konnte nicht entfernt werden:", error);
+                showCalendarMessage("Manueller Termin konnte nicht entfernt werden.", "error");
             }
-            showCalendarMessage("Manueller Termin wurde entfernt.", "ok");
-            updateCalendarFeedUi();
-            renderCalendar();
         }
 
         function applyAccessUi() {
@@ -1460,6 +1548,8 @@
             tournamentAccessMode = isCalendarAdmin ? "edit" : "read";
 
             await loadCalendarSettings();
+            await loadManualEvents();
+            await migrateLegacyLocalManualEvents();
             loadSavedFilter();
             renderFilters();
             updateCalendarFeedUi();
