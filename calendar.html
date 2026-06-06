@@ -199,6 +199,44 @@
             color: var(--muted);
         }
 
+        .loading-wrap {
+            display: none;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .loading-wrap.active {
+            display: grid;
+        }
+
+        .loading-text {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .loading-bar {
+            height: 8px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: #e5e7eb;
+            position: relative;
+        }
+
+        .loading-bar::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            width: 38%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #7ea1c8 0%, #2d5880 50%, #7ea1c8 100%);
+            animation: loading-slide 1.2s ease-in-out infinite;
+        }
+
+        @keyframes loading-slide {
+            0% { transform: translateX(-110%); }
+            100% { transform: translateX(280%); }
+        }
+
         .filter-select {
             max-width: 360px;
         }
@@ -513,6 +551,10 @@
     <div class="page">
         <div class="panel">
             <div id="calendarFilters" class="filters"></div>
+            <div id="calendarLoading" class="loading-wrap">
+                <div id="calendarLoadingText" class="loading-text">NBV-Termine werden geladen...</div>
+                <div class="loading-bar"></div>
+            </div>
             <div id="calendarMessage" class="message"></div>
             <div id="calendarGrid" class="calendar-grid">
                 <div class="empty-state">Noch keine Kalenderdaten vorhanden.</div>
@@ -664,6 +706,17 @@
             if (!el) return;
             el.textContent = text || "";
             el.className = "message" + (type ? " " + type : "");
+        }
+
+        function setCalendarLoading(isLoading, text) {
+            const wrap = document.getElementById("calendarLoading");
+            const label = document.getElementById("calendarLoadingText");
+            if (wrap) {
+                wrap.classList.toggle("active", Boolean(isLoading));
+            }
+            if (label && text) {
+                label.textContent = text;
+            }
         }
 
         function formatMonthLabel(monthKey) {
@@ -1083,8 +1136,7 @@
 
         async function refreshCalendar() {
             showCalendarMessage("", "");
-            const source = document.getElementById("calendarSourceStatus");
-            if (source) source.textContent = "NBV lädt...";
+            setCalendarLoading(true, "NBV-Termine werden geladen...");
 
             try {
                 const disciplines = Object.entries(NBV_DISCIPLINES).map(([id, label]) => ({ id, label }));
@@ -1096,7 +1148,6 @@
                 });
                 if (error) throw error;
                 importedEvents = Array.isArray(data?.events) ? data.events : [];
-                if (source) source.textContent = `NBV geladen · ${disciplines.length} Disziplinen`;
                 const failedDisciplines = Array.isArray(data?.failedDisciplines) ? data.failedDisciplines : [];
                 if (failedDisciplines.length) {
                     showCalendarMessage(`${failedDisciplines.length} Disziplin${failedDisciplines.length === 1 ? "" : "en"} konnten nicht geladen werden. Die übrigen Termine werden angezeigt.`, "error");
@@ -1106,8 +1157,9 @@
             } catch (error) {
                 console.warn("Kalender konnte nicht geladen werden:", error);
                 importedEvents = [];
-                if (source) source.textContent = "NBV Abruf fehlgeschlagen";
                 showCalendarMessage("NBV-Termine konnten nicht geladen werden. Manuelle Einträge bleiben verfügbar.", "error");
+            } finally {
+                setCalendarLoading(false);
             }
 
             renderCalendar();
@@ -1210,8 +1262,6 @@
             resetManualEventForm();
             renderCalendar();
             applyAccessUi();
-            const source = document.getElementById("calendarSourceStatus");
-            if (source) source.textContent = `NBV Saison ${NBV_CALENDAR_SEASON}`;
             await refreshCalendar();
         }
 
