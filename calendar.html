@@ -467,7 +467,7 @@
             </div>
         </div>
 
-        <div class="panel">
+        <div id="manualEventsPanel" class="panel">
             <h2>Manueller Termin</h2>
             <div class="panel-sub">Eigene Vereinstermine oder interne Hinweise ergänzen. Diese bleiben lokal auf dem Gerät gespeichert.</div>
             <div class="form-grid">
@@ -575,6 +575,7 @@
         let importedEvents = [];
         let activeDisciplineFilter = "all";
         let activeTournamentTypeFilter = "all";
+        let isCalendarAdmin = false;
 
         function escapeHtml(value) {
             return String(value || "")
@@ -965,7 +966,11 @@
         }
 
         function applyAccessUi() {
-            const readOnly = !isTournamentEditable(tournamentAccessMode);
+            const readOnly = !isCalendarAdmin;
+            const manualPanel = document.getElementById("manualEventsPanel");
+            if (manualPanel) {
+                manualPanel.style.display = isCalendarAdmin ? "" : "none";
+            }
             document.querySelectorAll("#manualEventDate, #manualEventTime, #manualEventTitle, #manualEventLocation, #manualEventNote").forEach((input) => {
                 input.disabled = readOnly;
             });
@@ -975,16 +980,11 @@
         }
 
         async function initPage() {
-            currentUser = await requireAuth();
-            if (!currentUser) return;
-            tournamentAccessMode = await getTournamentAccess(currentUser);
-            if (!isTournamentVisible(tournamentAccessMode)) {
-                window.location.href = "index.html";
-                return;
-            }
+            currentUser = await getCurrentUser();
+            isCalendarAdmin = currentUser ? await hasAdminAccess(currentUser) : false;
+            tournamentAccessMode = isCalendarAdmin ? "edit" : "read";
 
             loadSavedFilter();
-            populateManualDisciplineSelect();
             renderFilters();
             updateCalendarFeedUi();
             renderCalendar();
