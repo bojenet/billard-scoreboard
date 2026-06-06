@@ -1289,7 +1289,7 @@
                                                             ${event.source === "manual" && event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
                                                             ${event.link ? `<div class="event-note"><a class="cc_bluelink" href="${escapeHtml(event.link)}" target="_blank" rel="noreferrer">NBV Details</a></div>` : ""}
                                                         </div>
-                                                        ${event.source === "manual" && (!isManualMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
+                                                        ${isCalendarAdmin && event.source === "manual" && (!isManualMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
                                                             <div class="event-actions">
                                                                 <button class="mini-btn" type="button" onclick="startManualEventEdit('${escapeHtml(event.id)}')">Bearbeiten</button>
                                                                 <button class="mini-btn danger" type="button" onclick="removeManualEvent('${escapeHtml(event.id)}')">Löschen</button>
