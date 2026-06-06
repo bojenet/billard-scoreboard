@@ -207,6 +207,8 @@
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 22px 18px;
+            align-items: start;
+            align-content: start;
         }
 
         .calendar-month {
@@ -823,8 +825,8 @@
         }
 
         function loadSavedFilter() {
-            const saved = String(localStorage.getItem(CALENDAR_FILTER_STORAGE_KEY) || "all");
-            activeDisciplineFilter = saved === "all" || saved === MANUAL_CATEGORY_ID || NBV_DISCIPLINES[saved] ? saved : "all";
+            activeDisciplineFilter = "all";
+            localStorage.setItem(CALENDAR_FILTER_STORAGE_KEY, "all");
         }
 
         async function refreshCalendar() {
