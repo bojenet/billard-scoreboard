@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Kalender</title>
+    <title>Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</title>
     <style>
         :root {
             --bg: #f3f1ea;
@@ -33,17 +33,11 @@
 
         .header {
             text-align: center;
-            padding: 28px 16px 6px;
-            font-size: 36px;
+            padding: 28px 16px 18px;
+            font-size: 28px;
             font-weight: 700;
             color: var(--head);
-        }
-
-        .sub {
-            text-align: center;
-            color: #4b5563;
-            font-size: 15px;
-            margin-bottom: 18px;
+            line-height: 1.2;
         }
 
         .page {
@@ -84,28 +78,6 @@
             color: #475467;
         }
 
-        .topbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 16px;
-            margin-bottom: 14px;
-        }
-
-        .topbar-main {
-            display: grid;
-            gap: 10px;
-        }
-
-        .topbar-copy {
-            font-size: 14px;
-            color: #4b5563;
-            line-height: 1.45;
-            max-width: 44ch;
-        }
-
-        .summary-badges,
-        .topbar-actions,
         .feed-actions,
         .meta-list {
             display: flex;
@@ -177,7 +149,7 @@
             padding-top: 12px;
             border-top: 1px solid var(--line);
             display: grid;
-            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) auto;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(220px, auto);
             gap: 14px;
             align-items: center;
         }
@@ -458,10 +430,6 @@
                 grid-template-columns: 1fr;
             }
 
-            .topbar {
-                flex-direction: column;
-                align-items: stretch;
-            }
         }
 
         @media (max-width: 1100px) {
@@ -471,14 +439,11 @@
         }
 
         @media (max-width: 720px) {
-            .header { font-size: 28px; padding-top: 22px; }
+            .header { font-size: 22px; padding-top: 22px; }
             .button-row .btn { width: 100%; }
-            .topbar-actions,
-            .feed-actions,
-            .summary-badges {
+            .feed-actions {
                 align-items: stretch;
             }
-            .topbar-actions .btn,
             .feed-actions .btn,
             .feed-actions a {
                 width: 100%;
@@ -493,25 +458,10 @@
     </style>
 </head>
 <body>
-    <div class="header">Kalender</div>
-    <div class="sub">Alle NBV-Termine auf einen Blick, Disziplinen als Filter, eigene Termine direkt ergänzbar.</div>
+    <div class="header">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</div>
 
     <div class="page">
         <div class="panel">
-            <div class="topbar">
-                <div class="topbar-main">
-                    <div class="plan-title">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</div>
-                    <div class="topbar-copy">Alle NBV-Termine auf einen Blick. Disziplinen unten als Filter, eigene Termine weiter unten ergänzbar.</div>
-                    <div class="summary-badges">
-                        <div id="calendarSourceStatus" class="badge">Noch nicht geladen</div>
-                        <div id="calendarCountBadge" class="badge">0 Termine</div>
-                    </div>
-                </div>
-                <div class="topbar-actions">
-                    <button class="btn btn-primary" type="button" onclick="refreshCalendar()">NBV Termine laden</button>
-                    <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
-                </div>
-            </div>
             <div id="calendarFilters" class="filters"></div>
             <div id="calendarMessage" class="message"></div>
             <div id="calendarGrid" class="calendar-grid">
@@ -578,8 +528,10 @@
                     </div>
                 </div>
                 <div class="feed-actions">
+                    <button class="btn btn-primary" type="button" onclick="refreshCalendar()">NBV Termine laden</button>
                     <button class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
                     <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer">ICS abonnieren</a>
+                    <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
                 </div>
             </div>
         </div>
@@ -723,12 +675,6 @@
             return allEvents.filter((event) => String(event.disciplineId || "") === activeDisciplineFilter);
         }
 
-        function updateStatusBadges() {
-            const count = document.getElementById("calendarCountBadge");
-            const events = getFilteredEvents();
-            if (count) count.textContent = `${events.length} Termin${events.length === 1 ? "" : "e"}`;
-        }
-
         function getCalendarFeedUrl() {
             const baseUrl = `${PUBLIC_SUPABASE_URL}/functions/v1/get-nbv-calendar-ics`;
             const params = new URLSearchParams({ season: NBV_CALENDAR_SEASON });
@@ -805,7 +751,6 @@
             const grid = document.getElementById("calendarGrid");
             if (!grid) return;
             const events = getFilteredEvents();
-            updateStatusBadges();
 
             if (!events.length) {
                 grid.innerHTML = '<div class="empty-state">Für den aktuellen Filter sind noch keine Termine vorhanden.</div>';
