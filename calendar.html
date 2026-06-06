@@ -101,6 +101,24 @@
             color: #475467;
         }
 
+        .feed-panel {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 14px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            background: #fff;
+            border-radius: 4px;
+        }
+
+        .feed-url {
+            font-size: 13px;
+            color: #344054;
+            word-break: break-all;
+        }
+
         .plan-meta {
             display: grid;
             grid-template-columns: minmax(0, 2.4fr) minmax(220px, 1.2fr) minmax(220px, 1.2fr);
@@ -411,6 +429,7 @@
             .header { font-size: 28px; padding-top: 22px; }
             .toolbar, .toolbar-left, .toolbar-right { align-items: stretch; }
             .button-row .btn { width: 100%; }
+            .feed-panel { grid-template-columns: 1fr; }
             .calendar-grid { grid-template-columns: 1fr; }
             .calendar-table td { font-size: 12px; }
             .calendar-dow { width: 26px; }
@@ -453,6 +472,12 @@
                     <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
                 </div>
             </div>
+            <div class="feed-panel">
+                <div id="calendarFeedUrl" class="feed-url">ICS-Feed wird vorbereitet...</div>
+                <button class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
+                <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer">ICS abonnieren</a>
+            </div>
+            <div class="panel-sub">Das ICS-Abo enthält die serverseitig geladenen NBV-Termine. Manuelle lokale Termine werden darin nicht mitgeführt.</div>
             <div id="calendarFilters" class="filters"></div>
             <div id="calendarMessage" class="message"></div>
             <div id="calendarGrid" class="calendar-grid">
@@ -504,6 +529,7 @@
         const CALENDAR_MANUAL_STORAGE_KEY = "standalone_calendar_manual_v1";
         const CALENDAR_FILTER_STORAGE_KEY = "standalone_calendar_filter_v1";
         const NBV_CALENDAR_SEASON = "2025/2026";
+        const PUBLIC_SUPABASE_URL = "https://kstqhcaazuuxchqtnyfc.supabase.co";
         const NBV_DISCIPLINES = {
             "56": "Biathlon",
             "36": "Billard Kegeln",
@@ -629,6 +655,38 @@
             if (count) count.textContent = `${events.length} Termin${events.length === 1 ? "" : "e"}`;
         }
 
+        function getCalendarFeedUrl() {
+            const baseUrl = `${PUBLIC_SUPABASE_URL}/functions/v1/get-nbv-calendar-ics`;
+            const params = new URLSearchParams({ season: NBV_CALENDAR_SEASON });
+            if (activeDisciplineFilter !== "all") {
+                params.set("disciplineId", activeDisciplineFilter);
+                params.set("disciplineLabel", NBV_DISCIPLINES[activeDisciplineFilter] || "");
+            }
+            return `${baseUrl}?${params.toString()}`;
+        }
+
+        function updateCalendarFeedUi() {
+            const url = getCalendarFeedUrl();
+            const label = document.getElementById("calendarFeedUrl");
+            const link = document.getElementById("calendarFeedLink");
+            if (label) label.textContent = `${activeDisciplineFilter === "all" ? "Alle Disziplinen" : (NBV_DISCIPLINES[activeDisciplineFilter] || "Disziplin")} · ${url}`;
+            if (link) {
+                link.href = url.replace(/^https:/i, "webcal:");
+                link.title = "Kalender-Abo im Standard-Kalender öffnen";
+            }
+        }
+
+        async function copyCalendarFeedUrl() {
+            const url = getCalendarFeedUrl();
+            try {
+                await navigator.clipboard.writeText(url);
+                showCalendarMessage("ICS-Feed-URL wurde in die Zwischenablage kopiert.", "ok");
+            } catch (error) {
+                console.warn("ICS-Feed-URL konnte nicht kopiert werden:", error);
+                showCalendarMessage("ICS-Feed-URL konnte nicht automatisch kopiert werden.", "error");
+            }
+        }
+
         function renderFilters() {
             const wrap = document.getElementById("calendarFilters");
             if (!wrap) return;
@@ -716,6 +774,7 @@
             localStorage.setItem(CALENDAR_FILTER_STORAGE_KEY, activeDisciplineFilter);
             renderFilters();
             populateManualDisciplineSelect();
+            updateCalendarFeedUi();
             renderCalendar();
         }
 
@@ -832,6 +891,7 @@
             loadSavedFilter();
             populateManualDisciplineSelect();
             renderFilters();
+            updateCalendarFeedUi();
             renderCalendar();
             applyAccessUi();
             const source = document.getElementById("calendarSourceStatus");
