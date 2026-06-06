@@ -182,6 +182,13 @@ function formatDateOnly(dateValue: string) {
   return String(dateValue || "").replace(/-/g, "");
 }
 
+function addDays(dateValue: string, amount: number) {
+  const date = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + amount);
+  return date.toISOString().slice(0, 10);
+}
+
 function formatDateTimeLocal(dateValue: string, timeValue: string) {
   const compactDate = formatDateOnly(dateValue);
   const compactTime = String(timeValue || "").replace(":", "");
@@ -227,7 +234,10 @@ function buildIcs(events: CalendarEvent[], calendarName: string) {
     lines.push("BEGIN:VEVENT");
     lines.push(`UID:${escapeIcsText(uid)}`);
     lines.push(`DTSTAMP:${stamp}`);
-    if (event.time) {
+    if ((event as { allDay?: boolean; endDate?: string }).allDay && (event as { endDate?: string }).endDate) {
+      lines.push(`DTSTART;VALUE=DATE:${formatDateOnly(event.date)}`);
+      lines.push(`DTEND;VALUE=DATE:${formatDateOnly(addDays((event as { endDate: string }).endDate, 1))}`);
+    } else if (event.time) {
       lines.push(`DTSTART;TZID=Europe/Berlin:${formatDateTimeLocal(event.date, event.time)}`);
     } else {
       lines.push(`DTSTART;VALUE=DATE:${formatDateOnly(event.date)}`);
@@ -299,6 +309,8 @@ function decodeManualEvents(payload: string | null): CalendarEvent[] {
         id: String(event.id || `manual-${createEventId(String(event.date), String(event.title))}`),
         date: String(event.date || "").trim(),
         time: String(event.time || "").trim(),
+        endDate: String(event.endDate || "").trim(),
+        allDay: Boolean(event.allDay),
         title: String(event.title || "").trim(),
         location: String(event.location || "").trim(),
         note: String(event.note || "").trim(),

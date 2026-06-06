@@ -473,15 +473,26 @@
             <div class="form-grid">
                 <div>
                     <label class="field-title" for="manualEventDate">Datum</label>
-                    <input id="manualEventDate" type="date">
+                    <input id="manualEventDate" type="date" onchange="handleManualDurationChange()">
                 </div>
                 <div>
                     <label class="field-title" for="manualEventTime">Uhrzeit</label>
                     <input id="manualEventTime" type="time">
                 </div>
                 <div>
+                    <label class="field-title" for="manualEventMultiDay">Dauer</label>
+                    <select id="manualEventMultiDay" onchange="handleManualDurationChange()">
+                        <option value="single">Eintägig</option>
+                        <option value="multi">Mehrtägig</option>
+                    </select>
+                </div>
+                <div>
                     <label class="field-title">Rubrik</label>
                     <input type="text" value="Sonstige" disabled>
+                </div>
+                <div>
+                    <label class="field-title" for="manualEventEndDate">Bis Datum</label>
+                    <input id="manualEventEndDate" type="date" disabled>
                 </div>
                 <div class="field-full">
                     <label class="field-title" for="manualEventTitle">Titel</label>
@@ -497,7 +508,8 @@
                 </div>
             </div>
             <div class="button-row">
-                <button class="btn btn-save" type="button" onclick="addManualEvent()">Termin hinzufügen</button>
+                <button id="manualEventSubmitBtn" class="btn btn-save" type="button" onclick="saveManualEvent()">Termin hinzufügen</button>
+                <button id="manualEventCancelBtn" class="btn btn-secondary" type="button" onclick="cancelManualEventEdit()" style="display:none;">Bearbeitung abbrechen</button>
             </div>
         </div>
 
@@ -576,6 +588,7 @@
         let activeDisciplineFilter = "all";
         let activeTournamentTypeFilter = "all";
         let isCalendarAdmin = false;
+        let editingManualEventId = null;
 
         function escapeHtml(value) {
             return String(value || "")
@@ -637,6 +650,27 @@
             return String(dateValue || "").slice(0, 7);
         }
 
+        function addDays(dateValue, amount) {
+            const date = new Date(`${dateValue}T00:00:00`);
+            if (Number.isNaN(date.getTime())) return "";
+            date.setDate(date.getDate() + amount);
+            return date.toISOString().slice(0, 10);
+        }
+
+        function eachDateBetween(startDate, endDate) {
+            const dates = [];
+            let cursor = String(startDate || "").trim();
+            const safeEnd = String(endDate || startDate || "").trim();
+            if (!cursor || !safeEnd || safeEnd < cursor) return dates;
+            while (cursor && cursor <= safeEnd) {
+                dates.push(cursor);
+                const next = addDays(cursor, 1);
+                if (!next || next === cursor) break;
+                cursor = next;
+            }
+            return dates;
+        }
+
         function isWeekendDate(dateValue) {
             const date = new Date(`${dateValue}T00:00:00`);
             if (Number.isNaN(date.getTime())) return false;
@@ -670,6 +704,46 @@
             localStorage.setItem(CALENDAR_MANUAL_STORAGE_KEY, JSON.stringify(events || []));
         }
 
+        function resetManualEventForm() {
+            document.getElementById("manualEventDate").value = "";
+            document.getElementById("manualEventTime").value = "";
+            document.getElementById("manualEventMultiDay").value = "single";
+            document.getElementById("manualEventEndDate").value = "";
+            document.getElementById("manualEventTitle").value = "";
+            document.getElementById("manualEventLocation").value = "";
+            document.getElementById("manualEventNote").value = "";
+            editingManualEventId = null;
+            const submitBtn = document.getElementById("manualEventSubmitBtn");
+            const cancelBtn = document.getElementById("manualEventCancelBtn");
+            if (submitBtn) submitBtn.textContent = "Termin hinzufügen";
+            if (cancelBtn) cancelBtn.style.display = "none";
+            handleManualDurationChange();
+        }
+
+        function startManualEventEdit(eventId) {
+            const event = getManualEvents().find((entry) => entry.id === eventId);
+            if (!event) return;
+            editingManualEventId = eventId;
+            document.getElementById("manualEventDate").value = String(event.date || "");
+            document.getElementById("manualEventTime").value = String(event.time || "");
+            document.getElementById("manualEventMultiDay").value = event.allDay ? "multi" : "single";
+            document.getElementById("manualEventEndDate").value = String(event.endDate || "");
+            document.getElementById("manualEventTitle").value = String(event.title || "");
+            document.getElementById("manualEventLocation").value = String(event.location || "");
+            document.getElementById("manualEventNote").value = String(event.note || "");
+            const submitBtn = document.getElementById("manualEventSubmitBtn");
+            const cancelBtn = document.getElementById("manualEventCancelBtn");
+            if (submitBtn) submitBtn.textContent = "Termin speichern";
+            if (cancelBtn) cancelBtn.style.display = "";
+            handleManualDurationChange();
+            document.getElementById("manualEventTitle")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+
+        function cancelManualEventEdit() {
+            resetManualEventForm();
+            showCalendarMessage("Bearbeitung abgebrochen.", "ok");
+        }
+
         function getManualEventsForFeed() {
             const events = getManualEvents();
             if (activeDisciplineFilter === "all") return events;
@@ -688,6 +762,19 @@
                     const rightKey = `${right.date} ${right.time || "99:99"} ${right.title}`;
                     return leftKey.localeCompare(rightKey, "de");
                 });
+        }
+
+        function expandEventsForCalendar(events) {
+            return events.flatMap((event) => {
+                if (event?.source !== "manual" || !event?.allDay || !event?.endDate) {
+                    return [event];
+                }
+                const range = eachDateBetween(event.date, event.endDate);
+                return (range.length ? range : [event.date]).map((dateValue) => ({
+                    ...event,
+                    displayDate: dateValue
+                }));
+            });
         }
 
         function getFilteredEvents() {
@@ -729,6 +816,8 @@
                 id: event.id,
                 date: event.date,
                 time: event.time || "",
+                endDate: event.endDate || "",
+                allDay: Boolean(event.allDay),
                 title: event.title,
                 location: event.location || "",
                 note: event.note || "",
@@ -796,10 +885,32 @@
             `;
         }
 
+        function handleManualDurationChange() {
+            const durationMode = String(document.getElementById("manualEventMultiDay")?.value || "single");
+            const timeInput = document.getElementById("manualEventTime");
+            const endDateInput = document.getElementById("manualEventEndDate");
+            const dateInput = document.getElementById("manualEventDate");
+            const isMultiDay = durationMode === "multi";
+            if (timeInput) {
+                timeInput.disabled = isMultiDay;
+                if (isMultiDay) {
+                    timeInput.value = "";
+                }
+            }
+            if (endDateInput) {
+                endDateInput.disabled = !isMultiDay;
+                if (!isMultiDay) {
+                    endDateInput.value = "";
+                } else if (dateInput?.value && (!endDateInput.value || endDateInput.value < dateInput.value)) {
+                    endDateInput.value = dateInput.value;
+                }
+            }
+        }
+
         function renderCalendar() {
             const grid = document.getElementById("calendarGrid");
             if (!grid) return;
-            const events = getFilteredEvents();
+            const events = expandEventsForCalendar(getFilteredEvents());
 
             if (!events.length) {
                 grid.innerHTML = '<div class="empty-state">Für den aktuellen Filter sind noch keine Termine vorhanden.</div>';
@@ -808,7 +919,7 @@
 
             const monthMap = new Map();
             events.forEach((event) => {
-                const monthKey = getMonthKey(event.date);
+                const monthKey = getMonthKey(event.displayDate || event.date);
                 if (!monthMap.has(monthKey)) monthMap.set(monthKey, []);
                 monthMap.get(monthKey).push(event);
             });
@@ -822,7 +933,7 @@
                     <table class="calendar-table">
                         <tbody>
                             ${getDaysOfMonth(monthKey).map((dateValue) => {
-                                const dayEvents = monthEvents.filter((event) => event.date === dateValue);
+                                const dayEvents = monthEvents.filter((event) => (event.displayDate || event.date) === dateValue);
                                 const weekend = isWeekendDate(dateValue);
                                 return `
                                     <tr class="${weekend ? "calendar-row-weekend" : ""}">
@@ -833,10 +944,11 @@
                                                 ${dayEvents.map((event) => `
                                                     <div class="calendar-event ${event.source === "manual" ? "manual" : ""}">
                                                         <div>
-                                                            <div class="event-tags">
-                                                                ${event.time ? `<span class="event-tag">${escapeHtml(event.time)}</span>` : ""}
-                                                                ${event.source === "manual" ? '<span class="event-tag manual">Manuell</span>' : ""}
-                                                            </div>
+                                                            ${(event.time || event.source === "manual") ? `
+                                                                <div class="event-tags">
+                                                                    ${event.time ? `<span class="event-tag">${escapeHtml(event.time)}</span>` : ""}
+                                                                </div>
+                                                            ` : ""}
                                                             <div class="event-title">${escapeHtml(event.title)}</div>
                                                             ${event.source === "manual" && event.location ? `<div class="event-meta">${escapeHtml(event.location)}</div>` : ""}
                                                             ${event.source === "manual" && event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
@@ -844,6 +956,7 @@
                                                         </div>
                                                         ${event.source === "manual" ? `
                                                             <div class="event-actions">
+                                                                <button class="mini-btn" type="button" onclick="startManualEventEdit('${escapeHtml(event.id)}')">Bearbeiten</button>
                                                                 <button class="mini-btn danger" type="button" onclick="removeManualEvent('${escapeHtml(event.id)}')">Löschen</button>
                                                             </div>
                                                         ` : `<div class="event-side">${escapeHtml(simplifyVenueName(event.location || ""))}</div>`}
@@ -920,23 +1033,33 @@
             return;
         }
 
-        function addManualEvent() {
+        function saveManualEvent() {
             const date = String(document.getElementById("manualEventDate")?.value || "").trim();
             const time = String(document.getElementById("manualEventTime")?.value || "").trim();
+            const durationMode = String(document.getElementById("manualEventMultiDay")?.value || "single").trim();
+            const endDate = String(document.getElementById("manualEventEndDate")?.value || "").trim();
             const title = String(document.getElementById("manualEventTitle")?.value || "").trim();
             const location = String(document.getElementById("manualEventLocation")?.value || "").trim();
             const note = String(document.getElementById("manualEventNote")?.value || "").trim();
+            const allDay = durationMode === "multi";
 
             if (!date || !title) {
                 showCalendarMessage("Bitte mindestens Datum und Titel eintragen.", "error");
                 return;
             }
 
+            if (allDay && (!endDate || endDate < date)) {
+                showCalendarMessage("Bitte fuer mehrtaegige Termine ein gueltiges Enddatum eintragen.", "error");
+                return;
+            }
+
             const events = getManualEvents();
-            events.push({
-                id: `manual-${Date.now()}`,
+            const payload = {
+                id: editingManualEventId || `manual-${Date.now()}`,
                 date,
-                time,
+                time: allDay ? "" : time,
+                endDate: allDay ? endDate : "",
+                allDay,
                 title,
                 location,
                 note,
@@ -944,22 +1067,23 @@
                 link: "",
                 disciplineId: MANUAL_CATEGORY_ID,
                 disciplineLabel: MANUAL_CATEGORY_LABEL
-            });
-            saveManualEvents(events);
-
-            document.getElementById("manualEventDate").value = "";
-            document.getElementById("manualEventTime").value = "";
-            document.getElementById("manualEventTitle").value = "";
-            document.getElementById("manualEventLocation").value = "";
-            document.getElementById("manualEventNote").value = "";
-
-            showCalendarMessage("Manueller Termin wurde hinzugefügt.", "ok");
+            };
+            const nextEvents = editingManualEventId
+                ? events.map((event) => event.id === editingManualEventId ? payload : event)
+                : [...events, payload];
+            saveManualEvents(nextEvents);
+            const wasEditing = Boolean(editingManualEventId);
+            resetManualEventForm();
+            showCalendarMessage(wasEditing ? "Manueller Termin wurde aktualisiert." : "Manueller Termin wurde hinzugefügt.", "ok");
             updateCalendarFeedUi();
             renderCalendar();
         }
 
         function removeManualEvent(eventId) {
             saveManualEvents(getManualEvents().filter((event) => event.id !== eventId));
+            if (editingManualEventId === eventId) {
+                resetManualEventForm();
+            }
             showCalendarMessage("Manueller Termin wurde entfernt.", "ok");
             updateCalendarFeedUi();
             renderCalendar();
@@ -974,6 +1098,16 @@
             document.querySelectorAll("#manualEventDate, #manualEventTime, #manualEventTitle, #manualEventLocation, #manualEventNote").forEach((input) => {
                 input.disabled = readOnly;
             });
+            const durationSelect = document.getElementById("manualEventMultiDay");
+            if (durationSelect) {
+                durationSelect.disabled = readOnly;
+            }
+            const endDateInput = document.getElementById("manualEventEndDate");
+            if (endDateInput && readOnly) {
+                endDateInput.disabled = true;
+            } else if (endDateInput) {
+                handleManualDurationChange();
+            }
             document.querySelectorAll(".btn-save, .mini-btn.danger").forEach((button) => {
                 button.disabled = readOnly;
             });
@@ -987,6 +1121,7 @@
             loadSavedFilter();
             renderFilters();
             updateCalendarFeedUi();
+            handleManualDurationChange();
             renderCalendar();
             applyAccessUi();
             const source = document.getElementById("calendarSourceStatus");
