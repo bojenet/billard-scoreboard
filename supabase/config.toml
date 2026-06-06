@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.get-nbv-calendar-ics]
 verify_jwt = false
+
+[functions.get-nbv-calendar]
+verify_jwt = false
