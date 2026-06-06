@@ -73,23 +73,6 @@
             margin-bottom: 12px;
         }
 
-        .toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 14px;
-        }
-
-        .toolbar-left,
-        .toolbar-right {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
         .badge {
             display: inline-flex;
             align-items: center;
@@ -101,30 +84,131 @@
             color: #475467;
         }
 
-        .feed-panel {
+        .summary-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto auto;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 16px;
+            align-items: stretch;
+        }
+
+        .summary-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 14px;
+            min-height: 188px;
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        .summary-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .summary-copy {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.45;
+            max-width: 38ch;
+        }
+
+        .summary-badges,
+        .summary-actions,
+        .feed-actions,
+        .meta-list {
+            display: flex;
             gap: 10px;
+            flex-wrap: wrap;
             align-items: center;
-            margin-bottom: 14px;
+        }
+
+        .summary-actions {
+            margin-top: auto;
+        }
+
+        .meta-list {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
             padding: 10px 12px;
             border: 1px solid var(--line);
+            background: var(--soft);
+            font-size: 14px;
+        }
+
+        .meta-row strong {
+            font-size: 16px;
+            color: var(--head);
+        }
+
+        .meta-label {
+            color: var(--muted);
+        }
+
+        .legend-pills {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .legend-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
             background: #fff;
-            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            flex: 0 0 auto;
+        }
+
+        .legend-dot.dbu { background: var(--legend-dbu); }
+        .legend-dot.other { background: var(--legend-other); }
+
+        .feed-panel {
+            display: grid;
+            gap: 10px;
+        }
+
+        .feed-heading {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--head);
+        }
+
+        .feed-copy {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.45;
         }
 
         .feed-url {
             font-size: 13px;
-            color: #344054;
-            word-break: break-all;
-        }
-
-        .plan-meta {
-            display: grid;
-            grid-template-columns: minmax(0, 2.4fr) minmax(220px, 1.2fr) minmax(220px, 1.2fr);
-            gap: 14px;
-            margin-bottom: 18px;
-            align-items: start;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .plan-title {
@@ -132,46 +216,6 @@
             font-weight: 700;
             color: var(--head);
             line-height: 1.2;
-        }
-
-        .plan-legend,
-        .plan-stamp {
-            border: 1px solid var(--line);
-            background: #fff;
-        }
-
-        .plan-legend-row,
-        .plan-stamp-row {
-            display: grid;
-            grid-template-columns: 48px 1fr;
-            min-height: 24px;
-            border-bottom: 1px solid var(--line);
-        }
-
-        .plan-stamp-row {
-            grid-template-columns: 1fr;
-            text-align: center;
-            font-weight: 700;
-        }
-
-        .plan-legend-row:last-child,
-        .plan-stamp-row:last-child {
-            border-bottom: 0;
-        }
-
-        .legend-color {
-            border-right: 1px solid var(--line);
-        }
-
-        .legend-color.dbu { background: var(--legend-dbu); }
-        .legend-color.other { background: var(--legend-other); }
-
-        .legend-text {
-            display: flex;
-            align-items: center;
-            padding: 0 10px;
-            font-size: 14px;
-            font-weight: 700;
         }
 
         .filters {
@@ -414,7 +458,7 @@
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
-            .plan-meta {
+            .summary-grid {
                 grid-template-columns: 1fr;
             }
         }
@@ -427,9 +471,19 @@
 
         @media (max-width: 720px) {
             .header { font-size: 28px; padding-top: 22px; }
-            .toolbar, .toolbar-left, .toolbar-right { align-items: stretch; }
             .button-row .btn { width: 100%; }
-            .feed-panel { grid-template-columns: 1fr; }
+            .summary-actions,
+            .feed-actions,
+            .summary-badges {
+                align-items: stretch;
+            }
+            .summary-actions .btn,
+            .feed-actions .btn,
+            .feed-actions a {
+                width: 100%;
+                box-sizing: border-box;
+                text-align: center;
+            }
             .calendar-grid { grid-template-columns: 1fr; }
             .calendar-table td { font-size: 12px; }
             .calendar-dow { width: 26px; }
@@ -443,41 +497,54 @@
 
     <div class="page">
         <div class="panel">
-            <h2>Übersicht</h2>
-            <div class="panel-sub">Standardmäßig werden alle unterstützten Disziplinen geladen und gemeinsam angezeigt.</div>
-            <div class="plan-meta">
-                <div class="plan-title">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</div>
-                <div class="plan-stamp">
-                    <div class="plan-stamp-row">Stand 20.08.2025</div>
-                    <div class="plan-stamp-row">V1</div>
-                </div>
-                <div class="plan-legend">
-                    <div class="plan-legend-row">
-                        <div class="legend-color dbu"></div>
-                        <div class="legend-text">DBU</div>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div>
+                        <div class="summary-eyebrow">NBV Kalender</div>
+                        <div class="plan-title">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</div>
+                        <div class="summary-copy">Alle NBV-Termine auf einen Blick. Disziplinen unten als Filter, eigene Termine weiter unten ergänzbar.</div>
                     </div>
-                    <div class="plan-legend-row">
-                        <div class="legend-color other"></div>
-                        <div class="legend-text">sonstiges</div>
+                    <div class="summary-badges">
+                        <div id="calendarSourceStatus" class="badge">Noch nicht geladen</div>
+                        <div id="calendarCountBadge" class="badge">0 Termine</div>
                     </div>
                 </div>
-            </div>
-            <div class="toolbar">
-                <div class="toolbar-left">
-                    <div id="calendarSourceStatus" class="badge">Noch nicht geladen</div>
-                    <div id="calendarCountBadge" class="badge">0 Termine</div>
+                <div class="summary-card">
+                    <div>
+                        <div class="summary-eyebrow">Planstand</div>
+                        <div class="meta-list">
+                            <div class="meta-row">
+                                <span class="meta-label">Stand</span>
+                                <strong>20.08.2025</strong>
+                            </div>
+                            <div class="meta-row">
+                                <span class="meta-label">Version</span>
+                                <strong>V1</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="legend-pills">
+                        <span class="legend-pill"><span class="legend-dot dbu"></span>DBU</span>
+                        <span class="legend-pill"><span class="legend-dot other"></span>Sonstiges</span>
+                    </div>
                 </div>
-                <div class="toolbar-right">
-                    <button class="btn btn-primary" type="button" onclick="refreshCalendar()">NBV Termine laden</button>
-                    <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
+                <div class="summary-card">
+                    <div class="feed-panel">
+                        <div class="summary-eyebrow">Kalender Abo</div>
+                        <div class="feed-heading">ICS-Feed für NBV-Termine</div>
+                        <div class="feed-copy">Enthält die aktuell geladenen NBV-Termine und die lokal gespeicherten manuellen Termine. Bei Änderungen an manuellen Einträgen die URL neu kopieren oder erneut abonnieren.</div>
+                        <div id="calendarFeedUrl" class="feed-url">ICS-Feed wird vorbereitet...</div>
+                    </div>
+                    <div class="summary-actions">
+                        <button class="btn btn-primary" type="button" onclick="refreshCalendar()">NBV Termine laden</button>
+                        <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
+                    </div>
+                    <div class="feed-actions">
+                        <button class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
+                        <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer">ICS abonnieren</a>
+                    </div>
                 </div>
             </div>
-            <div class="feed-panel">
-                <div id="calendarFeedUrl" class="feed-url">ICS-Feed wird vorbereitet...</div>
-                <button class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
-                <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer">ICS abonnieren</a>
-            </div>
-            <div class="panel-sub">Der Feed enthält NBV-Termine und die aktuell lokal gespeicherten manuellen Termine. Wenn sich manuelle Termine ändern, die Abo-URL bitte erneut kopieren oder neu abonnieren.</div>
             <div id="calendarFilters" class="filters"></div>
             <div id="calendarMessage" class="message"></div>
             <div id="calendarGrid" class="calendar-grid">
@@ -698,7 +765,11 @@
             const url = getCalendarFeedUrl();
             const label = document.getElementById("calendarFeedUrl");
             const link = document.getElementById("calendarFeedLink");
-            if (label) label.textContent = `${activeDisciplineFilter === "all" ? "Alle Disziplinen" : (NBV_DISCIPLINES[activeDisciplineFilter] || "Disziplin")} · ${url}`;
+            if (label) {
+                const disciplineLabel = activeDisciplineFilter === "all" ? "Alle Disziplinen" : (NBV_DISCIPLINES[activeDisciplineFilter] || "Disziplin");
+                label.textContent = `Feed aktiv: ${disciplineLabel}`;
+                label.title = url;
+            }
             if (link) {
                 link.href = url.replace(/^https:/i, "webcal:");
                 link.title = "Kalender-Abo im Standard-Kalender öffnen";
