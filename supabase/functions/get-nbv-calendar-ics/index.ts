@@ -1,3 +1,5 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -11,10 +13,12 @@ type CalendarEvent = {
   title: string;
   location: string;
   note: string;
-  source: "nbv";
+  source: "nbv" | "manual";
   link: string;
   disciplineId: string;
   disciplineLabel: string;
+  endDate?: string;
+  allDay?: boolean;
 };
 
 type CalendarRequest = {
@@ -297,6 +301,68 @@ function getDisciplinesFromRequest(body: CalendarRequest, url: URL) {
   };
 }
 
+function getSeasonDateRange(season: string) {
+  const match = String(season || "").trim().match(/^(\d{4})\/(\d{4})$/);
+  if (!match) return null;
+  return {
+    start: `${match[1]}-09-01`,
+    end: `${match[2]}-06-30`,
+  };
+}
+
+async function loadManualEventsFromDatabase(
+  season: string,
+  disciplineId: string,
+): Promise<CalendarEvent[]> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Supabase environment is not configured for manual ICS events");
+  }
+
+  const range = getSeasonDateRange(season);
+  if (!range) return [];
+
+  if (disciplineId && disciplineId !== "other") {
+    return [];
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data, error } = await admin
+    .from("calendar_manual_events")
+    .select("id, date, time, end_date, all_day, title, location, note, discipline_id, discipline_label")
+    .gte("date", range.start)
+    .lte("date", range.end)
+    .order("date", { ascending: true })
+    .order("time", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data)
+    ? data
+        .filter((event) => event && event.date && event.title)
+        .map((event) => ({
+          id: String(event.id || `manual-${createEventId(String(event.date), String(event.title))}`),
+          date: String(event.date || "").trim(),
+          time: String(event.time || "").trim(),
+          endDate: String(event.end_date || "").trim(),
+          allDay: Boolean(event.all_day),
+          title: String(event.title || "").trim(),
+          location: String(event.location || "").trim(),
+          note: String(event.note || "").trim(),
+          source: "manual" as const,
+          link: "",
+          disciplineId: String(event.discipline_id || "other").trim(),
+          disciplineLabel: String(event.discipline_label || "Sonstige").trim(),
+        }))
+    : [];
+}
+
 function decodeManualEvents(payload: string | null): CalendarEvent[] {
   if (!payload) return [];
 
@@ -343,7 +409,7 @@ Deno.serve(async (request) => {
     const { season, disciplines, sourceUrl } = getDisciplinesFromRequest(body, url);
     const events: CalendarEvent[] = [];
     const failedDisciplines: Array<{ id: string; label: string; message: string }> = [];
-    const manualEvents = decodeManualEvents(body?.manual || url.searchParams.get("manual"));
+    const manualEventsFromUrl = decodeManualEvents(body?.manual || url.searchParams.get("manual"));
 
     for (const [index, discipline] of disciplines.entries()) {
       try {
@@ -368,7 +434,22 @@ Deno.serve(async (request) => {
       throw new Error(`NBV-ICS-Abruf fehlgeschlagen: ${failedDisciplines[0].label} - ${failedDisciplines[0].message}`);
     }
 
-    events.push(...manualEvents);
+    const selectedDisciplineId = disciplines.length === 1 ? disciplines[0].id : "";
+    let manualEvents: CalendarEvent[] = [];
+    try {
+      manualEvents = await loadManualEventsFromDatabase(season, selectedDisciplineId);
+    } catch (error) {
+      console.warn("Manual ICS events could not be loaded from database", error);
+    }
+
+    const manualEventMap = new Map<string, CalendarEvent>();
+    [...manualEventsFromUrl, ...manualEvents].forEach((event) => {
+      if (event?.id && event?.date && event?.title) {
+        manualEventMap.set(event.id, event);
+      }
+    });
+
+    events.push(...manualEventMap.values());
 
     events.sort((left, right) => {
       const leftKey = `${left.date} ${left.time || "99:99"} ${left.title}`;
