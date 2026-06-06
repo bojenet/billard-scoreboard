@@ -1431,6 +1431,7 @@
             if (!grid) return;
             const events = expandEventsForCalendar(getFilteredEvents());
             const seasonMonthKeys = getSeasonMonthKeys(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON);
+            const hideEmptyMonths = activeDisciplineFilter !== "all" || activeTournamentTypeFilter !== "all" || activeVenueFilter !== "all";
 
             const monthMap = new Map();
             seasonMonthKeys.forEach((monthKey) => {
@@ -1448,7 +1449,14 @@
                 return;
             }
 
-            grid.innerHTML = Array.from(monthMap.entries()).map(([monthKey, monthEvents]) => `
+            const visibleMonths = Array.from(monthMap.entries()).filter(([, monthEvents]) => !hideEmptyMonths || monthEvents.length > 0);
+
+            if (!visibleMonths.length) {
+                grid.innerHTML = '<div class="empty-state">Für den aktuellen Filter sind noch keine Termine vorhanden.</div>';
+                return;
+            }
+
+            grid.innerHTML = visibleMonths.map(([monthKey, monthEvents]) => `
                 <div class="calendar-month">
                     <div class="calendar-month-head">
                         <div class="calendar-month-title">${escapeHtml(formatMonthLabel(monthKey))}</div>
