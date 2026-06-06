@@ -807,6 +807,16 @@
             return dates;
         }
 
+        function isManualMultiDayEvent(event) {
+            return Boolean(
+                event &&
+                event.source === "manual" &&
+                event.date &&
+                event.endDate &&
+                String(event.endDate).trim() >= String(event.date).trim()
+            );
+        }
+
         function isWeekendDate(dateValue) {
             const date = new Date(`${dateValue}T00:00:00`);
             if (Number.isNaN(date.getTime())) return false;
@@ -882,7 +892,7 @@
             editingManualEventId = eventId;
             document.getElementById("manualEventDate").value = String(event.date || "");
             document.getElementById("manualEventTime").value = String(event.time || "");
-            document.getElementById("manualEventMultiDay").value = event.allDay ? "multi" : "single";
+            document.getElementById("manualEventMultiDay").value = isManualMultiDayEvent(event) ? "multi" : "single";
             document.getElementById("manualEventEndDate").value = String(event.endDate || "");
             document.getElementById("manualEventTitle").value = String(event.title || "");
             document.getElementById("manualEventLocation").value = String(event.location || "");
@@ -925,7 +935,7 @@
 
         function expandEventsForCalendar(events) {
             return events.flatMap((event) => {
-                if (event?.source !== "manual" || !event?.allDay || !event?.endDate) {
+                if (!isManualMultiDayEvent(event)) {
                     return [event];
                 }
                 const range = eachDateBetween(event.date, event.endDate);
@@ -1109,7 +1119,7 @@
                                         <td>
                                             <div class="calendar-event-cell">
                                                 ${dayEvents.map((event) => `
-                                                    <div class="calendar-event ${event.source === "manual" ? "manual" : ""} ${event.source === "manual" && event.allDay ? `multi-day span-${escapeHtml(event.spanPosition || "single")}` : ""}">
+                                                    <div class="calendar-event ${event.source === "manual" ? "manual" : ""} ${isManualMultiDayEvent(event) ? `multi-day span-${escapeHtml(event.spanPosition || "single")}` : ""}">
                                                         <div>
                                                             ${(event.time || event.source === "manual") ? `
                                                                 <div class="event-tags">
@@ -1207,7 +1217,7 @@
             const title = String(document.getElementById("manualEventTitle")?.value || "").trim();
             const location = String(document.getElementById("manualEventLocation")?.value || "").trim();
             const note = String(document.getElementById("manualEventNote")?.value || "").trim();
-            const allDay = durationMode === "multi";
+            const allDay = durationMode === "multi" || Boolean(endDate && endDate >= date);
 
             if (!date || !title) {
                 showCalendarMessage("Bitte mindestens Datum und Titel eintragen.", "error");
@@ -1225,7 +1235,7 @@
                 date,
                 time: allDay ? "" : time,
                 endDate: allDay ? endDate : "",
-                allDay,
+                allDay: allDay || Boolean(endDate),
                 title,
                 location,
                 note,
