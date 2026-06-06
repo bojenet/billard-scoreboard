@@ -477,7 +477,7 @@
                 <button class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
                 <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer">ICS abonnieren</a>
             </div>
-            <div class="panel-sub">Das ICS-Abo enthält die serverseitig geladenen NBV-Termine. Manuelle lokale Termine werden darin nicht mitgeführt.</div>
+            <div class="panel-sub">Der Feed enthält NBV-Termine und die aktuell lokal gespeicherten manuellen Termine. Wenn sich manuelle Termine ändern, die Abo-URL bitte erneut kopieren oder neu abonnieren.</div>
             <div id="calendarFilters" class="filters"></div>
             <div id="calendarMessage" class="message"></div>
             <div id="calendarGrid" class="calendar-grid">
@@ -633,6 +633,15 @@
             localStorage.setItem(CALENDAR_MANUAL_STORAGE_KEY, JSON.stringify(events || []));
         }
 
+        function getManualEventsForFeed() {
+            const events = getManualEvents();
+            if (activeDisciplineFilter === "all") return events;
+            return events.filter((event) => {
+                const disciplineId = String(event?.disciplineId || "").trim();
+                return disciplineId === activeDisciplineFilter;
+            });
+        }
+
         function getAllEvents() {
             return [...importedEvents, ...getManualEvents()]
                 .filter((entry) => entry && entry.date && entry.title)
@@ -661,6 +670,26 @@
             if (activeDisciplineFilter !== "all") {
                 params.set("disciplineId", activeDisciplineFilter);
                 params.set("disciplineLabel", NBV_DISCIPLINES[activeDisciplineFilter] || "");
+            }
+            const manualEvents = getManualEventsForFeed().map((event) => ({
+                id: event.id,
+                date: event.date,
+                time: event.time || "",
+                title: event.title,
+                location: event.location || "",
+                note: event.note || "",
+                disciplineId: event.disciplineId || "",
+                disciplineLabel: event.disciplineLabel || "Allgemein"
+            }));
+            if (manualEvents.length) {
+                const json = JSON.stringify(manualEvents);
+                const bytes = new TextEncoder().encode(json);
+                let binary = "";
+                bytes.forEach((byte) => {
+                    binary += String.fromCharCode(byte);
+                });
+                const encoded = btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+                params.set("manual", encoded);
             }
             return `${baseUrl}?${params.toString()}`;
         }
@@ -860,12 +889,14 @@
             document.getElementById("manualEventNote").value = "";
 
             showCalendarMessage("Manueller Termin wurde hinzugefügt.", "ok");
+            updateCalendarFeedUi();
             renderCalendar();
         }
 
         function removeManualEvent(eventId) {
             saveManualEvents(getManualEvents().filter((event) => event.id !== eventId));
             showCalendarMessage("Manueller Termin wurde entfernt.", "ok");
+            updateCalendarFeedUi();
             renderCalendar();
         }
 

@@ -23,6 +23,7 @@ type CalendarRequest = {
   disciplineLabel?: string;
   season?: string;
   disciplines?: Array<{ id: string; label: string }>;
+  manual?: string;
 };
 
 const NBV_DISCIPLINES: Record<string, string> = {
@@ -282,6 +283,36 @@ function getDisciplinesFromRequest(body: CalendarRequest, url: URL) {
   };
 }
 
+function decodeManualEvents(payload: string | null): CalendarEvent[] {
+  if (!payload) return [];
+
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    const json = new TextDecoder().decode(Uint8Array.from(atob(padded), (char) => char.charCodeAt(0)));
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((event) => event && event.date && event.title)
+      .map((event) => ({
+        id: String(event.id || `manual-${createEventId(String(event.date), String(event.title))}`),
+        date: String(event.date || "").trim(),
+        time: String(event.time || "").trim(),
+        title: String(event.title || "").trim(),
+        location: String(event.location || "").trim(),
+        note: String(event.note || "").trim(),
+        source: "nbv" as const,
+        link: "",
+        disciplineId: String(event.disciplineId || "").trim(),
+        disciplineLabel: String(event.disciplineLabel || "Allgemein").trim(),
+      }));
+  } catch (error) {
+    console.warn("Manual ICS events could not be decoded", error);
+    return [];
+  }
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -296,6 +327,7 @@ Deno.serve(async (request) => {
     const { season, disciplines, sourceUrl } = getDisciplinesFromRequest(body, url);
     const events: CalendarEvent[] = [];
     const failedDisciplines: Array<{ id: string; label: string; message: string }> = [];
+    const manualEvents = decodeManualEvents(body?.manual || url.searchParams.get("manual"));
 
     for (const [index, discipline] of disciplines.entries()) {
       try {
@@ -319,6 +351,8 @@ Deno.serve(async (request) => {
     if (!events.length && failedDisciplines.length) {
       throw new Error(`NBV-ICS-Abruf fehlgeschlagen: ${failedDisciplines[0].label} - ${failedDisciplines[0].message}`);
     }
+
+    events.push(...manualEvents);
 
     events.sort((left, right) => {
       const leftKey = `${left.date} ${left.time || "99:99"} ${left.title}`;
