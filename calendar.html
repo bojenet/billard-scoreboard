@@ -826,9 +826,27 @@
             if (!years) return null;
             return {
                 start: `${years.startYear}-09-01`,
-                end: `${years.endYear}-08-31`,
+                end: `${years.endYear}-06-30`,
                 years: [years.startYear, years.endYear]
             };
+        }
+
+        function getSeasonMonthKeys(season) {
+            const range = getSeasonDateRange(season);
+            if (!range) return [];
+            const keys = [];
+            let cursor = String(range.start || "").slice(0, 7);
+            const endKey = String(range.end || "").slice(0, 7);
+            while (cursor && cursor <= endKey) {
+                keys.push(cursor);
+                const [yearText, monthText] = cursor.split("-");
+                const year = Number(yearText);
+                const month = Number(monthText);
+                if (!year || !month) break;
+                const nextDate = new Date(Date.UTC(year, month, 1));
+                cursor = `${nextDate.getUTCFullYear()}-${String(nextDate.getUTCMonth() + 1).padStart(2, "0")}`;
+            }
+            return keys;
         }
 
         function getEasterSunday(year) {
@@ -1373,18 +1391,22 @@
             const grid = document.getElementById("calendarGrid");
             if (!grid) return;
             const events = expandEventsForCalendar(getFilteredEvents());
-
-            if (!events.length) {
-                grid.innerHTML = '<div class="empty-state">Für den aktuellen Filter sind noch keine Termine vorhanden.</div>';
-                return;
-            }
+            const seasonMonthKeys = getSeasonMonthKeys(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON);
 
             const monthMap = new Map();
+            seasonMonthKeys.forEach((monthKey) => {
+                monthMap.set(monthKey, []);
+            });
             events.forEach((event) => {
                 const monthKey = getMonthKey(event.displayDate || event.date);
                 if (!monthMap.has(monthKey)) monthMap.set(monthKey, []);
                 monthMap.get(monthKey).push(event);
             });
+
+            if (!monthMap.size) {
+                grid.innerHTML = '<div class="empty-state">Für den aktuellen Filter sind noch keine Termine vorhanden.</div>';
+                return;
+            }
 
             grid.innerHTML = Array.from(monthMap.entries()).map(([monthKey, monthEvents]) => `
                 <div class="calendar-month">
