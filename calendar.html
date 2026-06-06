@@ -84,53 +84,34 @@
             color: #475467;
         }
 
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-            margin-bottom: 16px;
-            align-items: stretch;
-        }
-
-        .summary-card {
+        .topbar {
             display: flex;
-            flex-direction: column;
             justify-content: space-between;
-            gap: 14px;
-            min-height: 188px;
-            padding: 16px;
-            border: 1px solid var(--line);
-            border-radius: 4px;
-            background: #fff;
+            align-items: flex-end;
+            gap: 16px;
+            margin-bottom: 14px;
         }
 
-        .summary-eyebrow {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--muted);
+        .topbar-main {
+            display: grid;
+            gap: 10px;
         }
 
-        .summary-copy {
+        .topbar-copy {
             font-size: 14px;
             color: #4b5563;
             line-height: 1.45;
-            max-width: 38ch;
+            max-width: 44ch;
         }
 
         .summary-badges,
-        .summary-actions,
+        .topbar-actions,
         .feed-actions,
         .meta-list {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
             align-items: center;
-        }
-
-        .summary-actions {
-            margin-top: auto;
         }
 
         .meta-list {
@@ -191,20 +172,35 @@
             gap: 10px;
         }
 
+        .footer-tools {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--line);
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) auto;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .footer-tool-block {
+            display: grid;
+            gap: 6px;
+        }
+
         .feed-heading {
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 700;
             color: var(--head);
         }
 
         .feed-copy {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--muted);
             line-height: 1.45;
         }
 
         .feed-url {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--muted);
             white-space: nowrap;
             overflow: hidden;
@@ -458,8 +454,13 @@
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
-            .summary-grid {
+            .footer-tools {
                 grid-template-columns: 1fr;
+            }
+
+            .topbar {
+                flex-direction: column;
+                align-items: stretch;
             }
         }
 
@@ -472,12 +473,12 @@
         @media (max-width: 720px) {
             .header { font-size: 28px; padding-top: 22px; }
             .button-row .btn { width: 100%; }
-            .summary-actions,
+            .topbar-actions,
             .feed-actions,
             .summary-badges {
                 align-items: stretch;
             }
-            .summary-actions .btn,
+            .topbar-actions .btn,
             .feed-actions .btn,
             .feed-actions a {
                 width: 100%;
@@ -497,52 +498,18 @@
 
     <div class="page">
         <div class="panel">
-            <div class="summary-grid">
-                <div class="summary-card">
-                    <div>
-                        <div class="summary-eyebrow">NBV Kalender</div>
-                        <div class="plan-title">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</div>
-                        <div class="summary-copy">Alle NBV-Termine auf einen Blick. Disziplinen unten als Filter, eigene Termine weiter unten ergänzbar.</div>
-                    </div>
+            <div class="topbar">
+                <div class="topbar-main">
+                    <div class="plan-title">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</div>
+                    <div class="topbar-copy">Alle NBV-Termine auf einen Blick. Disziplinen unten als Filter, eigene Termine weiter unten ergänzbar.</div>
                     <div class="summary-badges">
                         <div id="calendarSourceStatus" class="badge">Noch nicht geladen</div>
                         <div id="calendarCountBadge" class="badge">0 Termine</div>
                     </div>
                 </div>
-                <div class="summary-card">
-                    <div>
-                        <div class="summary-eyebrow">Planstand</div>
-                        <div class="meta-list">
-                            <div class="meta-row">
-                                <span class="meta-label">Stand</span>
-                                <strong>20.08.2025</strong>
-                            </div>
-                            <div class="meta-row">
-                                <span class="meta-label">Version</span>
-                                <strong>V1</strong>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="legend-pills">
-                        <span class="legend-pill"><span class="legend-dot dbu"></span>DBU</span>
-                        <span class="legend-pill"><span class="legend-dot other"></span>Sonstiges</span>
-                    </div>
-                </div>
-                <div class="summary-card">
-                    <div class="feed-panel">
-                        <div class="summary-eyebrow">Kalender Abo</div>
-                        <div class="feed-heading">ICS-Feed für NBV-Termine</div>
-                        <div class="feed-copy">Enthält die aktuell geladenen NBV-Termine und die lokal gespeicherten manuellen Termine. Bei Änderungen an manuellen Einträgen die URL neu kopieren oder erneut abonnieren.</div>
-                        <div id="calendarFeedUrl" class="feed-url">ICS-Feed wird vorbereitet...</div>
-                    </div>
-                    <div class="summary-actions">
-                        <button class="btn btn-primary" type="button" onclick="refreshCalendar()">NBV Termine laden</button>
-                        <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
-                    </div>
-                    <div class="feed-actions">
-                        <button class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
-                        <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer">ICS abonnieren</a>
-                    </div>
+                <div class="topbar-actions">
+                    <button class="btn btn-primary" type="button" onclick="refreshCalendar()">NBV Termine laden</button>
+                    <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
                 </div>
             </div>
             <div id="calendarFilters" class="filters"></div>
@@ -583,6 +550,37 @@
             </div>
             <div class="button-row">
                 <button class="btn btn-save" type="button" onclick="addManualEvent()">Termin hinzufügen</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="footer-tools">
+                <div class="footer-tool-block">
+                    <div class="feed-heading">Kalender-Abo</div>
+                    <div class="feed-copy">NBV-Termine plus aktuell lokale manuelle Termine. Bei Änderungen an manuellen Einträgen die URL neu kopieren oder neu abonnieren.</div>
+                    <div id="calendarFeedUrl" class="feed-url">ICS-Feed wird vorbereitet...</div>
+                </div>
+                <div class="footer-tool-block">
+                    <div class="feed-heading">Planstand</div>
+                    <div class="meta-list">
+                        <div class="meta-row">
+                            <span class="meta-label">Stand</span>
+                            <strong>20.08.2025</strong>
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-label">Version</span>
+                            <strong>V1</strong>
+                        </div>
+                    </div>
+                    <div class="legend-pills">
+                        <span class="legend-pill"><span class="legend-dot dbu"></span>DBU</span>
+                        <span class="legend-pill"><span class="legend-dot other"></span>Sonstiges</span>
+                    </div>
+                </div>
+                <div class="feed-actions">
+                    <button class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
+                    <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer">ICS abonnieren</a>
+                </div>
             </div>
         </div>
     </div>
