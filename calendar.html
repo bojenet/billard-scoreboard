@@ -831,6 +831,13 @@
             };
         }
 
+        function isDateWithinSeason(dateValue, season) {
+            const range = getSeasonDateRange(season);
+            const normalizedDate = String(dateValue || "").trim();
+            if (!range || !normalizedDate) return false;
+            return normalizedDate >= range.start && normalizedDate <= range.end;
+        }
+
         function parseIsoDateParts(value) {
             const match = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
             if (!match) return null;
@@ -1286,11 +1293,15 @@
 
         function getFilteredEvents() {
             const allEvents = getAllEvents();
+            const seasonFiltered = allEvents.filter((event) => {
+                const displayDate = String(event?.displayDate || event?.date || "").trim();
+                return isDateWithinSeason(displayDate, currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON);
+            });
             const disciplineFiltered = activeDisciplineFilter === "all"
-                ? allEvents
+                ? seasonFiltered
                 : (activeDisciplineFilter === MANUAL_CATEGORY_ID
-                    ? allEvents.filter((event) => event.source === "manual" || String(event.disciplineId || "") === MANUAL_CATEGORY_ID)
-                    : allEvents.filter((event) => String(event.disciplineId || "") === activeDisciplineFilter));
+                    ? seasonFiltered.filter((event) => event.source === "manual" || String(event.disciplineId || "") === MANUAL_CATEGORY_ID)
+                    : seasonFiltered.filter((event) => String(event.disciplineId || "") === activeDisciplineFilter));
 
             const tournamentTypeFiltered = activeTournamentTypeFilter === "all"
                 ? disciplineFiltered
@@ -1383,6 +1394,7 @@
                 { id: "all", label: "Alle" },
                 ...Array.from(new Set(
                     getAllEvents()
+                        .filter((event) => isDateWithinSeason(event?.date, currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON))
                         .map((event) => getEventVenueLabel(event))
                         .filter(Boolean)
                 ))
@@ -1444,8 +1456,9 @@
             });
             events.forEach((event) => {
                 const monthKey = getMonthKey(event.displayDate || event.date);
-                if (!monthMap.has(monthKey)) monthMap.set(monthKey, []);
-                monthMap.get(monthKey).push(event);
+                if (monthMap.has(monthKey)) {
+                    monthMap.get(monthKey).push(event);
+                }
             });
 
             if (!monthMap.size) {
