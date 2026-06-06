@@ -172,6 +172,14 @@
             display: grid;
         }
 
+        .admin-only {
+            display: none;
+        }
+
+        .admin-only.open {
+            display: grid;
+        }
+
         .admin-settings-row {
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
@@ -612,7 +620,7 @@
 
         <div class="panel">
             <div class="footer-tools">
-                <div class="footer-tool-block">
+                <div id="calendarFeedBlock" class="footer-tool-block admin-only">
                     <div class="feed-heading">Kalender-Abo</div>
                     <div class="feed-copy">NBV-Termine plus manuelle Termine aus dem oeffentlichen Kalender. Bei Änderungen an manuellen Einträgen die URL neu kopieren oder neu abonnieren.</div>
                     <div id="calendarFeedUrl" class="feed-url">ICS-Feed wird vorbereitet...</div>
@@ -649,8 +657,8 @@
                 <div class="feed-actions">
                     <button id="manualEventOpenBtn" class="btn btn-save" type="button" onclick="openManualEventModal()" style="display:none;">Manuellen Termin anlegen</button>
                     <button class="btn btn-primary" type="button" onclick="refreshCalendar()">NBV Termine laden</button>
-                    <button class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
-                    <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer">ICS abonnieren</a>
+                    <button id="calendarFeedCopyBtn" class="btn btn-secondary admin-only" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
+                    <a id="calendarFeedLink" class="btn btn-primary admin-only" href="#" target="_blank" rel="noreferrer">ICS abonnieren</a>
                     <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
                 </div>
             </div>
@@ -1518,12 +1526,19 @@
             const readOnly = !isCalendarAdmin;
             const openBtn = document.getElementById("manualEventOpenBtn");
             const settingsBlock = document.getElementById("calendarAdminSettings");
+            const feedBlock = document.getElementById("calendarFeedBlock");
             if (openBtn) {
                 openBtn.style.display = isCalendarAdmin ? "" : "none";
             }
             if (settingsBlock) {
                 settingsBlock.classList.toggle("open", isCalendarAdmin);
             }
+            if (feedBlock) {
+                feedBlock.classList.toggle("open", isCalendarAdmin);
+            }
+            document.querySelectorAll(".admin-only").forEach((element) => {
+                element.classList.toggle("open", isCalendarAdmin);
+            });
             document.querySelectorAll("#manualEventDate, #manualEventTime, #manualEventTitle, #manualEventLocation, #manualEventNote").forEach((input) => {
                 input.disabled = readOnly;
             });
