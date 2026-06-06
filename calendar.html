@@ -188,26 +188,19 @@
 
         .filters {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            align-items: center;
+            gap: 10px;
             margin-bottom: 12px;
         }
 
-        .filter-btn {
-            border: 1px solid #cbd5e1;
-            background: #fff;
-            border-radius: 4px;
-            padding: 8px 12px;
+        .filters label {
             font-size: 13px;
             font-weight: 700;
-            color: #334155;
-            cursor: pointer;
+            color: var(--muted);
         }
 
-        .filter-btn.active {
-            background: var(--blue);
-            border-color: var(--blue);
-            color: #fff;
+        .filter-select {
+            max-width: 360px;
         }
 
         .calendar-grid {
@@ -482,8 +475,8 @@
                     <input id="manualEventTime" type="time">
                 </div>
                 <div>
-                    <label class="field-title" for="manualEventDiscipline">Disziplin</label>
-                    <select id="manualEventDiscipline"></select>
+                    <label class="field-title">Rubrik</label>
+                    <input type="text" value="Sonstige" disabled>
                 </div>
                 <div class="field-full">
                     <label class="field-title" for="manualEventTitle">Titel</label>
@@ -547,6 +540,8 @@
         const CALENDAR_FILTER_STORAGE_KEY = "standalone_calendar_filter_v1";
         const NBV_CALENDAR_SEASON = "2025/2026";
         const PUBLIC_SUPABASE_URL = "https://kstqhcaazuuxchqtnyfc.supabase.co";
+        const MANUAL_CATEGORY_ID = "other";
+        const MANUAL_CATEGORY_LABEL = "Sonstige";
         const NBV_DISCIPLINES = {
             "56": "Biathlon",
             "36": "Billard Kegeln",
@@ -653,6 +648,7 @@
         function getManualEventsForFeed() {
             const events = getManualEvents();
             if (activeDisciplineFilter === "all") return events;
+            if (activeDisciplineFilter === MANUAL_CATEGORY_ID) return events;
             return events.filter((event) => {
                 const disciplineId = String(event?.disciplineId || "").trim();
                 return disciplineId === activeDisciplineFilter;
@@ -672,13 +668,16 @@
         function getFilteredEvents() {
             const allEvents = getAllEvents();
             if (activeDisciplineFilter === "all") return allEvents;
+            if (activeDisciplineFilter === MANUAL_CATEGORY_ID) {
+                return allEvents.filter((event) => event.source === "manual" || String(event.disciplineId || "") === MANUAL_CATEGORY_ID);
+            }
             return allEvents.filter((event) => String(event.disciplineId || "") === activeDisciplineFilter);
         }
 
         function getCalendarFeedUrl() {
             const baseUrl = `${PUBLIC_SUPABASE_URL}/functions/v1/get-nbv-calendar-ics`;
             const params = new URLSearchParams({ season: NBV_CALENDAR_SEASON });
-            if (activeDisciplineFilter !== "all") {
+            if (activeDisciplineFilter !== "all" && activeDisciplineFilter !== MANUAL_CATEGORY_ID) {
                 params.set("disciplineId", activeDisciplineFilter);
                 params.set("disciplineLabel", NBV_DISCIPLINES[activeDisciplineFilter] || "");
             }
@@ -710,7 +709,9 @@
             const label = document.getElementById("calendarFeedUrl");
             const link = document.getElementById("calendarFeedLink");
             if (label) {
-                const disciplineLabel = activeDisciplineFilter === "all" ? "Alle Disziplinen" : (NBV_DISCIPLINES[activeDisciplineFilter] || "Disziplin");
+                const disciplineLabel = activeDisciplineFilter === "all"
+                    ? "Alle Disziplinen"
+                    : (activeDisciplineFilter === MANUAL_CATEGORY_ID ? MANUAL_CATEGORY_LABEL : (NBV_DISCIPLINES[activeDisciplineFilter] || "Disziplin"));
                 label.textContent = `Feed aktiv: ${disciplineLabel}`;
                 label.title = url;
             }
@@ -734,17 +735,17 @@
         function renderFilters() {
             const wrap = document.getElementById("calendarFilters");
             if (!wrap) return;
-            const buttons = [
+            const options = [
                 { id: "all", label: "Alle" },
-                ...Object.entries(NBV_DISCIPLINES).map(([id, label]) => ({ id, label }))
+                ...Object.entries(NBV_DISCIPLINES).map(([id, label]) => ({ id, label })),
+                { id: MANUAL_CATEGORY_ID, label: MANUAL_CATEGORY_LABEL }
             ];
-            wrap.innerHTML = buttons.map((item) => `
-                <button
-                    type="button"
-                    class="filter-btn ${activeDisciplineFilter === item.id ? "active" : ""}"
-                    onclick="setDisciplineFilter('${escapeHtml(item.id)}')"
-                >${escapeHtml(item.label)}</button>
-            `).join("");
+            wrap.innerHTML = `
+                <label for="calendarFilterSelect">Rubrik</label>
+                <select id="calendarFilterSelect" class="filter-select" onchange="setDisciplineFilter(this.value)">
+                    ${options.map((item) => `<option value="${escapeHtml(item.id)}" ${activeDisciplineFilter === item.id ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
+                </select>
+            `;
         }
 
         function renderCalendar() {
@@ -823,7 +824,7 @@
 
         function loadSavedFilter() {
             const saved = String(localStorage.getItem(CALENDAR_FILTER_STORAGE_KEY) || "all");
-            activeDisciplineFilter = saved === "all" || NBV_DISCIPLINES[saved] ? saved : "all";
+            activeDisciplineFilter = saved === "all" || saved === MANUAL_CATEGORY_ID || NBV_DISCIPLINES[saved] ? saved : "all";
         }
 
         async function refreshCalendar() {
@@ -859,19 +860,12 @@
         }
 
         function populateManualDisciplineSelect() {
-            const select = document.getElementById("manualEventDiscipline");
-            if (!select) return;
-            select.innerHTML = [
-                `<option value="">Allgemein</option>`,
-                ...Object.entries(NBV_DISCIPLINES).map(([id, label]) => `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`)
-            ].join("");
-            select.value = activeDisciplineFilter !== "all" ? activeDisciplineFilter : "";
+            return;
         }
 
         function addManualEvent() {
             const date = String(document.getElementById("manualEventDate")?.value || "").trim();
             const time = String(document.getElementById("manualEventTime")?.value || "").trim();
-            const disciplineId = String(document.getElementById("manualEventDiscipline")?.value || "").trim();
             const title = String(document.getElementById("manualEventTitle")?.value || "").trim();
             const location = String(document.getElementById("manualEventLocation")?.value || "").trim();
             const note = String(document.getElementById("manualEventNote")?.value || "").trim();
@@ -891,8 +885,8 @@
                 note,
                 source: "manual",
                 link: "",
-                disciplineId,
-                disciplineLabel: disciplineId ? (NBV_DISCIPLINES[disciplineId] || "Allgemein") : "Allgemein"
+                disciplineId: MANUAL_CATEGORY_ID,
+                disciplineLabel: MANUAL_CATEGORY_LABEL
             });
             saveManualEvents(events);
 
@@ -916,7 +910,7 @@
 
         function applyAccessUi() {
             const readOnly = !isTournamentEditable(tournamentAccessMode);
-            document.querySelectorAll("#manualEventDate, #manualEventTime, #manualEventDiscipline, #manualEventTitle, #manualEventLocation, #manualEventNote").forEach((input) => {
+            document.querySelectorAll("#manualEventDate, #manualEventTime, #manualEventTitle, #manualEventLocation, #manualEventNote").forEach((input) => {
                 input.disabled = readOnly;
             });
             document.querySelectorAll(".btn-save, .mini-btn.danger").forEach((button) => {
