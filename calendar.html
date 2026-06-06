@@ -543,10 +543,17 @@
     <script>
         const CALENDAR_MANUAL_STORAGE_KEY = "standalone_calendar_manual_v1";
         const CALENDAR_FILTER_STORAGE_KEY = "standalone_calendar_filter_v1";
+        const CALENDAR_TYPE_FILTER_STORAGE_KEY = "standalone_calendar_type_filter_v1";
         const NBV_CALENDAR_SEASON = "2025/2026";
         const PUBLIC_SUPABASE_URL = "https://kstqhcaazuuxchqtnyfc.supabase.co";
         const MANUAL_CATEGORY_ID = "other";
         const MANUAL_CATEGORY_LABEL = "Sonstige";
+        const TOURNAMENT_TYPE_OPTIONS = [
+            { id: "all", label: "Alle" },
+            { id: "ndm", label: "NDM" },
+            { id: "grand_prix", label: "Grand Prix" },
+            { id: "nordcup", label: "NordCup" }
+        ];
         const NBV_DISCIPLINES = {
             "56": "Biathlon",
             "36": "Billard Kegeln",
@@ -567,6 +574,7 @@
         let tournamentAccessMode = "edit";
         let importedEvents = [];
         let activeDisciplineFilter = "all";
+        let activeTournamentTypeFilter = "all";
 
         function escapeHtml(value) {
             return String(value || "")
@@ -683,11 +691,30 @@
 
         function getFilteredEvents() {
             const allEvents = getAllEvents();
-            if (activeDisciplineFilter === "all") return allEvents;
-            if (activeDisciplineFilter === MANUAL_CATEGORY_ID) {
-                return allEvents.filter((event) => event.source === "manual" || String(event.disciplineId || "") === MANUAL_CATEGORY_ID);
+            const disciplineFiltered = activeDisciplineFilter === "all"
+                ? allEvents
+                : (activeDisciplineFilter === MANUAL_CATEGORY_ID
+                    ? allEvents.filter((event) => event.source === "manual" || String(event.disciplineId || "") === MANUAL_CATEGORY_ID)
+                    : allEvents.filter((event) => String(event.disciplineId || "") === activeDisciplineFilter));
+
+            if (activeTournamentTypeFilter === "all") {
+                return disciplineFiltered;
             }
-            return allEvents.filter((event) => String(event.disciplineId || "") === activeDisciplineFilter);
+            return disciplineFiltered.filter(matchesTournamentType);
+        }
+
+        function matchesTournamentType(event) {
+            const title = String(event?.title || "");
+            if (activeTournamentTypeFilter === "ndm") {
+                return /\bndm\b/i.test(title);
+            }
+            if (activeTournamentTypeFilter === "grand_prix") {
+                return /grand\s?prix/i.test(title);
+            }
+            if (activeTournamentTypeFilter === "nordcup") {
+                return /nord\s?cup/i.test(title);
+            }
+            return true;
         }
 
         function getCalendarFeedUrl() {
@@ -751,7 +778,7 @@
         function renderFilters() {
             const wrap = document.getElementById("calendarFilters");
             if (!wrap) return;
-            const options = [
+            const disciplineOptions = [
                 { id: "all", label: "Alle" },
                 ...Object.entries(NBV_DISCIPLINES).map(([id, label]) => ({ id, label })),
                 { id: MANUAL_CATEGORY_ID, label: MANUAL_CATEGORY_LABEL }
@@ -759,7 +786,11 @@
             wrap.innerHTML = `
                 <label for="calendarFilterSelect">Rubrik</label>
                 <select id="calendarFilterSelect" class="filter-select" onchange="setDisciplineFilter(this.value)">
-                    ${options.map((item) => `<option value="${escapeHtml(item.id)}" ${activeDisciplineFilter === item.id ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
+                    ${disciplineOptions.map((item) => `<option value="${escapeHtml(item.id)}" ${activeDisciplineFilter === item.id ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
+                </select>
+                <label for="calendarTypeFilterSelect">Turnierart</label>
+                <select id="calendarTypeFilterSelect" class="filter-select" onchange="setTournamentTypeFilter(this.value)">
+                    ${TOURNAMENT_TYPE_OPTIONS.map((item) => `<option value="${escapeHtml(item.id)}" ${activeTournamentTypeFilter === item.id ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
                 </select>
             `;
         }
@@ -837,9 +868,19 @@
             renderCalendar();
         }
 
+        function setTournamentTypeFilter(filterId) {
+            activeTournamentTypeFilter = filterId || "all";
+            localStorage.setItem(CALENDAR_TYPE_FILTER_STORAGE_KEY, activeTournamentTypeFilter);
+            renderFilters();
+            updateCalendarFeedUi();
+            renderCalendar();
+        }
+
         function loadSavedFilter() {
             activeDisciplineFilter = "all";
+            activeTournamentTypeFilter = "all";
             localStorage.setItem(CALENDAR_FILTER_STORAGE_KEY, "all");
+            localStorage.setItem(CALENDAR_TYPE_FILTER_STORAGE_KEY, "all");
         }
 
         async function refreshCalendar() {
