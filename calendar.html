@@ -831,6 +831,44 @@
             };
         }
 
+        function parseIsoDateParts(value) {
+            const match = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!match) return null;
+            return {
+                year: Number(match[1]),
+                month: Number(match[2]),
+                day: Number(match[3])
+            };
+        }
+
+        function parseMonthKey(monthKey) {
+            const match = String(monthKey || "").trim().match(/^(\d{4})-(\d{2})$/);
+            if (!match) return null;
+            return {
+                year: Number(match[1]),
+                month: Number(match[2])
+            };
+        }
+
+        function createUtcDateFromIso(value) {
+            const parts = parseIsoDateParts(value);
+            if (!parts) return null;
+            return new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+        }
+
+        function createUtcDateFromMonthKey(monthKey) {
+            const parts = parseMonthKey(monthKey);
+            if (!parts) return null;
+            return new Date(Date.UTC(parts.year, parts.month - 1, 1));
+        }
+
+        function incrementMonthKey(monthKey, amount = 1) {
+            const date = createUtcDateFromMonthKey(monthKey);
+            if (!date) return "";
+            date.setUTCMonth(date.getUTCMonth() + amount);
+            return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+        }
+
         function getSeasonMonthKeys(season) {
             const range = getSeasonDateRange(season);
             if (!range) return [];
@@ -839,12 +877,9 @@
             const endKey = String(range.end || "").slice(0, 7);
             while (cursor && cursor <= endKey) {
                 keys.push(cursor);
-                const [yearText, monthText] = cursor.split("-");
-                const year = Number(yearText);
-                const month = Number(monthText);
-                if (!year || !month) break;
-                const nextDate = new Date(Date.UTC(year, month, 1));
-                cursor = `${nextDate.getUTCFullYear()}-${String(nextDate.getUTCMonth() + 1).padStart(2, "0")}`;
+                const nextKey = incrementMonthKey(cursor, 1);
+                if (!nextKey || nextKey === cursor) break;
+                cursor = nextKey;
             }
             return keys;
         }
@@ -946,32 +981,61 @@
         }
 
         function formatMonthLabel(monthKey) {
-            const [year, month] = String(monthKey || "").split("-");
-            const date = new Date(`${year}-${month || "01"}-01T00:00:00`);
-            if (Number.isNaN(date.getTime())) return monthKey;
+            const date = createUtcDateFromMonthKey(monthKey);
+            if (!date) return monthKey;
             return new Intl.DateTimeFormat("de-DE", {
                 month: "long",
-                year: "numeric"
+                year: "numeric",
+                timeZone: "UTC"
             }).format(date);
         }
 
         function formatDayName(dateValue) {
-            if (!dateValue) return "";
-            const date = new Date(`${dateValue}T00:00:00`);
-            if (Number.isNaN(date.getTime())) return "";
-            return new Intl.DateTimeFormat("de-DE", { weekday: "short" })
+            const date = createUtcDateFromIso(dateValue);
+            if (!date) return "";
+            return new Intl.DateTimeFormat("de-DE", {
+                weekday: "short",
+                timeZone: "UTC"
+            })
                 .format(date)
                 .replace(".", "");
         }
 
         function formatDayNumber(dateValue) {
-            if (!dateValue) return "";
-            const date = new Date(`${dateValue}T00:00:00`);
-            if (Number.isNaN(date.getTime())) return "";
+            const date = createUtcDateFromIso(dateValue);
+            if (!date) return "";
             return new Intl.DateTimeFormat("de-DE", {
                 day: "2-digit",
-                month: "2-digit"
+                month: "2-digit",
+                timeZone: "UTC"
             }).format(date);
+        }
+
+        function getUtcWeekday(dateValue) {
+            const date = createUtcDateFromIso(dateValue);
+            if (!date) return -1;
+            return date.getUTCDay();
+        }
+
+        function isWeekendDate(dateValue) {
+            const day = getUtcWeekday(dateValue);
+            return day === 0 || day === 6;
+        }
+
+        function getDaysInMonth(monthKey) {
+            const parts = parseMonthKey(monthKey);
+            if (!parts) return 0;
+            return new Date(Date.UTC(parts.year, parts.month, 0)).getUTCDate();
+        }
+
+        function getDaysOfMonth(monthKey) {
+            const parts = parseMonthKey(monthKey);
+            if (!parts) return [];
+            const daysInMonth = getDaysInMonth(monthKey);
+            return Array.from({ length: daysInMonth }, (_, index) => {
+                const day = String(index + 1).padStart(2, "0");
+                return `${parts.year}-${String(parts.month).padStart(2, "0")}-${day}`;
+            });
         }
 
         function simplifyVenueName(locationValue) {
@@ -1030,25 +1094,6 @@
                 event.endDate &&
                 String(event.endDate).trim() >= String(event.date).trim()
             );
-        }
-
-        function isWeekendDate(dateValue) {
-            const date = new Date(`${dateValue}T00:00:00`);
-            if (Number.isNaN(date.getTime())) return false;
-            const day = date.getDay();
-            return day === 0 || day === 6;
-        }
-
-        function getDaysOfMonth(monthKey) {
-            const [yearText, monthText] = String(monthKey || "").split("-");
-            const year = Number(yearText);
-            const month = Number(monthText);
-            if (!year || !month) return [];
-            const daysInMonth = new Date(year, month, 0).getDate();
-            return Array.from({ length: daysInMonth }, (_, index) => {
-                const day = String(index + 1).padStart(2, "0");
-                return `${yearText}-${monthText}-${day}`;
-            });
         }
 
         function getLegacyLocalManualEvents() {
