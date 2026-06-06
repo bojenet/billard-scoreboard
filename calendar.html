@@ -326,6 +326,29 @@
             background: var(--manual-bg);
         }
 
+        .calendar-event.manual.multi-day {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        .calendar-event.manual.multi-day.span-start {
+            border-top-right-radius: 6px;
+            border-top-left-radius: 0;
+            border-bottom-right-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .calendar-event.manual.multi-day.span-middle {
+            border-radius: 0;
+        }
+
+        .calendar-event.manual.multi-day.span-end {
+            border-top-right-radius: 0;
+            border-top-left-radius: 0;
+            border-bottom-right-radius: 6px;
+            border-bottom-left-radius: 0;
+        }
+
         .event-tags {
             display: flex;
             gap: 6px;
@@ -906,9 +929,17 @@
                     return [event];
                 }
                 const range = eachDateBetween(event.date, event.endDate);
-                return (range.length ? range : [event.date]).map((dateValue) => ({
+                const effectiveRange = range.length ? range : [event.date];
+                return effectiveRange.map((dateValue, index) => ({
                     ...event,
-                    displayDate: dateValue
+                    displayDate: dateValue,
+                    spanPosition: effectiveRange.length === 1
+                        ? "single"
+                        : index === 0
+                            ? "start"
+                            : index === effectiveRange.length - 1
+                                ? "end"
+                                : "middle"
                 }));
             });
         }
@@ -1078,12 +1109,11 @@
                                         <td>
                                             <div class="calendar-event-cell">
                                                 ${dayEvents.map((event) => `
-                                                    <div class="calendar-event ${event.source === "manual" ? "manual" : ""}">
+                                                    <div class="calendar-event ${event.source === "manual" ? "manual" : ""} ${event.source === "manual" && event.allDay ? `multi-day span-${escapeHtml(event.spanPosition || "single")}` : ""}">
                                                         <div>
                                                             ${(event.time || event.source === "manual") ? `
                                                                 <div class="event-tags">
                                                                     ${event.time ? `<span class="event-tag">${escapeHtml(event.time)}</span>` : ""}
-                                                                    ${event.source === "manual" && event.allDay && event.endDate ? `<span class="event-tag manual">${escapeHtml(event.date)} bis ${escapeHtml(event.endDate)}</span>` : ""}
                                                                 </div>
                                                             ` : ""}
                                                             <div class="event-title">${escapeHtml(event.title)}</div>
