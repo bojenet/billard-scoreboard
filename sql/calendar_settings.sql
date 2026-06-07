@@ -4,9 +4,13 @@ create table if not exists public.calendar_settings (
   key text primary key,
   source_url text not null default '',
   season text not null default '2025/2026',
+  public_view_enabled boolean not null default true,
   updated_at timestamptz not null default now(),
   updated_by uuid null references auth.users(id) on delete set null
 );
+
+alter table public.calendar_settings
+add column if not exists public_view_enabled boolean not null default true;
 
 alter table public.calendar_settings enable row level security;
 
@@ -86,6 +90,6 @@ begin
 end
 $$;
 
-insert into public.calendar_settings (key, source_url, season)
-values ('nbv_public_calendar', '', '2025/2026')
+insert into public.calendar_settings (key, source_url, season, public_view_enabled)
+values ('nbv_public_calendar', '', '2025/2026', true)
 on conflict (key) do nothing;

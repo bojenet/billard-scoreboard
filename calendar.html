@@ -365,6 +365,12 @@
             background: var(--manual-bg);
         }
 
+        .calendar-event.planning {
+            border-left-color: #b76f18;
+            background: #fff4e6;
+            box-shadow: inset 0 0 0 1px rgba(183, 111, 24, 0.18);
+        }
+
         .calendar-event.manual.multi-day {
             margin-top: 0;
             margin-bottom: 0;
@@ -459,6 +465,32 @@
 
         .calendar-event-spacer {
             display: none;
+        }
+
+        .calendar-event-cell.day-cell-clickable {
+            min-height: 28px;
+            border-radius: 4px;
+        }
+
+        .calendar-event-cell.day-cell-clickable:hover {
+            background: rgba(45, 88, 128, 0.05);
+        }
+
+        .calendar-event-cell.day-drop-target {
+            outline: 2px dashed #b76f18;
+            outline-offset: 2px;
+            background: rgba(183, 111, 24, 0.08);
+        }
+
+        .empty-day-hint {
+            display: none;
+            font-size: 11px;
+            color: #8a5a1c;
+            padding: 6px 4px;
+        }
+
+        .calendar-event-cell.day-cell-clickable:hover .empty-day-hint {
+            display: block;
         }
 
         .form-grid {
@@ -699,6 +731,11 @@
                 display: block;
                 min-height: 0;
             }
+            .empty-day-hint {
+                display: block;
+                padding: 4px 2px;
+                font-size: 10px;
+            }
             .modal-backdrop {
                 padding: 0;
                 align-items: flex-end;
@@ -743,7 +780,7 @@
             </div>
         </div>
 
-        <div class="panel">
+        <div id="calendarFooterPanel" class="panel">
             <div class="footer-tools">
                 <div id="calendarFeedBlock" class="footer-tool-block admin-only">
                     <div class="feed-heading">Kalender-Abo</div>
@@ -779,11 +816,22 @@
                     </div>
                     <div id="calendarSourceUrlInfo" class="admin-settings-meta">Saison wird aus der URL gelesen.</div>
                     <div class="admin-settings-row">
+                        <div>
+                            <label class="field-title" for="calendarPublicViewToggle">Öffentliche View</label>
+                            <select id="calendarPublicViewToggle">
+                                <option value="true">Freigegeben</option>
+                                <option value="false">Gesperrt</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-secondary" type="button" onclick="saveCalendarSettings()">Freigabe speichern</button>
+                    </div>
+                    <div class="admin-settings-row">
                         <div class="admin-settings-meta">Gesetzliche Feiertage Hamburg fuer die aktive Saison als manuelle Termine erzeugen.</div>
                         <button class="btn btn-secondary" type="button" onclick="createHamburgHolidayEvents()">Hamburger Feiertage anlegen</button>
                     </div>
                 </div>
                 <div class="feed-actions">
+                    <button id="planningEventOpenBtn" class="btn btn-primary" type="button" onclick="openPlanningEventModal()" style="display:none;">Planungstermin anlegen</button>
                     <button id="manualEventOpenBtn" class="btn btn-save" type="button" onclick="openManualEventModal()" style="display:none;">Manuellen Termin anlegen</button>
                     <button id="calendarRefreshBtn" class="btn btn-primary admin-only-flex" type="button" onclick="refreshCalendar()">NBV Termine laden</button>
                     <button id="calendarFeedCopyBtn" class="btn btn-secondary admin-only" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
@@ -847,6 +895,55 @@
         </div>
     </div>
 
+    <div id="planningEventModal" class="modal-backdrop" onclick="handlePlanningModalBackdrop(event)">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-head">
+                <div>
+                    <h2 id="planningEventModalTitle" class="modal-title">Planungstermin</h2>
+                    <div class="panel-sub">Interner Planungstermin nur fuer Admins. Nicht sichtbar in öffentlicher View oder ICS.</div>
+                </div>
+                <button class="modal-close" type="button" onclick="closePlanningEventModal()" aria-label="Schließen">&times;</button>
+            </div>
+            <div class="form-grid">
+                <div>
+                    <label class="field-title" for="planningEventDate">Datum</label>
+                    <input id="planningEventDate" type="date" onchange="handlePlanningDurationChange()">
+                </div>
+                <div>
+                    <label class="field-title" for="planningEventTime">Uhrzeit</label>
+                    <input id="planningEventTime" type="time">
+                </div>
+                <div>
+                    <label class="field-title" for="planningEventMultiDay">Dauer</label>
+                    <select id="planningEventMultiDay" onchange="handlePlanningDurationChange()">
+                        <option value="single">Eintägig</option>
+                        <option value="multi">Mehrtägig</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-title" for="planningEventEndDate">Bis Datum</label>
+                    <input id="planningEventEndDate" type="date" disabled>
+                </div>
+                <div class="field-full">
+                    <label class="field-title" for="planningEventTitle">Titel</label>
+                    <input id="planningEventTitle" type="text" placeholder="z. B. geplanter NDM Termin">
+                </div>
+                <div class="field-full">
+                    <label class="field-title" for="planningEventLocation">Ort</label>
+                    <input id="planningEventLocation" type="text" placeholder="z. B. BG Hamburg">
+                </div>
+                <div class="field-full">
+                    <label class="field-title" for="planningEventNote">Notiz</label>
+                    <input id="planningEventNote" type="text" placeholder="Interner Hinweis">
+                </div>
+            </div>
+            <div class="button-row">
+                <button id="planningEventSubmitBtn" class="btn btn-primary" type="button" onclick="savePlanningEvent()">Planungstermin speichern</button>
+                <button id="planningEventCancelBtn" class="btn btn-secondary" type="button" onclick="cancelPlanningEventEdit()" style="display:none;">Bearbeitung abbrechen</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
@@ -893,9 +990,13 @@
         let activeVenueFilter = "all";
         let isCalendarAdmin = false;
         let editingManualEventId = null;
+        let editingPlanningEventId = null;
+        let draggingPlanningEventId = null;
         let currentCalendarSeason = DEFAULT_NBV_CALENDAR_SEASON;
         let currentCalendarSourceUrl = "";
+        let isPublicViewEnabled = true;
         let manualEvents = [];
+        let planningEvents = [];
 
         function escapeHtml(value) {
             return String(value || "")
@@ -961,6 +1062,13 @@
             const normalizedDate = String(dateValue || "").trim();
             if (!range || !normalizedDate) return false;
             return normalizedDate >= range.start && normalizedDate <= range.end;
+        }
+
+        function isDateRangeWithinSeason(startDate, endDate, season) {
+            const normalizedStart = String(startDate || "").trim();
+            const normalizedEnd = String(endDate || startDate || "").trim();
+            if (!normalizedStart) return false;
+            return normalizedStart <= (getSeasonDateRange(season)?.end || "") && normalizedEnd >= (getSeasonDateRange(season)?.start || "");
         }
 
         function parseIsoDateParts(value) {
@@ -1204,6 +1312,13 @@
             return `${year}-${month}-${day}`;
         }
 
+        function dayDiff(startDate, endDate) {
+            const start = createUtcDateFromIso(startDate);
+            const end = createUtcDateFromIso(endDate);
+            if (!start || !end) return 0;
+            return Math.round((end.getTime() - start.getTime()) / 86400000);
+        }
+
         function eachDateBetween(startDate, endDate) {
             const dates = [];
             let cursor = String(startDate || "").trim();
@@ -1218,10 +1333,9 @@
             return dates;
         }
 
-        function isManualMultiDayEvent(event) {
+        function isMultiDayEvent(event) {
             return Boolean(
                 event &&
-                event.source === "manual" &&
                 event.date &&
                 event.endDate &&
                 String(event.endDate).trim() >= String(event.date).trim()
@@ -1263,6 +1377,27 @@
             return Array.isArray(manualEvents) ? manualEvents : [];
         }
 
+        function normalizePlanningEventRecord(event) {
+            return {
+                id: String(event?.id || "").trim(),
+                date: String(event?.date || "").trim(),
+                time: String(event?.time || "").trim(),
+                endDate: String(event?.end_date || event?.endDate || "").trim(),
+                allDay: Boolean(event?.all_day ?? event?.allDay),
+                title: String(event?.title || "").trim(),
+                location: String(event?.location || "").trim(),
+                note: String(event?.note || "").trim(),
+                source: "planning",
+                link: "",
+                disciplineId: "planning",
+                disciplineLabel: "Planung"
+            };
+        }
+
+        function getPlanningEvents() {
+            return isCalendarAdmin && Array.isArray(planningEvents) ? planningEvents : [];
+        }
+
         async function loadManualEvents() {
             try {
                 const { data, error } = await supabaseClient
@@ -1275,6 +1410,25 @@
             } catch (error) {
                 console.warn("Zentrale manuelle Kalendertermine konnten nicht geladen werden:", error);
                 manualEvents = [];
+            }
+        }
+
+        async function loadPlanningEvents() {
+            if (!isCalendarAdmin) {
+                planningEvents = [];
+                return;
+            }
+            try {
+                const { data, error } = await supabaseClient
+                    .from("calendar_planning_events")
+                    .select("id, date, time, end_date, all_day, title, location, note")
+                    .order("date", { ascending: true })
+                    .order("time", { ascending: true });
+                if (error) throw error;
+                planningEvents = Array.isArray(data) ? data.map(normalizePlanningEventRecord) : [];
+            } catch (error) {
+                console.warn("Interne Planungstermine konnten nicht geladen werden:", error);
+                planningEvents = [];
             }
         }
 
@@ -1330,8 +1484,33 @@
             handleManualDurationChange();
         }
 
+        function resetPlanningEventForm(prefillDate = "") {
+            document.getElementById("planningEventDate").value = prefillDate || "";
+            document.getElementById("planningEventTime").value = "";
+            document.getElementById("planningEventMultiDay").value = "single";
+            document.getElementById("planningEventEndDate").value = prefillDate || "";
+            document.getElementById("planningEventTitle").value = "";
+            document.getElementById("planningEventLocation").value = "";
+            document.getElementById("planningEventNote").value = "";
+            editingPlanningEventId = null;
+            const submitBtn = document.getElementById("planningEventSubmitBtn");
+            const cancelBtn = document.getElementById("planningEventCancelBtn");
+            const modalTitle = document.getElementById("planningEventModalTitle");
+            if (submitBtn) submitBtn.textContent = "Planungstermin speichern";
+            if (cancelBtn) cancelBtn.style.display = "none";
+            if (modalTitle) modalTitle.textContent = "Planungstermin";
+            handlePlanningDurationChange();
+        }
+
         function openManualEventModal() {
             const modal = document.getElementById("manualEventModal");
+            if (modal) modal.classList.add("open");
+            document.body.style.overflow = "hidden";
+        }
+
+        function openPlanningEventModal(prefillDate = "") {
+            resetPlanningEventForm(prefillDate);
+            const modal = document.getElementById("planningEventModal");
             if (modal) modal.classList.add("open");
             document.body.style.overflow = "hidden";
         }
@@ -1342,9 +1521,21 @@
             document.body.style.overflow = "";
         }
 
+        function closePlanningEventModal() {
+            const modal = document.getElementById("planningEventModal");
+            if (modal) modal.classList.remove("open");
+            document.body.style.overflow = "";
+        }
+
         function handleManualModalBackdrop(event) {
             if (event.target?.id === "manualEventModal") {
                 closeManualEventModal();
+            }
+        }
+
+        function handlePlanningModalBackdrop(event) {
+            if (event.target?.id === "planningEventModal") {
+                closePlanningEventModal();
             }
         }
 
@@ -1354,7 +1545,7 @@
             editingManualEventId = eventId;
             document.getElementById("manualEventDate").value = String(event.date || "");
             document.getElementById("manualEventTime").value = String(event.time || "");
-            document.getElementById("manualEventMultiDay").value = isManualMultiDayEvent(event) ? "multi" : "single";
+            document.getElementById("manualEventMultiDay").value = isMultiDayEvent(event) ? "multi" : "single";
             document.getElementById("manualEventEndDate").value = String(event.endDate || "");
             document.getElementById("manualEventTitle").value = String(event.title || "");
             document.getElementById("manualEventLocation").value = String(event.location || "");
@@ -1369,10 +1560,39 @@
             openManualEventModal();
         }
 
+        function startPlanningEventEdit(eventId) {
+            const event = getPlanningEvents().find((entry) => entry.id === eventId);
+            if (!event) return;
+            editingPlanningEventId = eventId;
+            document.getElementById("planningEventDate").value = String(event.date || "");
+            document.getElementById("planningEventTime").value = String(event.time || "");
+            document.getElementById("planningEventMultiDay").value = isMultiDayEvent(event) ? "multi" : "single";
+            document.getElementById("planningEventEndDate").value = String(event.endDate || "");
+            document.getElementById("planningEventTitle").value = String(event.title || "");
+            document.getElementById("planningEventLocation").value = String(event.location || "");
+            document.getElementById("planningEventNote").value = String(event.note || "");
+            const submitBtn = document.getElementById("planningEventSubmitBtn");
+            const cancelBtn = document.getElementById("planningEventCancelBtn");
+            const modalTitle = document.getElementById("planningEventModalTitle");
+            if (submitBtn) submitBtn.textContent = "Planungstermin aktualisieren";
+            if (cancelBtn) cancelBtn.style.display = "";
+            if (modalTitle) modalTitle.textContent = "Planungstermin bearbeiten";
+            handlePlanningDurationChange();
+            const modal = document.getElementById("planningEventModal");
+            if (modal) modal.classList.add("open");
+            document.body.style.overflow = "hidden";
+        }
+
         function cancelManualEventEdit() {
             resetManualEventForm();
             closeManualEventModal();
             showCalendarMessage("Bearbeitung abgebrochen.", "ok");
+        }
+
+        function cancelPlanningEventEdit() {
+            resetPlanningEventForm();
+            closePlanningEventModal();
+            showCalendarMessage("Bearbeitung des Planungstermins abgebrochen.", "ok");
         }
 
         function getManualEventsForFeed() {
@@ -1386,7 +1606,7 @@
         }
 
         function getAllEvents() {
-            return [...importedEvents, ...getManualEvents()]
+            return [...importedEvents, ...getManualEvents(), ...getPlanningEvents()]
                 .filter((entry) => entry && entry.date && entry.title)
                 .sort((left, right) => {
                     const leftKey = `${left.date} ${left.time || "99:99"} ${left.title}`;
@@ -1397,7 +1617,7 @@
 
         function expandEventsForCalendar(events) {
             return events.flatMap((event) => {
-                if (!isManualMultiDayEvent(event)) {
+                if (!isMultiDayEvent(event)) {
                     return [event];
                 }
                 const range = eachDateBetween(event.date, event.endDate);
@@ -1547,6 +1767,103 @@
             }
         }
 
+        function handlePlanningDurationChange() {
+            const durationMode = String(document.getElementById("planningEventMultiDay")?.value || "single");
+            const timeInput = document.getElementById("planningEventTime");
+            const endDateInput = document.getElementById("planningEventEndDate");
+            const dateInput = document.getElementById("planningEventDate");
+            const isMultiDay = durationMode === "multi";
+            if (timeInput) {
+                timeInput.disabled = isMultiDay;
+                if (isMultiDay) {
+                    timeInput.value = "";
+                }
+            }
+            if (endDateInput) {
+                endDateInput.disabled = !isMultiDay;
+                if (!isMultiDay) {
+                    endDateInput.value = "";
+                } else if (dateInput?.value && (!endDateInput.value || endDateInput.value < dateInput.value)) {
+                    endDateInput.value = dateInput.value;
+                }
+            }
+        }
+
+        function handleDayCellClick(event, dateValue) {
+            if (!isCalendarAdmin) return;
+            if (event.target.closest(".calendar-event")) return;
+            if (!isDateWithinSeason(dateValue, currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON)) return;
+            openPlanningEventModal(dateValue);
+        }
+
+        function handlePlanningDragStart(event, eventId) {
+            if (!isCalendarAdmin) return;
+            draggingPlanningEventId = eventId;
+            if (event.dataTransfer) {
+                event.dataTransfer.setData("text/plain", eventId);
+                event.dataTransfer.effectAllowed = "move";
+            }
+        }
+
+        function handlePlanningDragEnd() {
+            draggingPlanningEventId = null;
+            document.querySelectorAll(".day-drop-target").forEach((element) => element.classList.remove("day-drop-target"));
+        }
+
+        function handlePlanningDragOver(event) {
+            if (!isCalendarAdmin || !draggingPlanningEventId) return;
+            event.preventDefault();
+            const current = event.currentTarget;
+            if (current instanceof HTMLElement) {
+                current.classList.add("day-drop-target");
+            }
+        }
+
+        function handlePlanningDragLeave(event) {
+            const current = event.currentTarget;
+            if (current instanceof HTMLElement) {
+                current.classList.remove("day-drop-target");
+            }
+        }
+
+        async function handlePlanningDrop(event, targetDate) {
+            if (!isCalendarAdmin || !draggingPlanningEventId) return;
+            event.preventDefault();
+            const current = event.currentTarget;
+            if (current instanceof HTMLElement) {
+                current.classList.remove("day-drop-target");
+            }
+            const planningEvent = getPlanningEvents().find((entry) => entry.id === draggingPlanningEventId);
+            draggingPlanningEventId = null;
+            if (!planningEvent || !targetDate) return;
+            const rangeLength = isMultiDayEvent(planningEvent) ? dayDiff(planningEvent.date, planningEvent.endDate) : 0;
+            const payload = {
+                id: planningEvent.id,
+                date: targetDate,
+                time: planningEvent.time || "",
+                end_date: rangeLength > 0 ? addDays(targetDate, rangeLength) : null,
+                all_day: Boolean(planningEvent.allDay),
+                title: planningEvent.title,
+                location: planningEvent.location || "",
+                note: planningEvent.note || "",
+                updated_at: new Date().toISOString(),
+                updated_by: currentUser?.id || null
+            };
+            try {
+                const { error } = await supabaseClient
+                    .from("calendar_planning_events")
+                    .upsert(payload, { onConflict: "id" });
+                if (error) throw error;
+                await loadPlanningEvents();
+                renderFilters();
+                renderCalendar();
+                showCalendarMessage("Planungstermin wurde verschoben.", "ok");
+            } catch (dropError) {
+                console.warn("Planungstermin konnte nicht verschoben werden:", dropError);
+                showCalendarMessage("Planungstermin konnte nicht verschoben werden.", "error");
+            }
+        }
+
         function renderCalendar() {
             const grid = document.getElementById("calendarGrid");
             if (!grid) return;
@@ -1593,30 +1910,36 @@
                                         <td class="calendar-dow ${weekend ? "weekend" : ""}">${escapeHtml(formatDayName(dateValue))}</td>
                                         <td class="calendar-date ${weekend ? "weekend" : ""}">${escapeHtml(formatDayNumber(dateValue))}</td>
                                         <td>
-                                            <div class="calendar-event-cell">
+                                            <div class="calendar-event-cell ${isCalendarAdmin ? "day-cell-clickable" : ""}" onclick="handleDayCellClick(event, '${escapeHtml(dateValue)}')" ondragover="handlePlanningDragOver(event)" ondragleave="handlePlanningDragLeave(event)" ondrop="handlePlanningDrop(event, '${escapeHtml(dateValue)}')">
                                                 ${dayEvents.map((event) => `
-                                                    <div class="calendar-event ${event.source === "manual" ? "manual" : ""} ${isManualMultiDayEvent(event) ? `multi-day span-${escapeHtml(event.spanPosition || "single")}` : ""}">
+                                                    <div class="calendar-event ${event.source === "manual" ? "manual" : ""} ${event.source === "planning" ? "planning" : ""} ${isMultiDayEvent(event) ? `multi-day span-${escapeHtml(event.spanPosition || "single")}` : ""}" ${isCalendarAdmin && event.source === "planning" ? `draggable="true" ondragstart="handlePlanningDragStart(event, '${escapeHtml(event.id)}')" ondragend="handlePlanningDragEnd()"` : ""}>
                                                         <div>
-                                                            ${(event.time || event.source === "manual") ? `
+                                                            ${(event.time || event.source === "manual" || event.source === "planning") ? `
                                                                 <div class="event-tags">
                                                                     ${event.time ? `<span class="event-tag">${escapeHtml(event.time)}</span>` : ""}
                                                                 </div>
                                                             ` : ""}
                                                             <div class="event-title">${escapeHtml(event.title)}</div>
-                                                            ${event.source === "manual" && event.location ? `<div class="event-meta">${escapeHtml(event.location)}</div>` : ""}
-                                                            ${event.source === "manual" && event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
+                                                            ${(event.source === "manual" || event.source === "planning") && event.location ? `<div class="event-meta">${escapeHtml(event.location)}</div>` : ""}
+                                                            ${(event.source === "manual" || event.source === "planning") && event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
                                                             ${event.link ? `<div class="event-note"><a class="cc_bluelink" href="${escapeHtml(event.link)}" target="_blank" rel="noreferrer">NBV Details</a></div>` : ""}
                                                         </div>
-                                                        ${isCalendarAdmin && event.source === "manual" && (!isManualMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
+                                                        ${isCalendarAdmin && event.source === "manual" && (!isMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
                                                             <div class="event-actions">
                                                                 <button class="mini-btn" type="button" onclick="startManualEventEdit('${escapeHtml(event.id)}')">Bearbeiten</button>
                                                                 <button class="mini-btn danger" type="button" onclick="removeManualEvent('${escapeHtml(event.id)}')">Löschen</button>
                                                             </div>
-                                                        ` : event.source === "manual" ? `
+                                                        ` : isCalendarAdmin && event.source === "planning" && (!isMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
+                                                            <div class="event-actions">
+                                                                <button class="mini-btn" type="button" onclick="startPlanningEventEdit('${escapeHtml(event.id)}')">Bearbeiten</button>
+                                                                <button class="mini-btn danger" type="button" onclick="removePlanningEvent('${escapeHtml(event.id)}')">Löschen</button>
+                                                            </div>
+                                                        ` : event.source === "manual" || event.source === "planning" ? `
                                                             <div></div>
                                                         ` : `<div class="event-side">${escapeHtml(simplifyVenueName(event.location || ""))}</div>`}
                                                     </div>
                                                 `).join("")}
+                                                ${isCalendarAdmin && dayEvents.length === 0 ? `<div class="empty-day-hint">Leere Zelle antippen oder klicken zum Planen</div>` : ""}
                                             </div>
                                         </td>
                                     </tr>
@@ -1665,15 +1988,17 @@
         async function loadCalendarSettings() {
             currentCalendarSeason = DEFAULT_NBV_CALENDAR_SEASON;
             currentCalendarSourceUrl = "";
+            isPublicViewEnabled = true;
             try {
                 const { data, error } = await supabaseClient
                     .from("calendar_settings")
-                    .select("source_url, season")
+                    .select("source_url, season, public_view_enabled")
                     .eq("key", CALENDAR_SETTINGS_KEY)
                     .maybeSingle();
                 if (error) throw error;
                 currentCalendarSourceUrl = String(data?.source_url || "").trim();
                 currentCalendarSeason = String(data?.season || "").trim() || DEFAULT_NBV_CALENDAR_SEASON;
+                isPublicViewEnabled = data?.public_view_enabled !== false;
                 const derivedSeason = extractSeasonFromSourceUrl(currentCalendarSourceUrl);
                 if (derivedSeason) {
                     currentCalendarSeason = derivedSeason;
@@ -1686,6 +2011,10 @@
             if (sourceUrlInput) {
                 sourceUrlInput.value = currentCalendarSourceUrl;
             }
+            const publicViewToggle = document.getElementById("calendarPublicViewToggle");
+            if (publicViewToggle) {
+                publicViewToggle.value = isPublicViewEnabled ? "true" : "false";
+            }
             updateCalendarSeasonUi();
             previewCalendarSeasonFromUrl();
         }
@@ -1693,9 +2022,11 @@
         async function saveCalendarSettings() {
             if (!isCalendarAdmin) return;
             const input = document.getElementById("calendarSourceUrlInput");
+            const publicViewToggle = document.getElementById("calendarPublicViewToggle");
             const sourceUrl = String(input?.value || "").trim();
             const derivedSeason = extractSeasonFromSourceUrl(sourceUrl);
             const nextSeason = derivedSeason || DEFAULT_NBV_CALENDAR_SEASON;
+            const nextPublicViewEnabled = String(publicViewToggle?.value || "true") === "true";
 
             if (sourceUrl && !derivedSeason) {
                 showCalendarMessage("Aus der NBV-URL konnte keine Saison gelesen werden. Erwartet wird zum Beispiel 2026/2027.", "error");
@@ -1708,6 +2039,7 @@
                     key: CALENDAR_SETTINGS_KEY,
                     source_url: sourceUrl,
                     season: nextSeason,
+                    public_view_enabled: nextPublicViewEnabled,
                     updated_at: new Date().toISOString(),
                     updated_by: currentUser?.id || null
                 };
@@ -1717,9 +2049,11 @@
                 if (error) throw error;
                 currentCalendarSourceUrl = sourceUrl;
                 currentCalendarSeason = nextSeason;
+                isPublicViewEnabled = nextPublicViewEnabled;
                 updateCalendarSeasonUi();
                 previewCalendarSeasonFromUrl();
                 updateCalendarFeedUi();
+                applyPublicViewState();
                 showCalendarMessage(`NBV-Quelle gespeichert. Kalender laedt jetzt Saison ${currentCalendarSeason}.`, "ok");
                 await refreshCalendar();
             } catch (error) {
@@ -1753,6 +2087,12 @@
         }
 
         async function refreshCalendar() {
+            if (!isCalendarAdmin && !isPublicViewEnabled) {
+                importedEvents = [];
+                manualEvents = [];
+                renderCalendar();
+                return;
+            }
             showCalendarMessage("", "");
             setCalendarLoading(true, "NBV-Termine werden geladen...");
 
@@ -1786,6 +2126,7 @@
             }
 
             await loadManualEvents();
+            await loadPlanningEvents();
             if (activeVenueFilter !== "all") {
                 const venueStillExists = getAllEvents().some((event) => getEventVenueLabel(event) === activeVenueFilter);
                 if (!venueStillExists) {
@@ -1854,6 +2195,57 @@
             }
         }
 
+        async function savePlanningEvent() {
+            const date = String(document.getElementById("planningEventDate")?.value || "").trim();
+            const time = String(document.getElementById("planningEventTime")?.value || "").trim();
+            const durationMode = String(document.getElementById("planningEventMultiDay")?.value || "single").trim();
+            const endDate = String(document.getElementById("planningEventEndDate")?.value || "").trim();
+            const title = String(document.getElementById("planningEventTitle")?.value || "").trim();
+            const location = String(document.getElementById("planningEventLocation")?.value || "").trim();
+            const note = String(document.getElementById("planningEventNote")?.value || "").trim();
+            const allDay = durationMode === "multi" || Boolean(endDate && endDate >= date);
+
+            if (!date || !title) {
+                showCalendarMessage("Bitte mindestens Datum und Titel fuer den Planungstermin eintragen.", "error");
+                return;
+            }
+
+            if (allDay && (!endDate || endDate < date)) {
+                showCalendarMessage("Bitte fuer mehrtaegige Planungstermine ein gueltiges Enddatum eintragen.", "error");
+                return;
+            }
+
+            const payload = {
+                id: editingPlanningEventId || `planning-${Date.now()}`,
+                date,
+                time: allDay ? "" : time,
+                end_date: allDay ? endDate : null,
+                all_day: allDay || Boolean(endDate),
+                title,
+                location,
+                note,
+                updated_at: new Date().toISOString(),
+                updated_by: currentUser?.id || null
+            };
+
+            try {
+                const { error } = await supabaseClient
+                    .from("calendar_planning_events")
+                    .upsert(payload, { onConflict: "id" });
+                if (error) throw error;
+                const wasEditing = Boolean(editingPlanningEventId);
+                await loadPlanningEvents();
+                resetPlanningEventForm();
+                closePlanningEventModal();
+                showCalendarMessage(wasEditing ? "Planungstermin wurde aktualisiert." : "Planungstermin wurde hinzugefügt.", "ok");
+                renderFilters();
+                renderCalendar();
+            } catch (error) {
+                console.warn("Planungstermin konnte nicht gespeichert werden:", error);
+                showCalendarMessage("Planungstermin konnte nicht gespeichert werden.", "error");
+            }
+        }
+
         async function removeManualEvent(eventId) {
             try {
                 const { error } = await supabaseClient
@@ -1875,14 +2267,54 @@
             }
         }
 
+        async function removePlanningEvent(eventId) {
+            try {
+                const { error } = await supabaseClient
+                    .from("calendar_planning_events")
+                    .delete()
+                    .eq("id", eventId);
+                if (error) throw error;
+                if (editingPlanningEventId === eventId) {
+                    resetPlanningEventForm();
+                }
+                await loadPlanningEvents();
+                showCalendarMessage("Planungstermin wurde entfernt.", "ok");
+                renderFilters();
+                renderCalendar();
+            } catch (error) {
+                console.warn("Planungstermin konnte nicht entfernt werden:", error);
+                showCalendarMessage("Planungstermin konnte nicht entfernt werden.", "error");
+            }
+        }
+
+        function applyPublicViewState() {
+            const filters = document.getElementById("calendarFilters");
+            const footer = document.getElementById("calendarFooterPanel");
+            if (!isCalendarAdmin && !isPublicViewEnabled) {
+                if (filters) filters.style.display = "none";
+                if (footer) footer.style.display = "none";
+                const grid = document.getElementById("calendarGrid");
+                if (grid) {
+                    grid.innerHTML = '<div class="empty-state">Der Kalender ist noch nicht freigegeben.</div>';
+                }
+                return;
+            }
+            if (filters) filters.style.display = "";
+            if (footer) footer.style.display = "";
+        }
+
         function applyAccessUi() {
             const readOnly = !isCalendarAdmin;
             const openBtn = document.getElementById("manualEventOpenBtn");
+            const planningOpenBtn = document.getElementById("planningEventOpenBtn");
             const settingsBlock = document.getElementById("calendarAdminSettings");
             const feedBlock = document.getElementById("calendarFeedBlock");
             const planstandBlock = document.getElementById("calendarPlanstandBlock");
             if (openBtn) {
                 openBtn.style.display = isCalendarAdmin ? "" : "none";
+            }
+            if (planningOpenBtn) {
+                planningOpenBtn.style.display = isCalendarAdmin ? "" : "none";
             }
             if (settingsBlock) {
                 settingsBlock.classList.toggle("open", isCalendarAdmin);
@@ -1902,9 +2334,16 @@
             document.querySelectorAll("#manualEventDate, #manualEventTime, #manualEventTitle, #manualEventLocation, #manualEventNote").forEach((input) => {
                 input.disabled = readOnly;
             });
+            document.querySelectorAll("#planningEventDate, #planningEventTime, #planningEventTitle, #planningEventLocation, #planningEventNote").forEach((input) => {
+                input.disabled = readOnly;
+            });
             const durationSelect = document.getElementById("manualEventMultiDay");
             if (durationSelect) {
                 durationSelect.disabled = readOnly;
+            }
+            const planningDurationSelect = document.getElementById("planningEventMultiDay");
+            if (planningDurationSelect) {
+                planningDurationSelect.disabled = readOnly;
             }
             const endDateInput = document.getElementById("manualEventEndDate");
             if (endDateInput && readOnly) {
@@ -1912,9 +2351,19 @@
             } else if (endDateInput) {
                 handleManualDurationChange();
             }
+            const planningEndDateInput = document.getElementById("planningEventEndDate");
+            if (planningEndDateInput && readOnly) {
+                planningEndDateInput.disabled = true;
+            } else if (planningEndDateInput) {
+                handlePlanningDurationChange();
+            }
             document.querySelectorAll(".btn-save, .mini-btn.danger").forEach((button) => {
                 button.disabled = readOnly;
             });
+            const planningSubmitBtn = document.getElementById("planningEventSubmitBtn");
+            if (planningSubmitBtn) {
+                planningSubmitBtn.disabled = readOnly;
+            }
         }
 
         async function initPage() {
@@ -1924,20 +2373,28 @@
 
             await loadCalendarSettings();
             await loadManualEvents();
+            await loadPlanningEvents();
             await migrateLegacyLocalManualEvents();
             loadSavedFilter();
             renderFilters();
             updateCalendarFeedUi();
             handleManualDurationChange();
+            handlePlanningDurationChange();
             resetManualEventForm();
+            resetPlanningEventForm();
             renderCalendar();
             applyAccessUi();
+            applyPublicViewState();
+            if (!isCalendarAdmin && !isPublicViewEnabled) {
+                return;
+            }
             await refreshCalendar();
         }
 
         document.addEventListener("keydown", (event) => {
             if (event.key === "Escape") {
                 closeManualEventModal();
+                closePlanningEventModal();
             }
         });
 
