@@ -186,6 +186,7 @@
     <script src="js/auth.js"></script>
     <script src="js/training_access.js"></script>
     <script src="js/tournament_access.js"></script>
+    <script src="js/calendar_access.js"></script>
     <script src="js/user_menu.js"></script>
 
     <script>
@@ -300,8 +301,12 @@
             const tile = document.getElementById("tournamentTile");
             const accessMode = await getTournamentAccess(user);
             if (tile) tile.style.display = isTournamentVisible(accessMode) ? "" : "none";
+        }
+
+        async function applyCalendarAccess(user) {
             const calendarTile = document.getElementById("calendarTile");
-            if (calendarTile) calendarTile.style.display = isTournamentVisible(accessMode) ? "" : "none";
+            const accessMode = await getCalendarAccess(user);
+            if (calendarTile) calendarTile.style.display = isCalendarVisibleForUser(accessMode) ? "" : "none";
         }
 
         async function loadLiveMatches() {
@@ -316,6 +321,7 @@
             const [_, __, ___, ____, ownedNames] = await Promise.all([
                 applyTrainingAccess(user),
                 applyTournamentAccess(user),
+                applyCalendarAccess(user),
                 loadCountdownInvites(user),
                 loadRemoteMatchInvites(user),
                 getOwnedPlayerNames(user.id)
