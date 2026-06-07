@@ -1727,6 +1727,19 @@
             }
         }
 
+        function getErrorMessage(error, fallbackText) {
+            const message = String(
+                error?.message
+                || error?.details
+                || error?.hint
+                || error?.error_description
+                || error?.description
+                || fallbackText
+                || ""
+            ).trim();
+            return message || String(fallbackText || "Unbekannter Fehler");
+        }
+
         async function copyCalendarFeedUrl() {
             const url = getCalendarFeedUrl();
             try {
@@ -1888,7 +1901,7 @@
                 showCalendarMessage("Planungstermin wurde verschoben.", "ok");
             } catch (dropError) {
                 console.warn("Planungstermin konnte nicht verschoben werden:", dropError);
-                showCalendarMessage("Planungstermin konnte nicht verschoben werden.", "error");
+                showCalendarMessage(`Planungstermin konnte nicht verschoben werden: ${getErrorMessage(dropError, "Unbekannter Fehler")}`, "error");
             }
         }
 
@@ -2087,7 +2100,7 @@
                 await refreshCalendar();
             } catch (error) {
                 console.warn("Kalender-Einstellungen konnten nicht gespeichert werden:", error);
-                showCalendarMessage("Die NBV-Quelle konnte nicht gespeichert werden.", "error");
+                showCalendarMessage(`Die NBV-Quelle konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
@@ -2111,7 +2124,7 @@
                 showCalendarMessage(`${holidays.length} Hamburger Feiertage wurden fuer ${currentCalendarSeason} angelegt.`, "ok");
             } catch (error) {
                 console.warn("Hamburger Feiertage konnten nicht angelegt werden:", error);
-                showCalendarMessage("Hamburger Feiertage konnten nicht angelegt werden.", "error");
+                showCalendarMessage(`Hamburger Feiertage konnten nicht angelegt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
@@ -2220,7 +2233,7 @@
                 renderCalendar();
             } catch (error) {
                 console.warn("Manueller Termin konnte nicht gespeichert werden:", error);
-                showCalendarMessage("Manueller Termin konnte nicht gespeichert werden.", "error");
+                showCalendarMessage(`Manueller Termin konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
@@ -2271,7 +2284,7 @@
                 renderCalendar();
             } catch (error) {
                 console.warn("Planungstermin konnte nicht gespeichert werden:", error);
-                showCalendarMessage("Planungstermin konnte nicht gespeichert werden.", "error");
+                showCalendarMessage(`Planungstermin konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
@@ -2292,7 +2305,7 @@
                 renderCalendar();
             } catch (error) {
                 console.warn("Manueller Termin konnte nicht entfernt werden:", error);
-                showCalendarMessage("Manueller Termin konnte nicht entfernt werden.", "error");
+                showCalendarMessage(`Manueller Termin konnte nicht entfernt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
@@ -2312,7 +2325,7 @@
                 renderCalendar();
             } catch (error) {
                 console.warn("Planungstermin konnte nicht entfernt werden:", error);
-                showCalendarMessage("Planungstermin konnte nicht entfernt werden.", "error");
+                showCalendarMessage(`Planungstermin konnte nicht entfernt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
