@@ -955,6 +955,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/calendar_access.js"></script>
     <script src="js/tournament_access.js"></script>
     <script src="js/user_menu.js"></script>
     <script>
@@ -997,6 +998,7 @@
         let activeTournamentTypeFilter = "all";
         let activeVenueFilter = "all";
         let isCalendarAdmin = false;
+        let calendarAccessMode = "hidden";
         let editingManualEventId = null;
         let editingPlanningEventId = null;
         let draggingPlanningEventId = null;
@@ -2395,7 +2397,8 @@
 
         async function initPage() {
             currentUser = await getCurrentUser();
-            isCalendarAdmin = currentUser ? await hasAdminAccess(currentUser) : false;
+            calendarAccessMode = currentUser ? await getCalendarAccess(currentUser) : "hidden";
+            isCalendarAdmin = isCalendarEditable(calendarAccessMode);
             tournamentAccessMode = isCalendarAdmin ? "edit" : "read";
 
             await loadCalendarSettings();

@@ -54,7 +54,7 @@ begin
         select 1
         from public.user_roles ur
         where ur.user_id = auth.uid()
-          and ur.role = 'admin'
+          and (ur.role = 'admin' or lower(coalesce(ur.calendar_access, 'hidden')) = 'edit')
       )
     );
   end if;
@@ -79,7 +79,7 @@ begin
         select 1
         from public.user_roles ur
         where ur.user_id = auth.uid()
-          and ur.role = 'admin'
+          and (ur.role = 'admin' or lower(coalesce(ur.calendar_access, 'hidden')) = 'edit')
       )
     )
     with check (
@@ -87,7 +87,7 @@ begin
         select 1
         from public.user_roles ur
         where ur.user_id = auth.uid()
-          and ur.role = 'admin'
+          and (ur.role = 'admin' or lower(coalesce(ur.calendar_access, 'hidden')) = 'edit')
       )
     );
   end if;
@@ -112,7 +112,7 @@ begin
         select 1
         from public.user_roles ur
         where ur.user_id = auth.uid()
-          and ur.role = 'admin'
+          and (ur.role = 'admin' or lower(coalesce(ur.calendar_access, 'hidden')) = 'edit')
       )
     );
   end if;

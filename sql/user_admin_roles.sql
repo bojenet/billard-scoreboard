@@ -21,6 +21,7 @@ create table if not exists public.user_roles (
   position_library_access text not null default 'edit' check (position_library_access in ('hidden', 'read', 'edit')),
   training_access text not null default 'edit' check (training_access in ('hidden', 'read', 'edit')),
   tournament_access text not null default 'edit' check (tournament_access in ('hidden', 'read', 'edit')),
+  calendar_access text not null default 'edit' check (calendar_access in ('hidden', 'read', 'edit')),
   stream_overlay_access boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -41,6 +42,9 @@ alter table public.user_roles
 
 alter table public.user_roles
   add column if not exists tournament_access text not null default 'edit';
+
+alter table public.user_roles
+  add column if not exists calendar_access text not null default 'edit';
 
 alter table public.user_roles
   add column if not exists stream_overlay_access boolean not null default true;
@@ -66,6 +70,13 @@ alter table public.user_roles
   add constraint user_roles_tournament_access_check
   check (tournament_access in ('hidden', 'read', 'edit'));
 
+alter table public.user_roles
+  drop constraint if exists user_roles_calendar_access_check;
+
+alter table public.user_roles
+  add constraint user_roles_calendar_access_check
+  check (calendar_access in ('hidden', 'read', 'edit'));
+
 create index if not exists idx_profiles_email on public.profiles(email);
 create index if not exists idx_user_roles_role on public.user_roles(role);
 create index if not exists idx_login_events_user_created on public.login_events(user_id, created_at desc);
@@ -78,8 +89,8 @@ from auth.users
 on conflict (id) do update
 set email = excluded.email;
 
-insert into public.user_roles (user_id, role, position_library_access, training_access, tournament_access, stream_overlay_access)
-select id, 'member', 'edit', 'edit', 'edit', true
+insert into public.user_roles (user_id, role, position_library_access, training_access, tournament_access, calendar_access, stream_overlay_access)
+select id, 'member', 'edit', 'edit', 'edit', 'edit', true
 from auth.users
 on conflict (user_id) do nothing;
 
@@ -100,6 +111,48 @@ as $$
 $$;
 
 grant execute on function public.is_admin(uuid) to authenticated;
+
+create or replace function public.calendar_access_mode(uid uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    case
+      when uid is null then 'hidden'
+      when exists (
+        select 1
+        from public.user_roles ur
+        where ur.user_id = uid
+          and ur.role = 'admin'
+      ) then 'edit'
+      else coalesce((
+        select case
+          when lower(coalesce(ur.calendar_access, 'edit')) in ('hidden', 'read', 'edit')
+            then lower(coalesce(ur.calendar_access, 'edit'))
+          else 'edit'
+        end
+        from public.user_roles ur
+        where ur.user_id = uid
+        limit 1
+      ), 'hidden')
+    end;
+$$;
+
+create or replace function public.has_calendar_admin_access(uid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.calendar_access_mode(uid) = 'edit';
+$$;
+
+grant execute on function public.calendar_access_mode(uuid) to authenticated;
+grant execute on function public.has_calendar_admin_access(uuid) to authenticated;
 
 -- Auto create profile + default role on new auth user
 create or replace function public.handle_new_auth_user()
@@ -123,8 +176,8 @@ begin
     last_name = coalesce(public.profiles.last_name, excluded.last_name),
     full_name = coalesce(public.profiles.full_name, excluded.full_name);
 
-  insert into public.user_roles (user_id, role, position_library_access, training_access, tournament_access, stream_overlay_access)
-  values (new.id, 'member', 'edit', 'edit', 'edit', true)
+  insert into public.user_roles (user_id, role, position_library_access, training_access, tournament_access, calendar_access, stream_overlay_access)
+  values (new.id, 'member', 'edit', 'edit', 'edit', 'edit', true)
   on conflict (user_id) do nothing;
 
   return new;

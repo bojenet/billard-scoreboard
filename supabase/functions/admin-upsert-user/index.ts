@@ -18,6 +18,7 @@ type UserPayload = {
   position_library_access?: string;
   training_access?: string;
   tournament_access?: string;
+  calendar_access?: string;
   stream_overlay_access?: boolean;
 };
 
@@ -118,6 +119,7 @@ serve(async (request) => {
     const positionLibraryAccess = normalizeAccess(payload.position_library_access);
     const trainingAccess = normalizeAccess(payload.training_access);
     const tournamentAccess = normalizeAccess(payload.tournament_access);
+    const calendarAccess = normalizeAccess(payload.calendar_access);
     const streamOverlayAccess = normalizeBooleanAccess(payload.stream_overlay_access);
 
     if (!email) {
@@ -209,6 +211,7 @@ serve(async (request) => {
         position_library_access: positionLibraryAccess,
         training_access: trainingAccess,
         tournament_access: tournamentAccess,
+        calendar_access: calendarAccess,
         stream_overlay_access: streamOverlayAccess,
       }], { onConflict: "user_id" });
 
@@ -221,6 +224,7 @@ serve(async (request) => {
           position_library_access: positionLibraryAccess,
           training_access: trainingAccess,
           tournament_access: tournamentAccess,
+          calendar_access: calendarAccess,
         }], { onConflict: "user_id" });
       roleError = fallback.error;
     }
