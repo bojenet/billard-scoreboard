@@ -9,6 +9,8 @@ create table if not exists public.calendar_planning_events (
   title text not null,
   location text not null default '',
   note text not null default '',
+  created_by uuid null references auth.users(id) on delete set null,
+  created_by_name text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   updated_by uuid null references auth.users(id) on delete set null
@@ -28,6 +30,12 @@ alter table public.calendar_planning_events
 
 alter table public.calendar_planning_events
   add column if not exists note text not null default '';
+
+alter table public.calendar_planning_events
+  add column if not exists created_by uuid null references auth.users(id) on delete set null;
+
+alter table public.calendar_planning_events
+  add column if not exists created_by_name text not null default '';
 
 alter table public.calendar_planning_events
   add column if not exists created_at timestamptz not null default now();

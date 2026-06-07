@@ -11,6 +11,8 @@ create table if not exists public.calendar_manual_events (
   note text not null default '',
   discipline_id text not null default 'other',
   discipline_label text not null default 'Sonstige',
+  created_by uuid null references auth.users(id) on delete set null,
+  created_by_name text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   updated_by uuid null references auth.users(id) on delete set null
@@ -36,6 +38,12 @@ alter table public.calendar_manual_events
 
 alter table public.calendar_manual_events
   add column if not exists discipline_label text not null default 'Sonstige';
+
+alter table public.calendar_manual_events
+  add column if not exists created_by uuid null references auth.users(id) on delete set null;
+
+alter table public.calendar_manual_events
+  add column if not exists created_by_name text not null default '';
 
 alter table public.calendar_manual_events
   add column if not exists created_at timestamptz not null default now();

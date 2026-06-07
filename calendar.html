@@ -433,6 +433,13 @@
             line-height: 1.45;
         }
 
+        .event-created-by {
+            font-size: 10px;
+            color: rgba(84, 98, 113, 0.9);
+            line-height: 1.35;
+            margin-top: 2px;
+        }
+
         .event-actions {
             display: flex;
             justify-content: flex-end;
@@ -1190,6 +1197,8 @@
                     note: "",
                     discipline_id: MANUAL_CATEGORY_ID,
                     discipline_label: MANUAL_CATEGORY_LABEL,
+                    created_by: currentUser?.id || null,
+                    created_by_name: getCurrentUserDisplayName() || null,
                     updated_at: new Date().toISOString(),
                     updated_by: currentUser?.id || null
                 }));
@@ -1379,7 +1388,9 @@
                 source: "manual",
                 link: "",
                 disciplineId: String(event?.discipline_id || event?.disciplineId || MANUAL_CATEGORY_ID).trim() || MANUAL_CATEGORY_ID,
-                disciplineLabel: String(event?.discipline_label || event?.disciplineLabel || MANUAL_CATEGORY_LABEL).trim() || MANUAL_CATEGORY_LABEL
+                disciplineLabel: String(event?.discipline_label || event?.disciplineLabel || MANUAL_CATEGORY_LABEL).trim() || MANUAL_CATEGORY_LABEL,
+                createdBy: String(event?.created_by || event?.createdBy || "").trim(),
+                createdByName: String(event?.created_by_name || event?.createdByName || "").trim()
             };
         }
 
@@ -1400,7 +1411,9 @@
                 source: "planning",
                 link: "",
                 disciplineId: "planning",
-                disciplineLabel: "Planung"
+                disciplineLabel: "Planung",
+                createdBy: String(event?.created_by || event?.createdBy || "").trim(),
+                createdByName: String(event?.created_by_name || event?.createdByName || "").trim()
             };
         }
 
@@ -1412,7 +1425,7 @@
             try {
                 const { data, error } = await supabaseClient
                     .from("calendar_manual_events")
-                    .select("id, date, time, end_date, all_day, title, location, note, discipline_id, discipline_label")
+                    .select("id, date, time, end_date, all_day, title, location, note, discipline_id, discipline_label, created_by, created_by_name")
                     .order("date", { ascending: true })
                     .order("time", { ascending: true });
                 if (error) throw error;
@@ -1431,7 +1444,7 @@
             try {
                 const { data, error } = await supabaseClient
                     .from("calendar_planning_events")
-                    .select("id, date, time, end_date, all_day, title, location, note")
+                    .select("id, date, time, end_date, all_day, title, location, note, created_by, created_by_name")
                     .order("date", { ascending: true })
                     .order("time", { ascending: true });
                 if (error) throw error;
@@ -1459,6 +1472,8 @@
                 note: event.note || "",
                 discipline_id: event.disciplineId || MANUAL_CATEGORY_ID,
                 discipline_label: event.disciplineLabel || MANUAL_CATEGORY_LABEL,
+                created_by: event.createdBy || currentUser?.id || null,
+                created_by_name: event.createdByName || getCurrentUserDisplayName() || null,
                 updated_at: new Date().toISOString(),
                 updated_by: currentUser?.id || null
             }));
@@ -1740,6 +1755,16 @@
             return message || String(fallbackText || "Unbekannter Fehler");
         }
 
+        function getCurrentUserDisplayName() {
+            return String(
+                currentUser?.user_metadata?.full_name
+                || currentUser?.user_metadata?.display_name
+                || [currentUser?.user_metadata?.first_name, currentUser?.user_metadata?.last_name].filter(Boolean).join(" ")
+                || currentUser?.email
+                || ""
+            ).trim();
+        }
+
         async function copyCalendarFeedUrl() {
             const url = getCalendarFeedUrl();
             try {
@@ -1887,6 +1912,8 @@
                 title: planningEvent.title,
                 location: planningEvent.location || "",
                 note: planningEvent.note || "",
+                created_by: planningEvent.createdBy || currentUser?.id || null,
+                created_by_name: planningEvent.createdByName || getCurrentUserDisplayName() || null,
                 updated_at: new Date().toISOString(),
                 updated_by: currentUser?.id || null
             };
@@ -1963,6 +1990,7 @@
                                                             <div class="event-title">${escapeHtml(event.title)}</div>
                                                             ${(event.source === "manual" || event.source === "planning") && event.location ? `<div class="event-meta">${escapeHtml(event.location)}</div>` : ""}
                                                             ${(event.source === "manual" || event.source === "planning") && event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
+                                                            ${(event.source === "manual" || event.source === "planning") && event.createdByName ? `<div class="event-created-by">von ${escapeHtml(event.createdByName)}</div>` : ""}
                                                             ${event.link ? `<div class="event-note"><a class="cc_bluelink" href="${escapeHtml(event.link)}" target="_blank" rel="noreferrer">NBV Details</a></div>` : ""}
                                                         </div>
                                                         ${isCalendarAdmin && event.source === "manual" && (!isMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
@@ -2184,6 +2212,9 @@
         }
 
         async function saveManualEvent() {
+            const existingEvent = editingManualEventId
+                ? getManualEvents().find((event) => event.id === editingManualEventId)
+                : null;
             const date = String(document.getElementById("manualEventDate")?.value || "").trim();
             const time = String(document.getElementById("manualEventTime")?.value || "").trim();
             const durationMode = String(document.getElementById("manualEventMultiDay")?.value || "single").trim();
@@ -2214,6 +2245,8 @@
                 note,
                 discipline_id: MANUAL_CATEGORY_ID,
                 discipline_label: MANUAL_CATEGORY_LABEL,
+                created_by: existingEvent?.createdBy || currentUser?.id || null,
+                created_by_name: existingEvent?.createdByName || getCurrentUserDisplayName() || null,
                 updated_at: new Date().toISOString(),
                 updated_by: currentUser?.id || null
             };
@@ -2238,6 +2271,9 @@
         }
 
         async function savePlanningEvent() {
+            const existingEvent = editingPlanningEventId
+                ? getPlanningEvents().find((event) => event.id === editingPlanningEventId)
+                : null;
             const date = String(document.getElementById("planningEventDate")?.value || "").trim();
             const time = String(document.getElementById("planningEventTime")?.value || "").trim();
             const durationMode = String(document.getElementById("planningEventMultiDay")?.value || "single").trim();
@@ -2266,6 +2302,8 @@
                 title,
                 location,
                 note,
+                created_by: existingEvent?.createdBy || currentUser?.id || null,
+                created_by_name: existingEvent?.createdByName || getCurrentUserDisplayName() || null,
                 updated_at: new Date().toISOString(),
                 updated_by: currentUser?.id || null
             };
