@@ -821,15 +821,21 @@
                 </div>
                 <div id="calendarAdminSettings" class="admin-settings">
                     <div class="feed-heading">Admin: NBV-Quelle</div>
-                    <div class="feed-copy">Hier die NBV-Kalender-URL hinterlegen. Die Saison wird automatisch daraus gelesen und fuer den gesamten Kalender verwendet.</div>
+                    <div class="feed-copy">Saison kann manuell gesetzt werden. Die NBV-URL ist optional und kann später ergänzt werden.</div>
                     <div class="admin-settings-row">
+                        <div>
+                            <label class="field-title" for="calendarSeasonInput">Saison</label>
+                            <input id="calendarSeasonInput" type="text" inputmode="numeric" placeholder="2026/2027" oninput="previewCalendarSeasonFromUrl()">
+                        </div>
                         <div>
                             <label class="field-title" for="calendarSourceUrlInput">NBV URL</label>
                             <input id="calendarSourceUrlInput" type="url" placeholder="https://www.ndbv.de/sb_meisterschaft.php?p=20--2026/2027---8-1--100000--" oninput="previewCalendarSeasonFromUrl()">
                         </div>
+                    </div>
+                    <div class="admin-settings-row">
                         <button id="calendarSourceUrlSaveBtn" class="btn btn-save" type="button" onclick="saveCalendarSettings()">Quelle speichern</button>
                     </div>
-                    <div id="calendarSourceUrlInfo" class="admin-settings-meta">Saison wird aus der URL gelesen.</div>
+                    <div id="calendarSourceUrlInfo" class="admin-settings-meta">Saison kann manuell gepflegt oder aus der URL gelesen werden.</div>
                     <div class="admin-settings-row">
                         <div>
                             <label class="field-title" for="calendarPublicViewToggle">Öffentliche View</label>
@@ -1040,6 +1046,14 @@
             return match ? match[1] : "";
         }
 
+        function normalizeSeasonText(value) {
+            return String(value || "").trim();
+        }
+
+        function isValidSeasonText(value) {
+            return /^20\d{2}\/20\d{2}$/.test(normalizeSeasonText(value));
+        }
+
         function updateCalendarSeasonUi() {
             const season = currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON;
             const titleText = `${DEFAULT_CALENDAR_HEADER_PREFIX}${season}`;
@@ -1209,18 +1223,32 @@
         function previewCalendarSeasonFromUrl() {
             const info = document.getElementById("calendarSourceUrlInfo");
             const input = document.getElementById("calendarSourceUrlInput");
+            const seasonInput = document.getElementById("calendarSeasonInput");
             if (!info || !input) return;
             const sourceUrl = String(input.value || "").trim();
-            const season = extractSeasonFromSourceUrl(sourceUrl);
+            const seasonFromUrl = extractSeasonFromSourceUrl(sourceUrl);
+            const seasonManual = normalizeSeasonText(seasonInput?.value || "");
             if (!sourceUrl) {
-                info.textContent = `Keine URL hinterlegt. Es bleibt Saison ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON}.`;
+                if (isValidSeasonText(seasonManual)) {
+                    info.textContent = `Manuell gesetzte Saison: ${seasonManual}`;
+                } else {
+                    info.textContent = `Keine URL hinterlegt. Aktive Saison: ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON}.`;
+                }
                 return;
             }
-            if (!season) {
-                info.textContent = "In dieser URL wurde keine Saison im Format 2026/2027 gefunden.";
+            if (!seasonFromUrl) {
+                if (isValidSeasonText(seasonManual)) {
+                    info.textContent = `URL ohne erkannte Saison. Es wird die manuelle Saison ${seasonManual} verwendet.`;
+                } else {
+                    info.textContent = "In dieser URL wurde keine Saison im Format 2026/2027 gefunden.";
+                }
                 return;
             }
-            info.textContent = `Erkannte Saison: ${season}`;
+            if (isValidSeasonText(seasonManual) && seasonManual !== seasonFromUrl) {
+                info.textContent = `URL-Saison erkannt: ${seasonFromUrl}. Manuelle Saison ist aktuell ${seasonManual}.`;
+                return;
+            }
+            info.textContent = `Erkannte Saison: ${seasonFromUrl}`;
         }
 
         function showCalendarMessage(text, type) {
@@ -2113,6 +2141,10 @@
             if (sourceUrlInput) {
                 sourceUrlInput.value = currentCalendarSourceUrl;
             }
+            const seasonInput = document.getElementById("calendarSeasonInput");
+            if (seasonInput) {
+                seasonInput.value = currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON;
+            }
             const publicViewToggle = document.getElementById("calendarPublicViewToggle");
             if (publicViewToggle) {
                 publicViewToggle.value = isPublicViewEnabled ? "true" : "false";
@@ -2124,14 +2156,22 @@
         async function saveCalendarSettings() {
             if (!isCalendarAdmin) return;
             const input = document.getElementById("calendarSourceUrlInput");
+            const seasonInput = document.getElementById("calendarSeasonInput");
             const publicViewToggle = document.getElementById("calendarPublicViewToggle");
             const sourceUrl = String(input?.value || "").trim();
+            const manualSeason = normalizeSeasonText(seasonInput?.value || "");
             const derivedSeason = extractSeasonFromSourceUrl(sourceUrl);
-            const nextSeason = derivedSeason || DEFAULT_NBV_CALENDAR_SEASON;
+            const nextSeason = derivedSeason || manualSeason || DEFAULT_NBV_CALENDAR_SEASON;
             const nextPublicViewEnabled = String(publicViewToggle?.value || "true") === "true";
 
-            if (sourceUrl && !derivedSeason) {
-                showCalendarMessage("Aus der NBV-URL konnte keine Saison gelesen werden. Erwartet wird zum Beispiel 2026/2027.", "error");
+            if (!isValidSeasonText(nextSeason)) {
+                showCalendarMessage("Bitte eine Saison im Format 2026/2027 eintragen.", "error");
+                previewCalendarSeasonFromUrl();
+                return;
+            }
+
+            if (sourceUrl && !derivedSeason && !isValidSeasonText(manualSeason)) {
+                showCalendarMessage("Aus der NBV-URL konnte keine Saison gelesen werden. Bitte die Saison manuell im Format 2026/2027 eintragen.", "error");
                 previewCalendarSeasonFromUrl();
                 return;
             }
@@ -2152,6 +2192,9 @@
                 currentCalendarSourceUrl = sourceUrl;
                 currentCalendarSeason = nextSeason;
                 isPublicViewEnabled = nextPublicViewEnabled;
+                if (seasonInput) {
+                    seasonInput.value = currentCalendarSeason;
+                }
                 updateCalendarSeasonUi();
                 previewCalendarSeasonFromUrl();
                 updateCalendarFeedUi();
