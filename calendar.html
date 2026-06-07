@@ -970,6 +970,7 @@
         const CALENDAR_FILTER_STORAGE_KEY = "standalone_calendar_filter_v1";
         const CALENDAR_TYPE_FILTER_STORAGE_KEY = "standalone_calendar_type_filter_v1";
         const CALENDAR_VENUE_FILTER_STORAGE_KEY = "standalone_calendar_venue_filter_v1";
+        const CALENDAR_CREATOR_FILTER_STORAGE_KEY = "standalone_calendar_creator_filter_v1";
         const CALENDAR_SETTINGS_KEY = "nbv_public_calendar";
         const DEFAULT_NBV_CALENDAR_SEASON = "2025/2026";
         const DEFAULT_CALENDAR_HEADER_PREFIX = "Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison ";
@@ -1004,6 +1005,7 @@
         let activeDisciplineFilter = "all";
         let activeTournamentTypeFilter = "all";
         let activeVenueFilter = "all";
+        let activeCreatorFilter = "all";
         let isCalendarAdmin = false;
         let calendarAccessMode = "hidden";
         let editingManualEventId = null;
@@ -1695,10 +1697,14 @@
                 ? disciplineFiltered
                 : disciplineFiltered.filter(matchesTournamentType);
 
-            if (activeVenueFilter === "all") {
-                return tournamentTypeFiltered;
+            const venueFiltered = activeVenueFilter === "all"
+                ? tournamentTypeFiltered
+                : tournamentTypeFiltered.filter((event) => getEventVenueLabel(event) === activeVenueFilter);
+
+            if (activeCreatorFilter === "all") {
+                return venueFiltered;
             }
-            return tournamentTypeFiltered.filter((event) => getEventVenueLabel(event) === activeVenueFilter);
+            return venueFiltered.filter((event) => String(event?.createdByName || "").trim() === activeCreatorFilter);
         }
 
         function matchesTournamentType(event) {
@@ -1795,8 +1801,19 @@
                 ...Object.entries(NBV_DISCIPLINES).map(([id, label]) => ({ id, label })),
                 { id: MANUAL_CATEGORY_ID, label: MANUAL_CATEGORY_LABEL }
             ];
+            const creatorOptions = [
+                { id: "all", label: "Alle" },
+                ...Array.from(new Set(
+                    getAllEvents()
+                        .filter((event) => isDateWithinSeason(event?.date, currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON))
+                        .map((event) => String(event?.createdByName || "").trim())
+                        .filter(Boolean)
+                ))
+                    .sort((left, right) => left.localeCompare(right, "de"))
+                    .map((label) => ({ id: label, label }))
+            ];
             wrap.innerHTML = `
-                <label for="calendarFilterSelect">Rubrik</label>
+                <label for="calendarFilterSelect">Disziplin</label>
                 <select id="calendarFilterSelect" class="filter-select" onchange="setDisciplineFilter(this.value)">
                     ${disciplineOptions.map((item) => `<option value="${escapeHtml(item.id)}" ${activeDisciplineFilter === item.id ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
                 </select>
@@ -1808,6 +1825,12 @@
                 <select id="calendarVenueFilterSelect" class="filter-select" onchange="setVenueFilter(this.value)">
                     ${venueOptions.map((item) => `<option value="${escapeHtml(item.id)}" ${activeVenueFilter === item.id ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
                 </select>
+                ${isCalendarAdmin ? `
+                    <label for="calendarCreatorFilterSelect">Ersteller</label>
+                    <select id="calendarCreatorFilterSelect" class="filter-select" onchange="setCreatorFilter(this.value)">
+                        ${creatorOptions.map((item) => `<option value="${escapeHtml(item.id)}" ${activeCreatorFilter === item.id ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
+                    </select>
+                ` : ""}
             `;
         }
 
@@ -1937,7 +1960,7 @@
             if (!grid) return;
             const events = expandEventsForCalendar(getFilteredEvents());
             const seasonMonthKeys = getSeasonMonthKeys(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON);
-            const hideEmptyMonths = activeDisciplineFilter !== "all" || activeTournamentTypeFilter !== "all" || activeVenueFilter !== "all";
+            const hideEmptyMonths = activeDisciplineFilter !== "all" || activeTournamentTypeFilter !== "all" || activeVenueFilter !== "all" || activeCreatorFilter !== "all";
 
             const monthMap = new Map();
             seasonMonthKeys.forEach((monthKey) => {
@@ -2046,13 +2069,22 @@
             renderCalendar();
         }
 
+        function setCreatorFilter(filterId) {
+            activeCreatorFilter = filterId || "all";
+            localStorage.setItem(CALENDAR_CREATOR_FILTER_STORAGE_KEY, activeCreatorFilter);
+            renderFilters();
+            renderCalendar();
+        }
+
         function loadSavedFilter() {
             activeDisciplineFilter = "all";
             activeTournamentTypeFilter = "all";
             activeVenueFilter = "all";
+            activeCreatorFilter = "all";
             localStorage.setItem(CALENDAR_FILTER_STORAGE_KEY, "all");
             localStorage.setItem(CALENDAR_TYPE_FILTER_STORAGE_KEY, "all");
             localStorage.setItem(CALENDAR_VENUE_FILTER_STORAGE_KEY, "all");
+            localStorage.setItem(CALENDAR_CREATOR_FILTER_STORAGE_KEY, "all");
         }
 
         async function loadCalendarSettings() {
@@ -2201,6 +2233,12 @@
                 const venueStillExists = getAllEvents().some((event) => getEventVenueLabel(event) === activeVenueFilter);
                 if (!venueStillExists) {
                     activeVenueFilter = "all";
+                }
+            }
+            if (activeCreatorFilter !== "all") {
+                const creatorStillExists = getAllEvents().some((event) => String(event?.createdByName || "").trim() === activeCreatorFilter);
+                if (!creatorStillExists) {
+                    activeCreatorFilter = "all";
                 }
             }
             renderFilters();
