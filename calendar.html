@@ -463,6 +463,14 @@
             color: #8b2d2d;
         }
 
+        .mini-btn.icon {
+            min-width: 28px;
+            padding: 4px 0;
+            text-align: center;
+            font-size: 15px;
+            line-height: 1;
+        }
+
         .calendar-event-spacer {
             display: none;
         }
@@ -1583,6 +1591,24 @@
             document.body.style.overflow = "hidden";
         }
 
+        function duplicatePlanningEvent(eventId) {
+            const event = getPlanningEvents().find((entry) => entry.id === eventId);
+            if (!event) return;
+            resetPlanningEventForm(String(event.date || ""));
+            document.getElementById("planningEventTime").value = String(event.time || "");
+            document.getElementById("planningEventMultiDay").value = isMultiDayEvent(event) ? "multi" : "single";
+            document.getElementById("planningEventEndDate").value = String(event.endDate || event.date || "");
+            document.getElementById("planningEventTitle").value = String(event.title || "");
+            document.getElementById("planningEventLocation").value = String(event.location || "");
+            document.getElementById("planningEventNote").value = String(event.note || "");
+            const modalTitle = document.getElementById("planningEventModalTitle");
+            if (modalTitle) modalTitle.textContent = "Planungstermin duplizieren";
+            handlePlanningDurationChange();
+            const modal = document.getElementById("planningEventModal");
+            if (modal) modal.classList.add("open");
+            document.body.style.overflow = "hidden";
+        }
+
         function cancelManualEventEdit() {
             resetManualEventForm();
             closeManualEventModal();
@@ -1931,6 +1957,7 @@
                                                             </div>
                                                         ` : isCalendarAdmin && event.source === "planning" && (!isMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
                                                             <div class="event-actions">
+                                                                <button class="mini-btn icon" type="button" title="Duplizieren" aria-label="Planungstermin duplizieren" onclick="duplicatePlanningEvent('${escapeHtml(event.id)}')">+</button>
                                                                 <button class="mini-btn" type="button" onclick="startPlanningEventEdit('${escapeHtml(event.id)}')">Bearbeiten</button>
                                                                 <button class="mini-btn danger" type="button" onclick="removePlanningEvent('${escapeHtml(event.id)}')">Löschen</button>
                                                             </div>
