@@ -818,12 +818,6 @@
 
     <div class="page">
         <div class="panel">
-            <div id="calendarFilters" class="filters"></div>
-            <div id="calendarLoading" class="loading-wrap">
-                <div id="calendarLoadingText" class="loading-text">NBV-Termine werden geladen...</div>
-                <div class="loading-bar"></div>
-            </div>
-            <div id="calendarMessage" class="message"></div>
             <div id="calendarActions" class="feed-actions" style="display:none;">
                 <button id="planningEventOpenBtn" class="btn btn-primary" type="button" onclick="openPlanningEventModal()" style="display:none;">Planungstermin anlegen</button>
                 <button id="manualEventOpenBtn" class="btn btn-save" type="button" onclick="openManualEventModal()" style="display:none;">Manuellen Termin anlegen</button>
@@ -832,6 +826,12 @@
                 <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer" style="display:none;">ICS abonnieren</a>
                 <button id="calendarBackBtn" class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
             </div>
+            <div id="calendarFilters" class="filters"></div>
+            <div id="calendarLoading" class="loading-wrap">
+                <div id="calendarLoadingText" class="loading-text">NBV-Termine werden geladen...</div>
+                <div class="loading-bar"></div>
+            </div>
+            <div id="calendarMessage" class="message"></div>
             <div id="calendarGrid" class="calendar-grid">
                 <div class="empty-state">Noch keine Kalenderdaten vorhanden.</div>
             </div>
