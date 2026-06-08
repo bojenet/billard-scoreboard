@@ -261,7 +261,7 @@
 
         table {
             width: 100%;
-            min-width: 860px;
+            min-width: 620px;
             border-collapse: collapse;
         }
 
@@ -299,15 +299,25 @@
             font-weight: 700;
             color: var(--head);
             white-space: nowrap;
+            text-align: center;
+        }
+
+        .btd-col {
+            width: 110px;
+            text-align: center;
+            white-space: nowrap;
+            font-size: 18px;
+            font-weight: 800;
+            color: #10131c;
         }
 
         .name-cell {
-            min-width: 220px;
+            min-width: 280px;
         }
 
         .name-main {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 8px;
         }
 
@@ -327,19 +337,19 @@
 
         .player-name {
             font-weight: 700;
-            color: #1f2937;
+            color: #1147d1;
+            text-decoration: underline;
+            text-underline-offset: 2px;
         }
 
-        .club-code {
-            display: inline-flex;
-            min-width: 48px;
-            justify-content: center;
-            padding: 4px 8px;
-            border-radius: 999px;
-            background: #eff4f8;
-            color: #38516a;
-            font-size: 12px;
-            font-weight: 700;
+        .name-stack {
+            display: grid;
+            gap: 4px;
+        }
+
+        .club-line {
+            font-size: 14px;
+            color: #1f2937;
         }
 
         .stat-col {
@@ -701,8 +711,10 @@
                     "name",
                     "vorname",
                     "verein",
+                    "club",
                     "bälle",
                     "aufnahmen",
+                    "btg",
                     "gd",
                     "hs",
                     "beste partie",
@@ -734,12 +746,8 @@
                         <thead>
                             <tr>
                                 <th>Rang</th>
-                                <th>Spieler</th>
-                                <th>Verein</th>
-                                <th>GD</th>
-                                <th>HS</th>
-                                <th>Beste Partie</th>
-                                <th>Aktuelle Klasse</th>
+                                <th>BTD</th>
+                                <th>Name</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -748,20 +756,19 @@
                                 return `
                                     <tr class="rank-row" onclick="toggleRowDetails('${escapeHtml(row.id)}')">
                                         <td class="rank-col">${escapeHtml(row.rank)}</td>
+                                        <td class="btd-col">${escapeHtml(row.btg || row.gd || "-")}</td>
                                         <td class="name-cell">
                                             <div class="name-main">
                                                 <span class="toggle-pill">${isOpen ? "−" : "+"}</span>
-                                                <span class="player-name">${escapeHtml(row.playerName)}</span>
+                                                <div class="name-stack">
+                                                    <span class="player-name">${escapeHtml(row.playerName)}</span>
+                                                    <span class="club-line">${escapeHtml(row.club || "-")}</span>
+                                                </div>
                                             </div>
                                         </td>
-                                        <td><span class="club-code">${escapeHtml(row.club || "-")}</span></td>
-                                        <td class="stat-col">${escapeHtml(row.gd || "-")}</td>
-                                        <td class="stat-col">${escapeHtml(row.hs || "-")}</td>
-                                        <td class="stat-col">${escapeHtml(row.bestGame || "-")}</td>
-                                        <td class="stat-col">${escapeHtml(row.currentClass || row.earnedClassCurrentSeason || "-")}</td>
                                     </tr>
                                     <tr class="detail-row ${isOpen ? "open" : ""}">
-                                        <td colspan="7" class="detail-cell">${buildDetails(row)}</td>
+                                        <td colspan="3" class="detail-cell">${buildDetails(row)}</td>
                                     </tr>
                                 `;
                             }).join("")}

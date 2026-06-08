@@ -6,9 +6,7 @@ const corsHeaders = {
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const LANDING_URLS = [
-  "https://www.ndbv.de/links.php?f=20",
   "https://www.ndbv.de/btd.php",
-  "https://ndbv.club-cloud.de/btd.php",
 ];
 
 type RankingRequest = {
@@ -80,6 +78,41 @@ function cleanText(value: string | null | undefined) {
     .replace(/\u00a0/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function decodeHtmlEntities(value: string) {
+  return String(value || "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#039;|&apos;/gi, "'")
+    .replace(/&uuml;/gi, "ü")
+    .replace(/&ouml;/gi, "ö")
+    .replace(/&auml;/gi, "ä")
+    .replace(/&Uuml;/gi, "Ü")
+    .replace(/&Ouml;/gi, "Ö")
+    .replace(/&Auml;/gi, "Ä")
+    .replace(/&szlig;/gi, "ß")
+    .replace(/&#(\d+);/g, (_match, code) => {
+      const value = Number(code);
+      return Number.isFinite(value) ? String.fromCharCode(value) : "";
+    });
+}
+
+function stripTags(value: string) {
+  return cleanText(
+    decodeHtmlEntities(
+      String(value || "")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>/gi, "\n")
+        .replace(/<\/div>/gi, "\n")
+        .replace(/<\/tr>/gi, "\n")
+        .replace(/<[^>]+>/g, " "),
+    )
+      .replace(/\s+\n/g, "\n")
+      .replace(/\n\s+/g, "\n")
+      .replace(/\n+/g, "\n"),
+  );
 }
 
 function replaceGermanChars(value: string) {
@@ -167,34 +200,6 @@ async function fetchFirstAvailableHtml(urls: string[]) {
   throw new Error(`BTD landing page not reachable. ${failures.join(" | ")}`);
 }
 
-function extractDirectBtdLinkFromNdbvLinksPage(html: string, baseUrl: string) {
-  const hrefMatch = html.match(/https?:\/\/ndbv\.club-cloud\.de\/btd\.php(?:\?[^"' <]*)?/i);
-  if (hrefMatch?.[0]) {
-    return resolveHref(hrefMatch[0], baseUrl);
-  }
-
-  const doc = parseHtmlDocument(html);
-  const anchors = Array.from(doc.querySelectorAll("a[href]"));
-  for (const anchor of anchors) {
-    const href = anchor.getAttribute("href") || "";
-    const text = cleanText(anchor.textContent);
-    const resolved = resolveHref(href, baseUrl);
-    if (/ndbv\.club-cloud\.de\/btd\.php/i.test(resolved) || /btd-rangliste/i.test(text)) {
-      return resolved;
-    }
-  }
-
-  return "";
-}
-
-function parseHtmlDocument(html: string) {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  if (!doc) {
-    throw new Error("BTD HTML konnte nicht geparst werden.");
-  }
-  return doc;
-}
-
 function isLikelyDisciplineLabel(label: string) {
   const normalized = normalizeToken(label);
   if (!normalized || normalized.length < 3) return false;
@@ -253,49 +258,35 @@ function addDisciplineCandidate(
 }
 
 function extractDisciplineLinks(html: string, baseUrl: string) {
-  const doc = parseHtmlDocument(html);
   const candidates: DisciplineLink[] = [];
   const seen = new Set<string>();
   let order = 0;
 
-  doc.querySelectorAll("a[href]").forEach((anchor) => {
-    addDisciplineCandidate(
-      candidates,
-      seen,
-      cleanText(anchor.textContent),
-      anchor.getAttribute("href") || "",
-      baseUrl,
-      order,
-    );
-    order += 1;
-  });
-
-  doc.querySelectorAll("[onclick]").forEach((element) => {
-    const onclick = element.getAttribute("onclick") || "";
-    const label = cleanText(element.textContent);
-    const matches = onclick.match(/['"]([^'"]*btd\.php[^'"]*)['"]/gi) || [];
-    matches.forEach((match) => {
-      const href = match.replace(/^['"]|['"]$/g, "");
-      addDisciplineCandidate(candidates, seen, label, href, baseUrl, order);
-      order += 1;
-    });
-  });
-
-  doc.querySelectorAll("option").forEach((option) => {
-    const value = option.getAttribute("value") || "";
-    const label = cleanText(option.textContent);
-    if (value.includes("btd.php")) {
-      addDisciplineCandidate(candidates, seen, label, value, baseUrl, order);
-      order += 1;
-    }
-  });
-
-  const inlineLinkRegex = /<a[^>]+href=(['"])([^'"]*btd\.php[^'"]*)\1[^>]*>([\s\S]*?)<\/a>/gi;
+  const inlineLinkRegex = /<a\b([^>]*)href=(['"])([^'"]*btd\.php[^'"]*)\2([^>]*)>([\s\S]*?)<\/a>/gi;
   let inlineMatch: RegExpExecArray | null;
   while ((inlineMatch = inlineLinkRegex.exec(html)) !== null) {
-    const rawLabel = cleanText(inlineMatch[3].replace(/<[^>]+>/g, " "));
-    addDisciplineCandidate(candidates, seen, rawLabel, inlineMatch[2], baseUrl, order);
+    const rawLabel = stripTags(inlineMatch[5]);
+    addDisciplineCandidate(candidates, seen, rawLabel, inlineMatch[3], baseUrl, order);
     order += 1;
+  }
+
+  const optionRegex = /<option\b([^>]*)value=(['"])([^'"]*btd\.php[^'"]*)\2([^>]*)>([\s\S]*?)<\/option>/gi;
+  let optionMatch: RegExpExecArray | null;
+  while ((optionMatch = optionRegex.exec(html)) !== null) {
+    addDisciplineCandidate(candidates, seen, stripTags(optionMatch[5]), optionMatch[3], baseUrl, order);
+    order += 1;
+  }
+
+  const onclickRegex = /<([a-z0-9]+)\b([^>]*)onclick=(['"])([\s\S]*?)\3([^>]*)>([\s\S]*?)<\/\1>/gi;
+  let onclickMatch: RegExpExecArray | null;
+  while ((onclickMatch = onclickRegex.exec(html)) !== null) {
+    const rawLabel = stripTags(onclickMatch[6]);
+    const matches = onclickMatch[4].match(/['"]([^'"]*btd\.php[^'"]*)['"]/gi) || [];
+    matches.forEach((match) => {
+      const href = match.replace(/^['"]|['"]$/g, "");
+      addDisciplineCandidate(candidates, seen, rawLabel, href, baseUrl, order);
+      order += 1;
+    });
   }
 
   return candidates;
@@ -323,12 +314,12 @@ function previousSeasonToken(token: string, step: number) {
   return `${String(prevStart).slice(-2)}${String(prevEnd).slice(-2)}`;
 }
 
-function extractDisciplineLabelFromPage(doc: Document) {
+function extractDisciplineLabelFromPage(html: string) {
   const titleCandidates = [
-    cleanText(doc.querySelector("h1")?.textContent),
-    cleanText(doc.querySelector("h2")?.textContent),
-    cleanText(doc.title),
-    cleanText(doc.body?.textContent).slice(0, 200),
+    stripTags((html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || ""),
+    stripTags((html.match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i) || [])[1] || ""),
+    stripTags((html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || ""),
+    stripTags(html).slice(0, 200),
   ].filter(Boolean);
 
   for (const candidate of titleCandidates) {
@@ -341,11 +332,23 @@ function extractDisciplineLabelFromPage(doc: Document) {
   return "";
 }
 
-function buildTableGrid(table: Element) {
+function extractTableHtmlBlocks(html: string) {
+  const tables: string[] = [];
+  const tableRegex = /<table\b[^>]*>[\s\S]*?<\/table>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = tableRegex.exec(html)) !== null) {
+    tables.push(match[0]);
+  }
+  return tables;
+}
+
+function buildTableGrid(tableHtml: string) {
   const rows: string[][] = [];
   const spanMap: Record<number, number> = {};
+  const rowRegex = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+  let rowMatch: RegExpExecArray | null;
 
-  table.querySelectorAll("tr").forEach((tr) => {
+  while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
     const row: string[] = [];
     let columnIndex = 0;
 
@@ -354,15 +357,18 @@ function buildTableGrid(table: Element) {
       columnIndex += 1;
     }
 
-    tr.querySelectorAll("th, td").forEach((cell) => {
+    const cellRegex = /<(th|td)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+    let cellMatch: RegExpExecArray | null;
+    while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
       while (spanMap[columnIndex] > 0) {
         spanMap[columnIndex] -= 1;
         columnIndex += 1;
       }
 
-      const cellText = cleanText(cell.textContent);
-      const colspan = Math.max(1, Number(cell.getAttribute("colspan") || "1"));
-      const rowspan = Math.max(1, Number(cell.getAttribute("rowspan") || "1"));
+      const attrs = cellMatch[2] || "";
+      const cellText = stripTags(cellMatch[3]);
+      const colspan = Math.max(1, Number((attrs.match(/\bcolspan=(['"]?)(\d+)\1/i) || [])[2] || "1"));
+      const rowspan = Math.max(1, Number((attrs.match(/\browspan=(['"]?)(\d+)\1/i) || [])[2] || "1"));
 
       for (let offset = 0; offset < colspan; offset += 1) {
         row[columnIndex + offset] = cellText;
@@ -372,10 +378,10 @@ function buildTableGrid(table: Element) {
       }
 
       columnIndex += colspan;
-    });
+    }
 
     rows.push(row.map((cell) => cleanText(cell)));
-  });
+  }
 
   const width = rows.reduce((max, row) => Math.max(max, row.length), 0);
   return rows
@@ -558,10 +564,9 @@ function parseRankingRows(
 }
 
 function parseRankingTable(html: string, disciplineId: string, fallbackLabel: string) {
-  const doc = parseHtmlDocument(html);
-  const tables = Array.from(doc.querySelectorAll("table"));
-  const pageLabel = extractDisciplineLabelFromPage(doc) || fallbackLabel;
-  const pageText = cleanText(doc.body?.textContent);
+  const tables = extractTableHtmlBlocks(html);
+  const pageLabel = extractDisciplineLabelFromPage(html) || fallbackLabel;
+  const pageText = stripTags(html);
 
   let bestRows: RankingRow[] = [];
   for (const table of tables) {
@@ -587,17 +592,8 @@ function parseRankingTable(html: string, disciplineId: string, fallbackLabel: st
 
 async function loadDisciplinesAndRankings() {
   const landing = await fetchFirstAvailableHtml(LANDING_URLS);
-  let resolvedLanding = landing;
-
-  if (/links\.php/i.test(landing.url)) {
-    const directUrl = extractDirectBtdLinkFromNdbvLinksPage(landing.html, landing.url);
-    if (directUrl) {
-      resolvedLanding = await fetchHtmlWithRetry(directUrl);
-    }
-  }
-
-  const landingDoc = parseHtmlDocument(resolvedLanding.html);
-  const landingPageLabel = extractDisciplineLabelFromPage(landingDoc);
+  const resolvedLanding = landing;
+  const landingPageLabel = extractDisciplineLabelFromPage(resolvedLanding.html);
   const candidates = extractDisciplineLinks(resolvedLanding.html, resolvedLanding.url);
 
   const disciplineLinks = candidates.length
