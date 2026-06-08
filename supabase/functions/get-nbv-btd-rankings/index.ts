@@ -71,6 +71,11 @@ type DisciplineLink = {
   order: number;
 };
 
+type TableRowDetail = {
+  cellsHtml: string[];
+  cellsText: string[];
+};
+
 const responseCache = new Map<string, CachedPayload>();
 
 function cleanText(value: string | null | undefined) {
@@ -342,47 +347,68 @@ function extractTableHtmlBlocks(html: string) {
   return tables;
 }
 
-function buildTableGrid(tableHtml: string) {
-  const rows: string[][] = [];
-  const spanMap: Record<number, number> = {};
+function extractTableRowDetails(tableHtml: string) {
+  const rows: TableRowDetail[] = [];
+  const spanMap: Record<number, { html: string; text: string; remaining: number }> = {};
   const rowRegex = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
   let rowMatch: RegExpExecArray | null;
 
   while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
-    const row: string[] = [];
+    const cellsHtml: string[] = [];
+    const cellsText: string[] = [];
     let columnIndex = 0;
 
-    while (spanMap[columnIndex] > 0) {
-      spanMap[columnIndex] -= 1;
+    while (spanMap[columnIndex]?.remaining > 0) {
+      cellsHtml[columnIndex] = spanMap[columnIndex].html;
+      cellsText[columnIndex] = spanMap[columnIndex].text;
+      spanMap[columnIndex].remaining -= 1;
       columnIndex += 1;
     }
 
     const cellRegex = /<(th|td)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
     let cellMatch: RegExpExecArray | null;
     while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
-      while (spanMap[columnIndex] > 0) {
-        spanMap[columnIndex] -= 1;
+      while (spanMap[columnIndex]?.remaining > 0) {
+        cellsHtml[columnIndex] = spanMap[columnIndex].html;
+        cellsText[columnIndex] = spanMap[columnIndex].text;
+        spanMap[columnIndex].remaining -= 1;
         columnIndex += 1;
       }
 
       const attrs = cellMatch[2] || "";
-      const cellText = stripTags(cellMatch[3]);
+      const innerHtml = cellMatch[3] || "";
+      const text = stripTags(innerHtml);
       const colspan = Math.max(1, Number((attrs.match(/\bcolspan=(['"]?)(\d+)\1/i) || [])[2] || "1"));
       const rowspan = Math.max(1, Number((attrs.match(/\browspan=(['"]?)(\d+)\1/i) || [])[2] || "1"));
 
       for (let offset = 0; offset < colspan; offset += 1) {
-        row[columnIndex + offset] = cellText;
+        cellsHtml[columnIndex + offset] = innerHtml;
+        cellsText[columnIndex + offset] = text;
         if (rowspan > 1) {
-          spanMap[columnIndex + offset] = rowspan - 1;
+          spanMap[columnIndex + offset] = {
+            html: innerHtml,
+            text,
+            remaining: rowspan - 1,
+          };
         }
       }
 
       columnIndex += colspan;
     }
 
-    rows.push(row.map((cell) => cleanText(cell)));
+    if (cellsText.some(Boolean)) {
+      rows.push({
+        cellsHtml: cellsHtml.map((value) => value || ""),
+        cellsText: cellsText.map((value) => cleanText(value || "")),
+      });
+    }
   }
 
+  return rows;
+}
+
+function buildTableGrid(tableHtml: string) {
+  const rows = extractTableRowDetails(tableHtml).map((row) => row.cellsText);
   const width = rows.reduce((max, row) => Math.max(max, row.length), 0);
   return rows
     .map((row) => Array.from({ length: width }, (_, index) => cleanText(row[index] || "")))
@@ -466,10 +492,86 @@ function createRowId(disciplineId: string, rank: string, playerName: string, clu
     .replace(/^-|-$/g, "");
 }
 
+function isDecimalValue(value: string) {
+  return /^\d+(?:[.,]\d+)?$/.test(cleanText(value));
+}
+
+function isIntegerValue(value: string) {
+  return /^\d+$/.test(cleanText(value));
+}
+
+function extractAnchorTexts(html: string) {
+  const values: string[] = [];
+  const regex = /<a\b[^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(html)) !== null) {
+    const text = stripTags(match[1]);
+    if (text) values.push(text);
+  }
+  return values;
+}
+
+function extractPlayerAndClub(row: TableRowDetail) {
+  for (let index = row.cellsHtml.length - 1; index >= 0; index -= 1) {
+    const html = row.cellsHtml[index] || "";
+    const text = row.cellsText[index] || "";
+    const anchors = extractAnchorTexts(html);
+    if (!anchors.length && !/[a-zA-ZÄÖÜäöüß]/.test(text)) continue;
+
+    let playerName = anchors[0] || "";
+    let club = "";
+
+    if (anchors[0]) {
+      const parts = stripTags(html)
+        .split("\n")
+        .map((entry) => cleanText(entry))
+        .filter(Boolean);
+      const remaining = parts.filter((entry) => entry !== anchors[0]);
+      club = remaining[0] || "";
+    } else {
+      const parts = text
+        .split("\n")
+        .map((entry) => cleanText(entry))
+        .filter(Boolean);
+      playerName = parts[0] || "";
+      club = parts[1] || "";
+    }
+
+    if (playerName && !isIntegerValue(playerName)) {
+      return {
+        playerName,
+        club,
+      };
+    }
+  }
+
+  const fallbackText = row.cellsText.find((value) => /[a-zA-ZÄÖÜäöüß]/.test(value) && !isIntegerValue(value)) || "";
+  const fallbackParts = fallbackText
+    .split("\n")
+    .map((entry) => cleanText(entry))
+    .filter(Boolean);
+
+  return {
+    playerName: fallbackParts[0] || "",
+    club: fallbackParts[1] || "",
+  };
+}
+
+function findBtdValue(row: TableRowDetail, rank: string) {
+  const values = row.cellsText.map((value) => cleanText(value)).filter(Boolean);
+  for (const value of values) {
+    if (value === rank) continue;
+    if (isDecimalValue(value) && /[.,]/.test(value)) {
+      return value;
+    }
+  }
+  return "";
+}
+
 function parseRankingRows(
   disciplineId: string,
   headers: string[],
-  rows: string[][],
+  rows: TableRowDetail[],
   pageLabel: string,
   pageText: string,
 ) {
@@ -509,14 +611,15 @@ function parseRankingRows(
 
   return rows
     .map((row) => {
-      const rank = cleanText(row[rankIndex] || row[0]);
+      const values = row.cellsText;
+      const rank = cleanText(values[rankIndex] || values[0]);
       if (!/^\d+$/.test(rank)) return null;
 
       let playerName = "";
       if (firstNameIndex >= 0 && lastNameIndex >= 0 && firstNameIndex !== lastNameIndex) {
         const parts = [
-          { index: firstNameIndex, value: cleanText(row[firstNameIndex]) },
-          { index: lastNameIndex, value: cleanText(row[lastNameIndex]) },
+          { index: firstNameIndex, value: cleanText(values[firstNameIndex]) },
+          { index: lastNameIndex, value: cleanText(values[lastNameIndex]) },
         ]
           .filter((entry) => entry.value)
           .sort((left, right) => left.index - right.index)
@@ -524,17 +627,27 @@ function parseRankingRows(
         playerName = parts.join(" ");
       }
       if (!playerName && combinedNameIndex >= 0) {
-        playerName = cleanText(row[combinedNameIndex]);
+        playerName = cleanText(values[combinedNameIndex]);
       }
       if (!playerName && lastNameIndex >= 0) {
-        playerName = cleanText(row[lastNameIndex]);
+        playerName = cleanText(values[lastNameIndex]);
       }
 
-      const club = cleanText(row[clubIndex]);
+      const extractedPlayer = extractPlayerAndClub(row);
+      if (!playerName || isIntegerValue(playerName)) {
+        playerName = extractedPlayer.playerName;
+      }
+
+      let club = cleanText(values[clubIndex]);
+      if (!club) {
+        club = extractedPlayer.club;
+      }
+
+      const btdValue = cleanText(values[btgIndex]) || findBtdValue(row, rank);
       const details = headers
         .map((header, index) => ({
           label: cleanText(header) || `Spalte ${index + 1}`,
-          value: cleanText(row[index]),
+          value: cleanText(values[index]),
         }))
         .filter((entry) => entry.value);
 
@@ -545,18 +658,18 @@ function parseRankingRows(
         rank,
         playerName,
         club,
-        balls: cleanText(row[ballsIndex]),
-        innings: cleanText(row[inningsIndex]),
-        gd: cleanText(row[gdIndex]),
-        hs: cleanText(row[hsIndex]),
-        bestGame: cleanText(row[bestGameIndex]),
-        btg: cleanText(row[btgIndex]),
-        earnedClassCurrentSeason: cleanText(row[earnedClassCurrentIndex]),
-        gdPrevSeason1: cleanText(row[gdPrev1Index]),
-        earnedClassPrevSeason1: cleanText(row[earnedClassPrev1Index]),
-        gdPrevSeason2: cleanText(row[gdPrev2Index]),
-        earnedClassPrevSeason2: cleanText(row[earnedClassPrev2Index]),
-        currentClass: cleanText(row[currentClassIndex]),
+        balls: cleanText(values[ballsIndex]),
+        innings: cleanText(values[inningsIndex]),
+        gd: cleanText(values[gdIndex]),
+        hs: cleanText(values[hsIndex]),
+        bestGame: cleanText(values[bestGameIndex]),
+        btg: btdValue,
+        earnedClassCurrentSeason: cleanText(values[earnedClassCurrentIndex]),
+        gdPrevSeason1: cleanText(values[gdPrev1Index]),
+        earnedClassPrevSeason1: cleanText(values[earnedClassPrev1Index]),
+        gdPrevSeason2: cleanText(values[gdPrev2Index]),
+        earnedClassPrevSeason2: cleanText(values[earnedClassPrev2Index]),
+        currentClass: cleanText(values[currentClassIndex]),
         details,
       } satisfies RankingRow;
     })
@@ -571,10 +684,11 @@ function parseRankingTable(html: string, disciplineId: string, fallbackLabel: st
   let bestRows: RankingRow[] = [];
   for (const table of tables) {
     const grid = buildTableGrid(table);
+    const rowDetails = extractTableRowDetails(table);
     const dataStartIndex = findDataStartIndex(grid);
     if (dataStartIndex < 0) continue;
     const headers = deriveColumnLabels(grid, dataStartIndex);
-    const rows = parseRankingRows(disciplineId, headers, grid.slice(dataStartIndex), pageLabel, pageText);
+    const rows = parseRankingRows(disciplineId, headers, rowDetails.slice(dataStartIndex), pageLabel, pageText);
     if (rows.length > bestRows.length) {
       bestRows = rows;
     }

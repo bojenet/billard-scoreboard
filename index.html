@@ -142,11 +142,6 @@
             <div class="tile-title">NBV Karambol-Kalender</div>
         </div>
 
-        <div id="btdTile" class="tile" onclick="window.location.href='nbv_schnitte.html'" style="display:none;">
-            <div class="tile-title">NBV Schnitte</div>
-            <div class="tile-sub">Live-Ranglisten je Disziplin</div>
-        </div>
-
         <div id="playersTile" class="tile" onclick="window.location.href='players.html'" style="display:none;">
             <div class="tile-title">Spielerverwaltung</div>
             <div class="tile-sub">Spieler hinzufügen & löschen</div>
@@ -318,11 +313,6 @@
             if (calendarTile) calendarTile.style.display = isCalendarVisibleForUser(accessMode) ? "" : "none";
         }
 
-        function applyBtdAccess() {
-            const tile = document.getElementById("btdTile");
-            if (tile) tile.style.display = "flex";
-        }
-
         async function loadLiveMatches() {
             const user = await requireAuth();
             if (!user) return;
@@ -332,12 +322,11 @@
                 usersTile.style.display = isAdmin ? "flex" : "none";
             }
 
-            const [, , , , , , , ownedNames] = await Promise.all([
+            const [, , , , , , ownedNames] = await Promise.all([
                 applyMatchAccess(user),
                 applyTrainingAccess(user),
                 applyTournamentAccess(user),
                 applyCalendarAccess(user),
-                Promise.resolve(applyBtdAccess()),
                 loadCountdownInvites(user),
                 loadRemoteMatchInvites(user),
                 getOwnedPlayerNames(user.id)
