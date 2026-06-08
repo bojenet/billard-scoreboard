@@ -150,7 +150,7 @@
 
         <div class="actions">
             <button id="primaryBtn" type="button" onclick="handlePrimary()">Anmelden</button>
-            <button id="secondaryBtn" class="btn-secondary" type="button" onclick="handleSecondary()">Konto erstellen</button>
+            <button id="secondaryBtn" class="btn-secondary" type="button" onclick="handleSecondary()" style="display:none;">Zum Login</button>
             <button id="tertiaryBtn" class="btn-link" type="button" onclick="handleTertiary()">Passwort zurücksetzen</button>
         </div>
 
@@ -201,7 +201,7 @@
             lastNameField.style.display = "none";
             passwordField.style.display = "flex";
             confirmField.style.display = "none";
-            secondaryBtn.style.display = "block";
+            secondaryBtn.style.display = "none";
             tertiaryBtn.style.display = "block";
             tinyText.innerText = "";
             setMessage("", "");
@@ -210,23 +210,8 @@
                 title.innerText = "Login";
                 subText.innerText = "Mit deinem Konto anmelden";
                 primaryBtn.innerText = "Anmelden";
-                secondaryBtn.innerText = "Konto erstellen";
                 tertiaryBtn.innerText = "Passwort zurücksetzen";
                 document.getElementById("password").autocomplete = "current-password";
-                return;
-            }
-
-            if (mode === "signup") {
-                title.innerText = "Konto erstellen";
-                subText.innerText = "Neues Konto mit Name, E-Mail und Passwort anlegen";
-                primaryBtn.innerText = "Konto erstellen";
-                secondaryBtn.innerText = "Zum Login";
-                tertiaryBtn.style.display = "none";
-                firstNameField.style.display = "flex";
-                lastNameField.style.display = "flex";
-                confirmField.style.display = "flex";
-                document.getElementById("password").autocomplete = "new-password";
-                tinyText.innerText = "Wenn E-Mail-Bestätigung aktiv ist, musst du danach dein Postfach prüfen.";
                 return;
             }
 
@@ -235,6 +220,7 @@
                 subText.innerText = "Wir senden dir einen Link, über den du ein neues Passwort setzen kannst.";
                 primaryBtn.innerText = "Reset-Mail senden";
                 secondaryBtn.innerText = "Zum Login";
+                secondaryBtn.style.display = "block";
                 tertiaryBtn.style.display = "none";
                 passwordField.style.display = "none";
                 confirmField.style.display = "none";
@@ -318,55 +304,6 @@
             }
         }
 
-        async function signUp() {
-            const firstName = getFirstName();
-            const lastName = getLastName();
-            const fullName = getFullName();
-            const email = getEmail();
-            const password = getPassword();
-            const confirmPassword = getConfirmPassword();
-
-            if (!firstName || firstName.length < 2 || !lastName || lastName.length < 2) {
-                setMessage("Bitte Vorname und Nachname eingeben.", "error");
-                return;
-            }
-            if (!email || !password || password.length < 6) {
-                setMessage("Bitte Name, E-Mail und Passwort mit mindestens 6 Zeichen eingeben.", "error");
-                return;
-            }
-            if (password !== confirmPassword) {
-                setMessage("Die beiden Passwörter stimmen nicht überein.", "error");
-                return;
-            }
-
-            setBusy(true);
-            const { error } = await supabaseClient.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        first_name: firstName,
-                        last_name: lastName,
-                        display_name: fullName,
-                        full_name: fullName
-                    }
-                }
-            });
-            setBusy(false);
-
-            if (error) {
-                setMessage("Registrierung fehlgeschlagen: " + error.message, "error");
-                return;
-            }
-
-            setMessage("Konto erstellt. Bitte E-Mail-Bestätigung prüfen, falls sie aktiv ist.", "ok");
-            applyMode("login");
-            document.getElementById("firstName").value = "";
-            document.getElementById("lastName").value = "";
-            document.getElementById("password").value = "";
-            document.getElementById("confirmPassword").value = "";
-        }
-
         async function requestPasswordReset() {
             const email = getEmail();
             if (!email) {
@@ -390,13 +327,11 @@
         async function handlePrimary() {
             if (busy) return;
             if (currentMode === "login") return await login();
-            if (currentMode === "signup") return await signUp();
             if (currentMode === "reset") return await requestPasswordReset();
         }
 
         function handleSecondary() {
             if (busy) return;
-            if (currentMode === "login") return applyMode("signup");
             applyMode("login");
         }
 
