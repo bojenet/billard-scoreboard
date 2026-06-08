@@ -100,6 +100,12 @@
             opacity: 0.72;
             line-height: 1.45;
         }
+
+        .section-title {
+            margin: 28px 0 14px;
+            font-size: 24px;
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -127,6 +133,21 @@
             </div>
 
             <button class="btn primary" type="button" onclick="saveAccount()">Speichern</button>
+
+            <div class="section-title">Passwort ändern</div>
+
+            <div class="field">
+                <label for="newPassword">Neues Passwort</label>
+                <input id="newPassword" type="password" placeholder="Mindestens 6 Zeichen" autocomplete="new-password" />
+            </div>
+
+            <div class="field">
+                <label for="confirmPassword">Neues Passwort wiederholen</label>
+                <input id="confirmPassword" type="password" placeholder="Passwort wiederholen" autocomplete="new-password" />
+            </div>
+
+            <button class="btn" type="button" onclick="changePassword()">Passwort ändern</button>
+            <div class="hint">Das neue Passwort muss in beiden Feldern identisch sein.</div>
             <div id="messageBox" class="msg"></div>
         </div>
     </div>
@@ -217,6 +238,38 @@
 
             currentUser = user;
             setMessage("Account gespeichert.", "ok");
+        }
+
+        async function changePassword() {
+            if (!currentUser) return;
+
+            const newPassword = String(document.getElementById("newPassword").value || "");
+            const confirmPassword = String(document.getElementById("confirmPassword").value || "");
+
+            if (!newPassword || newPassword.length < 6) {
+                setMessage("Das neue Passwort muss mindestens 6 Zeichen haben.", "err");
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                setMessage("Die beiden Passwortfelder stimmen nicht überein.", "err");
+                return;
+            }
+
+            setMessage("", "");
+
+            const { error } = await supabaseClient.auth.updateUser({
+                password: newPassword
+            });
+
+            if (error) {
+                setMessage("Passwort konnte nicht geändert werden: " + error.message, "err");
+                return;
+            }
+
+            document.getElementById("newPassword").value = "";
+            document.getElementById("confirmPassword").value = "";
+            setMessage("Passwort wurde geändert.", "ok");
         }
 
         loadAccount();
