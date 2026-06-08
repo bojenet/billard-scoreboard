@@ -167,6 +167,11 @@
             padding-bottom: 2px;
         }
 
+        .calendar-loading #calendarActions,
+        .calendar-loading #calendarFooterPanel {
+            display: none !important;
+        }
+
         .feed-actions .btn,
         .feed-actions a {
             flex: 0 0 auto;
@@ -808,7 +813,7 @@
         }
     </style>
 </head>
-<body>
+<body class="calendar-loading">
     <div id="calendarHeader" class="header">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</div>
 
     <div class="page">
@@ -819,12 +824,12 @@
                 <div class="loading-bar"></div>
             </div>
             <div id="calendarMessage" class="message"></div>
-            <div id="calendarActions" class="feed-actions">
+            <div id="calendarActions" class="feed-actions" style="display:none;">
                 <button id="planningEventOpenBtn" class="btn btn-primary" type="button" onclick="openPlanningEventModal()" style="display:none;">Planungstermin anlegen</button>
                 <button id="manualEventOpenBtn" class="btn btn-save" type="button" onclick="openManualEventModal()" style="display:none;">Manuellen Termin anlegen</button>
-                <button id="calendarRefreshBtn" class="btn btn-primary admin-only-flex" type="button" onclick="refreshCalendar()">NBV Termine laden</button>
-                <button id="calendarFeedCopyBtn" class="btn btn-secondary admin-only" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
-                <a id="calendarFeedLink" class="btn btn-primary admin-only" href="#" target="_blank" rel="noreferrer">ICS abonnieren</a>
+                <button id="calendarRefreshBtn" class="btn btn-primary" type="button" onclick="refreshCalendar()" style="display:none;">NBV Termine laden</button>
+                <button id="calendarFeedCopyBtn" class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()" style="display:none;">ICS URL kopieren</button>
+                <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer" style="display:none;">ICS abonnieren</a>
                 <button id="calendarBackBtn" class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
             </div>
             <div id="calendarGrid" class="calendar-grid">
@@ -832,7 +837,7 @@
             </div>
         </div>
 
-        <div id="calendarFooterPanel" class="panel">
+        <div id="calendarFooterPanel" class="panel" style="display:none;">
             <div class="footer-tools">
                 <div id="calendarAdminSettings" class="admin-settings">
                     <div class="feed-heading">Admin: NBV-Quelle</div>
@@ -2509,6 +2514,9 @@
             const readOnly = !isCalendarAdmin;
             const openBtn = document.getElementById("manualEventOpenBtn");
             const planningOpenBtn = document.getElementById("planningEventOpenBtn");
+            const refreshBtn = document.getElementById("calendarRefreshBtn");
+            const feedCopyBtn = document.getElementById("calendarFeedCopyBtn");
+            const feedLink = document.getElementById("calendarFeedLink");
             const backBtn = document.getElementById("calendarBackBtn");
             const actionsRow = document.getElementById("calendarActions");
             const settingsBlock = document.getElementById("calendarAdminSettings");
@@ -2518,18 +2526,21 @@
             if (planningOpenBtn) {
                 planningOpenBtn.style.display = isCalendarAdmin ? "" : "none";
             }
+            if (refreshBtn) {
+                refreshBtn.style.display = isCalendarAdmin ? "" : "none";
+            }
+            if (feedCopyBtn) {
+                feedCopyBtn.style.display = isCalendarAdmin ? "" : "none";
+            }
+            if (feedLink) {
+                feedLink.style.display = isCalendarAdmin ? "" : "none";
+            }
             if (backBtn) {
                 backBtn.style.display = isCalendarAdmin ? "" : "none";
             }
             if (settingsBlock) {
                 settingsBlock.classList.toggle("open", isSystemAdmin);
             }
-            document.querySelectorAll(".admin-only").forEach((element) => {
-                element.classList.toggle("open", isCalendarAdmin);
-            });
-            document.querySelectorAll(".admin-only-flex").forEach((element) => {
-                element.classList.toggle("open", isCalendarAdmin);
-            });
             const footer = document.getElementById("calendarFooterPanel");
             if (footer) {
                 footer.style.display = isSystemAdmin ? "" : "none";
@@ -2576,30 +2587,34 @@
         }
 
         async function initPage() {
-            currentUser = await getCurrentUser();
-            isSystemAdmin = currentUser ? await hasAdminAccess(currentUser) : false;
-            calendarAccessMode = currentUser ? await getCalendarAccess(currentUser) : "hidden";
-            isCalendarAdmin = isCalendarEditable(calendarAccessMode);
-            tournamentAccessMode = isCalendarAdmin ? "edit" : "read";
+            try {
+                currentUser = await getCurrentUser();
+                isSystemAdmin = currentUser ? await hasAdminAccess(currentUser) : false;
+                calendarAccessMode = currentUser ? await getCalendarAccess(currentUser) : "hidden";
+                isCalendarAdmin = isCalendarEditable(calendarAccessMode);
+                tournamentAccessMode = isCalendarAdmin ? "edit" : "read";
 
-            await loadCalendarSettings();
-            await loadManualEvents();
-            await loadPlanningEvents();
-            await migrateLegacyLocalManualEvents();
-            loadSavedFilter();
-            renderFilters();
-            updateCalendarFeedUi();
-            handleManualDurationChange();
-            handlePlanningDurationChange();
-            resetManualEventForm();
-            resetPlanningEventForm();
-            renderCalendar();
-            applyAccessUi();
-            applyPublicViewState();
-            if (!isCalendarAdmin && !isPublicViewEnabled) {
-                return;
+                await loadCalendarSettings();
+                await loadManualEvents();
+                await loadPlanningEvents();
+                await migrateLegacyLocalManualEvents();
+                loadSavedFilter();
+                renderFilters();
+                updateCalendarFeedUi();
+                handleManualDurationChange();
+                handlePlanningDurationChange();
+                resetManualEventForm();
+                resetPlanningEventForm();
+                renderCalendar();
+                applyAccessUi();
+                applyPublicViewState();
+                if (!isCalendarAdmin && !isPublicViewEnabled) {
+                    return;
+                }
+                await refreshCalendar();
+            } finally {
+                document.body.classList.remove("calendar-loading");
             }
-            await refreshCalendar();
         }
 
         document.addEventListener("keydown", (event) => {
