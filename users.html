@@ -417,7 +417,7 @@
         </div>
         <div class="form-field full">
           <label for="editPassword">Passwort</label>
-          <input id="editPassword" type="password" autocomplete="new-password" placeholder="Bei bestehenden Usern leer lassen, wenn unverändert" onfocus="this.type='password'" />
+          <input id="editPassword" type="password" autocomplete="new-password" placeholder="Bei bestehenden Usern leer lassen, wenn unverändert" />
           <div class="password-tools">
             <div class="form-field">
               <label for="passwordComplexity">Komplexität</label>
@@ -428,6 +428,7 @@
               </select>
             </div>
             <button class="save-btn secondary-btn" type="button" onclick="generatePassword()">Passwort generieren</button>
+            <button id="togglePasswordBtn" class="save-btn secondary-btn" type="button" onclick="togglePasswordVisibility()">Anzeigen</button>
             <button class="save-btn secondary-btn" type="button" onclick="copyGeneratedPassword()">Kopieren</button>
           </div>
           <div class="password-hint">Einfach: nur Buchstaben und Zahlen. Mittel: Groß/Klein, Zahlen, Sonderzeichen. Stark: länger und mit erweitertem Zeichensatz.</div>
@@ -592,9 +593,20 @@
       }
       passwordInput.value = shuffleCharacters(buffer).join("");
       passwordInput.type = "text";
+      const toggleBtn = document.getElementById("togglePasswordBtn");
+      if (toggleBtn) toggleBtn.innerText = "Verbergen";
       passwordInput.focus();
       passwordInput.select();
       setUserModalMsg("Passwort wurde generiert.", "ok");
+    }
+
+    function togglePasswordVisibility() {
+      const passwordInput = document.getElementById("editPassword");
+      const toggleBtn = document.getElementById("togglePasswordBtn");
+      if (!passwordInput || !toggleBtn) return;
+      const showPassword = passwordInput.type === "password";
+      passwordInput.type = showPassword ? "text" : "password";
+      toggleBtn.innerText = showPassword ? "Verbergen" : "Anzeigen";
     }
 
     async function copyGeneratedPassword() {
@@ -704,9 +716,13 @@
       setModalValue("editStreamOverlayAccess", normalizeStreamOverlayAccess(existing?.stream_overlay_access) ? "true" : "false");
       setModalValue("passwordComplexity", "medium");
       const passwordInput = document.getElementById("editPassword");
+      const toggleBtn = document.getElementById("togglePasswordBtn");
       if (passwordInput) {
         passwordInput.type = "password";
         passwordInput.placeholder = existing ? "Nur ausfüllen, wenn das Passwort geändert werden soll" : "Passwort für den neuen User";
+      }
+      if (toggleBtn) {
+        toggleBtn.innerText = "Anzeigen";
       }
       const deleteBtn = document.getElementById("deleteUserBtn");
       if (deleteBtn) deleteBtn.style.visibility = existing ? "visible" : "hidden";

@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>NBV Schnitte</title>
+    <style>
+        :root {
+            --bg: #f2efe7;
+            --panel: #ffffff;
+            --line: #cfd5dc;
+            --text: #19202a;
+            --muted: #647083;
+            --head: #122033;
+            --blue: #2d5880;
+            --blue-soft: #dbe8f3;
+            --blue-deep: #214564;
+            --soft: #f8f8f4;
+            --accent: #8faecc;
+        }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            visibility: hidden;
+        }
+
+        body.page-ready {
+            visibility: visible;
+        }
+
+        .header {
+            text-align: center;
+            padding: 28px 16px 14px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 38px;
+            line-height: 1.15;
+            color: var(--head);
+        }
+
+        .header p {
+            margin: 10px auto 0;
+            max-width: 900px;
+            font-size: 16px;
+            line-height: 1.45;
+            color: var(--muted);
+        }
+
+        .page {
+            width: min(1500px, 96%);
+            margin: 0 auto;
+            padding-bottom: 32px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+            padding: 16px 18px;
+            margin-bottom: 14px;
+        }
+
+        .panel h2 {
+            margin: 0 0 8px;
+            font-size: 20px;
+            color: var(--head);
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .meta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 36px;
+            padding: 0 12px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #fff;
+            color: #435162;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: minmax(240px, 1.1fr) minmax(220px, 0.7fr);
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .field label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.35px;
+            color: #475467;
+        }
+
+        input,
+        select {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #bcc6d2;
+            border-radius: 4px;
+            padding: 9px 10px;
+            font-size: 14px;
+            background: #fff;
+            color: #10131c;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            margin-bottom: 14px;
+        }
+
+        .tab-btn {
+            flex: 0 0 auto;
+            border: 1px solid #c3ccd6;
+            border-radius: 999px;
+            background: #fff;
+            color: #35506b;
+            padding: 9px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .tab-btn.active {
+            background: var(--blue);
+            border-color: var(--blue-deep);
+            color: #fff;
+        }
+
+        .message {
+            min-height: 20px;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+
+        .message.ok {
+            color: #157347;
+        }
+
+        .message.error {
+            color: #b42318;
+        }
+
+        .loading-wrap {
+            display: none;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .loading-wrap.active {
+            display: grid;
+        }
+
+        .loading-text {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .loading-bar {
+            height: 8px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: #e5e7eb;
+            position: relative;
+        }
+
+        .loading-bar::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            width: 34%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #9ab6cf 0%, #2d5880 50%, #9ab6cf 100%);
+            animation: loading-slide 1.2s ease-in-out infinite;
+        }
+
+        @keyframes loading-slide {
+            0% { transform: translateX(-110%); }
+            100% { transform: translateX(280%); }
+        }
+
+        .sections {
+            display: grid;
+            gap: 18px;
+        }
+
+        .discipline-section {
+            display: grid;
+            gap: 8px;
+        }
+
+        .discipline-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 8px;
+            padding: 0 2px;
+        }
+
+        .discipline-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--head);
+        }
+
+        .discipline-sub {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #fff;
+        }
+
+        table {
+            width: 100%;
+            min-width: 860px;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 10px 10px;
+            border-bottom: 1px solid #e1e6eb;
+            text-align: left;
+            vertical-align: top;
+            font-size: 14px;
+        }
+
+        th {
+            background: #ebf1f6;
+            color: #334155;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.35px;
+        }
+
+        tbody tr:nth-child(odd) {
+            background: #fbfcfd;
+        }
+
+        tbody tr.rank-row {
+            cursor: pointer;
+        }
+
+        tbody tr.rank-row:hover {
+            background: #f2f7fb;
+        }
+
+        .rank-col {
+            width: 58px;
+            font-weight: 700;
+            color: var(--head);
+            white-space: nowrap;
+        }
+
+        .name-cell {
+            min-width: 220px;
+        }
+
+        .name-main {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toggle-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 999px;
+            background: var(--blue-soft);
+            color: var(--blue-deep);
+            font-size: 12px;
+            font-weight: 700;
+            flex: 0 0 auto;
+        }
+
+        .player-name {
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .club-code {
+            display: inline-flex;
+            min-width: 48px;
+            justify-content: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: #eff4f8;
+            color: #38516a;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .stat-col {
+            white-space: nowrap;
+        }
+
+        .detail-row {
+            display: none;
+            background: #f6f9fc;
+        }
+
+        .detail-row.open {
+            display: table-row;
+        }
+
+        .detail-cell {
+            padding: 14px 14px 16px;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .detail-item {
+            border: 1px solid #dce5ee;
+            border-radius: 4px;
+            background: #fff;
+            padding: 10px 12px;
+        }
+
+        .detail-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.35px;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+            word-break: break-word;
+        }
+
+        .empty-state {
+            color: var(--muted);
+            font-size: 14px;
+            padding: 18px 4px;
+        }
+
+        .btn {
+            padding: 9px 14px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .btn-primary {
+            background: var(--blue);
+            border-color: var(--blue-deep);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            border-color: #5b6471;
+        }
+
+        @media (max-width: 900px) {
+            .header h1 {
+                font-size: 28px;
+            }
+
+            .filters {
+                grid-template-columns: 1fr;
+            }
+
+            .detail-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 720px) {
+            .header {
+                padding: 18px 14px 10px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .header p {
+                font-size: 14px;
+            }
+
+            .page {
+                width: 100%;
+                padding-bottom: 18px;
+            }
+
+            .panel {
+                border-left: 0;
+                border-right: 0;
+                border-radius: 0;
+                padding: 12px 10px;
+                margin-bottom: 10px;
+            }
+
+            .toolbar {
+                align-items: stretch;
+            }
+
+            .action-row {
+                width: 100%;
+            }
+
+            .action-row .btn {
+                width: 100%;
+            }
+
+            .meta {
+                width: 100%;
+            }
+
+            .badge {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .discipline-title {
+                font-size: 18px;
+            }
+
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>NBV Schnitte</h1>
+        <p>Live aus der NBV-BTD-Quelle gelesen, klarer lesbar nach Disziplinen gegliedert und mit Suche sowie Vereinsfilter.</p>
+    </div>
+
+    <div class="page">
+        <div class="panel">
+            <div class="toolbar">
+                <div class="meta">
+                    <div id="btdStandBadge" class="badge">Stand: wird geladen...</div>
+                    <div id="btdSourceBadge" class="badge">Quelle: NBV</div>
+                </div>
+                <div class="action-row">
+                    <button id="btdRefreshBtn" class="btn btn-primary" type="button" onclick="loadRankings(true)">Aktualisieren</button>
+                    <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
+                </div>
+            </div>
+
+            <div class="filters">
+                <div class="field">
+                    <label for="playerSearchInput">Suche nach Spieler oder Verein</label>
+                    <input id="playerSearchInput" type="text" placeholder="z. B. Smrcka oder BGH" oninput="handleSearchInput()">
+                </div>
+                <div class="field">
+                    <label for="clubFilterSelect">Verein</label>
+                    <select id="clubFilterSelect" onchange="handleClubFilterChange()">
+                        <option value="all">Alle Vereine</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="btdLoading" class="loading-wrap">
+                <div class="loading-text">NBV-Schnitte werden geladen...</div>
+                <div class="loading-bar"></div>
+            </div>
+
+            <div id="btdMessage" class="message"></div>
+            <div id="btdTabs" class="tabs"></div>
+            <div id="btdContent" class="sections">
+                <div class="empty-state">Noch keine Ranglisten geladen.</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/user_menu.js"></script>
+    <script>
+        let allRankings = [];
+        let disciplineTabs = [];
+        let activeTab = "all";
+        let searchValue = "";
+        let activeClub = "all";
+        let expandedRowIds = new Set();
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function setLoadingState(isLoading) {
+            const wrap = document.getElementById("btdLoading");
+            const refreshBtn = document.getElementById("btdRefreshBtn");
+            if (wrap) wrap.classList.toggle("active", Boolean(isLoading));
+            if (refreshBtn) {
+                refreshBtn.disabled = Boolean(isLoading);
+                refreshBtn.innerText = isLoading ? "Lädt..." : "Aktualisieren";
+            }
+        }
+
+        function setMessage(text, type) {
+            const el = document.getElementById("btdMessage");
+            if (!el) return;
+            el.className = "message " + (type || "");
+            el.innerText = text || "";
+        }
+
+        function formatTimestamp(value) {
+            if (!value) return "unbekannt";
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return "unbekannt";
+            return date.toLocaleString("de-DE", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+        }
+
+        function getAllRows() {
+            return allRankings.flatMap((ranking) => ranking.rows || []);
+        }
+
+        function updateMeta(data) {
+            const standBadge = document.getElementById("btdStandBadge");
+            const sourceBadge = document.getElementById("btdSourceBadge");
+            if (standBadge) {
+                standBadge.innerText = `Stand: ${formatTimestamp(data?.fetchedAt)}`;
+            }
+            if (sourceBadge) {
+                const cacheAge = Number(data?.cacheAgeSeconds || 0);
+                sourceBadge.innerText = cacheAge > 0
+                    ? `Quelle: NBV · Cache ${cacheAge}s`
+                    : "Quelle: NBV live";
+            }
+        }
+
+        function renderTabs() {
+            const wrap = document.getElementById("btdTabs");
+            if (!wrap) return;
+            const tabs = [{ id: "all", label: "Alle" }, ...disciplineTabs];
+            wrap.innerHTML = tabs.map((tab) => `
+                <button
+                    class="tab-btn ${activeTab === tab.id ? "active" : ""}"
+                    type="button"
+                    onclick="selectTab('${escapeHtml(tab.id)}')"
+                >${escapeHtml(tab.label)}</button>
+            `).join("");
+        }
+
+        function buildClubOptions() {
+            const select = document.getElementById("clubFilterSelect");
+            if (!select) return;
+            const clubs = Array.from(new Set(
+                getAllRows()
+                    .map((row) => String(row?.club || "").trim())
+                    .filter(Boolean)
+            )).sort((left, right) => left.localeCompare(right, "de"));
+
+            select.innerHTML = `
+                <option value="all">Alle Vereine</option>
+                ${clubs.map((club) => `<option value="${escapeHtml(club)}">${escapeHtml(club)}</option>`).join("")}
+            `;
+            select.value = clubs.includes(activeClub) ? activeClub : "all";
+            activeClub = select.value;
+        }
+
+        function rowMatchesFilters(row) {
+            const search = searchValue.trim().toLowerCase();
+            const haystack = `${row.playerName || ""} ${row.club || ""}`.toLowerCase();
+            if (search && !haystack.includes(search)) return false;
+            if (activeClub !== "all" && String(row.club || "").trim() !== activeClub) return false;
+            return true;
+        }
+
+        function getVisibleRankings() {
+            return allRankings
+                .filter((ranking) => activeTab === "all" || ranking.disciplineId === activeTab)
+                .map((ranking) => ({
+                    ...ranking,
+                    rows: (ranking.rows || []).filter(rowMatchesFilters),
+                }))
+                .filter((ranking) => ranking.rows.length > 0);
+        }
+
+        function toggleRowDetails(rowId) {
+            if (expandedRowIds.has(rowId)) {
+                expandedRowIds.delete(rowId);
+            } else {
+                expandedRowIds.add(rowId);
+            }
+            renderContent();
+        }
+
+        function buildDetails(row) {
+            const preferred = [
+                { label: "Bälle", value: row.balls },
+                { label: "Aufnahmen", value: row.innings },
+                { label: "BTG", value: row.btg },
+                { label: "Erspielte Klasse aktuell", value: row.earnedClassCurrentSeason },
+                { label: "GD Vorjahr", value: row.gdPrevSeason1 },
+                { label: "Klasse Vorjahr", value: row.earnedClassPrevSeason1 },
+                { label: "GD vor 2 Jahren", value: row.gdPrevSeason2 },
+                { label: "Klasse vor 2 Jahren", value: row.earnedClassPrevSeason2 },
+            ].filter((entry) => String(entry.value || "").trim());
+
+            const usedLabels = new Set(preferred.map((entry) => entry.label));
+            const extra = (row.details || []).filter((entry) => {
+                const normalizedLabel = String(entry.label || "").toLowerCase();
+                return entry.value && !usedLabels.has(entry.label) && ![
+                    "rang",
+                    "platz",
+                    "name vorname",
+                    "name",
+                    "vorname",
+                    "verein",
+                    "bälle",
+                    "aufnahmen",
+                    "gd",
+                    "hs",
+                    "beste partie",
+                    "klasse aktuell",
+                ].includes(normalizedLabel);
+            });
+
+            const items = [...preferred, ...extra].slice(0, 12);
+            if (!items.length) {
+                return '<div class="empty-state">Keine zusätzlichen Details vorhanden.</div>';
+            }
+
+            return `
+                <div class="detail-grid">
+                    ${items.map((item) => `
+                        <div class="detail-item">
+                            <div class="detail-label">${escapeHtml(item.label)}</div>
+                            <div class="detail-value">${escapeHtml(item.value)}</div>
+                        </div>
+                    `).join("")}
+                </div>
+            `;
+        }
+
+        function buildTable(ranking) {
+            return `
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Rang</th>
+                                <th>Spieler</th>
+                                <th>Verein</th>
+                                <th>GD</th>
+                                <th>HS</th>
+                                <th>Beste Partie</th>
+                                <th>Aktuelle Klasse</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(ranking.rows || []).map((row) => {
+                                const isOpen = expandedRowIds.has(row.id);
+                                return `
+                                    <tr class="rank-row" onclick="toggleRowDetails('${escapeHtml(row.id)}')">
+                                        <td class="rank-col">${escapeHtml(row.rank)}</td>
+                                        <td class="name-cell">
+                                            <div class="name-main">
+                                                <span class="toggle-pill">${isOpen ? "−" : "+"}</span>
+                                                <span class="player-name">${escapeHtml(row.playerName)}</span>
+                                            </div>
+                                        </td>
+                                        <td><span class="club-code">${escapeHtml(row.club || "-")}</span></td>
+                                        <td class="stat-col">${escapeHtml(row.gd || "-")}</td>
+                                        <td class="stat-col">${escapeHtml(row.hs || "-")}</td>
+                                        <td class="stat-col">${escapeHtml(row.bestGame || "-")}</td>
+                                        <td class="stat-col">${escapeHtml(row.currentClass || row.earnedClassCurrentSeason || "-")}</td>
+                                    </tr>
+                                    <tr class="detail-row ${isOpen ? "open" : ""}">
+                                        <td colspan="7" class="detail-cell">${buildDetails(row)}</td>
+                                    </tr>
+                                `;
+                            }).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderContent() {
+            const wrap = document.getElementById("btdContent");
+            if (!wrap) return;
+            const visibleRankings = getVisibleRankings();
+
+            if (!visibleRankings.length) {
+                wrap.innerHTML = '<div class="empty-state">Für den aktuellen Filter sind keine Einträge vorhanden.</div>';
+                return;
+            }
+
+            wrap.innerHTML = visibleRankings.map((ranking) => `
+                <section class="discipline-section">
+                    <div class="discipline-head">
+                        <div class="discipline-title">${escapeHtml(ranking.disciplineLabel)}</div>
+                        <div class="discipline-sub">${ranking.rows.length} Spieler${ranking.rows.length === 1 ? "" : ""}</div>
+                    </div>
+                    ${buildTable(ranking)}
+                </section>
+            `).join("");
+        }
+
+        function selectTab(tabId) {
+            activeTab = tabId || "all";
+            renderTabs();
+            renderContent();
+        }
+
+        function handleSearchInput() {
+            searchValue = document.getElementById("playerSearchInput")?.value || "";
+            renderContent();
+        }
+
+        function handleClubFilterChange() {
+            activeClub = document.getElementById("clubFilterSelect")?.value || "all";
+            renderContent();
+        }
+
+        async function loadRankings(forceRefresh = false) {
+            setLoadingState(true);
+            setMessage("", "");
+            try {
+                const { data, error } = await supabaseClient.functions.invoke("get-nbv-btd-rankings", {
+                    body: { forceRefresh: Boolean(forceRefresh) },
+                });
+                if (error) throw error;
+
+                disciplineTabs = Array.isArray(data?.disciplines) ? data.disciplines : [];
+                allRankings = Array.isArray(data?.rankings) ? data.rankings : [];
+                if (!disciplineTabs.some((tab) => tab.id === activeTab) && activeTab !== "all") {
+                    activeTab = "all";
+                }
+                expandedRowIds = new Set();
+                updateMeta(data || {});
+                buildClubOptions();
+                renderTabs();
+                renderContent();
+
+                const failed = Array.isArray(data?.failedDisciplines) ? data.failedDisciplines : [];
+                if (failed.length) {
+                    setMessage(`Teilweise geladen. Nicht verfügbar: ${failed.map((entry) => entry.label).join(", ")}`, "error");
+                } else {
+                    setMessage("NBV-Schnitte wurden aktualisiert.", "ok");
+                }
+            } catch (error) {
+                console.warn("NBV-Schnitte konnten nicht geladen werden:", error);
+                setMessage(`NBV-Schnitte konnten nicht geladen werden: ${error?.message || "Unbekannter Fehler"}`, "error");
+                document.getElementById("btdContent").innerHTML = '<div class="empty-state">Der Live-Abruf der NBV-Schnitte ist aktuell nicht verfügbar.</div>';
+            } finally {
+                setLoadingState(false);
+            }
+        }
+
+        async function initPage() {
+            try {
+                const user = await requireAuth();
+                if (!user) return;
+                await loadRankings(false);
+            } finally {
+                document.body.classList.add("page-ready");
+            }
+        }
+
+        initPage().catch((error) => {
+            console.error("NBV-Schnitte-Seite konnte nicht initialisiert werden:", error);
+            document.body.classList.add("page-ready");
+        });
+    </script>
+</body>
+</html>

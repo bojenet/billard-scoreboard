@@ -99,7 +99,9 @@
       path.endsWith('/index.html') ||
       path === 'index.html' ||
       path.endsWith('/calendar.html') ||
-      path === 'calendar.html'
+      path === 'calendar.html' ||
+      path.endsWith('/nbv_schnitte.html') ||
+      path === 'nbv_schnitte.html'
     );
   }
 
