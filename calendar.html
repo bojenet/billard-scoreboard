@@ -150,14 +150,27 @@
             padding-top: 12px;
             border-top: 1px solid var(--line);
             display: grid;
-            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(220px, auto);
+            grid-template-columns: 1fr;
             gap: 14px;
-            align-items: center;
+            align-items: stretch;
         }
 
         .footer-tool-block {
             display: grid;
             gap: 6px;
+        }
+
+        .feed-actions {
+            justify-content: flex-start;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+
+        .feed-actions .btn,
+        .feed-actions a {
+            flex: 0 0 auto;
+            white-space: nowrap;
         }
 
         .admin-settings {
