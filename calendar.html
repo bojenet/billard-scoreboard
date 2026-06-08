@@ -819,13 +819,13 @@
                 <div class="loading-bar"></div>
             </div>
             <div id="calendarMessage" class="message"></div>
-            <div class="feed-actions">
+            <div id="calendarActions" class="feed-actions">
                 <button id="planningEventOpenBtn" class="btn btn-primary" type="button" onclick="openPlanningEventModal()" style="display:none;">Planungstermin anlegen</button>
                 <button id="manualEventOpenBtn" class="btn btn-save" type="button" onclick="openManualEventModal()" style="display:none;">Manuellen Termin anlegen</button>
                 <button id="calendarRefreshBtn" class="btn btn-primary admin-only-flex" type="button" onclick="refreshCalendar()">NBV Termine laden</button>
                 <button id="calendarFeedCopyBtn" class="btn btn-secondary admin-only" type="button" onclick="copyCalendarFeedUrl()">ICS URL kopieren</button>
                 <a id="calendarFeedLink" class="btn btn-primary admin-only" href="#" target="_blank" rel="noreferrer">ICS abonnieren</a>
-                <button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
+                <button id="calendarBackBtn" class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
             </div>
             <div id="calendarGrid" class="calendar-grid">
                 <div class="empty-state">Noch keine Kalenderdaten vorhanden.</div>
@@ -2502,30 +2502,27 @@
                 return;
             }
             if (filters) filters.style.display = "";
-            if (footer) footer.style.display = "";
+            if (footer) footer.style.display = isSystemAdmin ? "" : "none";
         }
 
         function applyAccessUi() {
             const readOnly = !isCalendarAdmin;
             const openBtn = document.getElementById("manualEventOpenBtn");
             const planningOpenBtn = document.getElementById("planningEventOpenBtn");
+            const backBtn = document.getElementById("calendarBackBtn");
+            const actionsRow = document.getElementById("calendarActions");
             const settingsBlock = document.getElementById("calendarAdminSettings");
-            const feedBlock = document.getElementById("calendarFeedBlock");
-            const planstandBlock = document.getElementById("calendarPlanstandBlock");
             if (openBtn) {
                 openBtn.style.display = isCalendarAdmin ? "" : "none";
             }
             if (planningOpenBtn) {
                 planningOpenBtn.style.display = isCalendarAdmin ? "" : "none";
             }
+            if (backBtn) {
+                backBtn.style.display = isCalendarAdmin ? "" : "none";
+            }
             if (settingsBlock) {
                 settingsBlock.classList.toggle("open", isSystemAdmin);
-            }
-            if (feedBlock) {
-                feedBlock.classList.toggle("open", isCalendarAdmin);
-            }
-            if (planstandBlock) {
-                planstandBlock.classList.toggle("open", isCalendarAdmin);
             }
             document.querySelectorAll(".admin-only").forEach((element) => {
                 element.classList.toggle("open", isCalendarAdmin);
@@ -2533,6 +2530,16 @@
             document.querySelectorAll(".admin-only-flex").forEach((element) => {
                 element.classList.toggle("open", isCalendarAdmin);
             });
+            const footer = document.getElementById("calendarFooterPanel");
+            if (footer) {
+                footer.style.display = isSystemAdmin ? "" : "none";
+            }
+            if (actionsRow) {
+                const hasVisibleAction = Array.from(actionsRow.children).some((element) => {
+                    return window.getComputedStyle(element).display !== "none";
+                });
+                actionsRow.style.display = hasVisibleAction ? "" : "none";
+            }
             document.querySelectorAll("#manualEventDate, #manualEventTime, #manualEventTitle, #manualEventLocation, #manualEventNote").forEach((input) => {
                 input.disabled = readOnly;
             });
