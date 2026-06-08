@@ -546,6 +546,22 @@
             margin-top: 12px;
         }
 
+        .modal-message {
+            min-height: 20px;
+            margin-top: 10px;
+            font-size: 13px;
+            line-height: 1.4;
+            color: var(--muted);
+        }
+
+        .modal-message.error {
+            color: #9f2f2f;
+        }
+
+        .modal-message.ok {
+            color: #1f6a49;
+        }
+
         .modal-backdrop {
             position: fixed;
             inset: 0;
@@ -913,6 +929,7 @@
                 <button id="manualEventSubmitBtn" class="btn btn-save" type="button" onclick="saveManualEvent()">Termin hinzufügen</button>
                 <button id="manualEventCancelBtn" class="btn btn-secondary" type="button" onclick="cancelManualEventEdit()" style="display:none;">Bearbeitung abbrechen</button>
             </div>
+            <div id="manualEventModalMessage" class="modal-message"></div>
         </div>
     </div>
 
@@ -962,6 +979,7 @@
                 <button id="planningEventSubmitBtn" class="btn btn-primary" type="button" onclick="savePlanningEvent()">Planungstermin speichern</button>
                 <button id="planningEventCancelBtn" class="btn btn-secondary" type="button" onclick="cancelPlanningEventEdit()" style="display:none;">Bearbeitung abbrechen</button>
             </div>
+            <div id="planningEventModalMessage" class="modal-message"></div>
         </div>
     </div>
 
@@ -1259,6 +1277,13 @@
             el.className = "message" + (type ? " " + type : "");
         }
 
+        function setModalMessage(id, text, type) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = text || "";
+            el.className = "modal-message" + (type ? " " + type : "");
+        }
+
         function setCalendarLoading(isLoading, text) {
             const wrap = document.getElementById("calendarLoading");
             const label = document.getElementById("calendarLoadingText");
@@ -1537,6 +1562,7 @@
             if (submitBtn) submitBtn.textContent = "Termin hinzufügen";
             if (cancelBtn) cancelBtn.style.display = "none";
             if (modalTitle) modalTitle.textContent = "Manueller Termin";
+            setModalMessage("manualEventModalMessage", "", "");
             handleManualDurationChange();
         }
 
@@ -1555,6 +1581,7 @@
             if (submitBtn) submitBtn.textContent = "Planungstermin speichern";
             if (cancelBtn) cancelBtn.style.display = "none";
             if (modalTitle) modalTitle.textContent = "Planungstermin";
+            setModalMessage("planningEventModalMessage", "", "");
             handlePlanningDurationChange();
         }
 
@@ -2308,18 +2335,23 @@
 
             if (!date || !title) {
                 showCalendarMessage("Bitte mindestens Datum und Titel eintragen.", "error");
+                setModalMessage("manualEventModalMessage", "Bitte mindestens Datum und Titel eintragen.", "error");
                 return;
             }
 
             if (allDay && (!endDate || endDate < date)) {
                 showCalendarMessage("Bitte fuer mehrtaegige Termine ein gueltiges Enddatum eintragen.", "error");
+                setModalMessage("manualEventModalMessage", "Bitte für mehrtägige Termine ein gültiges Enddatum eintragen.", "error");
                 return;
             }
 
             if (!isDateRangeWithinSeason(date, allDay ? endDate : date, currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON)) {
                 showCalendarMessage(`Manuelle Termine dürfen nur innerhalb der aktiven Saison ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON} gespeichert werden.`, "error");
+                setModalMessage("manualEventModalMessage", `Dieser Termin liegt außerhalb der aktiven Saison ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON} und kann nicht gespeichert werden.`, "error");
                 return;
             }
+
+            setModalMessage("manualEventModalMessage", "", "");
 
             const payload = {
                 id: editingManualEventId || `manual-${Date.now()}`,
@@ -2354,6 +2386,7 @@
             } catch (error) {
                 console.warn("Manueller Termin konnte nicht gespeichert werden:", error);
                 showCalendarMessage(`Manueller Termin konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+                setModalMessage("manualEventModalMessage", `Manueller Termin konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
@@ -2372,18 +2405,23 @@
 
             if (!date || !title) {
                 showCalendarMessage("Bitte mindestens Datum und Titel fuer den Planungstermin eintragen.", "error");
+                setModalMessage("planningEventModalMessage", "Bitte mindestens Datum und Titel für den Planungstermin eintragen.", "error");
                 return;
             }
 
             if (allDay && (!endDate || endDate < date)) {
                 showCalendarMessage("Bitte fuer mehrtaegige Planungstermine ein gueltiges Enddatum eintragen.", "error");
+                setModalMessage("planningEventModalMessage", "Bitte für mehrtägige Planungstermine ein gültiges Enddatum eintragen.", "error");
                 return;
             }
 
             if (!isDateRangeWithinSeason(date, allDay ? endDate : date, currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON)) {
                 showCalendarMessage(`Planungstermine dürfen nur innerhalb der aktiven Saison ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON} gespeichert werden.`, "error");
+                setModalMessage("planningEventModalMessage", `Dieser Planungstermin liegt außerhalb der aktiven Saison ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON} und kann nicht gespeichert werden.`, "error");
                 return;
             }
+
+            setModalMessage("planningEventModalMessage", "", "");
 
             const payload = {
                 id: editingPlanningEventId || `planning-${Date.now()}`,
@@ -2415,6 +2453,7 @@
             } catch (error) {
                 console.warn("Planungstermin konnte nicht gespeichert werden:", error);
                 showCalendarMessage(`Planungstermin konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+                setModalMessage("planningEventModalMessage", `Planungstermin konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
