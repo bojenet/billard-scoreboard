@@ -1013,6 +1013,7 @@
         let activeVenueFilter = "all";
         let activeCreatorFilter = "all";
         let isCalendarAdmin = false;
+        let isSystemAdmin = false;
         let calendarAccessMode = "hidden";
         let editingManualEventId = null;
         let editingPlanningEventId = null;
@@ -2154,7 +2155,7 @@
         }
 
         async function saveCalendarSettings() {
-            if (!isCalendarAdmin) return;
+            if (!isSystemAdmin) return;
             const input = document.getElementById("calendarSourceUrlInput");
             const seasonInput = document.getElementById("calendarSeasonInput");
             const publicViewToggle = document.getElementById("calendarPublicViewToggle");
@@ -2208,7 +2209,7 @@
         }
 
         async function createHamburgHolidayEvents() {
-            if (!isCalendarAdmin) return;
+            if (!isSystemAdmin) return;
             const holidays = buildHamburgHolidayEventsForSeason(currentCalendarSeason);
             if (!holidays.length) {
                 showCalendarMessage("Fuer die aktive Saison konnten keine Hamburger Feiertage abgeleitet werden.", "error");
@@ -2478,7 +2479,7 @@
                 planningOpenBtn.style.display = isCalendarAdmin ? "" : "none";
             }
             if (settingsBlock) {
-                settingsBlock.classList.toggle("open", isCalendarAdmin);
+                settingsBlock.classList.toggle("open", isSystemAdmin);
             }
             if (feedBlock) {
                 feedBlock.classList.toggle("open", isCalendarAdmin);
@@ -2529,6 +2530,7 @@
 
         async function initPage() {
             currentUser = await getCurrentUser();
+            isSystemAdmin = currentUser ? await hasAdminAccess(currentUser) : false;
             calendarAccessMode = currentUser ? await getCalendarAccess(currentUser) : "hidden";
             isCalendarAdmin = isCalendarEditable(calendarAccessMode);
             tournamentAccessMode = isCalendarAdmin ? "edit" : "read";
