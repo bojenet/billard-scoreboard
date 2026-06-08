@@ -2067,7 +2067,7 @@
                                                             <div class="event-title">${escapeHtml(event.title)}</div>
                                                             ${(event.source === "manual" || event.source === "planning") && event.location ? `<div class="event-meta">${escapeHtml(event.location)}</div>` : ""}
                                                             ${(event.source === "manual" || event.source === "planning") && event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
-                                                            ${(event.source === "manual" || event.source === "planning") && event.createdByName ? `<div class="event-created-by">von ${escapeHtml(event.createdByName)}</div>` : ""}
+                                                            ${event.source === "planning" && event.createdByName ? `<div class="event-created-by">von ${escapeHtml(event.createdByName)}</div>` : ""}
                                                             ${event.link ? `<div class="event-note"><a class="cc_bluelink" href="${escapeHtml(event.link)}" target="_blank" rel="noreferrer">NBV Details</a></div>` : ""}
                                                         </div>
                                                         ${isCalendarAdmin && event.source === "manual" && (!isMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
