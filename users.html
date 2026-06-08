@@ -310,6 +310,26 @@
       padding: 0 12px;
     }
 
+    .password-tools {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      align-items: end;
+      margin-top: 10px;
+    }
+
+    .password-tools .save-btn,
+    .password-tools select {
+      min-height: 42px;
+    }
+
+    .password-hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.68);
+      line-height: 1.45;
+    }
+
     .form-field select {
       min-height: 44px;
     }
@@ -397,7 +417,20 @@
         </div>
         <div class="form-field full">
           <label for="editPassword">Passwort</label>
-          <input id="editPassword" type="password" autocomplete="new-password" placeholder="Bei bestehenden Usern leer lassen, wenn unverändert" />
+          <input id="editPassword" type="password" autocomplete="new-password" placeholder="Bei bestehenden Usern leer lassen, wenn unverändert" onfocus="this.type='password'" />
+          <div class="password-tools">
+            <div class="form-field">
+              <label for="passwordComplexity">Komplexität</label>
+              <select id="passwordComplexity">
+                <option value="simple">Einfach</option>
+                <option value="medium" selected>Mittel</option>
+                <option value="strong">Stark</option>
+              </select>
+            </div>
+            <button class="save-btn secondary-btn" type="button" onclick="generatePassword()">Passwort generieren</button>
+            <button class="save-btn secondary-btn" type="button" onclick="copyGeneratedPassword()">Kopieren</button>
+          </div>
+          <div class="password-hint">Einfach: nur Buchstaben und Zahlen. Mittel: Groß/Klein, Zahlen, Sonderzeichen. Stark: länger und mit erweitertem Zeichensatz.</div>
         </div>
         <div class="form-field">
           <label for="editRole">Rolle</label>
@@ -491,6 +524,100 @@
       el.innerText = text || "";
     }
 
+    function getPasswordProfile() {
+      const complexity = document.getElementById("passwordComplexity")?.value || "medium";
+      if (complexity === "simple") {
+        return {
+          length: 10,
+          groups: ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789"]
+        };
+      }
+      if (complexity === "strong") {
+        return {
+          length: 20,
+          groups: [
+            "ABCDEFGHJKLMNPQRSTUVWXYZ",
+            "abcdefghijkmnopqrstuvwxyz",
+            "23456789",
+            "!@#$%&*+-_=?",
+            "()[]{}"
+          ]
+        };
+      }
+      return {
+        length: 14,
+        groups: [
+          "ABCDEFGHJKLMNPQRSTUVWXYZ",
+          "abcdefghijkmnopqrstuvwxyz",
+          "23456789",
+          "!@#$%&*+-_=?"
+        ]
+      };
+    }
+
+    function getRandomInt(max) {
+      if (!Number.isFinite(max) || max <= 0) return 0;
+      const cryptoApi = window.crypto || window.msCrypto;
+      if (cryptoApi?.getRandomValues) {
+        const values = new Uint32Array(1);
+        cryptoApi.getRandomValues(values);
+        return values[0] % max;
+      }
+      return Math.floor(Math.random() * max);
+    }
+
+    function pickRandomCharacter(characters) {
+      return characters.charAt(getRandomInt(characters.length));
+    }
+
+    function shuffleCharacters(characters) {
+      const shuffled = characters.slice();
+      for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const randomIndex = getRandomInt(index + 1);
+        const current = shuffled[index];
+        shuffled[index] = shuffled[randomIndex];
+        shuffled[randomIndex] = current;
+      }
+      return shuffled;
+    }
+
+    function generatePassword() {
+      const passwordInput = document.getElementById("editPassword");
+      if (!passwordInput) return;
+      const profile = getPasswordProfile();
+      const allCharacters = profile.groups.join("");
+      const buffer = profile.groups.map((group) => pickRandomCharacter(group));
+      while (buffer.length < profile.length) {
+        buffer.push(pickRandomCharacter(allCharacters));
+      }
+      passwordInput.value = shuffleCharacters(buffer).join("");
+      passwordInput.type = "text";
+      passwordInput.focus();
+      passwordInput.select();
+      setUserModalMsg("Passwort wurde generiert.", "ok");
+    }
+
+    async function copyGeneratedPassword() {
+      const passwordInput = document.getElementById("editPassword");
+      const password = String(passwordInput?.value || "");
+      if (!password) {
+        setUserModalMsg("Bitte zuerst ein Passwort generieren oder eingeben.", "err");
+        return;
+      }
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(password);
+        } else {
+          passwordInput.focus();
+          passwordInput.select();
+          document.execCommand("copy");
+        }
+        setUserModalMsg("Passwort wurde in die Zwischenablage kopiert.", "ok");
+      } catch (error) {
+        setUserModalMsg("Passwort konnte nicht kopiert werden.", "err");
+      }
+    }
+
     function escapeHtml(value) {
       return String(value || "")
         .replace(/&/g, "&amp;")
@@ -575,6 +702,12 @@
       setModalValue("editTournamentAccess", existing?.tournament_access || "edit");
       setModalValue("editCalendarAccess", existing?.calendar_access || "edit");
       setModalValue("editStreamOverlayAccess", normalizeStreamOverlayAccess(existing?.stream_overlay_access) ? "true" : "false");
+      setModalValue("passwordComplexity", "medium");
+      const passwordInput = document.getElementById("editPassword");
+      if (passwordInput) {
+        passwordInput.type = "password";
+        passwordInput.placeholder = existing ? "Nur ausfüllen, wenn das Passwort geändert werden soll" : "Passwort für den neuen User";
+      }
       const deleteBtn = document.getElementById("deleteUserBtn");
       if (deleteBtn) deleteBtn.style.visibility = existing ? "visible" : "hidden";
       document.getElementById("userModalBackdrop").classList.add("open");
