@@ -103,11 +103,16 @@
 
     #usersTable th:nth-child(9),
     #usersTable td:nth-child(9) {
-      width: 170px;
+      width: 76px;
     }
 
     #usersTable th:nth-child(10),
     #usersTable td:nth-child(10) {
+      width: 170px;
+    }
+
+    #usersTable th:nth-child(11),
+    #usersTable td:nth-child(11) {
       width: 110px;
     }
 
@@ -341,6 +346,7 @@
           <th>Login E-Mail</th>
           <th>Name</th>
           <th>Rolle</th>
+          <th>Match</th>
           <th>Positions Library</th>
           <th>Training</th>
           <th>Turnier</th>
@@ -401,6 +407,14 @@
           </select>
         </div>
         <div class="form-field">
+          <label for="editMatchAccess">Match</label>
+          <select id="editMatchAccess">
+            <option value="hidden">ausblenden</option>
+            <option value="read">lesen</option>
+            <option value="edit">editieren</option>
+          </select>
+        </div>
+        <div class="form-field">
           <label for="editPositionLibraryAccess">Positions Library</label>
           <select id="editPositionLibraryAccess">
             <option value="hidden">ausblenden</option>
@@ -454,6 +468,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/match_access.js"></script>
   <script src="js/position_library_access.js"></script>
   <script src="js/training_access.js"></script>
   <script src="js/tournament_access.js"></script>
@@ -554,6 +569,7 @@
       setModalValue("editLastName", existing?.last_name || "");
       setModalValue("editPassword", "");
       setModalValue("editRole", existing?.role || "member");
+      setModalValue("editMatchAccess", existing?.match_access || "edit");
       setModalValue("editPositionLibraryAccess", existing?.position_library_access || "edit");
       setModalValue("editTrainingAccess", existing?.training_access || "edit");
       setModalValue("editTournamentAccess", existing?.tournament_access || "edit");
@@ -587,9 +603,10 @@
 
       let { data: roles, error: rolesError } = await supabaseClient
         .from("user_roles")
-        .select("user_id,role,position_library_access,training_access,tournament_access,calendar_access,stream_overlay_access");
+        .select("user_id,role,match_access,position_library_access,training_access,tournament_access,calendar_access,stream_overlay_access");
 
-      if (rolesError && String(rolesError.message || "").toLowerCase().includes("stream_overlay_access")) {
+      const rolesErrorText = String(rolesError?.message || "").toLowerCase();
+      if (rolesError && (rolesErrorText.includes("stream_overlay_access") || rolesErrorText.includes("match_access"))) {
         const fallback = await supabaseClient
           .from("user_roles")
           .select("user_id,role,position_library_access,training_access,tournament_access,calendar_access");
@@ -616,6 +633,7 @@
       (roles || []).forEach((r) => {
         roleByUser[r.user_id] = {
           role: r.role || "member",
+          match_access: r.match_access || "edit",
           position_library_access: r.position_library_access || "edit",
           training_access: r.training_access || "edit",
           tournament_access: r.tournament_access || "edit",
@@ -630,6 +648,7 @@
           <th>Login E-Mail</th>
           <th>Name</th>
           <th>Rolle</th>
+          <th class="access-head">Match</th>
           <th class="access-head" title="Positions Library">Pos.</th>
           <th class="access-head">Training</th>
           <th class="access-head">Turnier</th>
@@ -650,6 +669,7 @@
         return {
           ...p,
           role: roleInfo.role || "member",
+          match_access: normalizeMatchAccess(roleInfo.match_access),
           position_library_access: normalizePositionLibraryAccess(roleInfo.position_library_access),
           training_access: normalizeTrainingAccess(roleInfo.training_access),
           tournament_access: normalizeTournamentAccess(roleInfo.tournament_access),
@@ -664,6 +684,7 @@
           <td>${escapeHtml(p.email || "-")}</td>
           <td>${escapeHtml(getUserDisplayName(p))}</td>
           <td><span class="pill">${escapeHtml(p.role)}</span></td>
+          <td class="access-cell">${accessIcon(p.match_access)}</td>
           <td class="access-cell">${accessIcon(p.position_library_access)}</td>
           <td class="access-cell">${accessIcon(p.training_access)}</td>
           <td class="access-cell">${accessIcon(p.tournament_access)}</td>
@@ -783,6 +804,7 @@
         first_name: firstName,
         last_name: lastName,
         role: document.getElementById("editRole").value,
+        match_access: normalizeMatchAccess(document.getElementById("editMatchAccess").value),
         position_library_access: normalizePositionLibraryAccess(document.getElementById("editPositionLibraryAccess").value),
         training_access: normalizeTrainingAccess(document.getElementById("editTrainingAccess").value),
         tournament_access: normalizeTournamentAccess(document.getElementById("editTournamentAccess").value),

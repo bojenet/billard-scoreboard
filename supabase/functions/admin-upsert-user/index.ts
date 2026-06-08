@@ -15,6 +15,7 @@ type UserPayload = {
   first_name?: string;
   last_name?: string;
   role?: string;
+  match_access?: string;
   position_library_access?: string;
   training_access?: string;
   tournament_access?: string;
@@ -116,6 +117,7 @@ serve(async (request) => {
     const lastName = cleanText(payload.last_name);
     const fullName = [firstName, lastName].filter(Boolean).join(" ");
     const role = normalizeRole(payload.role);
+    const matchAccess = normalizeAccess(payload.match_access);
     const positionLibraryAccess = normalizeAccess(payload.position_library_access);
     const trainingAccess = normalizeAccess(payload.training_access);
     const tournamentAccess = normalizeAccess(payload.tournament_access);
@@ -208,6 +210,7 @@ serve(async (request) => {
       .upsert([{
         user_id: targetUserId,
         role,
+        match_access: matchAccess,
         position_library_access: positionLibraryAccess,
         training_access: trainingAccess,
         tournament_access: tournamentAccess,
@@ -215,7 +218,8 @@ serve(async (request) => {
         stream_overlay_access: streamOverlayAccess,
       }], { onConflict: "user_id" });
 
-    if (roleError && String(roleError.message || "").toLowerCase().includes("stream_overlay_access")) {
+    const roleErrorText = String(roleError?.message || "").toLowerCase();
+    if (roleError && (roleErrorText.includes("stream_overlay_access") || roleErrorText.includes("match_access"))) {
       const fallback = await adminClient
         .from("user_roles")
         .upsert([{

@@ -18,6 +18,7 @@ alter table public.profiles
 create table if not exists public.user_roles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   role text not null default 'member' check (role in ('member', 'admin')),
+  match_access text not null default 'edit' check (match_access in ('hidden', 'read', 'edit')),
   position_library_access text not null default 'edit' check (position_library_access in ('hidden', 'read', 'edit')),
   training_access text not null default 'edit' check (training_access in ('hidden', 'read', 'edit')),
   tournament_access text not null default 'edit' check (tournament_access in ('hidden', 'read', 'edit')),
@@ -35,6 +36,9 @@ create table if not exists public.login_events (
 );
 
 alter table public.user_roles
+  add column if not exists match_access text not null default 'edit';
+
+alter table public.user_roles
   add column if not exists position_library_access text not null default 'edit';
 
 alter table public.user_roles
@@ -48,6 +52,13 @@ alter table public.user_roles
 
 alter table public.user_roles
   add column if not exists stream_overlay_access boolean not null default true;
+
+alter table public.user_roles
+  drop constraint if exists user_roles_match_access_check;
+
+alter table public.user_roles
+  add constraint user_roles_match_access_check
+  check (match_access in ('hidden', 'read', 'edit'));
 
 alter table public.user_roles
   drop constraint if exists user_roles_position_library_access_check;
@@ -89,8 +100,8 @@ from auth.users
 on conflict (id) do update
 set email = excluded.email;
 
-insert into public.user_roles (user_id, role, position_library_access, training_access, tournament_access, calendar_access, stream_overlay_access)
-select id, 'member', 'edit', 'edit', 'edit', 'edit', true
+insert into public.user_roles (user_id, role, match_access, position_library_access, training_access, tournament_access, calendar_access, stream_overlay_access)
+select id, 'member', 'edit', 'edit', 'edit', 'edit', 'edit', true
 from auth.users
 on conflict (user_id) do nothing;
 
@@ -176,8 +187,8 @@ begin
     last_name = coalesce(public.profiles.last_name, excluded.last_name),
     full_name = coalesce(public.profiles.full_name, excluded.full_name);
 
-  insert into public.user_roles (user_id, role, position_library_access, training_access, tournament_access, calendar_access, stream_overlay_access)
-  values (new.id, 'member', 'edit', 'edit', 'edit', 'edit', true)
+  insert into public.user_roles (user_id, role, match_access, position_library_access, training_access, tournament_access, calendar_access, stream_overlay_access)
+  values (new.id, 'member', 'edit', 'edit', 'edit', 'edit', 'edit', true)
   on conflict (user_id) do nothing;
 
   return new;

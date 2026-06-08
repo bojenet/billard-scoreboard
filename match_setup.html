@@ -562,6 +562,7 @@
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         <script src="js/supabase.js"></script>
         <script src="js/auth.js"></script>
+        <script src="js/match_access.js"></script>
         <script src="js/stream_overlay_access.js"></script>
     <script src="js/user_menu.js"></script>
 
@@ -1055,6 +1056,11 @@
             window.addEventListener("DOMContentLoaded", async () => {
                 const user = await requireAuth();
                 if (!user) return;
+                const accessMode = await getMatchAccess(user);
+                if (!isMatchVisible(accessMode)) {
+                    document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf Match.</div>";
+                    return;
+                }
                 currentUserId = user.id;
                 currentCanCreateStreamOverlay = await getStreamOverlayAccess(user);
                 ownedPlayerNames = await getOwnedPlayerNames(currentUserId);
