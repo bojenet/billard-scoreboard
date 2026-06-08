@@ -2316,6 +2316,11 @@
                 return;
             }
 
+            if (!isDateRangeWithinSeason(date, allDay ? endDate : date, currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON)) {
+                showCalendarMessage(`Manuelle Termine dürfen nur innerhalb der aktiven Saison ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON} gespeichert werden.`, "error");
+                return;
+            }
+
             const payload = {
                 id: editingManualEventId || `manual-${Date.now()}`,
                 date,
@@ -2372,6 +2377,11 @@
 
             if (allDay && (!endDate || endDate < date)) {
                 showCalendarMessage("Bitte fuer mehrtaegige Planungstermine ein gueltiges Enddatum eintragen.", "error");
+                return;
+            }
+
+            if (!isDateRangeWithinSeason(date, allDay ? endDate : date, currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON)) {
+                showCalendarMessage(`Planungstermine dürfen nur innerhalb der aktiven Saison ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON} gespeichert werden.`, "error");
                 return;
             }
 
