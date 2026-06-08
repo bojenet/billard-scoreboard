@@ -94,7 +94,13 @@
 
   function shouldShowUserMenu() {
     const path = String(window.location.pathname || '');
-    return path === '/' || path.endsWith('/index.html') || path === 'index.html';
+    return (
+      path === '/' ||
+      path.endsWith('/index.html') ||
+      path === 'index.html' ||
+      path.endsWith('/calendar.html') ||
+      path === 'calendar.html'
+    );
   }
 
   async function init() {
