@@ -580,6 +580,30 @@
             });
         }
 
+        async function getFunctionErrorMessage(error) {
+            if (!error) return "Unbekannter Fehler";
+            if (error.message && !/non-2xx status code/i.test(String(error.message))) {
+                return String(error.message);
+            }
+            const context = error.context;
+            if (context && typeof context.text === "function") {
+                try {
+                    const raw = await context.text();
+                    if (raw) {
+                        try {
+                            const parsed = JSON.parse(raw);
+                            return parsed?.message || parsed?.error || raw;
+                        } catch (_) {
+                            return raw;
+                        }
+                    }
+                } catch (_) {
+                    return String(error.message || "Unbekannter Fehler");
+                }
+            }
+            return String(error.message || "Unbekannter Fehler");
+        }
+
         function getAllRows() {
             return allRankings.flatMap((ranking) => ranking.rows || []);
         }
@@ -812,7 +836,8 @@
                 }
             } catch (error) {
                 console.warn("NBV-Schnitte konnten nicht geladen werden:", error);
-                setMessage(`NBV-Schnitte konnten nicht geladen werden: ${error?.message || "Unbekannter Fehler"}`, "error");
+                const errorMessage = await getFunctionErrorMessage(error);
+                setMessage(`NBV-Schnitte konnten nicht geladen werden: ${errorMessage}`, "error");
                 document.getElementById("btdContent").innerHTML = '<div class="empty-state">Der Live-Abruf der NBV-Schnitte ist aktuell nicht verfügbar.</div>';
             } finally {
                 setLoadingState(false);

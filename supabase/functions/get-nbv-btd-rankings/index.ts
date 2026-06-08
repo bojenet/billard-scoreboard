@@ -6,6 +6,7 @@ const corsHeaders = {
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const LANDING_URLS = [
+  "https://www.ndbv.de/links.php?f=20",
   "https://www.ndbv.de/btd.php",
   "https://ndbv.club-cloud.de/btd.php",
 ];
@@ -117,8 +118,10 @@ function isRetryableFetchError(error: unknown) {
 
 async function fetchHtml(url: string): Promise<HtmlResult> {
   const response = await fetch(url, {
+    redirect: "follow",
     headers: {
       "User-Agent": "billard-studio-btd/1.0",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     },
   });
 
@@ -162,6 +165,26 @@ async function fetchFirstAvailableHtml(urls: string[]) {
   }
 
   throw new Error(`BTD landing page not reachable. ${failures.join(" | ")}`);
+}
+
+function extractDirectBtdLinkFromNdbvLinksPage(html: string, baseUrl: string) {
+  const hrefMatch = html.match(/https?:\/\/ndbv\.club-cloud\.de\/btd\.php(?:\?[^"' <]*)?/i);
+  if (hrefMatch?.[0]) {
+    return resolveHref(hrefMatch[0], baseUrl);
+  }
+
+  const doc = parseHtmlDocument(html);
+  const anchors = Array.from(doc.querySelectorAll("a[href]"));
+  for (const anchor of anchors) {
+    const href = anchor.getAttribute("href") || "";
+    const text = cleanText(anchor.textContent);
+    const resolved = resolveHref(href, baseUrl);
+    if (/ndbv\.club-cloud\.de\/btd\.php/i.test(resolved) || /btd-rangliste/i.test(text)) {
+      return resolved;
+    }
+  }
+
+  return "";
 }
 
 function parseHtmlDocument(html: string) {
@@ -564,16 +587,25 @@ function parseRankingTable(html: string, disciplineId: string, fallbackLabel: st
 
 async function loadDisciplinesAndRankings() {
   const landing = await fetchFirstAvailableHtml(LANDING_URLS);
-  const landingDoc = parseHtmlDocument(landing.html);
+  let resolvedLanding = landing;
+
+  if (/links\.php/i.test(landing.url)) {
+    const directUrl = extractDirectBtdLinkFromNdbvLinksPage(landing.html, landing.url);
+    if (directUrl) {
+      resolvedLanding = await fetchHtmlWithRetry(directUrl);
+    }
+  }
+
+  const landingDoc = parseHtmlDocument(resolvedLanding.html);
   const landingPageLabel = extractDisciplineLabelFromPage(landingDoc);
-  const candidates = extractDisciplineLinks(landing.html, landing.url);
+  const candidates = extractDisciplineLinks(resolvedLanding.html, resolvedLanding.url);
 
   const disciplineLinks = candidates.length
     ? candidates
     : [{
         id: slugify(landingPageLabel || "rangliste"),
         label: landingPageLabel || "Rangliste",
-        url: landing.url,
+        url: resolvedLanding.url,
         order: 0,
       }];
 
@@ -583,8 +615,8 @@ async function loadDisciplinesAndRankings() {
 
   for (const discipline of disciplineLinks) {
     try {
-      const result = discipline.url === landing.url
-        ? parseRankingTable(landing.html, discipline.id, discipline.label)
+      const result = discipline.url === resolvedLanding.url
+        ? parseRankingTable(resolvedLanding.html, discipline.id, discipline.label)
         : parseRankingTable((await fetchHtmlWithRetry(discipline.url)).html, discipline.id, discipline.label);
 
       disciplines.push({
@@ -638,7 +670,7 @@ async function loadDisciplinesAndRankings() {
   return {
     disciplines: mergedDisciplines,
     rankings: sortedRankings,
-    sourceUrl: landing.url,
+    sourceUrl: resolvedLanding.url,
     failedDisciplines,
   };
 }
