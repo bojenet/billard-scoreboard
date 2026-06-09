@@ -2013,8 +2013,8 @@
                 title: planningEvent.title,
                 location: planningEvent.location || "",
                 note: planningEvent.note || "",
-                created_by: planningEvent.createdBy || currentUser?.id || null,
-                created_by_name: planningEvent.createdByName || getCurrentUserDisplayName() || null,
+                created_by: currentUser?.id || planningEvent.createdBy || null,
+                created_by_name: getCurrentUserDisplayName() || planningEvent.createdByName || null,
                 updated_at: new Date().toISOString(),
                 updated_by: currentUser?.id || null
             };
@@ -2480,8 +2480,8 @@
                 note,
                 discipline_id: MANUAL_CATEGORY_ID,
                 discipline_label: MANUAL_CATEGORY_LABEL,
-                created_by: existingEvent?.createdBy || currentUser?.id || null,
-                created_by_name: existingEvent?.createdByName || getCurrentUserDisplayName() || null,
+                created_by: currentUser?.id || existingEvent?.createdBy || null,
+                created_by_name: getCurrentUserDisplayName() || existingEvent?.createdByName || null,
                 updated_at: new Date().toISOString(),
                 updated_by: currentUser?.id || null
             };
@@ -2548,8 +2548,8 @@
                 title,
                 location,
                 note,
-                created_by: existingEvent?.createdBy || currentUser?.id || null,
-                created_by_name: existingEvent?.createdByName || getCurrentUserDisplayName() || null,
+                created_by: currentUser?.id || existingEvent?.createdBy || null,
+                created_by_name: getCurrentUserDisplayName() || existingEvent?.createdByName || null,
                 updated_at: new Date().toISOString(),
                 updated_by: currentUser?.id || null
             };
