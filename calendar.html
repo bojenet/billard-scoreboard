@@ -872,6 +872,14 @@
                         <div class="admin-settings-meta">Gesetzliche Feiertage Hamburg fuer die aktive Saison als manuelle Termine erzeugen.</div>
                         <button class="btn btn-secondary" type="button" onclick="createHamburgHolidayEvents()">Hamburger Feiertage anlegen</button>
                     </div>
+                    <div class="admin-settings-row">
+                        <div>
+                            <label class="field-title" for="calendarImportSeasonInput">NBV Saison übernehmen</label>
+                            <input id="calendarImportSeasonInput" type="text" inputmode="numeric" placeholder="2025/2026">
+                        </div>
+                        <button class="btn btn-secondary" type="button" onclick="importNbvSeasonToPlanning()">Als Planung übernehmen</button>
+                    </div>
+                    <div class="admin-settings-meta">Lädt die NBV-Termine der gewählten alten Saison und legt sie als Planungstermine in der aktiven Saison an. Monat und Kalendertag bleiben erhalten, das Saisonjahr wird auf die aktive Saison umgestellt.</div>
                 </div>
             </div>
         </div>
@@ -1105,6 +1113,22 @@
                 end: `${years.endYear}-06-30`,
                 years: [years.startYear, years.endYear]
             };
+        }
+
+        function slugifyValue(value) {
+            return String(value || "")
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/-+/g, "-")
+                .replace(/^-|-$/g, "");
+        }
+
+        function remapDateToSeason(sourceDate, targetSeason) {
+            const parts = parseIsoDateParts(sourceDate);
+            const years = parseSeasonYears(targetSeason);
+            if (!parts || !years) return "";
+            const targetYear = parts.month >= 9 ? years.startYear : years.endYear;
+            return `${targetYear}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
         }
 
         function isDateWithinSeason(dateValue, season) {
@@ -2254,6 +2278,100 @@
             } catch (error) {
                 console.warn("Hamburger Feiertage konnten nicht angelegt werden:", error);
                 showCalendarMessage(`Hamburger Feiertage konnten nicht angelegt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
+        }
+
+        async function importNbvSeasonToPlanning() {
+            if (!isCalendarAdmin) return;
+            const input = document.getElementById("calendarImportSeasonInput");
+            const sourceSeason = normalizeSeasonText(input?.value || "");
+            const targetSeason = currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON;
+
+            if (!isValidSeasonText(sourceSeason)) {
+                showCalendarMessage("Bitte die alte NBV-Saison im Format 2025/2026 eintragen.", "error");
+                return;
+            }
+
+            if (!isValidSeasonText(targetSeason)) {
+                showCalendarMessage("Die aktive Ziel-Saison ist ungültig.", "error");
+                return;
+            }
+
+            if (sourceSeason === targetSeason) {
+                showCalendarMessage("Quell-Saison und Ziel-Saison sind identisch. Bitte zuerst auf die neue Saison umstellen.", "error");
+                return;
+            }
+
+            setCalendarLoading(true, `NBV-Termine aus ${sourceSeason} werden in Planung übernommen...`);
+            showCalendarMessage("", "");
+
+            try {
+                const disciplines = Object.entries(NBV_DISCIPLINES).map(([id, label]) => ({ id, label }));
+                const { data, error } = await supabaseClient.functions.invoke("get-nbv-calendar", {
+                    body: {
+                        season: sourceSeason,
+                        disciplines
+                    }
+                });
+                if (error) throw error;
+
+                const sourceEvents = Array.isArray(data?.events) ? data.events : [];
+                if (!sourceEvents.length) {
+                    showCalendarMessage(`Für ${sourceSeason} wurden keine NBV-Termine gefunden.`, "error");
+                    return;
+                }
+
+                const payload = sourceEvents
+                    .map((event) => {
+                        const mappedDate = remapDateToSeason(event?.date, targetSeason);
+                        if (!mappedDate || !isDateWithinSeason(mappedDate, targetSeason)) return null;
+
+                        const mappedEndDate = String(event?.endDate || "").trim()
+                            ? remapDateToSeason(event.endDate, targetSeason)
+                            : null;
+
+                        const disciplineLabel = String(event?.disciplineLabel || "").trim();
+                        const noteParts = [
+                            disciplineLabel ? `NBV ${disciplineLabel}` : "NBV Import",
+                            sourceSeason ? `Quelle ${sourceSeason}` : ""
+                        ].filter(Boolean);
+
+                        return {
+                            id: `planning-import-${sourceSeason.replace(/\//g, "-")}-${slugifyValue(disciplineLabel)}-${mappedDate}-${slugifyValue(event?.title || "termin")}`,
+                            date: mappedDate,
+                            time: String(event?.time || "").trim(),
+                            end_date: mappedEndDate && mappedEndDate >= mappedDate ? mappedEndDate : null,
+                            all_day: !String(event?.time || "").trim(),
+                            title: String(event?.title || "").trim(),
+                            location: String(event?.location || "").trim(),
+                            note: noteParts.join(" · "),
+                            created_by: currentUser?.id || null,
+                            created_by_name: getCurrentUserDisplayName() || null,
+                            updated_at: new Date().toISOString(),
+                            updated_by: currentUser?.id || null
+                        };
+                    })
+                    .filter(Boolean);
+
+                if (!payload.length) {
+                    showCalendarMessage(`Die NBV-Termine aus ${sourceSeason} konnten nicht in die Ziel-Saison ${targetSeason} umgerechnet werden.`, "error");
+                    return;
+                }
+
+                const { error: upsertError } = await supabaseClient
+                    .from("calendar_planning_events")
+                    .upsert(payload, { onConflict: "id" });
+                if (upsertError) throw upsertError;
+
+                await loadPlanningEvents();
+                renderFilters();
+                renderCalendar();
+                showCalendarMessage(`${payload.length} NBV-Termine aus ${sourceSeason} wurden als Planungstermine in ${targetSeason} übernommen.`, "ok");
+            } catch (error) {
+                console.warn("NBV-Saison konnte nicht in Planung übernommen werden:", error);
+                showCalendarMessage(`Die NBV-Saison konnte nicht übernommen werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            } finally {
+                setCalendarLoading(false);
             }
         }
 
