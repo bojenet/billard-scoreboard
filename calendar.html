@@ -371,12 +371,26 @@
 
         .calendar-event {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: minmax(0, 1fr);
             gap: 8px;
             align-items: start;
             padding: 2px 4px;
             border-left: 3px solid var(--blue);
             background: #fff;
+        }
+
+        .calendar-event.has-side {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .event-main {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .event-body {
+            min-width: 0;
         }
 
         .calendar-event.manual {
@@ -457,12 +471,17 @@
             color: rgba(84, 98, 113, 0.9);
             line-height: 1.35;
             margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .event-actions {
             display: flex;
-            justify-content: flex-end;
-            align-items: flex-start;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
         }
 
         .event-side {
@@ -747,7 +766,8 @@
                 width: 40px;
                 font-size: 11px;
             }
-            .calendar-event {
+            .calendar-event,
+            .calendar-event.has-side {
                 grid-template-columns: minmax(0, 1fr);
                 gap: 4px;
                 padding: 4px 5px;
@@ -2081,33 +2101,34 @@
                                         <td>
                                             <div class="calendar-event-cell ${isCalendarAdmin ? "day-cell-clickable" : ""}" onclick="handleDayCellClick(event, '${escapeHtml(dateValue)}')" ondragover="handlePlanningDragOver(event)" ondragleave="handlePlanningDragLeave(event)" ondrop="handlePlanningDrop(event, '${escapeHtml(dateValue)}')">
                                                 ${dayEvents.map((event) => `
-                                                    <div class="calendar-event ${event.source === "manual" ? "manual" : ""} ${event.source === "planning" ? "planning" : ""} ${isMultiDayEvent(event) ? `multi-day span-${escapeHtml(event.spanPosition || "single")}` : ""}" ${isCalendarAdmin && event.source === "planning" ? `draggable="true" ondragstart="handlePlanningDragStart(event, '${escapeHtml(event.id)}')" ondragend="handlePlanningDragEnd()"` : ""}>
-                                                        <div>
-                                                            ${(event.time || event.source === "manual" || event.source === "planning") ? `
-                                                                <div class="event-tags">
-                                                                    ${event.time ? `<span class="event-tag">${escapeHtml(event.time)}</span>` : ""}
+                                                    <div class="calendar-event ${event.source === "manual" ? "manual" : ""} ${event.source === "planning" ? "planning" : ""} ${event.source !== "manual" && event.source !== "planning" ? "has-side" : ""} ${isMultiDayEvent(event) ? `multi-day span-${escapeHtml(event.spanPosition || "single")}` : ""}" ${isCalendarAdmin && event.source === "planning" ? `draggable="true" ondragstart="handlePlanningDragStart(event, '${escapeHtml(event.id)}')" ondragend="handlePlanningDragEnd()"` : ""}>
+                                                        <div class="event-main">
+                                                            <div class="event-body">
+                                                                ${(event.time || event.source === "manual" || event.source === "planning") ? `
+                                                                    <div class="event-tags">
+                                                                        ${event.time ? `<span class="event-tag">${escapeHtml(event.time)}</span>` : ""}
+                                                                    </div>
+                                                                ` : ""}
+                                                                <div class="event-title">${escapeHtml(event.title)}</div>
+                                                                ${(event.source === "manual" || event.source === "planning") && event.location ? `<div class="event-meta">${escapeHtml(event.location)}</div>` : ""}
+                                                                ${(event.source === "manual" || event.source === "planning") && event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
+                                                                ${event.source === "planning" && event.createdByName ? `<div class="event-created-by">zuletzt bearbeitet von ${escapeHtml(event.createdByName)}</div>` : ""}
+                                                                ${event.link ? `<div class="event-note"><a class="cc_bluelink" href="${escapeHtml(event.link)}" target="_blank" rel="noreferrer">NBV Details</a></div>` : ""}
+                                                            </div>
+                                                            ${isCalendarAdmin && event.source === "manual" && (!isMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
+                                                                <div class="event-actions">
+                                                                    <button class="mini-btn" type="button" onclick="startManualEventEdit('${escapeHtml(event.id)}')">Bearbeiten</button>
+                                                                    <button class="mini-btn danger" type="button" onclick="removeManualEvent('${escapeHtml(event.id)}')">Löschen</button>
+                                                                </div>
+                                                            ` : isCalendarAdmin && event.source === "planning" && (!isMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
+                                                                <div class="event-actions">
+                                                                    <button class="mini-btn icon" type="button" title="Duplizieren" aria-label="Planungstermin duplizieren" onclick="duplicatePlanningEvent('${escapeHtml(event.id)}')">+</button>
+                                                                    <button class="mini-btn" type="button" onclick="startPlanningEventEdit('${escapeHtml(event.id)}')">Bearbeiten</button>
+                                                                    <button class="mini-btn danger" type="button" onclick="removePlanningEvent('${escapeHtml(event.id)}')">Löschen</button>
                                                                 </div>
                                                             ` : ""}
-                                                            <div class="event-title">${escapeHtml(event.title)}</div>
-                                                            ${(event.source === "manual" || event.source === "planning") && event.location ? `<div class="event-meta">${escapeHtml(event.location)}</div>` : ""}
-                                                            ${(event.source === "manual" || event.source === "planning") && event.note ? `<div class="event-note">${escapeHtml(event.note)}</div>` : ""}
-                                                            ${event.source === "planning" && event.createdByName ? `<div class="event-created-by">zuletzt bearbeitet von ${escapeHtml(event.createdByName)}</div>` : ""}
-                                                            ${event.link ? `<div class="event-note"><a class="cc_bluelink" href="${escapeHtml(event.link)}" target="_blank" rel="noreferrer">NBV Details</a></div>` : ""}
                                                         </div>
-                                                        ${isCalendarAdmin && event.source === "manual" && (!isMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
-                                                            <div class="event-actions">
-                                                                <button class="mini-btn" type="button" onclick="startManualEventEdit('${escapeHtml(event.id)}')">Bearbeiten</button>
-                                                                <button class="mini-btn danger" type="button" onclick="removeManualEvent('${escapeHtml(event.id)}')">Löschen</button>
-                                                            </div>
-                                                        ` : isCalendarAdmin && event.source === "planning" && (!isMultiDayEvent(event) || event.spanPosition === "start" || event.spanPosition === "single") ? `
-                                                            <div class="event-actions">
-                                                                <button class="mini-btn icon" type="button" title="Duplizieren" aria-label="Planungstermin duplizieren" onclick="duplicatePlanningEvent('${escapeHtml(event.id)}')">+</button>
-                                                                <button class="mini-btn" type="button" onclick="startPlanningEventEdit('${escapeHtml(event.id)}')">Bearbeiten</button>
-                                                                <button class="mini-btn danger" type="button" onclick="removePlanningEvent('${escapeHtml(event.id)}')">Löschen</button>
-                                                            </div>
-                                                        ` : event.source === "manual" || event.source === "planning" ? `
-                                                            <div></div>
-                                                        ` : `<div class="event-side">${escapeHtml(simplifyVenueName(event.location || ""))}</div>`}
+                                                        ${event.source === "manual" || event.source === "planning" ? `` : `<div class="event-side">${escapeHtml(simplifyVenueName(event.location || ""))}</div>`}
                                                     </div>
                                                 `).join("")}
                                                 ${isCalendarAdmin && dayEvents.length === 0 ? `<div class="empty-day-hint">Leere Zelle antippen oder klicken zum Planen</div>` : ""}
