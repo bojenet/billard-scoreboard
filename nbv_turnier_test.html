@@ -610,28 +610,52 @@
                     setPercent: entry.setsFor + entry.setsAgainst > 0
                         ? (entry.setsFor / (entry.setsFor + entry.setsAgainst)) * 100
                         : 0,
-                }))
-                .sort((left, right) => {
-                    if (left.exactPlace !== null || right.exactPlace !== null) {
-                        if (left.exactPlace === null) return 1;
-                        if (right.exactPlace === null) return -1;
-                        if (left.exactPlace !== right.exactPlace) return left.exactPlace - right.exactPlace;
-                    }
-                    if (left.phasePriority !== right.phasePriority) return left.phasePriority - right.phasePriority;
-                    if (right.mp !== left.mp) return right.mp - left.mp;
-                    if (right.setPercent !== left.setPercent) return right.setPercent - left.setPercent;
-                    if (right.balls !== left.balls) return right.balls - left.balls;
-                    if (right.gd !== left.gd) return right.gd - left.gd;
-                    if (right.bed !== left.bed) return right.bed - left.bed;
-                    if (right.hs !== left.hs) return right.hs - left.hs;
-                    return left.name.localeCompare(right.name, "de");
-                })
-                .map((entry, index) => ({
-                    ...entry,
-                    displayPlace: entry.exactPlace ?? index + 1,
                 }));
 
-            if (!ranking.length) {
+            const compareCompetitive = (left, right) => {
+                if (left.phasePriority !== right.phasePriority) return left.phasePriority - right.phasePriority;
+                if (right.mp !== left.mp) return right.mp - left.mp;
+                if (right.setPercent !== left.setPercent) return right.setPercent - left.setPercent;
+                if (right.balls !== left.balls) return right.balls - left.balls;
+                if (right.gd !== left.gd) return right.gd - left.gd;
+                if (right.bed !== left.bed) return right.bed - left.bed;
+                if (right.hs !== left.hs) return right.hs - left.hs;
+                return left.name.localeCompare(right.name, "de");
+            };
+
+            const fixedPlaces = ranking
+                .filter((entry) => entry.exactPlace !== null)
+                .sort((left, right) => {
+                    if (left.exactPlace !== right.exactPlace) return left.exactPlace - right.exactPlace;
+                    return compareCompetitive(left, right);
+                });
+
+            const unresolved = ranking
+                .filter((entry) => entry.exactPlace === null)
+                .sort(compareCompetitive);
+
+            const usedPlaces = new Set(fixedPlaces.map((entry) => entry.exactPlace));
+            let nextPlace = 1;
+            unresolved.forEach((entry) => {
+                while (usedPlaces.has(nextPlace)) {
+                    nextPlace += 1;
+                }
+                entry.exactPlace = nextPlace;
+                usedPlaces.add(nextPlace);
+                nextPlace += 1;
+            });
+
+            const finalRanking = [...fixedPlaces, ...unresolved]
+                .sort((left, right) => {
+                    if (left.exactPlace !== right.exactPlace) return left.exactPlace - right.exactPlace;
+                    return compareCompetitive(left, right);
+                })
+                .map((entry) => ({
+                    ...entry,
+                    displayPlace: entry.exactPlace,
+                }));
+
+            if (!finalRanking.length) {
                 return "";
             }
 
@@ -654,7 +678,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${ranking.map((row) => `
+                                ${finalRanking.map((row) => `
                                     <tr>
                                         <td class="ranking-rank">${escapeHtml(row.displayPlace)}</td>
                                         <td class="ranking-name">${escapeHtml(row.name)}</td>
