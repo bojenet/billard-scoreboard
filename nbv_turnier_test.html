@@ -237,6 +237,35 @@
             overflow: hidden;
         }
 
+        .warning-block {
+            margin-top: 18px;
+            border: 1px solid #f0c36d;
+            border-radius: 6px;
+            background: #fff9ef;
+            overflow: hidden;
+        }
+
+        .warning-head {
+            padding: 10px 12px;
+            background: #fff1d6;
+            border-bottom: 1px solid #f0d39a;
+            font-size: 15px;
+            font-weight: 700;
+            color: #7a4b00;
+        }
+
+        .warning-list {
+            margin: 0;
+            padding: 12px 18px 14px 32px;
+            color: #7a4b00;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .warning-list li + li {
+            margin-top: 8px;
+        }
+
         .status-line {
             margin: 4px 0 14px;
             font-size: 13px;
@@ -903,7 +932,20 @@
             `;
         }
 
-        function renderResults(tournaments) {
+        function buildFailedBlock(failed) {
+            const items = Array.isArray(failed) ? failed.filter(Boolean) : [];
+            if (!items.length) return "";
+            return `
+                <section class="warning-block">
+                    <div class="warning-head">Übersprungene Turniere</div>
+                    <ul class="warning-list">
+                        ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+                    </ul>
+                </section>
+            `;
+        }
+
+        function renderResults(tournaments, failed = []) {
             const wrap = document.getElementById("resultsWrap");
             if (!wrap) return;
 
@@ -919,6 +961,7 @@
             wrap.innerHTML = `
                 ${validTournaments.map((tournament) => buildTournamentSection(tournament)).join("")}
                 ${buildSeasonRanking(validTournaments)}
+                ${buildFailedBlock(failed)}
             `;
         }
 
@@ -986,7 +1029,7 @@
                     return;
                 }
 
-                renderResults(tournaments);
+                renderResults(tournaments, failed);
                 setStatus(failed.length
                     ? `${tournaments.length} Turniere geladen, ${failed.length} übersprungen.`
                     : `${tournaments.length} Turniere geladen.`);
