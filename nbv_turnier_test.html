@@ -49,34 +49,52 @@
             padding: 12px;
         }
 
+        .toolbar {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 14px;
+        }
+
+        .field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .field label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #475467;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #bcc6d2;
+            border-radius: 4px;
+            padding: 11px 12px;
+            font-size: 14px;
+            background: #fff;
+            color: #10131c;
+        }
+
+        .btn {
+            min-height: 44px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 0 16px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            background: var(--blue);
+            border-color: var(--blue-deep);
+            color: #fff;
+        }
+
         .matches-list {
             display: grid;
             gap: 14px;
-        }
-
-        .tournament-meta {
-            display: grid;
-            gap: 6px;
-            margin-bottom: 14px;
-            padding: 2px 2px 6px;
-        }
-
-        .tournament-meta-row {
-            display: grid;
-            grid-template-columns: 90px 1fr;
-            gap: 10px;
-            align-items: start;
-            font-size: 14px;
-            line-height: 1.4;
-        }
-
-        .tournament-meta-label {
-            font-weight: 700;
-            color: var(--muted);
-        }
-
-        .tournament-meta-value {
-            color: var(--text);
         }
 
         .tournament-meta {
@@ -201,12 +219,28 @@
             .panel {
                 padding: 14px;
             }
+
+            .toolbar {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="page">
         <div class="panel">
+            <div class="toolbar">
+                <div class="field">
+                    <label for="sourceUrlInput">NBV Turnier-URL</label>
+                    <input
+                        id="sourceUrlInput"
+                        type="url"
+                        value="https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--"
+                        placeholder="https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--"
+                    >
+                </div>
+                <button class="btn" type="button" onclick="loadTournament(true)">Laden</button>
+            </div>
             <div id="resultsWrap">
                 <div class="empty-state">Noch kein Turnier geladen.</div>
             </div>
@@ -246,7 +280,6 @@
 
         function buildMetaBlock(meta) {
             const rows = [
-                { label: "Disziplin", value: meta?.discipline || "-" },
                 { label: "Turnier", value: meta?.title || "-" },
                 { label: "Kürzel", value: meta?.shortCode || "-" },
                 { label: "Datum", value: meta?.date ? formatDate(meta.date) : "-" },
@@ -333,10 +366,12 @@
         }
 
         async function loadTournament(forceRefresh = false) {
+            const sourceUrl = String(document.getElementById("sourceUrlInput")?.value || "").trim();
+            if (!sourceUrl) return;
             try {
                 const { data, error } = await supabaseClient.functions.invoke("get-nbv-tournament-results", {
                     body: {
-                        sourceUrl: "https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--",
+                        sourceUrl,
                         forceRefresh: Boolean(forceRefresh),
                     },
                 });
