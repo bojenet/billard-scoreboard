@@ -226,61 +226,86 @@
             word-break: break-word;
         }
 
-        .table-wrap {
-            overflow-x: auto;
+        .matches-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .match-card {
             border: 1px solid var(--line);
             border-radius: 6px;
             background: #fff;
+            overflow: hidden;
         }
 
-        table {
-            width: 100%;
-            min-width: 860px;
-            border-collapse: collapse;
-        }
-
-        th,
-        td {
+        .match-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
             padding: 10px 12px;
-            border-bottom: 1px solid #d8dee6;
-            text-align: left;
-            vertical-align: top;
-            font-size: 14px;
-        }
-
-        th {
             background: #eef3f8;
-            color: #344256;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            font-size: 12px;
+            border-bottom: 1px solid #d8dee6;
         }
 
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        .rank-col {
-            width: 70px;
-            font-weight: 700;
-        }
-
-        .num-col {
-            width: 90px;
-            white-space: nowrap;
-        }
-
-        .player-name {
+        .match-card-title {
+            font-size: 14px;
             font-weight: 700;
             color: var(--head);
         }
 
-        .club-line {
+        .match-card-sub {
+            font-size: 12px;
             color: var(--muted);
-            margin-top: 2px;
+            text-align: right;
         }
 
-        .details-cell {
+        .match-table-wrap {
+            overflow-x: auto;
+        }
+
+        .match-table {
+            width: 100%;
+            min-width: 520px;
+            border-collapse: collapse;
+        }
+
+        .match-table th,
+        .match-table td {
+            padding: 7px 10px;
+            border-bottom: 1px solid #d8dee6;
+            text-align: left;
+            vertical-align: middle;
+            font-size: 14px;
+        }
+
+        .match-table th {
+            background: #f8fafc;
+            color: #344256;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .match-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .match-player-cell {
+            font-weight: 700;
+            color: var(--head);
+            min-width: 210px;
+        }
+
+        .match-num-cell {
+            width: 80px;
+            white-space: nowrap;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .details-line {
+            padding: 9px 12px 11px;
+            border-top: 1px solid #e7ebf0;
             font-size: 12px;
             color: var(--muted);
             line-height: 1.5;
@@ -495,12 +520,48 @@
             return list.map((entry) => `${escapeHtml(entry.label)}: ${escapeHtml(entry.value)}`).join(" · ");
         }
 
-        function buildPlayerCell(player) {
-            if (!player) return "-";
+        function buildMatchCard(row) {
+            const title = row.groupLabel
+                ? `${row.groupLabel} · Partie ${row.matchNo || "-"} · ${row.score || "-"}`
+                : `Partie ${row.matchNo || "-"} · ${row.score || "-"}`;
+            const plan = [formatDate(row.scheduledDate), row.scheduledTime || ""].filter((value) => value && value !== "-").join(" · ");
             return `
-                <div class="player-name">${escapeHtml(player.name || "-")}</div>
-                <div class="club-line">Bälle: ${escapeHtml(player.balls || "-")}</div>
-                <div class="club-line">Aufn.: ${escapeHtml(player.innings || "-")} · HS: ${escapeHtml(player.hs || "-")} · Ø: ${escapeHtml(player.average || "-")}</div>
+                <section class="match-card">
+                    <div class="match-card-head">
+                        <div class="match-card-title">${escapeHtml(title)}</div>
+                        <div class="match-card-sub">${escapeHtml(plan || "-")}</div>
+                    </div>
+                    <div class="match-table-wrap">
+                        <table class="match-table">
+                            <thead>
+                                <tr>
+                                    <th>Spieler</th>
+                                    <th>Bälle</th>
+                                    <th>Aufn.</th>
+                                    <th>Ø</th>
+                                    <th>HS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="match-player-cell">${escapeHtml(row.player1?.name || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player1?.balls || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player1?.innings || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player1?.average || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player1?.hs || "-")}</td>
+                                </tr>
+                                <tr>
+                                    <td class="match-player-cell">${escapeHtml(row.player2?.name || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player2?.balls || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player2?.innings || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player2?.average || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player2?.hs || "-")}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="details-line">${buildDetails(row.details)}</div>
+                </section>
             `;
         }
 
@@ -515,33 +576,8 @@
             }
 
             wrap.innerHTML = `
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="rank-col">Gruppe</th>
-                                <th class="rank-col">Partie</th>
-                                <th>Spieler links</th>
-                                <th class="num-col">Ergebnis</th>
-                                <th>Spieler rechts</th>
-                                <th class="num-col">Planzeit</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rows.map((row) => `
-                                <tr>
-                                    <td class="rank-col">${escapeHtml(row.groupLabel || "-")}</td>
-                                    <td class="rank-col">${escapeHtml(row.matchNo || "-")}</td>
-                                    <td>${buildPlayerCell(row.player1)}</td>
-                                    <td class="num-col"><div class="player-name">${escapeHtml(row.score || "-")}</div></td>
-                                    <td>${buildPlayerCell(row.player2)}</td>
-                                    <td class="num-col">${escapeHtml(formatDate(row.scheduledDate))}<br>${escapeHtml(row.scheduledTime || "-")}</td>
-                                    <td class="details-cell">${buildDetails(row.details)}</td>
-                                </tr>
-                            `).join("")}
-                        </tbody>
-                    </table>
+                <div class="matches-list">
+                    ${rows.map((row) => buildMatchCard(row)).join("")}
                 </div>
             `;
         }
