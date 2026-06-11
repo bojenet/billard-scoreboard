@@ -51,7 +51,7 @@
 
         .toolbar {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
             gap: 10px;
             align-items: end;
             margin-bottom: 14px;
@@ -210,6 +210,14 @@
             overflow: hidden;
         }
 
+        .season-block {
+            margin-top: 18px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #fff;
+            overflow: hidden;
+        }
+
         .ranking-head {
             padding: 10px 12px;
             background: #eef3f8;
@@ -295,15 +303,24 @@
         <div class="panel">
             <div class="toolbar">
                 <div class="field">
-                    <label for="sourceUrlInput">NBV Turnier-URL</label>
+                    <label for="sourceUrlInput1">NBV Turnier-URL 1</label>
                     <input
-                        id="sourceUrlInput"
+                        id="sourceUrlInput1"
                         type="url"
                         value="https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--"
                         placeholder="https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--"
                     >
                 </div>
-                <button class="btn" type="button" onclick="loadTournament(true)">Laden</button>
+                <div class="field">
+                    <label for="sourceUrlInput2">NBV Turnier-URL 2</label>
+                    <input
+                        id="sourceUrlInput2"
+                        type="url"
+                        value=""
+                        placeholder="https://www.ndbv.de/sb_einzelergebnisse.php?p=20-10-2025/2026-842----2-1-10-"
+                    >
+                </div>
+                <button class="btn" type="button" onclick="loadTournaments(true)">Laden</button>
             </div>
             <div id="resultsWrap">
                 <div class="empty-state">Noch kein Turnier geladen.</div>
@@ -385,6 +402,20 @@
                             <div class="tournament-meta-value">${escapeHtml(row.value)}</div>
                         </div>
                     `).join("")}
+                </section>
+            `;
+        }
+
+        function buildTournamentSection(data) {
+            const rows = Array.isArray(data?.matches) ? data.matches : [];
+            return `
+                <section class="ranking-block">
+                    <div class="ranking-head">${escapeHtml(data?.meta?.title || "Turnier")}</div>
+                    ${buildMetaBlock(data?.meta || {})}
+                    <div class="matches-list">
+                        ${rows.map((row) => buildMatchCard(row)).join("")}
+                    </div>
+                    ${buildRanking(rows)}
                 </section>
             `;
         }
@@ -661,7 +692,7 @@
 
             return `
                 <section class="ranking-block">
-                    <div class="ranking-head">Rangliste</div>
+                    <div class="ranking-head">Turnier-Rangliste</div>
                     <div class="ranking-table-wrap">
                         <table class="ranking-table">
                             <thead>
@@ -698,28 +729,123 @@
             `;
         }
 
-        function renderResults(data) {
+        function buildSeasonRanking(tournaments) {
+            const playerMap = new Map();
+
+            tournaments.forEach((tournament) => {
+                const rows = Array.isArray(tournament?.matches) ? tournament.matches : [];
+                const tournamentPlayerMap = new Map();
+
+                rows.forEach((match) => {
+                    [match.player1, match.player2].forEach((player) => {
+                        const name = String(player?.name || "").trim();
+                        if (!name) return;
+                        const current = tournamentPlayerMap.get(name) || {
+                            name,
+                            balls: 0,
+                            innings: 0,
+                            hs: 0,
+                        };
+                        current.balls += toNumber(player.balls);
+                        current.innings += toNumber(player.innings);
+                        current.hs = Math.max(current.hs, toNumber(player.hs));
+                        tournamentPlayerMap.set(name, current);
+                    });
+                });
+
+                Array.from(tournamentPlayerMap.values()).forEach((entry) => {
+                    const seasonEntry = playerMap.get(entry.name) || {
+                        name: entry.name,
+                        tournaments: 0,
+                        totalBalls: 0,
+                        totalInnings: 0,
+                        bestTournamentAverage: 0,
+                        bestHs: 0,
+                    };
+                    seasonEntry.tournaments += 1;
+                    seasonEntry.totalBalls += entry.balls;
+                    seasonEntry.totalInnings += entry.innings;
+                    seasonEntry.bestTournamentAverage = Math.max(
+                        seasonEntry.bestTournamentAverage,
+                        entry.innings > 0 ? entry.balls / entry.innings : 0,
+                    );
+                    seasonEntry.bestHs = Math.max(seasonEntry.bestHs, entry.hs);
+                    playerMap.set(entry.name, seasonEntry);
+                });
+            });
+
+            const ranking = Array.from(playerMap.values())
+                .map((entry) => ({
+                    ...entry,
+                    totalAverage: entry.totalInnings > 0 ? entry.totalBalls / entry.totalInnings : 0,
+                }))
+                .sort((left, right) => {
+                    if (right.totalAverage !== left.totalAverage) return right.totalAverage - left.totalAverage;
+                    if (right.bestTournamentAverage !== left.bestTournamentAverage) return right.bestTournamentAverage - left.bestTournamentAverage;
+                    if (right.totalBalls !== left.totalBalls) return right.totalBalls - left.totalBalls;
+                    if (right.bestHs !== left.bestHs) return right.bestHs - left.bestHs;
+                    return left.name.localeCompare(right.name, "de");
+                });
+
+            if (!ranking.length) return "";
+
+            return `
+                <section class="season-block">
+                    <div class="ranking-head">Gesamtrangliste nach Schnitt</div>
+                    <div class="ranking-table-wrap">
+                        <table class="ranking-table">
+                            <thead>
+                                <tr>
+                                    <th class="ranking-rank">Rang</th>
+                                    <th>Spieler</th>
+                                    <th class="ranking-num">Turniere</th>
+                                    <th class="ranking-num">Bälle</th>
+                                    <th class="ranking-num">Aufn.</th>
+                                    <th class="ranking-num">Gesamtschnitt</th>
+                                    <th class="ranking-num">Bester Turnierschnitt</th>
+                                    <th class="ranking-num">Beste HS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ranking.map((row, index) => `
+                                    <tr>
+                                        <td class="ranking-rank">${escapeHtml(index + 1)}</td>
+                                        <td class="ranking-name">${escapeHtml(row.name)}</td>
+                                        <td class="ranking-num">${escapeHtml(row.tournaments)}</td>
+                                        <td class="ranking-num">${escapeHtml(row.totalBalls)}</td>
+                                        <td class="ranking-num">${escapeHtml(row.totalInnings)}</td>
+                                        <td class="ranking-num">${escapeHtml(formatAverage(row.totalAverage))}</td>
+                                        <td class="ranking-num">${escapeHtml(formatAverage(row.bestTournamentAverage))}</td>
+                                        <td class="ranking-num">${escapeHtml(row.bestHs)}</td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        function renderResults(tournaments) {
             const wrap = document.getElementById("resultsWrap");
-            const rows = Array.isArray(data?.matches) ? data.matches : [];
             if (!wrap) return;
 
-            if (!rows.length) {
+            const validTournaments = Array.isArray(tournaments)
+                ? tournaments.filter((entry) => Array.isArray(entry?.matches) && entry.matches.length)
+                : [];
+
+            if (!validTournaments.length) {
                 wrap.innerHTML = '<div class="empty-state">Keine Begegnungen gefunden.</div>';
                 return;
             }
 
             wrap.innerHTML = `
-                ${buildMetaBlock(data?.meta || {})}
-                <div class="matches-list">
-                    ${rows.map((row) => buildMatchCard(row)).join("")}
-                </div>
-                ${buildRanking(rows)}
+                ${validTournaments.map((tournament) => buildTournamentSection(tournament)).join("")}
+                ${buildSeasonRanking(validTournaments)}
             `;
         }
 
-        async function loadTournament(forceRefresh = false) {
-            const sourceUrl = String(document.getElementById("sourceUrlInput")?.value || "").trim();
-            if (!sourceUrl) return;
+        async function loadSingleTournament(sourceUrl, forceRefresh = false) {
             try {
                 const { data, error } = await supabaseClient.functions.invoke("get-nbv-tournament-results", {
                     body: {
@@ -729,10 +855,28 @@
                 });
                 if (error) throw error;
 
-                renderResults(data || {});
+                return data || null;
             } catch (error) {
                 console.warn("NBV-Turnierdaten konnten nicht geladen werden:", error);
-                const message = await getFunctionErrorMessage(error);
+                throw new Error(await getFunctionErrorMessage(error));
+            }
+        }
+
+        async function loadTournaments(forceRefresh = false) {
+            const url1 = String(document.getElementById("sourceUrlInput1")?.value || "").trim();
+            const url2 = String(document.getElementById("sourceUrlInput2")?.value || "").trim();
+            const urls = [url1, url2].filter(Boolean);
+            if (!urls.length) return;
+
+            try {
+                const results = [];
+                for (const url of urls) {
+                    const data = await loadSingleTournament(url, forceRefresh);
+                    if (data) results.push(data);
+                }
+                renderResults(results);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
                 document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Der Turnierabruf ist aktuell nicht verfügbar.<br>${escapeHtml(message)}</div>`;
             }
         }
@@ -741,7 +885,7 @@
             try {
                 const user = await requireAuth();
                 if (!user) return;
-                await loadTournament(false);
+                await loadTournaments(false);
             } finally {
                 document.body.classList.add("page-ready");
             }
