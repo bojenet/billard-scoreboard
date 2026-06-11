@@ -17,6 +17,7 @@ type MatchPlayer = {
   innings: string;
   hs: string;
   average: string;
+  points: string;
 };
 
 type TournamentMatchRow = {
@@ -399,7 +400,23 @@ function parsePlayerCell(html: string, text: string, balls: string): MatchPlayer
     innings: parseStatValue(statsText, /Aufn\.?\s*:\s*([0-9.,]+)/i),
     hs: parseStatValue(statsText, /HS\s*:\s*([0-9.,]+)/i),
     average: parseStatValue(statsText, /Ø\s*:\s*([0-9.,]+)/i),
+    points: "",
   };
+}
+
+function calculateMatchPoints(leftBalls: string, rightBalls: string) {
+  const left = Number(String(leftBalls || "").replace(",", "."));
+  const right = Number(String(rightBalls || "").replace(",", "."));
+  if (!Number.isFinite(left) || !Number.isFinite(right)) {
+    return { leftPoints: "", rightPoints: "" };
+  }
+  if (left > right) {
+    return { leftPoints: "2", rightPoints: "0" };
+  }
+  if (left < right) {
+    return { leftPoints: "0", rightPoints: "2" };
+  }
+  return { leftPoints: "1", rightPoints: "1" };
 }
 
 function findNearestFilledIndex(values: string[], startIndex: number, direction: -1 | 1, stopIndex?: number) {
@@ -467,6 +484,9 @@ function parseMatchTables(html: string) {
       const player1 = parsePlayerCell(row.cellsHtml[leftIndex] || "", values[leftIndex] || "", scoreParts[0] || "");
       const player2 = parsePlayerCell(row.cellsHtml[rightIndex] || "", values[rightIndex] || "", scoreParts[1] || "");
       if (!player1.name || !player2.name) continue;
+      const matchPoints = calculateMatchPoints(player1.balls, player2.balls);
+      player1.points = matchPoints.leftPoints;
+      player2.points = matchPoints.rightPoints;
 
       const schedule = parseScheduledCell(scheduleIndex >= 0 ? values[scheduleIndex] : "");
       matches.push({

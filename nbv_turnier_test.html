@@ -79,6 +79,31 @@
             color: var(--text);
         }
 
+        .tournament-meta {
+            display: grid;
+            gap: 6px;
+            margin-bottom: 14px;
+            padding: 2px 2px 6px;
+        }
+
+        .tournament-meta-row {
+            display: grid;
+            grid-template-columns: 90px 1fr;
+            gap: 10px;
+            align-items: start;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .tournament-meta-label {
+            font-weight: 700;
+            color: var(--muted);
+        }
+
+        .tournament-meta-value {
+            color: var(--text);
+        }
+
         .match-card {
             border: 1px solid var(--line);
             border-radius: 6px;
@@ -257,6 +282,7 @@
                                 <tr>
                                     <th>Spieler</th>
                                     <th>Bälle</th>
+                                    <th>Punkte</th>
                                     <th>Aufn.</th>
                                     <th>Ø</th>
                                     <th>HS</th>
@@ -266,6 +292,7 @@
                                 <tr>
                                     <td class="match-player-cell">${escapeHtml(row.player1?.name || "-")}</td>
                                     <td class="match-num-cell">${escapeHtml(row.player1?.balls || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player1?.points || "-")}</td>
                                     <td class="match-num-cell">${escapeHtml(row.player1?.innings || "-")}</td>
                                     <td class="match-num-cell">${escapeHtml(row.player1?.average || "-")}</td>
                                     <td class="match-num-cell">${escapeHtml(row.player1?.hs || "-")}</td>
@@ -273,6 +300,7 @@
                                 <tr>
                                     <td class="match-player-cell">${escapeHtml(row.player2?.name || "-")}</td>
                                     <td class="match-num-cell">${escapeHtml(row.player2?.balls || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player2?.points || "-")}</td>
                                     <td class="match-num-cell">${escapeHtml(row.player2?.innings || "-")}</td>
                                     <td class="match-num-cell">${escapeHtml(row.player2?.average || "-")}</td>
                                     <td class="match-num-cell">${escapeHtml(row.player2?.hs || "-")}</td>
