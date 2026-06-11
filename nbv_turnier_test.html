@@ -246,6 +246,7 @@
 
         function buildMetaBlock(meta) {
             const rows = [
+                { label: "Disziplin", value: meta?.discipline || "-" },
                 { label: "Turnier", value: meta?.title || "-" },
                 { label: "Kürzel", value: meta?.shortCode || "-" },
                 { label: "Datum", value: meta?.date ? formatDate(meta.date) : "-" },

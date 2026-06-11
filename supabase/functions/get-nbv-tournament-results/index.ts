@@ -359,6 +359,7 @@ function extractMetaValue(pageText: string, label: string) {
 
 function extractMeta(html: string, sourceUrl: string): TournamentMeta {
   const pageText = stripTags(html);
+  const pageTextWithBreaks = stripTagsWithBreaks(html);
   const titleCandidates = [
     stripTags((html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || ""),
     stripTags((html.match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i) || [])[1] || ""),
@@ -368,15 +369,18 @@ function extractMeta(html: string, sourceUrl: string): TournamentMeta {
   const seasonMatch = sourceUrl.match(/20-\d{2}-(20\d{2}\/20\d{2})-/);
   const dateMatch = pageText.match(/\b(\d{2}\.\d{2}\.\d{4})\b/);
   const startTimeMatch = pageText.match(/Spielbeginn am\s+\d{2}\.\d{2}\.\d{4}\s+um\s+(\d{2}:\d{2})\s+Uhr/i);
+  const disciplineMatch = pageTextWithBreaks.match(/Disziplin\s+([^\n]+)/i);
+  const locationMatch = pageTextWithBreaks.match(/Location\s+([^\n]+)/i);
+  const shortCodeMatch = pageTextWithBreaks.match(/Kürzel\s+([^\n]+)/i);
 
   return {
     title: pageTitle || extractMetaValue(pageText, "Turnier") || extractMetaValue(pageText, "Bezeichnung"),
-    shortCode: extractMetaValue(pageText, "Kürzel") || extractMetaValue(pageText, "Kuerzel"),
+    shortCode: cleanText(shortCodeMatch?.[1] || "") || extractMetaValue(pageText, "Kürzel") || extractMetaValue(pageText, "Kuerzel"),
     season: seasonMatch?.[1] || extractMetaValue(pageText, "Saison"),
     date: parseGermanDateToIso(dateMatch?.[1] || extractMetaValue(pageText, "Datum")),
     startTime: cleanText(startTimeMatch?.[1] || ""),
-    discipline: extractMetaValue(pageText, "Disziplin") || extractMetaValue(pageText, "Kategorie"),
-    location: extractMetaValue(pageText, "Austragungsort") || extractMetaValue(pageText, "Spiellokal") || extractMetaValue(pageText, "Ort"),
+    discipline: cleanText(disciplineMatch?.[1] || "") || extractMetaValue(pageText, "Disziplin") || extractMetaValue(pageText, "Kategorie"),
+    location: cleanText(locationMatch?.[1] || "") || extractMetaValue(pageText, "Austragungsort") || extractMetaValue(pageText, "Spiellokal") || extractMetaValue(pageText, "Ort"),
     status: extractMetaValue(pageText, "Status") || (pageText.includes("Ergebnisse") ? "beendet" : ""),
   };
 }
