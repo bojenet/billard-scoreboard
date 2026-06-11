@@ -388,8 +388,8 @@
         }
 
         function buildMatchCard(row) {
-            const title = row.groupLabel
-                ? `${row.groupLabel} · Partie ${row.matchNo || "-"} · ${row.score || "-"}`
+            const title = row.phaseLabel
+                ? `${row.phaseLabel} · Partie ${row.matchNo || "-"} · ${row.score || "-"}`
                 : `Partie ${row.matchNo || "-"} · ${row.score || "-"}`;
             const plan = [formatDate(row.scheduledDate), row.scheduledTime || ""].filter((value) => value && value !== "-").join(" · ");
             return `

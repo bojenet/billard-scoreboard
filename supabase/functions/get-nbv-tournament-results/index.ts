@@ -22,6 +22,8 @@ type MatchPlayer = {
 
 type TournamentMatchRow = {
   groupLabel: string;
+  phaseLabel: string;
+  phaseType: string;
   matchNo: string;
   score: string;
   scheduledDate: string;
@@ -444,6 +446,39 @@ function parseScheduledCell(text: string) {
   };
 }
 
+function isPhaseHeaderLabel(text: string) {
+  const normalized = normalizeToken(text);
+  return [
+    "gruppe",
+    "halbfinale",
+    "viertelfinale",
+    "achtelfinale",
+    "finale",
+    "platz",
+    "spielumplatz",
+    "zwischenrunde",
+    "vorrunde",
+    "endrunde",
+    "qualifikation",
+    "ko",
+  ].some((keyword) => normalized.includes(keyword));
+}
+
+function detectPhaseType(label: string) {
+  const normalized = normalizeToken(label);
+  if (normalized.includes("gruppe")) return "group";
+  if (normalized.includes("achtelfinale")) return "round_of_16";
+  if (normalized.includes("viertelfinale")) return "quarterfinal";
+  if (normalized.includes("halbfinale")) return "semifinal";
+  if (normalized.includes("finale")) return "final";
+  if (normalized.includes("platz")) return "placement";
+  if (normalized.includes("zwischenrunde")) return "intermediate_round";
+  if (normalized.includes("vorrunde")) return "preliminary_round";
+  if (normalized.includes("qualifikation")) return "qualification";
+  if (normalized.includes("ko")) return "knockout";
+  return "results";
+}
+
 function parseMatchTables(html: string) {
   const tables = extractTableHtmlBlocks(html);
   const matches: TournamentMatchRow[] = [];
@@ -467,17 +502,17 @@ function parseMatchTables(html: string) {
       const filledValues = values.filter(Boolean);
       if (!filledValues.length) continue;
 
-      if (filledValues.length <= 2 && /gruppe/i.test(filledValues.join(" "))) {
+      if (filledValues.length <= 3 && isPhaseHeaderLabel(filledValues.join(" "))) {
         currentGroupLabel = filledValues.join(" ");
         continue;
       }
 
       const scoreIndex = values.findIndex((value) => /^\d+\s*:\s*\d+$/.test(value));
       const matchNoIndex = values.findIndex((value) => /^\d+$/.test(value));
-      if (scoreIndex < 0 || matchNoIndex < 0) continue;
+      if (scoreIndex < 0) continue;
 
       const scheduleIndex = values.findIndex((value) => /\d{2}\.\d{2}\.\d{4}/.test(value));
-      const leftIndex = findNearestFilledIndex(values, scoreIndex, -1, matchNoIndex);
+      const leftIndex = findNearestFilledIndex(values, scoreIndex, -1, matchNoIndex >= 0 ? matchNoIndex : undefined);
       const rightIndex = scheduleIndex > scoreIndex
         ? findNearestFilledIndex(values, scoreIndex, 1, scheduleIndex)
         : findNearestFilledIndex(values, scoreIndex, 1);
@@ -495,15 +530,17 @@ function parseMatchTables(html: string) {
       const schedule = parseScheduledCell(scheduleIndex >= 0 ? values[scheduleIndex] : "");
       matches.push({
         groupLabel: currentGroupLabel,
-        matchNo: values[matchNoIndex],
+        phaseLabel: currentGroupLabel || "Ergebnisse",
+        phaseType: detectPhaseType(currentGroupLabel || "Ergebnisse"),
+        matchNo: matchNoIndex >= 0 ? values[matchNoIndex] : String(matches.length + 1),
         score,
         scheduledDate: schedule.scheduledDate,
         scheduledTime: schedule.scheduledTime,
         player1,
         player2,
         details: [
-          { label: "Tabelle", value: currentGroupLabel || "Ergebnisse" },
-          { label: "Partie", value: values[matchNoIndex] },
+          { label: "Phase", value: currentGroupLabel || "Ergebnisse" },
+          { label: "Partie", value: matchNoIndex >= 0 ? values[matchNoIndex] : String(matches.length + 1) },
         ].filter((entry) => entry.value),
       });
     }
@@ -558,10 +595,10 @@ Deno.serve(async (request) => {
       });
     }
 
-    if (!/^https:\/\/www\.ndbv\.de\/sb_(?:meisterschaft|einzelrangliste)\.php/i.test(sourceUrl)) {
+    if (!/^https:\/\/www\.ndbv\.de\/sb_(?:meisterschaft|einzelrangliste|einzelergebnisse)\.php/i.test(sourceUrl)) {
       return new Response(JSON.stringify({
         error: "invalid-source-url",
-        message: "Erwartet wird eine NBV-Seite unter https://www.ndbv.de/sb_meisterschaft.php oder https://www.ndbv.de/sb_einzelrangliste.php",
+        message: "Erwartet wird eine NBV-Seite unter https://www.ndbv.de/sb_meisterschaft.php, https://www.ndbv.de/sb_einzelrangliste.php oder https://www.ndbv.de/sb_einzelergebnisse.php",
       }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
