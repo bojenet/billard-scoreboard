@@ -512,23 +512,35 @@
             const playerMap = new Map();
 
             rows.forEach((match) => {
-                [match.player1, match.player2].forEach((player) => {
+                const pairs = [
+                    { player: match.player1, opponent: match.player2 },
+                    { player: match.player2, opponent: match.player1 },
+                ];
+                pairs.forEach(({ player, opponent }) => {
                     const name = String(player?.name || "").trim();
                     if (!name) return;
                     const current = playerMap.get(name) || {
                         name,
-                        points: 0,
+                        mp: 0,
+                        setsFor: 0,
+                        setsAgainst: 0,
                         balls: 0,
                         innings: 0,
                         matches: 0,
+                        bestAverage: 0,
+                        hs: 0,
                         exactPlace: null,
                         phasePriority: 999,
                         eliminatedAt: "",
                     };
-                    current.points += toNumber(player.points);
+                    current.mp += toNumber(player.points);
+                    current.setsFor += toNumber(player.points);
+                    current.setsAgainst += toNumber(opponent?.points);
                     current.balls += toNumber(player.balls);
                     current.innings += toNumber(player.innings);
                     current.matches += 1;
+                    current.bestAverage = Math.max(current.bestAverage, toNumber(player.average));
+                    current.hs = Math.max(current.hs, toNumber(player.hs));
                     playerMap.set(name, current);
                 });
             });
@@ -593,7 +605,11 @@
             const ranking = Array.from(playerMap.values())
                 .map((entry) => ({
                     ...entry,
-                    average: entry.innings > 0 ? entry.balls / entry.innings : 0,
+                    gd: entry.innings > 0 ? entry.balls / entry.innings : 0,
+                    bed: entry.bestAverage,
+                    setPercent: entry.setsFor + entry.setsAgainst > 0
+                        ? (entry.setsFor / (entry.setsFor + entry.setsAgainst)) * 100
+                        : 0,
                 }))
                 .sort((left, right) => {
                     if (left.exactPlace !== null || right.exactPlace !== null) {
@@ -602,14 +618,16 @@
                         if (left.exactPlace !== right.exactPlace) return left.exactPlace - right.exactPlace;
                     }
                     if (left.phasePriority !== right.phasePriority) return left.phasePriority - right.phasePriority;
-                    if (right.points !== left.points) return right.points - left.points;
-                    if (right.average !== left.average) return right.average - left.average;
+                    if (right.mp !== left.mp) return right.mp - left.mp;
+                    if (right.setPercent !== left.setPercent) return right.setPercent - left.setPercent;
                     if (right.balls !== left.balls) return right.balls - left.balls;
+                    if (right.gd !== left.gd) return right.gd - left.gd;
+                    if (right.bed !== left.bed) return right.bed - left.bed;
+                    if (right.hs !== left.hs) return right.hs - left.hs;
                     return left.name.localeCompare(right.name, "de");
                 })
                 .map((entry, index) => ({
                     ...entry,
-                    rank: index + 1,
                     displayPlace: entry.exactPlace ?? index + 1,
                 }));
 
@@ -624,27 +642,29 @@
                         <table class="ranking-table">
                             <thead>
                                 <tr>
-                                    <th class="ranking-rank">Platz</th>
-                                    <th class="ranking-num">Endplatz</th>
+                                    <th class="ranking-rank">Rang</th>
                                     <th>Spieler</th>
+                                    <th class="ranking-num">MP</th>
+                                    <th class="ranking-num">Sätze</th>
                                     <th class="ranking-num">Punkte</th>
-                                    <th class="ranking-num">Schnitt</th>
-                                    <th class="ranking-num">Bälle</th>
                                     <th class="ranking-num">Aufn.</th>
-                                    <th class="ranking-num">Partien</th>
+                                    <th class="ranking-num">GD</th>
+                                    <th class="ranking-num">BED</th>
+                                    <th class="ranking-num">HS</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${ranking.map((row) => `
                                     <tr>
-                                        <td class="ranking-rank">${escapeHtml(row.rank)}</td>
-                                        <td class="ranking-num">${escapeHtml(row.displayPlace)}</td>
+                                        <td class="ranking-rank">${escapeHtml(row.displayPlace)}</td>
                                         <td class="ranking-name">${escapeHtml(row.name)}</td>
-                                        <td class="ranking-num">${escapeHtml(row.points)}</td>
-                                        <td class="ranking-num">${escapeHtml(formatAverage(row.average))}</td>
+                                        <td class="ranking-num">${escapeHtml(row.mp)}</td>
+                                        <td class="ranking-num">${escapeHtml(`${row.setsFor}:${row.setsAgainst}`)}</td>
                                         <td class="ranking-num">${escapeHtml(row.balls)}</td>
                                         <td class="ranking-num">${escapeHtml(row.innings)}</td>
-                                        <td class="ranking-num">${escapeHtml(row.matches)}</td>
+                                        <td class="ranking-num">${escapeHtml(formatAverage(row.gd))}</td>
+                                        <td class="ranking-num">${escapeHtml(formatAverage(row.bed))}</td>
+                                        <td class="ranking-num">${escapeHtml(row.hs)}</td>
                                     </tr>
                                 `).join("")}
                             </tbody>
