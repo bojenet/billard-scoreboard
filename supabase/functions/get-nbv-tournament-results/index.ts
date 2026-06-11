@@ -341,7 +341,7 @@ function extractResultsTabUrl(html: string, baseUrl: string) {
   while ((onclickMatch = onclickRegex.exec(html)) !== null) {
     const label = stripTags(onclickMatch[6]);
     if (!isLikelyResultLinkLabel(label)) continue;
-    const urlMatch = onclickMatch[4].match(/['"]([^'"]*sb_meisterschaft\.php[^'"]*)['"]/i);
+    const urlMatch = onclickMatch[4].match(/['"]([^'"]*sb_(?:meisterschaft|einzelrangliste)\.php[^'"]*)['"]/i);
     if (!urlMatch?.[1]) continue;
     const href = resolveHref(urlMatch[1], baseUrl);
     if (href) return href;
@@ -558,10 +558,10 @@ Deno.serve(async (request) => {
       });
     }
 
-    if (!/^https:\/\/www\.ndbv\.de\/sb_meisterschaft\.php/i.test(sourceUrl)) {
+    if (!/^https:\/\/www\.ndbv\.de\/sb_(?:meisterschaft|einzelrangliste)\.php/i.test(sourceUrl)) {
       return new Response(JSON.stringify({
         error: "invalid-source-url",
-        message: "Erwartet wird eine NBV-Turnierseite unter https://www.ndbv.de/sb_meisterschaft.php",
+        message: "Erwartet wird eine NBV-Seite unter https://www.ndbv.de/sb_meisterschaft.php oder https://www.ndbv.de/sb_einzelrangliste.php",
       }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

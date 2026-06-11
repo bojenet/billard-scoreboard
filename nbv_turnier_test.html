@@ -336,6 +336,30 @@
             });
         }
 
+        async function getFunctionErrorMessage(error) {
+            if (!error) return "Unbekannter Fehler";
+            if (error.message && !/non-2xx status code/i.test(String(error.message))) {
+                return String(error.message);
+            }
+            const context = error.context;
+            if (context && typeof context.text === "function") {
+                try {
+                    const raw = await context.text();
+                    if (raw) {
+                        try {
+                            const parsed = JSON.parse(raw);
+                            return parsed?.message || parsed?.error || raw;
+                        } catch (_) {
+                            return raw;
+                        }
+                    }
+                } catch (_) {
+                    return String(error.message || "Unbekannter Fehler");
+                }
+            }
+            return String(error.message || "Unbekannter Fehler");
+        }
+
         function buildDetails(details) {
             const list = Array.isArray(details) ? details.filter((entry) => entry && entry.value) : [];
             if (!list.length) return "";
@@ -536,7 +560,8 @@
                 renderResults(data || {});
             } catch (error) {
                 console.warn("NBV-Turnierdaten konnten nicht geladen werden:", error);
-                document.getElementById("resultsWrap").innerHTML = '<div class="empty-state">Der Turnierabruf ist aktuell nicht verfügbar.</div>';
+                const message = await getFunctionErrorMessage(error);
+                document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Der Turnierabruf ist aktuell nicht verfügbar.<br>${escapeHtml(message)}</div>`;
             }
         }
 
