@@ -202,6 +202,70 @@
             line-height: 1.5;
         }
 
+        .ranking-block {
+            margin-top: 18px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        .ranking-head {
+            padding: 10px 12px;
+            background: #eef3f8;
+            border-bottom: 1px solid #d8dee6;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--head);
+        }
+
+        .ranking-table-wrap {
+            overflow-x: auto;
+        }
+
+        .ranking-table {
+            width: 100%;
+            min-width: 620px;
+            border-collapse: collapse;
+        }
+
+        .ranking-table th,
+        .ranking-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #d8dee6;
+            text-align: left;
+            vertical-align: middle;
+            font-size: 14px;
+        }
+
+        .ranking-table th {
+            background: #f8fafc;
+            color: #344256;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .ranking-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .ranking-rank {
+            width: 56px;
+            font-weight: 700;
+        }
+
+        .ranking-name {
+            font-weight: 700;
+            color: var(--head);
+        }
+
+        .ranking-num {
+            width: 90px;
+            text-align: right;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
         .empty-state {
             border: 1px dashed #c5cfda;
             border-radius: 6px;
@@ -347,6 +411,97 @@
             `;
         }
 
+        function toNumber(value) {
+            const normalized = String(value || "").replace(",", ".").trim();
+            const parsed = Number(normalized);
+            return Number.isFinite(parsed) ? parsed : 0;
+        }
+
+        function formatAverage(value) {
+            if (!Number.isFinite(value)) return "-";
+            return value.toLocaleString("de-DE", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+        }
+
+        function buildRanking(rows) {
+            const playerMap = new Map();
+
+            rows.forEach((match) => {
+                [match.player1, match.player2].forEach((player) => {
+                    const name = String(player?.name || "").trim();
+                    if (!name) return;
+                    const current = playerMap.get(name) || {
+                        name,
+                        points: 0,
+                        balls: 0,
+                        innings: 0,
+                        matches: 0,
+                    };
+                    current.points += toNumber(player.points);
+                    current.balls += toNumber(player.balls);
+                    current.innings += toNumber(player.innings);
+                    current.matches += 1;
+                    playerMap.set(name, current);
+                });
+            });
+
+            const ranking = Array.from(playerMap.values())
+                .map((entry) => ({
+                    ...entry,
+                    average: entry.innings > 0 ? entry.balls / entry.innings : 0,
+                }))
+                .sort((left, right) => {
+                    if (right.points !== left.points) return right.points - left.points;
+                    if (right.average !== left.average) return right.average - left.average;
+                    if (right.balls !== left.balls) return right.balls - left.balls;
+                    return left.name.localeCompare(right.name, "de");
+                })
+                .map((entry, index) => ({
+                    ...entry,
+                    rank: index + 1,
+                }));
+
+            if (!ranking.length) {
+                return "";
+            }
+
+            return `
+                <section class="ranking-block">
+                    <div class="ranking-head">Rangliste</div>
+                    <div class="ranking-table-wrap">
+                        <table class="ranking-table">
+                            <thead>
+                                <tr>
+                                    <th class="ranking-rank">Platz</th>
+                                    <th>Spieler</th>
+                                    <th class="ranking-num">Punkte</th>
+                                    <th class="ranking-num">Schnitt</th>
+                                    <th class="ranking-num">Bälle</th>
+                                    <th class="ranking-num">Aufn.</th>
+                                    <th class="ranking-num">Partien</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ranking.map((row) => `
+                                    <tr>
+                                        <td class="ranking-rank">${escapeHtml(row.rank)}</td>
+                                        <td class="ranking-name">${escapeHtml(row.name)}</td>
+                                        <td class="ranking-num">${escapeHtml(row.points)}</td>
+                                        <td class="ranking-num">${escapeHtml(formatAverage(row.average))}</td>
+                                        <td class="ranking-num">${escapeHtml(row.balls)}</td>
+                                        <td class="ranking-num">${escapeHtml(row.innings)}</td>
+                                        <td class="ranking-num">${escapeHtml(row.matches)}</td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
         function renderResults(data) {
             const wrap = document.getElementById("resultsWrap");
             const rows = Array.isArray(data?.matches) ? data.matches : [];
@@ -362,6 +517,7 @@
                 <div class="matches-list">
                     ${rows.map((row) => buildMatchCard(row)).join("")}
                 </div>
+                ${buildRanking(rows)}
             `;
         }
 
