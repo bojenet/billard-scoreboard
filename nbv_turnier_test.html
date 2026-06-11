@@ -361,7 +361,9 @@
         }
 
         function buildDetails(details) {
-            const list = Array.isArray(details) ? details.filter((entry) => entry && entry.value) : [];
+            const list = Array.isArray(details)
+                ? details.filter((entry) => entry && entry.value && !(entry.label === "Phase" && entry.value === "Ergebnisse"))
+                : [];
             if (!list.length) return "";
             return list.map((entry) => `${escapeHtml(entry.label)}: ${escapeHtml(entry.value)}`).join(" · ");
         }
@@ -441,6 +443,63 @@
             return Number.isFinite(parsed) ? parsed : 0;
         }
 
+        function getMatchWinner(match) {
+            const left = toNumber(match?.player1?.balls);
+            const right = toNumber(match?.player2?.balls);
+            if (left > right) return "player1";
+            if (right > left) return "player2";
+            return "draw";
+        }
+
+        function getMatchLoser(match) {
+            const winner = getMatchWinner(match);
+            if (winner === "player1") return "player2";
+            if (winner === "player2") return "player1";
+            return "draw";
+        }
+
+        function parsePlacementLabel(label) {
+            const normalized = String(label || "");
+            const match = normalized.match(/platz\s+(\d+)/i);
+            return match ? Number(match[1]) : 0;
+        }
+
+        function getPhasePriority(phaseType) {
+            switch (phaseType) {
+                case "final":
+                    return 1;
+                case "semifinal":
+                    return 3;
+                case "quarterfinal":
+                    return 5;
+                case "round_of_16":
+                    return 9;
+                case "knockout":
+                    return 20;
+                case "intermediate_round":
+                    return 30;
+                case "preliminary_round":
+                    return 40;
+                case "group":
+                    return 50;
+                default:
+                    return 60;
+            }
+        }
+
+        function getEliminationPlacement(phaseType) {
+            switch (phaseType) {
+                case "semifinal":
+                    return 3;
+                case "quarterfinal":
+                    return 5;
+                case "round_of_16":
+                    return 9;
+                default:
+                    return null;
+            }
+        }
+
         function formatAverage(value) {
             if (!Number.isFinite(value)) return "-";
             return value.toLocaleString("de-DE", {
@@ -462,6 +521,9 @@
                         balls: 0,
                         innings: 0,
                         matches: 0,
+                        exactPlace: null,
+                        phasePriority: 999,
+                        eliminatedAt: "",
                     };
                     current.points += toNumber(player.points);
                     current.balls += toNumber(player.balls);
@@ -471,12 +533,75 @@
                 });
             });
 
+            rows.forEach((match) => {
+                const p1Name = String(match?.player1?.name || "").trim();
+                const p2Name = String(match?.player2?.name || "").trim();
+                if (!p1Name || !p2Name) return;
+
+                const winnerSide = getMatchWinner(match);
+                const loserSide = getMatchLoser(match);
+                const winnerName = winnerSide === "player1" ? p1Name : winnerSide === "player2" ? p2Name : "";
+                const loserName = loserSide === "player1" ? p1Name : loserSide === "player2" ? p2Name : "";
+                const phaseType = String(match?.phaseType || "");
+                const phaseLabel = String(match?.phaseLabel || "");
+
+                if (phaseType === "final") {
+                    if (winnerName && playerMap.has(winnerName)) {
+                        playerMap.get(winnerName).exactPlace = 1;
+                        playerMap.get(winnerName).phasePriority = 1;
+                    }
+                    if (loserName && playerMap.has(loserName)) {
+                        playerMap.get(loserName).exactPlace = 2;
+                        playerMap.get(loserName).phasePriority = 2;
+                    }
+                    return;
+                }
+
+                if (phaseType === "placement") {
+                    const placement = parsePlacementLabel(phaseLabel);
+                    if (placement > 0) {
+                        if (winnerName && playerMap.has(winnerName)) {
+                            playerMap.get(winnerName).exactPlace = placement;
+                            playerMap.get(winnerName).phasePriority = Math.min(playerMap.get(winnerName).phasePriority, placement);
+                        }
+                        if (loserName && playerMap.has(loserName)) {
+                            playerMap.get(loserName).exactPlace = placement + 1;
+                            playerMap.get(loserName).phasePriority = Math.min(playerMap.get(loserName).phasePriority, placement + 1);
+                        }
+                    }
+                    return;
+                }
+
+                const eliminationPlacement = getEliminationPlacement(phaseType);
+                if (eliminationPlacement !== null && loserName && playerMap.has(loserName)) {
+                    const loser = playerMap.get(loserName);
+                    if (loser.exactPlace === null) {
+                        loser.exactPlace = eliminationPlacement;
+                    }
+                    loser.eliminatedAt = phaseType;
+                }
+
+                const priority = getPhasePriority(phaseType);
+                if (winnerName && playerMap.has(winnerName)) {
+                    playerMap.get(winnerName).phasePriority = Math.min(playerMap.get(winnerName).phasePriority, Math.max(0, priority - 1));
+                }
+                if (loserName && playerMap.has(loserName)) {
+                    playerMap.get(loserName).phasePriority = Math.min(playerMap.get(loserName).phasePriority, priority);
+                }
+            });
+
             const ranking = Array.from(playerMap.values())
                 .map((entry) => ({
                     ...entry,
                     average: entry.innings > 0 ? entry.balls / entry.innings : 0,
                 }))
                 .sort((left, right) => {
+                    if (left.exactPlace !== null || right.exactPlace !== null) {
+                        if (left.exactPlace === null) return 1;
+                        if (right.exactPlace === null) return -1;
+                        if (left.exactPlace !== right.exactPlace) return left.exactPlace - right.exactPlace;
+                    }
+                    if (left.phasePriority !== right.phasePriority) return left.phasePriority - right.phasePriority;
                     if (right.points !== left.points) return right.points - left.points;
                     if (right.average !== left.average) return right.average - left.average;
                     if (right.balls !== left.balls) return right.balls - left.balls;
@@ -485,6 +610,7 @@
                 .map((entry, index) => ({
                     ...entry,
                     rank: index + 1,
+                    displayPlace: entry.exactPlace ?? index + 1,
                 }));
 
             if (!ranking.length) {
@@ -499,6 +625,7 @@
                             <thead>
                                 <tr>
                                     <th class="ranking-rank">Platz</th>
+                                    <th class="ranking-num">Endplatz</th>
                                     <th>Spieler</th>
                                     <th class="ranking-num">Punkte</th>
                                     <th class="ranking-num">Schnitt</th>
@@ -511,6 +638,7 @@
                                 ${ranking.map((row) => `
                                     <tr>
                                         <td class="ranking-rank">${escapeHtml(row.rank)}</td>
+                                        <td class="ranking-num">${escapeHtml(row.displayPlace)}</td>
                                         <td class="ranking-name">${escapeHtml(row.name)}</td>
                                         <td class="ranking-num">${escapeHtml(row.points)}</td>
                                         <td class="ranking-num">${escapeHtml(formatAverage(row.average))}</td>
