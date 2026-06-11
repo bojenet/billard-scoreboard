@@ -54,6 +54,31 @@
             gap: 14px;
         }
 
+        .tournament-meta {
+            display: grid;
+            gap: 6px;
+            margin-bottom: 14px;
+            padding: 2px 2px 6px;
+        }
+
+        .tournament-meta-row {
+            display: grid;
+            grid-template-columns: 90px 1fr;
+            gap: 10px;
+            align-items: start;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .tournament-meta-label {
+            font-weight: 700;
+            color: var(--muted);
+        }
+
+        .tournament-meta-value {
+            color: var(--text);
+        }
+
         .match-card {
             border: 1px solid var(--line);
             border-radius: 6px;
@@ -194,6 +219,27 @@
             return list.map((entry) => `${escapeHtml(entry.label)}: ${escapeHtml(entry.value)}`).join(" · ");
         }
 
+        function buildMetaBlock(meta) {
+            const rows = [
+                { label: "Turnier", value: meta?.title || "-" },
+                { label: "Kürzel", value: meta?.shortCode || "-" },
+                { label: "Datum", value: meta?.date ? formatDate(meta.date) : "-" },
+                { label: "Spielbeginn", value: meta?.startTime ? `${formatDate(meta.date)} um ${meta.startTime} Uhr` : "-" },
+                { label: "Location", value: meta?.location || "-" },
+            ];
+
+            return `
+                <section class="tournament-meta">
+                    ${rows.map((row) => `
+                        <div class="tournament-meta-row">
+                            <div class="tournament-meta-label">${escapeHtml(row.label)}</div>
+                            <div class="tournament-meta-value">${escapeHtml(row.value)}</div>
+                        </div>
+                    `).join("")}
+                </section>
+            `;
+        }
+
         function buildMatchCard(row) {
             const title = row.groupLabel
                 ? `${row.groupLabel} · Partie ${row.matchNo || "-"} · ${row.score || "-"}`
@@ -250,6 +296,7 @@
             }
 
             wrap.innerHTML = `
+                ${buildMetaBlock(data?.meta || {})}
                 <div class="matches-list">
                     ${rows.map((row) => buildMatchCard(row)).join("")}
                 </div>

@@ -32,8 +32,10 @@ type TournamentMatchRow = {
 
 type TournamentMeta = {
   title: string;
+  shortCode: string;
   season: string;
   date: string;
+  startTime: string;
   discipline: string;
   location: string;
   status: string;
@@ -364,11 +366,14 @@ function extractMeta(html: string, sourceUrl: string): TournamentMeta {
   const pageTitle = titleCandidates[0] || "";
   const seasonMatch = sourceUrl.match(/20-\d{2}-(20\d{2}\/20\d{2})-/);
   const dateMatch = pageText.match(/\b(\d{2}\.\d{2}\.\d{4})\b/);
+  const startTimeMatch = pageText.match(/Spielbeginn am\s+\d{2}\.\d{2}\.\d{4}\s+um\s+(\d{2}:\d{2})\s+Uhr/i);
 
   return {
     title: pageTitle || extractMetaValue(pageText, "Turnier") || extractMetaValue(pageText, "Bezeichnung"),
+    shortCode: extractMetaValue(pageText, "Kürzel") || extractMetaValue(pageText, "Kuerzel"),
     season: seasonMatch?.[1] || extractMetaValue(pageText, "Saison"),
     date: parseGermanDateToIso(dateMatch?.[1] || extractMetaValue(pageText, "Datum")),
+    startTime: cleanText(startTimeMatch?.[1] || ""),
     discipline: extractMetaValue(pageText, "Disziplin") || extractMetaValue(pageText, "Kategorie"),
     location: extractMetaValue(pageText, "Austragungsort") || extractMetaValue(pageText, "Spiellokal") || extractMetaValue(pageText, "Ort"),
     status: extractMetaValue(pageText, "Status") || (pageText.includes("Ergebnisse") ? "beendet" : ""),
