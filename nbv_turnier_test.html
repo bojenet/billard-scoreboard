@@ -35,30 +35,10 @@
             visibility: visible;
         }
 
-        .header {
-            text-align: center;
-            padding: 28px 16px 14px;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 38px;
-            line-height: 1.15;
-            color: var(--head);
-        }
-
-        .header p {
-            margin: 10px auto 0;
-            max-width: 900px;
-            font-size: 16px;
-            line-height: 1.45;
-            color: var(--muted);
-        }
-
         .page {
-            width: min(1400px, 96%);
+            width: min(1600px, 98%);
             margin: 0 auto;
-            padding-bottom: 32px;
+            padding: 16px 0 32px;
         }
 
         .panel {
@@ -66,164 +46,7 @@
             border: 1px solid var(--line);
             border-radius: 6px;
             box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
-            padding: 16px 18px;
-            margin-bottom: 14px;
-        }
-
-        .toolbar {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto auto;
-            gap: 10px;
-            align-items: end;
-        }
-
-        .field {
-            display: grid;
-            gap: 6px;
-        }
-
-        .field label {
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.35px;
-            color: #475467;
-        }
-
-        input {
-            width: 100%;
-            box-sizing: border-box;
-            border: 1px solid #bcc6d2;
-            border-radius: 4px;
-            padding: 11px 12px;
-            font-size: 14px;
-            background: #fff;
-            color: #10131c;
-        }
-
-        .btn {
-            min-height: 44px;
-            border: 1px solid transparent;
-            border-radius: 4px;
-            padding: 0 16px;
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .btn-primary {
-            background: var(--blue);
-            border-color: var(--blue-deep);
-            color: #fff;
-        }
-
-        .btn-secondary {
-            background: #fff;
-            border-color: #c3ccd6;
-            color: #35506b;
-        }
-
-        .meta {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            min-height: 36px;
-            padding: 0 12px;
-            border: 1px solid var(--line);
-            border-radius: 4px;
-            background: #fff;
-            color: #435162;
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-        .message {
-            min-height: 20px;
-            margin-top: 12px;
-            font-size: 13px;
-        }
-
-        .message.ok {
-            color: var(--ok);
-        }
-
-        .message.error {
-            color: var(--error);
-        }
-
-        .loading-wrap {
-            display: none;
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .loading-wrap.active {
-            display: grid;
-        }
-
-        .loading-text {
-            font-size: 13px;
-            color: var(--muted);
-        }
-
-        .loading-bar {
-            height: 8px;
-            border-radius: 999px;
-            overflow: hidden;
-            background: #e5e7eb;
-            position: relative;
-        }
-
-        .loading-bar::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            width: 34%;
-            border-radius: inherit;
-            background: linear-gradient(90deg, #9ab6cf 0%, #2d5880 50%, #9ab6cf 100%);
-            animation: loading-slide 1.2s ease-in-out infinite;
-        }
-
-        @keyframes loading-slide {
-            0% { transform: translateX(-110%); }
-            100% { transform: translateX(280%); }
-        }
-
-        .meta-grid {
-            display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
-        .meta-card {
-            border: 1px solid var(--line);
-            background: #fff;
-            border-radius: 4px;
-            padding: 10px 12px;
-        }
-
-        .meta-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            font-weight: 700;
-            color: var(--muted);
-            margin-bottom: 6px;
-        }
-
-        .meta-value {
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--text);
-            line-height: 1.35;
-            word-break: break-word;
+            padding: 12px;
         }
 
         .matches-list {
@@ -320,21 +143,7 @@
             text-align: center;
         }
 
-        @media (max-width: 980px) {
-            .toolbar {
-                grid-template-columns: 1fr;
-            }
-
-            .meta-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-
         @media (max-width: 640px) {
-            .header h1 {
-                font-size: 30px;
-            }
-
             .page {
                 width: min(96%, 96%);
             }
@@ -342,73 +151,12 @@
             .panel {
                 padding: 14px;
             }
-
-            .meta-grid {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>NBV Turnier-Test</h1>
-        <p>Einzelne fertige NBV-Turnierseiten laden und prüfen, welche Ergebnisdaten für die spätere Rangliste sauber auslesbar sind.</p>
-    </div>
-
     <div class="page">
         <div class="panel">
-            <div class="toolbar">
-                <div class="field">
-                    <label for="sourceUrlInput">NBV Turnier-URL</label>
-                    <input
-                        id="sourceUrlInput"
-                        type="url"
-                        value="https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--"
-                        placeholder="https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--"
-                    >
-                </div>
-                <button id="loadBtn" class="btn btn-primary" type="button" onclick="loadTournament(false)">Turnier laden</button>
-                <button id="refreshBtn" class="btn btn-secondary" type="button" onclick="loadTournament(true)">Neu laden</button>
-            </div>
-
-            <div id="loadingWrap" class="loading-wrap">
-                <div class="loading-text">NBV-Turnier wird geladen...</div>
-                <div class="loading-bar"></div>
-            </div>
-
-            <div id="message" class="message"></div>
-        </div>
-
-        <div class="panel">
-            <div class="meta">
-                <div id="fetchedBadge" class="badge">Stand: noch nicht geladen</div>
-                <div id="sourceBadge" class="badge">Quelle: NBV</div>
-                <div id="countBadge" class="badge">0 Partien</div>
-            </div>
-
-            <div id="metaGrid" class="meta-grid">
-                <div class="meta-card">
-                    <div class="meta-label">Turnier</div>
-                    <div id="metaTitle" class="meta-value">-</div>
-                </div>
-                <div class="meta-card">
-                    <div class="meta-label">Saison</div>
-                    <div id="metaSeason" class="meta-value">-</div>
-                </div>
-                <div class="meta-card">
-                    <div class="meta-label">Datum</div>
-                    <div id="metaDate" class="meta-value">-</div>
-                </div>
-                <div class="meta-card">
-                    <div class="meta-label">Disziplin</div>
-                    <div id="metaDiscipline" class="meta-value">-</div>
-                </div>
-                <div class="meta-card">
-                    <div class="meta-label">Ort</div>
-                    <div id="metaLocation" class="meta-value">-</div>
-                </div>
-            </div>
-
             <div id="resultsWrap">
                 <div class="empty-state">Noch kein Turnier geladen.</div>
             </div>
@@ -429,27 +177,6 @@
                 .replace(/'/g, "&#39;");
         }
 
-        function setLoadingState(isLoading) {
-            const wrap = document.getElementById("loadingWrap");
-            const loadBtn = document.getElementById("loadBtn");
-            const refreshBtn = document.getElementById("refreshBtn");
-            if (wrap) wrap.classList.toggle("active", Boolean(isLoading));
-            if (loadBtn) {
-                loadBtn.disabled = Boolean(isLoading);
-                loadBtn.innerText = isLoading ? "Lädt..." : "Turnier laden";
-            }
-            if (refreshBtn) {
-                refreshBtn.disabled = Boolean(isLoading);
-            }
-        }
-
-        function setMessage(text, type) {
-            const el = document.getElementById("message");
-            if (!el) return;
-            el.className = "message " + (type || "");
-            el.innerText = text || "";
-        }
-
         function formatDate(value) {
             if (!value) return "-";
             const date = new Date(value);
@@ -461,62 +188,9 @@
             });
         }
 
-        function formatTimestamp(value) {
-            if (!value) return "unbekannt";
-            const date = new Date(value);
-            if (Number.isNaN(date.getTime())) return "unbekannt";
-            return date.toLocaleString("de-DE", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-            });
-        }
-
-        async function getFunctionErrorMessage(error) {
-            if (!error) return "Unbekannter Fehler";
-            if (error.message && !/non-2xx status code/i.test(String(error.message))) {
-                return String(error.message);
-            }
-            const context = error.context;
-            if (context && typeof context.text === "function") {
-                try {
-                    const raw = await context.text();
-                    if (raw) {
-                        try {
-                            const parsed = JSON.parse(raw);
-                            return parsed?.message || parsed?.error || raw;
-                        } catch (_) {
-                            return raw;
-                        }
-                    }
-                } catch (_) {
-                    return String(error.message || "Unbekannter Fehler");
-                }
-            }
-            return String(error.message || "Unbekannter Fehler");
-        }
-
-        function updateMeta(data) {
-            document.getElementById("fetchedBadge").innerText = `Stand: ${formatTimestamp(data?.fetchedAt)}`;
-            document.getElementById("sourceBadge").innerText = data?.resultsUrl
-                ? `Ergebnisse: ${data.resultsUrl}`
-                : "Quelle: NBV";
-            const count = Array.isArray(data?.matches) ? data.matches.length : 0;
-            document.getElementById("countBadge").innerText = `${count} Partien`;
-
-            const meta = data?.meta || {};
-            document.getElementById("metaTitle").innerText = meta.title || "-";
-            document.getElementById("metaSeason").innerText = meta.season || "-";
-            document.getElementById("metaDate").innerText = formatDate(meta.date);
-            document.getElementById("metaDiscipline").innerText = meta.discipline || "-";
-            document.getElementById("metaLocation").innerText = meta.location || "-";
-        }
-
         function buildDetails(details) {
             const list = Array.isArray(details) ? details.filter((entry) => entry && entry.value) : [];
-            if (!list.length) return "-";
+            if (!list.length) return "";
             return list.map((entry) => `${escapeHtml(entry.label)}: ${escapeHtml(entry.value)}`).join(" · ");
         }
 
@@ -560,7 +234,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="details-line">${buildDetails(row.details)}</div>
+                    ${buildDetails(row.details) ? `<div class="details-line">${buildDetails(row.details)}</div>` : ""}
                 </section>
             `;
         }
@@ -583,34 +257,19 @@
         }
 
         async function loadTournament(forceRefresh = false) {
-            const sourceUrl = String(document.getElementById("sourceUrlInput")?.value || "").trim();
-            if (!sourceUrl) {
-                setMessage("Bitte zuerst eine NBV-Turnier-URL eingeben.", "error");
-                return;
-            }
-
-            setLoadingState(true);
-            setMessage("", "");
-
             try {
                 const { data, error } = await supabaseClient.functions.invoke("get-nbv-tournament-results", {
                     body: {
-                        sourceUrl,
+                        sourceUrl: "https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--",
                         forceRefresh: Boolean(forceRefresh),
                     },
                 });
                 if (error) throw error;
 
-                updateMeta(data || {});
                 renderResults(data || {});
-                setMessage("Turnierdaten wurden geladen.", "ok");
             } catch (error) {
                 console.warn("NBV-Turnierdaten konnten nicht geladen werden:", error);
-                const errorMessage = await getFunctionErrorMessage(error);
-                setMessage(`NBV-Turnierdaten konnten nicht geladen werden: ${errorMessage}`, "error");
                 document.getElementById("resultsWrap").innerHTML = '<div class="empty-state">Der Turnierabruf ist aktuell nicht verfügbar.</div>';
-            } finally {
-                setLoadingState(false);
             }
         }
 
@@ -618,6 +277,7 @@
             try {
                 const user = await requireAuth();
                 if (!user) return;
+                await loadTournament(false);
             } finally {
                 document.body.classList.add("page-ready");
             }

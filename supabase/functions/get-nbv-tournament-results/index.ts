@@ -84,6 +84,7 @@ function decodeHtmlEntities(value: string) {
     .replace(/&auml;/gi, "ä")
     .replace(/&Uuml;/gi, "Ü")
     .replace(/&Ouml;/gi, "Ö")
+    .replace(/&oslash;|&Oslash;/gi, "Ø")
     .replace(/&Auml;/gi, "Ä")
     .replace(/&szlig;/gi, "ß")
     .replace(/&#(\d+);/g, (_match, code) => {
@@ -92,20 +93,24 @@ function decodeHtmlEntities(value: string) {
     });
 }
 
+function stripTagsWithBreaks(value: string) {
+  return decodeHtmlEntities(
+    String(value || "")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n")
+      .replace(/<\/div>/gi, "\n")
+      .replace(/<\/tr>/gi, "\n")
+      .replace(/<[^>]+>/g, " "),
+  )
+    .replace(/\r/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n+/g, "\n")
+    .trim();
+}
+
 function stripTags(value: string) {
-  return cleanText(
-    decodeHtmlEntities(
-      String(value || "")
-        .replace(/<br\s*\/?>/gi, "\n")
-        .replace(/<\/p>/gi, "\n")
-        .replace(/<\/div>/gi, "\n")
-        .replace(/<\/tr>/gi, "\n")
-        .replace(/<[^>]+>/g, " "),
-    )
-      .replace(/\s+\n/g, "\n")
-      .replace(/\n\s+/g, "\n")
-      .replace(/\n+/g, "\n"),
-  );
+  return cleanText(stripTagsWithBreaks(value));
 }
 
 function normalizeToken(value: string) {
@@ -372,12 +377,17 @@ function extractMeta(html: string, sourceUrl: string): TournamentMeta {
 
 function parsePlayerCell(html: string, text: string, balls: string): MatchPlayer {
   const anchors = extractAnchorTexts(html);
-  const lines = stripTags(html)
+  const lines = stripTagsWithBreaks(html)
     .split("\n")
     .map((entry) => cleanText(entry))
     .filter(Boolean);
-  const name = anchors[0] || lines[0] || cleanText(text).split("\n")[0] || "";
-  const statsText = lines.slice(name ? 1 : 0).join(" ");
+  const fallbackText = stripTagsWithBreaks(text);
+  const firstLine = lines[0] || fallbackText.split("\n")[0] || "";
+  const inlineNameMatch = firstLine.match(/^(.*?)(?=\s+HS\s*:|\s+Aufn\.?\s*:|\s+Ø\s*:|$)/i);
+  const name = cleanText(anchors[0] || inlineNameMatch?.[1] || firstLine);
+  const statsText = lines
+    .map((line, index) => (index === 0 && name ? cleanText(line.slice(name.length)) : line))
+    .join(" ");
   return {
     name,
     balls,
