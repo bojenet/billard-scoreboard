@@ -358,7 +358,7 @@
             <div class="meta">
                 <div id="fetchedBadge" class="badge">Stand: noch nicht geladen</div>
                 <div id="sourceBadge" class="badge">Quelle: NBV</div>
-                <div id="countBadge" class="badge">0 Einträge</div>
+                <div id="countBadge" class="badge">0 Partien</div>
             </div>
 
             <div id="metaGrid" class="meta-grid">
@@ -478,8 +478,8 @@
             document.getElementById("sourceBadge").innerText = data?.resultsUrl
                 ? `Ergebnisse: ${data.resultsUrl}`
                 : "Quelle: NBV";
-            const count = Array.isArray(data?.results) ? data.results.length : 0;
-            document.getElementById("countBadge").innerText = `${count} Einträge`;
+            const count = Array.isArray(data?.matches) ? data.matches.length : 0;
+            document.getElementById("countBadge").innerText = `${count} Partien`;
 
             const meta = data?.meta || {};
             document.getElementById("metaTitle").innerText = meta.title || "-";
@@ -495,13 +495,22 @@
             return list.map((entry) => `${escapeHtml(entry.label)}: ${escapeHtml(entry.value)}`).join(" · ");
         }
 
+        function buildPlayerCell(player) {
+            if (!player) return "-";
+            return `
+                <div class="player-name">${escapeHtml(player.name || "-")}</div>
+                <div class="club-line">Bälle: ${escapeHtml(player.balls || "-")}</div>
+                <div class="club-line">Aufn.: ${escapeHtml(player.innings || "-")} · HS: ${escapeHtml(player.hs || "-")} · Ø: ${escapeHtml(player.average || "-")}</div>
+            `;
+        }
+
         function renderResults(data) {
             const wrap = document.getElementById("resultsWrap");
-            const rows = Array.isArray(data?.results) ? data.results : [];
+            const rows = Array.isArray(data?.matches) ? data.matches : [];
             if (!wrap) return;
 
             if (!rows.length) {
-                wrap.innerHTML = '<div class="empty-state">Keine Ergebniszeilen gefunden.</div>';
+                wrap.innerHTML = '<div class="empty-state">Keine Begegnungen gefunden.</div>';
                 return;
             }
 
@@ -510,24 +519,24 @@
                     <table>
                         <thead>
                             <tr>
-                                <th class="rank-col">Rang</th>
-                                <th>Name</th>
-                                <th>Verein</th>
-                                <th class="num-col">GD</th>
-                                <th class="num-col">HS</th>
-                                <th class="num-col">Punkte</th>
+                                <th class="rank-col">Gruppe</th>
+                                <th class="rank-col">Partie</th>
+                                <th>Spieler links</th>
+                                <th class="num-col">Ergebnis</th>
+                                <th>Spieler rechts</th>
+                                <th class="num-col">Planzeit</th>
                                 <th>Details</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${rows.map((row) => `
                                 <tr>
-                                    <td class="rank-col">${escapeHtml(row.rank)}</td>
-                                    <td><div class="player-name">${escapeHtml(row.playerName)}</div></td>
-                                    <td><div class="club-line">${escapeHtml(row.club || "-")}</div></td>
-                                    <td class="num-col">${escapeHtml(row.gd || "-")}</td>
-                                    <td class="num-col">${escapeHtml(row.hs || "-")}</td>
-                                    <td class="num-col">${escapeHtml(row.points || "-")}</td>
+                                    <td class="rank-col">${escapeHtml(row.groupLabel || "-")}</td>
+                                    <td class="rank-col">${escapeHtml(row.matchNo || "-")}</td>
+                                    <td>${buildPlayerCell(row.player1)}</td>
+                                    <td class="num-col"><div class="player-name">${escapeHtml(row.score || "-")}</div></td>
+                                    <td>${buildPlayerCell(row.player2)}</td>
+                                    <td class="num-col">${escapeHtml(formatDate(row.scheduledDate))}<br>${escapeHtml(row.scheduledTime || "-")}</td>
                                     <td class="details-cell">${buildDetails(row.details)}</td>
                                 </tr>
                             `).join("")}

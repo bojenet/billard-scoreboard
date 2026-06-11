@@ -11,13 +11,22 @@ type TournamentRequest = {
   forceRefresh?: boolean;
 };
 
-type TournamentResultRow = {
-  rank: string;
-  playerName: string;
-  club: string;
-  gd: string;
+type MatchPlayer = {
+  name: string;
+  balls: string;
+  innings: string;
   hs: string;
-  points: string;
+  average: string;
+};
+
+type TournamentMatchRow = {
+  groupLabel: string;
+  matchNo: string;
+  score: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  player1: MatchPlayer;
+  player2: MatchPlayer;
   details: Array<{ label: string; value: string }>;
 };
 
@@ -37,7 +46,7 @@ type TournamentResponse = {
   cacheAgeSeconds: number;
   meta: TournamentMeta;
   headers: string[];
-  results: TournamentResultRow[];
+  matches: TournamentMatchRow[];
 };
 
 type CachedPayload = {
@@ -178,6 +187,11 @@ function extractAnchorTexts(html: string) {
     if (text) values.push(text);
   }
   return values;
+}
+
+function parseStatValue(text: string, labelPattern: RegExp) {
+  const match = cleanText(text).match(labelPattern);
+  return cleanText(match?.[1] || "");
 }
 
 function extractTableHtmlBlocks(html: string) {
@@ -356,135 +370,114 @@ function extractMeta(html: string, sourceUrl: string): TournamentMeta {
   };
 }
 
-function extractPlayerAndClub(row: TableRowDetail, combinedNameIndex: number, clubIndex: number) {
-  const directName = combinedNameIndex >= 0 ? cleanText(row.cellsText[combinedNameIndex]) : "";
-  const directClub = clubIndex >= 0 ? cleanText(row.cellsText[clubIndex]) : "";
-  if (directName && directClub) {
-    return { playerName: directName, club: directClub };
-  }
-
-  for (let index = row.cellsHtml.length - 1; index >= 0; index -= 1) {
-    const html = row.cellsHtml[index] || "";
-    const text = row.cellsText[index] || "";
-    const anchors = extractAnchorTexts(html);
-    if (!anchors.length && !/[a-zA-ZÄÖÜäöüß]/.test(text)) continue;
-
-    let playerName = anchors[0] || "";
-    let club = "";
-
-    if (anchors[0]) {
-      const parts = stripTags(html)
-        .split("\n")
-        .map((entry) => cleanText(entry))
-        .filter(Boolean);
-      const remaining = parts.filter((entry) => entry !== anchors[0]);
-      club = remaining[0] || "";
-    } else {
-      const parts = text
-        .split("\n")
-        .map((entry) => cleanText(entry))
-        .filter(Boolean);
-      playerName = parts[0] || "";
-      club = parts[1] || "";
-    }
-
-    if (playerName && !/^\d+$/.test(playerName)) {
-      return {
-        playerName: directName || playerName,
-        club: directClub || club,
-      };
-    }
-  }
-
+function parsePlayerCell(html: string, text: string, balls: string): MatchPlayer {
+  const anchors = extractAnchorTexts(html);
+  const lines = stripTags(html)
+    .split("\n")
+    .map((entry) => cleanText(entry))
+    .filter(Boolean);
+  const name = anchors[0] || lines[0] || cleanText(text).split("\n")[0] || "";
+  const statsText = lines.slice(name ? 1 : 0).join(" ");
   return {
-    playerName: directName,
-    club: directClub,
+    name,
+    balls,
+    innings: parseStatValue(statsText, /Aufn\.?\s*:\s*([0-9.,]+)/i),
+    hs: parseStatValue(statsText, /HS\s*:\s*([0-9.,]+)/i),
+    average: parseStatValue(statsText, /Ø\s*:\s*([0-9.,]+)/i),
   };
 }
 
-function scoreResultTable(headers: string[], rows: TableRowDetail[]) {
-  if (!rows.length) return -1;
-  const headerScore =
-    (findHeaderIndex(headers, (normalized) => normalized === "rang" || normalized === "platz") >= 0 ? 5 : 0) +
-    (findHeaderIndex(headers, (normalized) => normalized === "name" || normalized === "spieler" || normalized.includes("name")) >= 0 ? 5 : 0) +
-    (findHeaderIndex(headers, (normalized) => normalized.includes("verein") || normalized.includes("club")) >= 0 ? 3 : 0) +
-    (findHeaderIndex(headers, (normalized) => normalized === "gd") >= 0 ? 1 : 0) +
-    (findHeaderIndex(headers, (normalized) => normalized === "hs") >= 0 ? 1 : 0);
-  const rankLikeRows = rows.filter((row) => /^\d+$/.test(cleanText(row.cellsText[0] || ""))).length;
-  return headerScore + rankLikeRows;
+function findNearestFilledIndex(values: string[], startIndex: number, direction: -1 | 1, stopIndex?: number) {
+  let index = startIndex + direction;
+  while (index >= 0 && index < values.length) {
+    if (stopIndex !== undefined && ((direction > 0 && index >= stopIndex) || (direction < 0 && index <= stopIndex))) {
+      break;
+    }
+    if (cleanText(values[index])) return index;
+    index += direction;
+  }
+  return -1;
 }
 
-function parseResultsTable(html: string) {
+function parseScheduledCell(text: string) {
+  const dateMatch = cleanText(text).match(/(\d{2}\.\d{2}\.\d{4})/);
+  const timeMatch = cleanText(text).match(/(\d{2}:\d{2})/);
+  return {
+    scheduledDate: parseGermanDateToIso(dateMatch?.[1] || ""),
+    scheduledTime: cleanText(timeMatch?.[1] || ""),
+  };
+}
+
+function parseMatchTables(html: string) {
   const tables = extractTableHtmlBlocks(html);
-  let best:
-    | {
-        headers: string[];
-        rows: TournamentResultRow[];
-      }
-    | null = null;
-  let bestScore = -1;
+  const matches: TournamentMatchRow[] = [];
+  let bestHeaders: string[] = [];
 
   for (const table of tables) {
     const grid = buildTableGrid(table);
     const rowDetails = extractTableRowDetails(table);
-    const dataStartIndex = findDataStartIndex(grid);
-    if (dataStartIndex < 0) continue;
+    const headerIndex = grid.findIndex((row) => row.some((cell) => normalizeToken(cell) === "partie") && row.some((cell) => normalizeToken(cell).includes("begegnung")));
+    if (headerIndex < 0) continue;
 
-    const headers = deriveColumnLabels(grid, dataStartIndex);
-    const dataRows = rowDetails.slice(dataStartIndex);
-    const score = scoreResultTable(headers, dataRows);
-    if (score < bestScore) continue;
+    const headers = deriveColumnLabels(grid, headerIndex + 1);
+    if (!bestHeaders.length) {
+      bestHeaders = headers.filter(Boolean);
+    }
 
-    const rankIndex = findHeaderIndex(headers, (normalized) => normalized === "rang" || normalized === "platz") >= 0
-      ? findHeaderIndex(headers, (normalized) => normalized === "rang" || normalized === "platz")
-      : 0;
-    const combinedNameIndex = findHeaderIndex(headers, (normalized) => normalized === "name" || normalized === "spieler" || normalized.includes("name"));
-    const clubIndex = findHeaderIndex(headers, (normalized) => normalized.includes("verein") || normalized.includes("club"));
-    const gdIndex = findHeaderIndex(headers, (normalized) => normalized === "gd" || normalized.startsWith("gd"));
-    const hsIndex = findHeaderIndex(headers, (normalized) => normalized === "hs" || normalized.includes("hochserie") || normalized.includes("hoechstserie"));
-    const pointsIndex = findHeaderIndex(headers, (normalized) => normalized === "punkte" || normalized === "pkt" || normalized === "matchpunkte");
+    let currentGroupLabel = "";
+    for (let index = headerIndex + 1; index < rowDetails.length; index += 1) {
+      const row = rowDetails[index];
+      const values = row.cellsText.map((value) => cleanText(value));
+      const filledValues = values.filter(Boolean);
+      if (!filledValues.length) continue;
 
-    const parsedRows = dataRows
-      .map((row) => {
-        const rank = cleanText(row.cellsText[rankIndex] || row.cellsText[0]);
-        if (!/^\d+$/.test(rank)) return null;
+      if (filledValues.length <= 2 && /gruppe/i.test(filledValues.join(" "))) {
+        currentGroupLabel = filledValues.join(" ");
+        continue;
+      }
 
-        const person = extractPlayerAndClub(row, combinedNameIndex, clubIndex);
-        if (!person.playerName) return null;
+      const scoreIndex = values.findIndex((value) => /^\d+\s*:\s*\d+$/.test(value));
+      const matchNoIndex = values.findIndex((value) => /^\d+$/.test(value));
+      if (scoreIndex < 0 || matchNoIndex < 0) continue;
 
-        const details = headers
-          .map((header, index) => ({
-            label: cleanText(header) || `Spalte ${index + 1}`,
-            value: cleanText(row.cellsText[index]),
-          }))
-          .filter((entry) => entry.value);
+      const scheduleIndex = values.findIndex((value) => /\d{2}\.\d{2}\.\d{4}/.test(value));
+      const leftIndex = findNearestFilledIndex(values, scoreIndex, -1, matchNoIndex);
+      const rightIndex = scheduleIndex > scoreIndex
+        ? findNearestFilledIndex(values, scoreIndex, 1, scheduleIndex)
+        : findNearestFilledIndex(values, scoreIndex, 1);
+      if (leftIndex < 0 || rightIndex < 0) continue;
 
-        return {
-          rank,
-          playerName: person.playerName,
-          club: person.club,
-          gd: cleanText(row.cellsText[gdIndex]),
-          hs: cleanText(row.cellsText[hsIndex]),
-          points: cleanText(row.cellsText[pointsIndex]),
-          details,
-        } satisfies TournamentResultRow;
-      })
-      .filter((row): row is TournamentResultRow => Boolean(row));
+      const score = values[scoreIndex];
+      const scoreParts = score.split(":").map((part) => cleanText(part));
+      const player1 = parsePlayerCell(row.cellsHtml[leftIndex] || "", values[leftIndex] || "", scoreParts[0] || "");
+      const player2 = parsePlayerCell(row.cellsHtml[rightIndex] || "", values[rightIndex] || "", scoreParts[1] || "");
+      if (!player1.name || !player2.name) continue;
 
-    if (parsedRows.length > 0) {
-      best = {
-        headers,
-        rows: parsedRows,
-      };
-      bestScore = score;
+      const schedule = parseScheduledCell(scheduleIndex >= 0 ? values[scheduleIndex] : "");
+      matches.push({
+        groupLabel: currentGroupLabel,
+        matchNo: values[matchNoIndex],
+        score,
+        scheduledDate: schedule.scheduledDate,
+        scheduledTime: schedule.scheduledTime,
+        player1,
+        player2,
+        details: [
+          { label: "Tabelle", value: currentGroupLabel || "Ergebnisse" },
+          { label: "Partie", value: values[matchNoIndex] },
+        ].filter((entry) => entry.value),
+      });
     }
   }
 
-  if (!best) {
-    throw new Error("Keine auswertbare Ergebnistabelle gefunden.");
+  if (!matches.length) {
+    throw new Error("Keine auswertbaren Begegnungen im Tab Ergebnisse gefunden.");
   }
 
-  return best;
+  return {
+    headers: bestHeaders,
+    matches,
+  };
 }
 
 async function loadTournamentResults(sourceUrl: string) {
@@ -494,13 +487,13 @@ async function loadTournamentResults(sourceUrl: string) {
     ? await fetchHtmlWithRetry(resultsTabUrl)
     : mainPage;
 
-  const parsed = parseResultsTable(resultsPage.html);
+  const parsed = parseMatchTables(resultsPage.html);
   return {
     sourceUrl: mainPage.url,
     resultsUrl: resultsPage.url,
     meta: extractMeta(mainPage.html, mainPage.url),
     headers: parsed.headers,
-    results: parsed.rows,
+    matches: parsed.matches,
   };
 }
 
@@ -562,7 +555,7 @@ Deno.serve(async (request) => {
       cacheAgeSeconds: 0,
       meta: result.meta,
       headers: result.headers,
-      results: result.results,
+      matches: result.matches,
     };
 
     responseCache.set(cacheKey, {
