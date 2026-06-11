@@ -57,6 +57,14 @@
             margin-bottom: 14px;
         }
 
+        .season-toolbar {
+            display: grid;
+            grid-template-columns: 180px minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 14px;
+        }
+
         .field {
             display: grid;
             gap: 6px;
@@ -69,6 +77,17 @@
         }
 
         input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #bcc6d2;
+            border-radius: 4px;
+            padding: 11px 12px;
+            font-size: 14px;
+            background: #fff;
+            color: #10131c;
+        }
+
+        select {
             width: 100%;
             box-sizing: border-box;
             border: 1px solid #bcc6d2;
@@ -218,6 +237,12 @@
             overflow: hidden;
         }
 
+        .status-line {
+            margin: 4px 0 14px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
         .ranking-head {
             padding: 10px 12px;
             background: #eef3f8;
@@ -295,12 +320,41 @@
             .toolbar {
                 grid-template-columns: 1fr;
             }
+
+            .season-toolbar {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="page">
         <div class="panel">
+            <div class="season-toolbar">
+                <div class="field">
+                    <label for="seasonInput">Saison</label>
+                    <input id="seasonInput" type="text" value="2025/2026" placeholder="2025/2026">
+                </div>
+                <div class="field">
+                    <label for="disciplineSelect">Disziplin</label>
+                    <select id="disciplineSelect">
+                        <option value="1">Billard Kegeln</option>
+                        <option value="12">Biathlon</option>
+                        <option value="9">Cadre 35/2</option>
+                        <option value="10">Cadre 47/2</option>
+                        <option value="11" selected>Cadre 52/2</option>
+                        <option value="13">Cadre 71/2</option>
+                        <option value="5">Dreiband (großes Billard)</option>
+                        <option value="6">Dreiband (kleines Billard)</option>
+                        <option value="3">Einband (großes Billard)</option>
+                        <option value="4">Einband (kleines Billard)</option>
+                        <option value="2">Eurokegel</option>
+                        <option value="7">Freie Partie (großes Billard)</option>
+                        <option value="8">Freie Partie (kleines Billard)</option>
+                    </select>
+                </div>
+                <button class="btn" type="button" onclick="loadSeasonRanking()">Saison laden</button>
+            </div>
             <div class="toolbar">
                 <div class="field">
                     <label for="sourceUrlInput1">NBV Turnier-URL 1</label>
@@ -322,6 +376,7 @@
                 </div>
                 <button class="btn" type="button" onclick="loadTournaments(true)">Laden</button>
             </div>
+            <div id="statusLine" class="status-line"></div>
             <div id="resultsWrap">
                 <div class="empty-state">Noch kein Turnier geladen.</div>
             </div>
@@ -333,6 +388,22 @@
     <script src="js/auth.js"></script>
     <script src="js/user_menu.js"></script>
     <script>
+        const NBV_DISCIPLINES = {
+            "1": "Billard Kegeln",
+            "12": "Biathlon",
+            "9": "Cadre 35/2",
+            "10": "Cadre 47/2",
+            "11": "Cadre 52/2",
+            "13": "Cadre 71/2",
+            "5": "Dreiband (großes Billard)",
+            "6": "Dreiband (kleines Billard)",
+            "3": "Einband (großes Billard)",
+            "4": "Einband (kleines Billard)",
+            "2": "Eurokegel",
+            "7": "Freie Partie (großes Billard)",
+            "8": "Freie Partie (kleines Billard)",
+        };
+
         function escapeHtml(value) {
             return String(value || "")
                 .replace(/&/g, "&amp;")
@@ -375,6 +446,12 @@
                 }
             }
             return String(error.message || "Unbekannter Fehler");
+        }
+
+        function setStatus(text) {
+            const el = document.getElementById("statusLine");
+            if (!el) return;
+            el.textContent = text || "";
         }
 
         function buildDetails(details) {
@@ -862,6 +939,64 @@
             }
         }
 
+        async function loadSeasonRanking() {
+            const season = String(document.getElementById("seasonInput")?.value || "").trim();
+            const disciplineId = String(document.getElementById("disciplineSelect")?.value || "").trim();
+            const disciplineLabel = NBV_DISCIPLINES[disciplineId] || "Disziplin";
+            if (!season || !disciplineId) return;
+
+            try {
+                setStatus(`Lade Turnierliste für ${disciplineLabel}, Saison ${season}...`);
+                const { data, error } = await supabaseClient.functions.invoke("get-nbv-calendar", {
+                    body: {
+                        season,
+                        disciplineId,
+                        disciplineLabel,
+                    },
+                });
+                if (error) throw error;
+
+                const todayIso = new Date().toISOString().slice(0, 10);
+                const events = Array.isArray(data?.events) ? data.events : [];
+                const candidateEvents = events.filter((event) => String(event?.date || "") <= todayIso);
+
+                if (!candidateEvents.length) {
+                    document.getElementById("resultsWrap").innerHTML = '<div class="empty-state">Keine auswertbaren Turniere für diese Saison/Disziplin gefunden.</div>';
+                    setStatus("");
+                    return;
+                }
+
+                const tournaments = [];
+                const failed = [];
+
+                for (let index = 0; index < candidateEvents.length; index += 1) {
+                    const event = candidateEvents[index];
+                    setStatus(`Lade Turnier ${index + 1} von ${candidateEvents.length}: ${event.title || event.link}`);
+                    try {
+                        const tournament = await loadSingleTournament(String(event.link || "").trim(), false);
+                        if (tournament) tournaments.push(tournament);
+                    } catch (error) {
+                        failed.push(`${event.title || event.link}: ${error instanceof Error ? error.message : String(error)}`);
+                    }
+                }
+
+                if (!tournaments.length) {
+                    document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Keine Turniere konnten geladen werden.<br>${escapeHtml(failed[0] || "Unbekannter Fehler")}</div>`;
+                    setStatus("");
+                    return;
+                }
+
+                renderResults(tournaments);
+                setStatus(failed.length
+                    ? `${tournaments.length} Turniere geladen, ${failed.length} übersprungen.`
+                    : `${tournaments.length} Turniere geladen.`);
+            } catch (error) {
+                const message = await getFunctionErrorMessage(error);
+                document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Die Saison konnte nicht geladen werden.<br>${escapeHtml(message)}</div>`;
+                setStatus("");
+            }
+        }
+
         async function loadTournaments(forceRefresh = false) {
             const url1 = String(document.getElementById("sourceUrlInput1")?.value || "").trim();
             const url2 = String(document.getElementById("sourceUrlInput2")?.value || "").trim();
@@ -869,15 +1004,18 @@
             if (!urls.length) return;
 
             try {
+                setStatus("Lade ausgewählte Turniere...");
                 const results = [];
                 for (const url of urls) {
                     const data = await loadSingleTournament(url, forceRefresh);
                     if (data) results.push(data);
                 }
                 renderResults(results);
+                setStatus(`${results.length} Turniere geladen.`);
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error);
                 document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Der Turnierabruf ist aktuell nicht verfügbar.<br>${escapeHtml(message)}</div>`;
+                setStatus("");
             }
         }
 
