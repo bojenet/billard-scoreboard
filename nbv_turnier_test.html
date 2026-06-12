@@ -359,6 +359,12 @@
             background: #eef3f8;
         }
 
+        .mini-link.best-gd {
+            background: #dff4e7;
+            border-color: #7ac29a;
+            color: #157347;
+        }
+
         .empty-state {
             border: 1px dashed #c5cfda;
             border-radius: 6px;
@@ -874,6 +880,7 @@
                 const tournamentPlayerMap = new Map();
                 const tournamentTitle = String(tournament?.meta?.title || `Turnier ${tournamentIndex + 1}`).trim();
                 const tournamentUrl = String(tournament?.sourceUrl || "").trim();
+                const tournamentShortCode = String(tournament?.meta?.shortCode || "").trim() || `T${tournamentIndex + 1}`;
 
                 rows.forEach((match) => {
                     [match.player1, match.player2].forEach((player) => {
@@ -895,25 +902,25 @@
                 Array.from(tournamentPlayerMap.values()).forEach((entry) => {
                     const seasonEntry = playerMap.get(entry.name) || {
                         name: entry.name,
-                        tournaments: 0,
                         totalBalls: 0,
                         totalInnings: 0,
                         bestTournamentAverage: 0,
                         bestHs: 0,
                         links: [],
                     };
-                    seasonEntry.tournaments += 1;
+                    const tournamentAverage = entry.innings > 0 ? entry.balls / entry.innings : 0;
                     seasonEntry.totalBalls += entry.balls;
                     seasonEntry.totalInnings += entry.innings;
                     seasonEntry.bestTournamentAverage = Math.max(
                         seasonEntry.bestTournamentAverage,
-                        entry.innings > 0 ? entry.balls / entry.innings : 0,
+                        tournamentAverage,
                     );
                     seasonEntry.bestHs = Math.max(seasonEntry.bestHs, entry.hs);
                     seasonEntry.links.push({
-                        label: `T${tournamentIndex + 1}`,
+                        label: tournamentShortCode,
                         title: tournamentTitle,
                         url: tournamentUrl,
+                        average: tournamentAverage,
                     });
                     playerMap.set(entry.name, seasonEntry);
                 });
@@ -923,6 +930,10 @@
                 .map((entry) => ({
                     ...entry,
                     totalAverage: entry.totalInnings > 0 ? entry.totalBalls / entry.totalInnings : 0,
+                    links: entry.links.map((link) => ({
+                        ...link,
+                        isBestAverage: Math.abs((link.average || 0) - entry.bestTournamentAverage) < 0.000001,
+                    })),
                 }))
                 .sort((left, right) => {
                     if (right.totalAverage !== left.totalAverage) return right.totalAverage - left.totalAverage;
@@ -959,8 +970,8 @@
                                         <td class="ranking-links">
                                             <div class="mini-links">
                                                 ${row.links.map((link) => link.url
-                                                    ? `<a class="mini-link" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(link.title)}">${escapeHtml(link.label)}</a>`
-                                                    : `<span class="mini-link" title="${escapeHtml(link.title)}">${escapeHtml(link.label)}</span>`
+                                                    ? `<a class="mini-link${link.isBestAverage ? " best-gd" : ""}" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(`${link.title} · Turnierschnitt ${formatAverage(link.average || 0)}`)}">${escapeHtml(link.label)}</a>`
+                                                    : `<span class="mini-link${link.isBestAverage ? " best-gd" : ""}" title="${escapeHtml(`${link.title} · Turnierschnitt ${formatAverage(link.average || 0)}`)}">${escapeHtml(link.label)}</span>`
                                                 ).join("")}
                                             </div>
                                         </td>
