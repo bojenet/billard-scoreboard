@@ -328,6 +328,37 @@
             font-variant-numeric: tabular-nums;
         }
 
+        .ranking-links {
+            width: 160px;
+        }
+
+        .mini-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .mini-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 26px;
+            height: 24px;
+            padding: 0 7px;
+            border: 1px solid #c7d2de;
+            border-radius: 999px;
+            background: #f8fafc;
+            color: var(--blue-deep);
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            text-decoration: none;
+        }
+
+        .mini-link:hover {
+            background: #eef3f8;
+        }
+
         .empty-state {
             border: 1px dashed #c5cfda;
             border-radius: 6px;
@@ -838,9 +869,11 @@
         function buildSeasonRanking(tournaments) {
             const playerMap = new Map();
 
-            tournaments.forEach((tournament) => {
+            tournaments.forEach((tournament, tournamentIndex) => {
                 const rows = Array.isArray(tournament?.matches) ? tournament.matches : [];
                 const tournamentPlayerMap = new Map();
+                const tournamentTitle = String(tournament?.meta?.title || `Turnier ${tournamentIndex + 1}`).trim();
+                const tournamentUrl = String(tournament?.sourceUrl || "").trim();
 
                 rows.forEach((match) => {
                     [match.player1, match.player2].forEach((player) => {
@@ -867,6 +900,7 @@
                         totalInnings: 0,
                         bestTournamentAverage: 0,
                         bestHs: 0,
+                        links: [],
                     };
                     seasonEntry.tournaments += 1;
                     seasonEntry.totalBalls += entry.balls;
@@ -876,6 +910,11 @@
                         entry.innings > 0 ? entry.balls / entry.innings : 0,
                     );
                     seasonEntry.bestHs = Math.max(seasonEntry.bestHs, entry.hs);
+                    seasonEntry.links.push({
+                        label: `T${tournamentIndex + 1}`,
+                        title: tournamentTitle,
+                        url: tournamentUrl,
+                    });
                     playerMap.set(entry.name, seasonEntry);
                 });
             });
@@ -904,7 +943,7 @@
                                 <tr>
                                     <th class="ranking-rank">Rang</th>
                                     <th>Spieler</th>
-                                    <th class="ranking-num">Turniere</th>
+                                    <th class="ranking-links">Turniere</th>
                                     <th class="ranking-num">Bälle</th>
                                     <th class="ranking-num">Aufn.</th>
                                     <th class="ranking-num">Gesamtschnitt</th>
@@ -917,7 +956,14 @@
                                     <tr>
                                         <td class="ranking-rank">${escapeHtml(index + 1)}</td>
                                         <td class="ranking-name">${escapeHtml(row.name)}</td>
-                                        <td class="ranking-num">${escapeHtml(row.tournaments)}</td>
+                                        <td class="ranking-links">
+                                            <div class="mini-links">
+                                                ${row.links.map((link) => link.url
+                                                    ? `<a class="mini-link" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(link.title)}">${escapeHtml(link.label)}</a>`
+                                                    : `<span class="mini-link" title="${escapeHtml(link.title)}">${escapeHtml(link.label)}</span>`
+                                                ).join("")}
+                                            </div>
+                                        </td>
                                         <td class="ranking-num">${escapeHtml(row.totalBalls)}</td>
                                         <td class="ranking-num">${escapeHtml(row.totalInnings)}</td>
                                         <td class="ranking-num">${escapeHtml(formatAverage(row.totalAverage))}</td>
@@ -960,6 +1006,25 @@
 
             wrap.innerHTML = `
                 ${validTournaments.map((tournament) => buildTournamentSection(tournament)).join("")}
+                ${buildSeasonRanking(validTournaments)}
+                ${buildFailedBlock(failed)}
+            `;
+        }
+
+        function renderSeasonResults(tournaments, failed = []) {
+            const wrap = document.getElementById("resultsWrap");
+            if (!wrap) return;
+
+            const validTournaments = Array.isArray(tournaments)
+                ? tournaments.filter((entry) => Array.isArray(entry?.matches) && entry.matches.length)
+                : [];
+
+            if (!validTournaments.length) {
+                wrap.innerHTML = '<div class="empty-state">Keine Begegnungen gefunden.</div>';
+                return;
+            }
+
+            wrap.innerHTML = `
                 ${buildSeasonRanking(validTournaments)}
                 ${buildFailedBlock(failed)}
             `;
@@ -1029,7 +1094,7 @@
                     return;
                 }
 
-                renderResults(tournaments, failed);
+                renderSeasonResults(tournaments, failed);
                 setStatus(failed.length
                     ? `${tournaments.length} Turniere geladen, ${failed.length} übersprungen.`
                     : `${tournaments.length} Turniere geladen.`);
