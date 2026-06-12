@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -59,6 +61,16 @@ type CachedPayload = {
   payload: TournamentResponse;
 };
 
+type TournamentCacheRow = {
+  source_url: string;
+  payload: TournamentResponse;
+  content_hash: string;
+  event_date: string | null;
+  fetched_at: string;
+  last_checked_at: string;
+  last_changed_at: string;
+};
+
 type HtmlResult = {
   html: string;
   url: string;
@@ -70,6 +82,8 @@ type TableRowDetail = {
 };
 
 const responseCache = new Map<string, CachedPayload>();
+
+let adminClient: ReturnType<typeof createClient> | null = null;
 
 function cleanText(value: string | null | undefined) {
   return String(value || "")
@@ -130,6 +144,99 @@ function normalizeToken(value: string) {
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getAdminClient() {
+  if (adminClient) return adminClient;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Supabase Service Role ist nicht konfiguriert.");
+  }
+
+  adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return adminClient;
+}
+
+function parseIsoDate(value: string) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getRefreshIntervalMs(eventDate: string | null | undefined) {
+  const parsedEventDate = parseIsoDate(eventDate || "");
+  if (!parsedEventDate) return 12 * 60 * 60 * 1000;
+
+  const today = new Date();
+  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const eventUtc = Date.UTC(parsedEventDate.getUTCFullYear(), parsedEventDate.getUTCMonth(), parsedEventDate.getUTCDate());
+  const dayDiff = Math.floor((eventUtc - todayUtc) / (24 * 60 * 60 * 1000));
+
+  if (dayDiff >= 0) return 6 * 60 * 60 * 1000;
+  if (dayDiff >= -30) return 24 * 60 * 60 * 1000;
+  if (dayDiff >= -180) return 7 * 24 * 60 * 60 * 1000;
+  return 30 * 24 * 60 * 60 * 1000;
+}
+
+async function hashTournamentPayload(payload: TournamentResponse) {
+  const text = JSON.stringify({
+    sourceUrl: payload.sourceUrl,
+    resultsUrl: payload.resultsUrl,
+    meta: payload.meta,
+    headers: payload.headers,
+    matches: payload.matches,
+  });
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function getEventDateFromPayload(payload: TournamentResponse) {
+  return cleanText(payload?.meta?.date || "") || null;
+}
+
+async function loadPersistentCache(sourceUrl: string) {
+  const admin = getAdminClient();
+  const { data, error } = await admin
+    .from("nbv_tournament_cache")
+    .select("source_url, payload, content_hash, event_date, fetched_at, last_checked_at, last_changed_at")
+    .eq("source_url", sourceUrl)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Turnier-Cache konnte nicht gelesen werden: ${error.message}`);
+  }
+
+  return (data as TournamentCacheRow | null) || null;
+}
+
+async function storePersistentCache(row: TournamentCacheRow) {
+  const admin = getAdminClient();
+  const { error } = await admin
+    .from("nbv_tournament_cache")
+    .upsert([row], { onConflict: "source_url" });
+
+  if (error) {
+    throw new Error(`Turnier-Cache konnte nicht gespeichert werden: ${error.message}`);
+  }
+}
+
+async function touchPersistentCache(sourceUrl: string, checkedAtIso: string) {
+  const admin = getAdminClient();
+  const { error } = await admin
+    .from("nbv_tournament_cache")
+    .update({ last_checked_at: checkedAtIso })
+    .eq("source_url", sourceUrl);
+
+  if (error) {
+    throw new Error(`Turnier-Cache konnte nicht aktualisiert werden: ${error.message}`);
+  }
 }
 
 function isRetryableFetchError(error: unknown) {
@@ -607,12 +714,14 @@ Deno.serve(async (request) => {
 
     const cacheKey = sourceUrl;
     const now = Date.now();
-    const cached = responseCache.get(cacheKey);
+    const nowIso = new Date(now).toISOString();
+    const memoryCached = responseCache.get(cacheKey);
 
-    if (!forceRefresh && cached && now - cached.createdAt < CACHE_TTL_MS) {
+    if (!forceRefresh && memoryCached && now - memoryCached.createdAt < CACHE_TTL_MS) {
       return new Response(JSON.stringify({
-        ...cached.payload,
-        cacheAgeSeconds: Math.max(0, Math.floor((now - cached.createdAt) / 1000)),
+        ...memoryCached.payload,
+        cacheAgeSeconds: Math.max(0, Math.floor((now - memoryCached.createdAt) / 1000)),
+        cacheSource: "memory",
       }), {
         status: 200,
         headers: {
@@ -623,30 +732,141 @@ Deno.serve(async (request) => {
       });
     }
 
-    const result = await loadTournamentResults(sourceUrl);
-    const payload: TournamentResponse = {
-      sourceUrl: result.sourceUrl,
-      resultsUrl: result.resultsUrl,
-      fetchedAt: new Date(now).toISOString(),
-      cacheAgeSeconds: 0,
-      meta: result.meta,
-      headers: result.headers,
-      matches: result.matches,
-    };
+    let persistentCache: TournamentCacheRow | null = null;
+    try {
+      persistentCache = await loadPersistentCache(sourceUrl);
+    } catch (error) {
+      console.warn("Persistent tournament cache read failed", error);
+    }
 
-    responseCache.set(cacheKey, {
-      createdAt: now,
-      payload,
-    });
+    if (!forceRefresh && persistentCache) {
+      const lastCheckedAt = parseIsoDate(persistentCache.last_checked_at)?.getTime() || 0;
+      const refreshIntervalMs = getRefreshIntervalMs(persistentCache.event_date || persistentCache.payload?.meta?.date);
+      if (now - lastCheckedAt < refreshIntervalMs) {
+        responseCache.set(cacheKey, {
+          createdAt: now,
+          payload: persistentCache.payload,
+        });
 
-    return new Response(JSON.stringify(payload), {
-      status: 200,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=120",
-      },
-    });
+        return new Response(JSON.stringify({
+          ...persistentCache.payload,
+          cacheAgeSeconds: Math.max(0, Math.floor((now - lastCheckedAt) / 1000)),
+          cacheSource: "database",
+        }), {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=120",
+          },
+        });
+      }
+    }
+
+    try {
+      const result = await loadTournamentResults(sourceUrl);
+      const payload: TournamentResponse = {
+        sourceUrl: result.sourceUrl,
+        resultsUrl: result.resultsUrl,
+        fetchedAt: nowIso,
+        cacheAgeSeconds: 0,
+        meta: result.meta,
+        headers: result.headers,
+        matches: result.matches,
+      };
+      const contentHash = await hashTournamentPayload(payload);
+
+      if (persistentCache && persistentCache.content_hash === contentHash) {
+        try {
+          await touchPersistentCache(sourceUrl, nowIso);
+        } catch (error) {
+          console.warn("Persistent tournament cache touch failed", error);
+        }
+
+        responseCache.set(cacheKey, {
+          createdAt: now,
+          payload: persistentCache.payload,
+        });
+
+        return new Response(JSON.stringify({
+          ...persistentCache.payload,
+          cacheAgeSeconds: Math.max(
+            0,
+            Math.floor((now - (parseIsoDate(persistentCache.fetched_at)?.getTime() || now)) / 1000),
+          ),
+          cacheSource: "database-unchanged",
+        }), {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=120",
+          },
+        });
+      }
+
+      const row: TournamentCacheRow = {
+        source_url: sourceUrl,
+        payload,
+        content_hash: contentHash,
+        event_date: getEventDateFromPayload(payload),
+        fetched_at: nowIso,
+        last_checked_at: nowIso,
+        last_changed_at: persistentCache?.content_hash === contentHash
+          ? persistentCache.last_changed_at
+          : nowIso,
+      };
+
+      try {
+        await storePersistentCache(row);
+      } catch (error) {
+        console.warn("Persistent tournament cache write failed", error);
+      }
+
+      responseCache.set(cacheKey, {
+        createdAt: now,
+        payload,
+      });
+
+      return new Response(JSON.stringify({
+        ...payload,
+        cacheSource: persistentCache ? "database-updated" : "live",
+      }), {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=120",
+        },
+      });
+    } catch (liveError) {
+      if (persistentCache) {
+        responseCache.set(cacheKey, {
+          createdAt: now,
+          payload: persistentCache.payload,
+        });
+
+        return new Response(JSON.stringify({
+          ...persistentCache.payload,
+          cacheAgeSeconds: Math.max(
+            0,
+            Math.floor((now - (parseIsoDate(persistentCache.fetched_at)?.getTime() || now)) / 1000),
+          ),
+          cacheSource: "database-stale-fallback",
+          staleFallback: true,
+          staleReason: liveError instanceof Error ? liveError.message : String(liveError),
+        }), {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=120",
+          },
+        });
+      }
+
+      throw liveError;
+    }
   } catch (error) {
     console.error("get-nbv-tournament-results failed", {
       message: error instanceof Error ? error.message : String(error),
