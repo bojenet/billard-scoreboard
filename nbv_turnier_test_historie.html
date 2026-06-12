@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>NBV Turnier-Test</title>
+    <style>
+        :root {
+            --bg: #f2efe7;
+            --panel: #ffffff;
+            --line: #cfd5dc;
+            --text: #19202a;
+            --muted: #647083;
+            --head: #122033;
+            --blue: #2d5880;
+            --blue-deep: #214564;
+            --soft: #f8f8f4;
+            --ok: #157347;
+            --error: #b42318;
+        }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            visibility: hidden;
+        }
+
+        body.page-ready {
+            visibility: visible;
+        }
+
+        .page {
+            width: min(1600px, 98%);
+            margin: 0 auto;
+            padding: 16px 0 32px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+            padding: 12px;
+        }
+
+        .toolbar {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 14px;
+        }
+
+        .season-toolbar {
+            display: grid;
+            grid-template-columns: 180px minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 14px;
+        }
+
+        .field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .field label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #475467;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #bcc6d2;
+            border-radius: 4px;
+            padding: 11px 12px;
+            font-size: 14px;
+            background: #fff;
+            color: #10131c;
+        }
+
+        select {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #bcc6d2;
+            border-radius: 4px;
+            padding: 11px 12px;
+            font-size: 14px;
+            background: #fff;
+            color: #10131c;
+        }
+
+        .btn {
+            min-height: 44px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 0 16px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            background: var(--blue);
+            border-color: var(--blue-deep);
+            color: #fff;
+        }
+
+        .matches-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .tournament-meta {
+            display: grid;
+            gap: 6px;
+            margin-bottom: 14px;
+            padding: 2px 2px 6px;
+        }
+
+        .tournament-meta-row {
+            display: grid;
+            grid-template-columns: 90px 1fr;
+            gap: 10px;
+            align-items: start;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .tournament-meta-label {
+            font-weight: 700;
+            color: var(--muted);
+        }
+
+        .tournament-meta-value {
+            color: var(--text);
+        }
+
+        .match-card {
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        .match-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: #eef3f8;
+            border-bottom: 1px solid #d8dee6;
+        }
+
+        .match-card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--head);
+        }
+
+        .match-card-sub {
+            font-size: 12px;
+            color: var(--muted);
+            text-align: right;
+        }
+
+        .match-table-wrap {
+            overflow-x: auto;
+        }
+
+        .match-table {
+            width: 100%;
+            min-width: 520px;
+            border-collapse: collapse;
+        }
+
+        .match-table th,
+        .match-table td {
+            padding: 7px 10px;
+            border-bottom: 1px solid #d8dee6;
+            text-align: left;
+            vertical-align: middle;
+            font-size: 14px;
+        }
+
+        .match-table th {
+            background: #f8fafc;
+            color: #344256;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .match-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .match-player-cell {
+            font-weight: 700;
+            color: var(--head);
+            min-width: 210px;
+        }
+
+        .match-num-cell {
+            width: 80px;
+            white-space: nowrap;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .details-line {
+            padding: 9px 12px 11px;
+            border-top: 1px solid #e7ebf0;
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .ranking-block {
+            margin-top: 18px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        .season-block {
+            margin-top: 18px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        .warning-block {
+            margin-top: 18px;
+            border: 1px solid #f0c36d;
+            border-radius: 6px;
+            background: #fff9ef;
+            overflow: hidden;
+        }
+
+        .warning-head {
+            padding: 10px 12px;
+            background: #fff1d6;
+            border-bottom: 1px solid #f0d39a;
+            font-size: 15px;
+            font-weight: 700;
+            color: #7a4b00;
+        }
+
+        .warning-list {
+            margin: 0;
+            padding: 12px 18px 14px 32px;
+            color: #7a4b00;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .warning-list li + li {
+            margin-top: 8px;
+        }
+
+        .status-line {
+            margin: 4px 0 14px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .ranking-head {
+            padding: 10px 12px;
+            background: #eef3f8;
+            border-bottom: 1px solid #d8dee6;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--head);
+        }
+
+        .ranking-table-wrap {
+            overflow-x: auto;
+        }
+
+        .ranking-table {
+            width: 100%;
+            min-width: 620px;
+            border-collapse: collapse;
+        }
+
+        .ranking-table th,
+        .ranking-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #d8dee6;
+            text-align: left;
+            vertical-align: middle;
+            font-size: 14px;
+        }
+
+        .ranking-table th {
+            background: #f8fafc;
+            color: #344256;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .ranking-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .ranking-rank {
+            width: 56px;
+            font-weight: 700;
+        }
+
+        .ranking-name {
+            font-weight: 700;
+            color: var(--head);
+        }
+
+        .ranking-num {
+            width: 90px;
+            text-align: right;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .ranking-links {
+            width: 160px;
+        }
+
+        .mini-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .mini-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 26px;
+            height: 24px;
+            padding: 0 7px;
+            border: 1px solid #c7d2de;
+            border-radius: 999px;
+            background: #f8fafc;
+            color: var(--blue-deep);
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            text-decoration: none;
+        }
+
+        .mini-link:hover {
+            background: #eef3f8;
+        }
+
+        .mini-link.best-gd {
+            background: #dff4e7;
+            border-color: #7ac29a;
+            color: #157347;
+        }
+
+        .empty-state {
+            border: 1px dashed #c5cfda;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.75);
+            color: #59677a;
+            padding: 18px;
+            text-align: center;
+        }
+
+        @media (max-width: 640px) {
+            .page {
+                width: min(96%, 96%);
+            }
+
+            .panel {
+                padding: 14px;
+            }
+
+            .toolbar {
+                grid-template-columns: 1fr;
+            }
+
+            .season-toolbar {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="panel">
+            <div class="season-toolbar">
+                <div class="field">
+                    <label for="seasonInput">Saison</label>
+                    <input id="seasonInput" type="text" value="2025/2026" placeholder="2025/2026">
+                </div>
+                <div class="field">
+                    <label for="disciplineSelect">Disziplin</label>
+                    <select id="disciplineSelect">
+                        <option value="36">Billard Kegeln</option>
+                        <option value="56">Biathlon</option>
+                        <option value="9">Cadre 35/2</option>
+                        <option value="10">Cadre 47/2</option>
+                        <option value="11" selected>Cadre 52/2</option>
+                        <option value="12">Cadre 71/2</option>
+                        <option value="5">Dreiband (großes Billard)</option>
+                        <option value="6">Dreiband (kleines Billard)</option>
+                        <option value="14">Einband (großes Billard)</option>
+                        <option value="13">Einband (kleines Billard)</option>
+                        <option value="31">Eurokegel</option>
+                        <option value="7">Freie Partie (großes Billard)</option>
+                        <option value="8">Freie Partie (kleines Billard)</option>
+                    </select>
+                </div>
+                <button class="btn" type="button" onclick="loadSeasonRanking()">Saison laden</button>
+            </div>
+            <div class="toolbar">
+                <div class="field">
+                    <label for="sourceUrlInput1">NBV Turnier-URL 1</label>
+                    <input
+                        id="sourceUrlInput1"
+                        type="url"
+                        value="https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--"
+                        placeholder="https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--"
+                    >
+                </div>
+                <div class="field">
+                    <label for="sourceUrlInput2">NBV Turnier-URL 2</label>
+                    <input
+                        id="sourceUrlInput2"
+                        type="url"
+                        value=""
+                        placeholder="https://www.ndbv.de/sb_einzelergebnisse.php?p=20-10-2025/2026-842----2-1-10-"
+                    >
+                </div>
+                <button class="btn" type="button" onclick="loadTournaments(true)">Laden</button>
+            </div>
+            <div id="statusLine" class="status-line"></div>
+            <div id="resultsWrap">
+                <div class="empty-state">Noch kein Turnier geladen.</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/user_menu.js"></script>
+    <script>
+        const NBV_DISCIPLINES = {
+            "36": "Billard Kegeln",
+            "56": "Biathlon",
+            "9": "Cadre 35/2",
+            "10": "Cadre 47/2",
+            "11": "Cadre 52/2",
+            "12": "Cadre 71/2",
+            "5": "Dreiband (großes Billard)",
+            "6": "Dreiband (kleines Billard)",
+            "14": "Einband (großes Billard)",
+            "13": "Einband (kleines Billard)",
+            "31": "Eurokegel",
+            "7": "Freie Partie (großes Billard)",
+            "8": "Freie Partie (kleines Billard)",
+        };
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function formatDate(value) {
+            if (!value) return "-";
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return value;
+            return date.toLocaleDateString("de-DE", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+            });
+        }
+
+        async function getFunctionErrorMessage(error) {
+            if (!error) return "Unbekannter Fehler";
+            if (error.message && !/non-2xx status code/i.test(String(error.message))) {
+                return String(error.message);
+            }
+            const context = error.context;
+            if (context && typeof context.text === "function") {
+                try {
+                    const raw = await context.text();
+                    if (raw) {
+                        try {
+                            const parsed = JSON.parse(raw);
+                            return parsed?.message || parsed?.error || raw;
+                        } catch (_) {
+                            return raw;
+                        }
+                    }
+                } catch (_) {
+                    return String(error.message || "Unbekannter Fehler");
+                }
+            }
+            return String(error.message || "Unbekannter Fehler");
+        }
+
+        function setStatus(text) {
+            const el = document.getElementById("statusLine");
+            if (!el) return;
+            el.textContent = text || "";
+        }
+
+        function buildDetails(details) {
+            const list = Array.isArray(details)
+                ? details.filter((entry) => entry && entry.value && !(entry.label === "Phase" && entry.value === "Ergebnisse"))
+                : [];
+            if (!list.length) return "";
+            return list.map((entry) => `${escapeHtml(entry.label)}: ${escapeHtml(entry.value)}`).join(" · ");
+        }
+
+        function buildMetaBlock(meta) {
+            const rows = [
+                { label: "Turnier", value: meta?.title || "-" },
+                { label: "Kürzel", value: meta?.shortCode || "-" },
+                { label: "Datum", value: meta?.date ? formatDate(meta.date) : "-" },
+                { label: "Spielbeginn", value: meta?.startTime ? `${formatDate(meta.date)} um ${meta.startTime} Uhr` : "-" },
+                { label: "Location", value: meta?.location || "-" },
+            ];
+
+            return `
+                <section class="tournament-meta">
+                    ${rows.map((row) => `
+                        <div class="tournament-meta-row">
+                            <div class="tournament-meta-label">${escapeHtml(row.label)}</div>
+                            <div class="tournament-meta-value">${escapeHtml(row.value)}</div>
+                        </div>
+                    `).join("")}
+                </section>
+            `;
+        }
+
+        function buildTournamentSection(data) {
+            const rows = Array.isArray(data?.matches) ? data.matches : [];
+            return `
+                <section class="ranking-block">
+                    <div class="ranking-head">${escapeHtml(data?.meta?.title || "Turnier")}</div>
+                    ${buildMetaBlock(data?.meta || {})}
+                    <div class="matches-list">
+                        ${rows.map((row) => buildMatchCard(row)).join("")}
+                    </div>
+                    ${buildRanking(rows)}
+                </section>
+            `;
+        }
+
+        function buildMatchCard(row) {
+            const title = row.phaseLabel
+                ? `${row.phaseLabel} · Partie ${row.matchNo || "-"} · ${row.score || "-"}`
+                : `Partie ${row.matchNo || "-"} · ${row.score || "-"}`;
+            const plan = [formatDate(row.scheduledDate), row.scheduledTime || ""].filter((value) => value && value !== "-").join(" · ");
+            return `
+                <section class="match-card">
+                    <div class="match-card-head">
+                        <div class="match-card-title">${escapeHtml(title)}</div>
+                        <div class="match-card-sub">${escapeHtml(plan || "-")}</div>
+                    </div>
+                    <div class="match-table-wrap">
+                        <table class="match-table">
+                            <thead>
+                                <tr>
+                                    <th>Spieler</th>
+                                    <th>Bälle</th>
+                                    <th>Punkte</th>
+                                    <th>Aufn.</th>
+                                    <th>Ø</th>
+                                    <th>HS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="match-player-cell">${escapeHtml(row.player1?.name || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player1?.balls || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player1?.points || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player1?.innings || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player1?.average || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player1?.hs || "-")}</td>
+                                </tr>
+                                <tr>
+                                    <td class="match-player-cell">${escapeHtml(row.player2?.name || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player2?.balls || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player2?.points || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player2?.innings || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player2?.average || "-")}</td>
+                                    <td class="match-num-cell">${escapeHtml(row.player2?.hs || "-")}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    ${buildDetails(row.details) ? `<div class="details-line">${buildDetails(row.details)}</div>` : ""}
+                </section>
+            `;
+        }
+
+        function toNumber(value) {
+            const normalized = String(value || "").replace(",", ".").trim();
+            const parsed = Number(normalized);
+            return Number.isFinite(parsed) ? parsed : 0;
+        }
+
+        function getMatchWinner(match) {
+            const left = toNumber(match?.player1?.balls);
+            const right = toNumber(match?.player2?.balls);
+            if (left > right) return "player1";
+            if (right > left) return "player2";
+            return "draw";
+        }
+
+        function getMatchLoser(match) {
+            const winner = getMatchWinner(match);
+            if (winner === "player1") return "player2";
+            if (winner === "player2") return "player1";
+            return "draw";
+        }
+
+        function parsePlacementLabel(label) {
+            const normalized = String(label || "");
+            const match = normalized.match(/platz\s+(\d+)/i);
+            return match ? Number(match[1]) : 0;
+        }
+
+        function getPhasePriority(phaseType) {
+            switch (phaseType) {
+                case "final":
+                    return 1;
+                case "semifinal":
+                    return 3;
+                case "quarterfinal":
+                    return 5;
+                case "round_of_16":
+                    return 9;
+                case "knockout":
+                    return 20;
+                case "intermediate_round":
+                    return 30;
+                case "preliminary_round":
+                    return 40;
+                case "group":
+                    return 50;
+                default:
+                    return 60;
+            }
+        }
+
+        function getEliminationPlacement(phaseType) {
+            switch (phaseType) {
+                case "semifinal":
+                    return 3;
+                case "quarterfinal":
+                    return 5;
+                case "round_of_16":
+                    return 9;
+                default:
+                    return null;
+            }
+        }
+
+        function formatAverage(value) {
+            if (!Number.isFinite(value)) return "-";
+            return value.toLocaleString("de-DE", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+        }
+
+        function formatAverageOrBlank(value) {
+            return Number.isFinite(value) && value > 0 ? formatAverage(value) : "";
+        }
+
+        function formatIntegerOrBlank(value) {
+            return Number.isFinite(value) && value > 0
+                ? value.toLocaleString("de-DE", { maximumFractionDigits: 0 })
+                : "";
+        }
+
+        function normalizeSeasonInput(value) {
+            const match = String(value || "").trim().match(/^(\d{4})\s*\/\s*(\d{2}|\d{4})$/);
+            if (!match) return "";
+            const startYear = Number(match[1]);
+            const endYear = match[2].length === 2
+                ? Number(`${String(startYear).slice(0, 2)}${match[2]}`)
+                : Number(match[2]);
+            if (!Number.isFinite(startYear) || !Number.isFinite(endYear) || endYear !== startYear + 1) {
+                return "";
+            }
+            return `${startYear}/${endYear}`;
+        }
+
+        function buildSeasonHistory(season, count = 3) {
+            const normalized = normalizeSeasonInput(season);
+            if (!normalized) return [];
+            const [startRaw, endRaw] = normalized.split("/");
+            const start = Number(startRaw);
+            const end = Number(endRaw);
+            return Array.from({ length: count }, (_entry, index) => `${start - index}/${end - index}`);
+        }
+
+        function formatSeasonShortLabel(season) {
+            const parts = String(season || "").split("/");
+            if (parts.length !== 2) return season;
+            return `${parts[0].slice(-2)}/${parts[1].slice(-2)}`;
+        }
+
+        function createSeasonPlayerSummary(tournaments, includeLinks = false) {
+            const playerMap = new Map();
+
+            tournaments.forEach((tournament, tournamentIndex) => {
+                const rows = Array.isArray(tournament?.matches) ? tournament.matches : [];
+                const tournamentPlayerMap = new Map();
+                const tournamentTitle = String(tournament?.meta?.title || `Turnier ${tournamentIndex + 1}`).trim();
+                const tournamentUrl = String(tournament?.sourceUrl || "").trim();
+                const tournamentShortCode = String(tournament?.meta?.shortCode || "").trim() || `T${tournamentIndex + 1}`;
+
+                rows.forEach((match) => {
+                    [match.player1, match.player2].forEach((player) => {
+                        const name = String(player?.name || "").trim();
+                        if (!name) return;
+                        const current = tournamentPlayerMap.get(name) || {
+                            name,
+                            balls: 0,
+                            innings: 0,
+                            hs: 0,
+                        };
+                        current.balls += toNumber(player.balls);
+                        current.innings += toNumber(player.innings);
+                        current.hs = Math.max(current.hs, toNumber(player.hs));
+                        tournamentPlayerMap.set(name, current);
+                    });
+                });
+
+                Array.from(tournamentPlayerMap.values()).forEach((entry) => {
+                    const playerSummary = playerMap.get(entry.name) || {
+                        name: entry.name,
+                        totalBalls: 0,
+                        totalInnings: 0,
+                        bestTournamentAverage: 0,
+                        bestHs: 0,
+                        links: [],
+                        earnedClass: "",
+                    };
+                    const tournamentAverage = entry.innings > 0 ? entry.balls / entry.innings : 0;
+                    playerSummary.totalBalls += entry.balls;
+                    playerSummary.totalInnings += entry.innings;
+                    playerSummary.bestTournamentAverage = Math.max(playerSummary.bestTournamentAverage, tournamentAverage);
+                    playerSummary.bestHs = Math.max(playerSummary.bestHs, entry.hs);
+                    if (includeLinks) {
+                        playerSummary.links.push({
+                            label: tournamentShortCode,
+                            title: tournamentTitle,
+                            url: tournamentUrl,
+                            average: tournamentAverage,
+                        });
+                    }
+                    playerMap.set(entry.name, playerSummary);
+                });
+            });
+
+            return playerMap;
+        }
+
+        function buildRanking(rows) {
+            const playerMap = new Map();
+
+            rows.forEach((match) => {
+                const pairs = [
+                    { player: match.player1, opponent: match.player2 },
+                    { player: match.player2, opponent: match.player1 },
+                ];
+                pairs.forEach(({ player, opponent }) => {
+                    const name = String(player?.name || "").trim();
+                    if (!name) return;
+                    const current = playerMap.get(name) || {
+                        name,
+                        mp: 0,
+                        setsFor: 0,
+                        setsAgainst: 0,
+                        balls: 0,
+                        innings: 0,
+                        matches: 0,
+                        bestAverage: 0,
+                        hs: 0,
+                        exactPlace: null,
+                        phasePriority: 999,
+                        eliminatedAt: "",
+                    };
+                    current.mp += toNumber(player.points);
+                    current.setsFor += toNumber(player.points);
+                    current.setsAgainst += toNumber(opponent?.points);
+                    current.balls += toNumber(player.balls);
+                    current.innings += toNumber(player.innings);
+                    current.matches += 1;
+                    current.bestAverage = Math.max(current.bestAverage, toNumber(player.average));
+                    current.hs = Math.max(current.hs, toNumber(player.hs));
+                    playerMap.set(name, current);
+                });
+            });
+
+            rows.forEach((match) => {
+                const p1Name = String(match?.player1?.name || "").trim();
+                const p2Name = String(match?.player2?.name || "").trim();
+                if (!p1Name || !p2Name) return;
+
+                const winnerSide = getMatchWinner(match);
+                const loserSide = getMatchLoser(match);
+                const winnerName = winnerSide === "player1" ? p1Name : winnerSide === "player2" ? p2Name : "";
+                const loserName = loserSide === "player1" ? p1Name : loserSide === "player2" ? p2Name : "";
+                const phaseType = String(match?.phaseType || "");
+                const phaseLabel = String(match?.phaseLabel || "");
+
+                if (phaseType === "final") {
+                    if (winnerName && playerMap.has(winnerName)) {
+                        playerMap.get(winnerName).exactPlace = 1;
+                        playerMap.get(winnerName).phasePriority = 1;
+                    }
+                    if (loserName && playerMap.has(loserName)) {
+                        playerMap.get(loserName).exactPlace = 2;
+                        playerMap.get(loserName).phasePriority = 2;
+                    }
+                    return;
+                }
+
+                if (phaseType === "placement") {
+                    const placement = parsePlacementLabel(phaseLabel);
+                    if (placement > 0) {
+                        if (winnerName && playerMap.has(winnerName)) {
+                            playerMap.get(winnerName).exactPlace = placement;
+                            playerMap.get(winnerName).phasePriority = Math.min(playerMap.get(winnerName).phasePriority, placement);
+                        }
+                        if (loserName && playerMap.has(loserName)) {
+                            playerMap.get(loserName).exactPlace = placement + 1;
+                            playerMap.get(loserName).phasePriority = Math.min(playerMap.get(loserName).phasePriority, placement + 1);
+                        }
+                    }
+                    return;
+                }
+
+                const eliminationPlacement = getEliminationPlacement(phaseType);
+                if (eliminationPlacement !== null && loserName && playerMap.has(loserName)) {
+                    const loser = playerMap.get(loserName);
+                    if (loser.exactPlace === null) {
+                        loser.exactPlace = eliminationPlacement;
+                    }
+                    loser.eliminatedAt = phaseType;
+                }
+
+                const priority = getPhasePriority(phaseType);
+                if (winnerName && playerMap.has(winnerName)) {
+                    playerMap.get(winnerName).phasePriority = Math.min(playerMap.get(winnerName).phasePriority, Math.max(0, priority - 1));
+                }
+                if (loserName && playerMap.has(loserName)) {
+                    playerMap.get(loserName).phasePriority = Math.min(playerMap.get(loserName).phasePriority, priority);
+                }
+            });
+
+            const ranking = Array.from(playerMap.values())
+                .map((entry) => ({
+                    ...entry,
+                    gd: entry.innings > 0 ? entry.balls / entry.innings : 0,
+                    bed: entry.bestAverage,
+                    setPercent: entry.setsFor + entry.setsAgainst > 0
+                        ? (entry.setsFor / (entry.setsFor + entry.setsAgainst)) * 100
+                        : 0,
+                }));
+
+            const compareCompetitive = (left, right) => {
+                if (left.phasePriority !== right.phasePriority) return left.phasePriority - right.phasePriority;
+                if (right.mp !== left.mp) return right.mp - left.mp;
+                if (right.setPercent !== left.setPercent) return right.setPercent - left.setPercent;
+                if (right.balls !== left.balls) return right.balls - left.balls;
+                if (right.gd !== left.gd) return right.gd - left.gd;
+                if (right.bed !== left.bed) return right.bed - left.bed;
+                if (right.hs !== left.hs) return right.hs - left.hs;
+                return left.name.localeCompare(right.name, "de");
+            };
+
+            const fixedPlaces = ranking
+                .filter((entry) => entry.exactPlace !== null)
+                .sort((left, right) => {
+                    if (left.exactPlace !== right.exactPlace) return left.exactPlace - right.exactPlace;
+                    return compareCompetitive(left, right);
+                });
+
+            const unresolved = ranking
+                .filter((entry) => entry.exactPlace === null)
+                .sort(compareCompetitive);
+
+            const usedPlaces = new Set(fixedPlaces.map((entry) => entry.exactPlace));
+            let nextPlace = 1;
+            unresolved.forEach((entry) => {
+                while (usedPlaces.has(nextPlace)) {
+                    nextPlace += 1;
+                }
+                entry.exactPlace = nextPlace;
+                usedPlaces.add(nextPlace);
+                nextPlace += 1;
+            });
+
+            const finalRanking = [...fixedPlaces, ...unresolved]
+                .sort((left, right) => {
+                    if (left.exactPlace !== right.exactPlace) return left.exactPlace - right.exactPlace;
+                    return compareCompetitive(left, right);
+                })
+                .map((entry) => ({
+                    ...entry,
+                    displayPlace: entry.exactPlace,
+                }));
+
+            if (!finalRanking.length) {
+                return "";
+            }
+
+            return `
+                <section class="ranking-block">
+                    <div class="ranking-head">Turnier-Rangliste</div>
+                    <div class="ranking-table-wrap">
+                        <table class="ranking-table">
+                            <thead>
+                                <tr>
+                                    <th class="ranking-rank">Rang</th>
+                                    <th>Spieler</th>
+                                    <th class="ranking-num">MP</th>
+                                    <th class="ranking-num">Sätze</th>
+                                    <th class="ranking-num">Punkte</th>
+                                    <th class="ranking-num">Aufn.</th>
+                                    <th class="ranking-num">GD</th>
+                                    <th class="ranking-num">BED</th>
+                                    <th class="ranking-num">HS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${finalRanking.map((row) => `
+                                    <tr>
+                                        <td class="ranking-rank">${escapeHtml(row.displayPlace)}</td>
+                                        <td class="ranking-name">${escapeHtml(row.name)}</td>
+                                        <td class="ranking-num">${escapeHtml(row.mp)}</td>
+                                        <td class="ranking-num">${escapeHtml(`${row.setsFor}:${row.setsAgainst}`)}</td>
+                                        <td class="ranking-num">${escapeHtml(row.balls)}</td>
+                                        <td class="ranking-num">${escapeHtml(row.innings)}</td>
+                                        <td class="ranking-num">${escapeHtml(formatAverage(row.gd))}</td>
+                                        <td class="ranking-num">${escapeHtml(formatAverage(row.bed))}</td>
+                                        <td class="ranking-num">${escapeHtml(row.hs)}</td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        function buildSeasonRanking(seasonBundles) {
+            const bundles = Array.isArray(seasonBundles) ? seasonBundles.filter((entry) => entry?.season) : [];
+            if (!bundles.length) return "";
+
+            const [currentBundle, previousBundle1, previousBundle2] = bundles;
+            const currentSeason = currentBundle?.season || "";
+            const previousSeason1 = previousBundle1?.season || "";
+            const previousSeason2 = previousBundle2?.season || "";
+            const currentShort = formatSeasonShortLabel(currentSeason);
+            const previousShort1 = formatSeasonShortLabel(previousSeason1);
+            const previousShort2 = formatSeasonShortLabel(previousSeason2);
+
+            const currentMap = createSeasonPlayerSummary(currentBundle?.tournaments || [], true);
+            const previousMap1 = createSeasonPlayerSummary(previousBundle1?.tournaments || [], false);
+            const previousMap2 = createSeasonPlayerSummary(previousBundle2?.tournaments || [], false);
+            const playerNames = new Set([
+                ...currentMap.keys(),
+                ...previousMap1.keys(),
+                ...previousMap2.keys(),
+            ]);
+
+            const ranking = Array.from(playerNames.values())
+                .map((name) => {
+                    const current = currentMap.get(name) || {
+                        totalBalls: 0,
+                        totalInnings: 0,
+                        bestTournamentAverage: 0,
+                        bestHs: 0,
+                        links: [],
+                        earnedClass: "",
+                    };
+                    const prev1 = previousMap1.get(name) || {
+                        totalBalls: 0,
+                        totalInnings: 0,
+                        earnedClass: "",
+                    };
+                    const prev2 = previousMap2.get(name) || {
+                        totalBalls: 0,
+                        totalInnings: 0,
+                        earnedClass: "",
+                    };
+
+                    return {
+                        name,
+                        totalBalls: current.totalBalls || 0,
+                        totalInnings: current.totalInnings || 0,
+                        totalAverage: current.totalInnings > 0 ? current.totalBalls / current.totalInnings : 0,
+                        bestTournamentAverage: current.bestTournamentAverage || 0,
+                        bestHs: current.bestHs || 0,
+                        currentClass: current.earnedClass || "",
+                        previousAverage1: prev1.totalInnings > 0 ? prev1.totalBalls / prev1.totalInnings : 0,
+                        previousClass1: prev1.earnedClass || "",
+                        previousAverage2: prev2.totalInnings > 0 ? prev2.totalBalls / prev2.totalInnings : 0,
+                        previousClass2: prev2.earnedClass || "",
+                        links: (current.links || []).map((link) => ({
+                            ...link,
+                            isBestAverage: Math.abs((link.average || 0) - (current.bestTournamentAverage || 0)) < 0.000001,
+                        })),
+                    };
+                })
+                .sort((left, right) => {
+                    if (right.totalAverage !== left.totalAverage) return right.totalAverage - left.totalAverage;
+                    if (right.bestTournamentAverage !== left.bestTournamentAverage) return right.bestTournamentAverage - left.bestTournamentAverage;
+                    if (right.previousAverage1 !== left.previousAverage1) return right.previousAverage1 - left.previousAverage1;
+                    if (right.previousAverage2 !== left.previousAverage2) return right.previousAverage2 - left.previousAverage2;
+                    if (right.bestHs !== left.bestHs) return right.bestHs - left.bestHs;
+                    return left.name.localeCompare(right.name, "de");
+                });
+
+            if (!ranking.length) return "";
+
+            return `
+                <section class="season-block">
+                    <div class="ranking-head">Gesamtrangliste nach Schnitt mit Historie</div>
+                    <div class="ranking-table-wrap">
+                        <table class="ranking-table">
+                            <thead>
+                                <tr>
+                                    <th class="ranking-rank">Rang</th>
+                                    <th>Spieler</th>
+                                    <th class="ranking-links">Turniere</th>
+                                    <th class="ranking-num">Bälle</th>
+                                    <th class="ranking-num">Aufn.</th>
+                                    <th class="ranking-num">GD ${escapeHtml(currentShort)}</th>
+                                    <th class="ranking-num">BTG ${escapeHtml(currentShort)}</th>
+                                    <th class="ranking-num">HS ${escapeHtml(currentShort)}</th>
+                                    <th class="ranking-num">Klasse ${escapeHtml(currentShort)}</th>
+                                    <th class="ranking-num">GD ${escapeHtml(previousShort1)}</th>
+                                    <th class="ranking-num">Klasse ${escapeHtml(previousShort1)}</th>
+                                    <th class="ranking-num">GD ${escapeHtml(previousShort2)}</th>
+                                    <th class="ranking-num">Klasse ${escapeHtml(previousShort2)}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ranking.map((row, index) => `
+                                    <tr>
+                                        <td class="ranking-rank">${escapeHtml(index + 1)}</td>
+                                        <td class="ranking-name">${escapeHtml(row.name)}</td>
+                                        <td class="ranking-links">
+                                            <div class="mini-links">
+                                                ${row.links.map((link) => link.url
+                                                    ? `<a class="mini-link${link.isBestAverage ? " best-gd" : ""}" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(`${link.title} · Turnierschnitt ${formatAverage(link.average || 0)}`)}">${escapeHtml(link.label)}</a>`
+                                                    : `<span class="mini-link${link.isBestAverage ? " best-gd" : ""}" title="${escapeHtml(`${link.title} · Turnierschnitt ${formatAverage(link.average || 0)}`)}">${escapeHtml(link.label)}</span>`
+                                                ).join("")}
+                                            </div>
+                                        </td>
+                                        <td class="ranking-num">${escapeHtml(formatIntegerOrBlank(row.totalBalls))}</td>
+                                        <td class="ranking-num">${escapeHtml(formatIntegerOrBlank(row.totalInnings))}</td>
+                                        <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.totalAverage))}</td>
+                                        <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.bestTournamentAverage))}</td>
+                                        <td class="ranking-num">${escapeHtml(formatIntegerOrBlank(row.bestHs))}</td>
+                                        <td class="ranking-num">${escapeHtml(row.currentClass || "")}</td>
+                                        <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.previousAverage1))}</td>
+                                        <td class="ranking-num">${escapeHtml(row.previousClass1 || "")}</td>
+                                        <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.previousAverage2))}</td>
+                                        <td class="ranking-num">${escapeHtml(row.previousClass2 || "")}</td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        function buildFailedBlock(failed) {
+            const items = Array.isArray(failed) ? failed.filter(Boolean) : [];
+            if (!items.length) return "";
+            return `
+                <section class="warning-block">
+                    <div class="warning-head">Übersprungene Turniere</div>
+                    <ul class="warning-list">
+                        ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+                    </ul>
+                </section>
+            `;
+        }
+
+        function renderResults(tournaments, failed = []) {
+            const wrap = document.getElementById("resultsWrap");
+            if (!wrap) return;
+
+            const validTournaments = Array.isArray(tournaments)
+                ? tournaments.filter((entry) => Array.isArray(entry?.matches) && entry.matches.length)
+                : [];
+
+            if (!validTournaments.length) {
+                wrap.innerHTML = '<div class="empty-state">Keine Begegnungen gefunden.</div>';
+                return;
+            }
+
+            wrap.innerHTML = `
+                ${validTournaments.map((tournament) => buildTournamentSection(tournament)).join("")}
+                ${buildSeasonRanking([{
+                    season: String(validTournaments[0]?.meta?.season || document.getElementById("seasonInput")?.value || "").trim(),
+                    tournaments: validTournaments,
+                }])}
+                ${buildFailedBlock(failed)}
+            `;
+        }
+
+        function renderSeasonResults(seasonBundles, failed = []) {
+            const wrap = document.getElementById("resultsWrap");
+            if (!wrap) return;
+
+            const validSeasonBundles = Array.isArray(seasonBundles)
+                ? seasonBundles.filter((entry) => Array.isArray(entry?.tournaments) && entry.tournaments.length)
+                : [];
+
+            if (!validSeasonBundles.length) {
+                wrap.innerHTML = '<div class="empty-state">Keine Begegnungen gefunden.</div>';
+                return;
+            }
+
+            wrap.innerHTML = `
+                ${buildSeasonRanking(validSeasonBundles)}
+                ${buildFailedBlock(failed)}
+            `;
+        }
+
+        async function loadSeasonTournamentBundle(season, disciplineId, disciplineLabel, todayIso) {
+            const { data, error } = await supabaseClient.functions.invoke("get-nbv-calendar", {
+                body: {
+                    season,
+                    disciplineId,
+                    disciplineLabel,
+                },
+            });
+            if (error) throw error;
+
+            const events = Array.isArray(data?.events) ? data.events : [];
+            const candidateEvents = events.filter((event) => String(event?.date || "") <= todayIso);
+            const tournaments = [];
+            const failed = [];
+
+            for (let index = 0; index < candidateEvents.length; index += 1) {
+                const event = candidateEvents[index];
+                setStatus(`Lade ${disciplineLabel} ${season}: Turnier ${index + 1} von ${candidateEvents.length}`);
+                try {
+                    const tournament = await loadSingleTournament(String(event.link || "").trim(), false);
+                    if (tournament) tournaments.push(tournament);
+                } catch (error) {
+                    failed.push(`${season} · ${event.title || event.link}: ${error instanceof Error ? error.message : String(error)}`);
+                }
+            }
+
+            return { season, tournaments, failed };
+        }
+
+        async function loadSingleTournament(sourceUrl, forceRefresh = false) {
+            try {
+                const { data, error } = await supabaseClient.functions.invoke("get-nbv-tournament-results", {
+                    body: {
+                        sourceUrl,
+                        forceRefresh: Boolean(forceRefresh),
+                    },
+                });
+                if (error) throw error;
+
+                return data || null;
+            } catch (error) {
+                console.warn("NBV-Turnierdaten konnten nicht geladen werden:", error);
+                throw new Error(await getFunctionErrorMessage(error));
+            }
+        }
+
+        async function loadSeasonRanking() {
+            const season = normalizeSeasonInput(String(document.getElementById("seasonInput")?.value || "").trim());
+            const disciplineId = String(document.getElementById("disciplineSelect")?.value || "").trim();
+            const disciplineLabel = NBV_DISCIPLINES[disciplineId] || "Disziplin";
+            if (!season || !disciplineId) return;
+
+            try {
+                const seasons = buildSeasonHistory(season, 3);
+                const todayIso = new Date().toISOString().slice(0, 10);
+                const seasonBundles = [];
+                const failed = [];
+
+                for (let index = 0; index < seasons.length; index += 1) {
+                    const currentSeason = seasons[index];
+                    setStatus(`Lade Saison ${index + 1} von ${seasons.length}: ${disciplineLabel} ${currentSeason}`);
+                    try {
+                        const bundle = await loadSeasonTournamentBundle(currentSeason, disciplineId, disciplineLabel, todayIso);
+                        seasonBundles.push({
+                            season: currentSeason,
+                            tournaments: bundle.tournaments,
+                        });
+                        failed.push(...bundle.failed);
+                    } catch (error) {
+                        failed.push(`${currentSeason}: ${error instanceof Error ? error.message : String(error)}`);
+                    }
+                }
+
+                const loadedTournamentCount = seasonBundles.reduce((sum, bundle) => sum + (bundle.tournaments?.length || 0), 0);
+
+                if (!loadedTournamentCount) {
+                    document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Keine Turniere konnten geladen werden.<br>${escapeHtml(failed[0] || "Unbekannter Fehler")}</div>`;
+                    setStatus("");
+                    return;
+                }
+
+                renderSeasonResults(seasonBundles, failed);
+                setStatus(failed.length
+                    ? `${loadedTournamentCount} Turniere aus ${seasonBundles.length} Saisons geladen, ${failed.length} übersprungen.`
+                    : `${loadedTournamentCount} Turniere aus ${seasonBundles.length} Saisons geladen.`);
+            } catch (error) {
+                const message = await getFunctionErrorMessage(error);
+                document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Die Saison konnte nicht geladen werden.<br>${escapeHtml(message)}</div>`;
+                setStatus("");
+            }
+        }
+
+        async function loadTournaments(forceRefresh = false) {
+            const url1 = String(document.getElementById("sourceUrlInput1")?.value || "").trim();
+            const url2 = String(document.getElementById("sourceUrlInput2")?.value || "").trim();
+            const urls = [url1, url2].filter(Boolean);
+            if (!urls.length) return;
+
+            try {
+                setStatus("Lade ausgewählte Turniere...");
+                const results = [];
+                for (const url of urls) {
+                    const data = await loadSingleTournament(url, forceRefresh);
+                    if (data) results.push(data);
+                }
+                renderResults(results);
+                setStatus(`${results.length} Turniere geladen.`);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Der Turnierabruf ist aktuell nicht verfügbar.<br>${escapeHtml(message)}</div>`;
+                setStatus("");
+            }
+        }
+
+        async function initPage() {
+            try {
+                const user = await requireAuth();
+                if (!user) return;
+                await loadTournaments(false);
+            } finally {
+                document.body.classList.add("page-ready");
+            }
+        }
+
+        initPage().catch((error) => {
+            console.error("NBV Turnier-Test konnte nicht initialisiert werden:", error);
+            document.body.classList.add("page-ready");
+        });
+    </script>
+</body>
+</html>
