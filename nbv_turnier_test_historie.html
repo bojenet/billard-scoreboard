@@ -720,7 +720,21 @@
             return `${parts[0].slice(-2)}/${parts[1].slice(-2)}`;
         }
 
-        function createSeasonPlayerSummary(tournaments, includeLinks = false) {
+        function determineEarnedClass(disciplineId, bestTournamentAverage) {
+            const normalizedDisciplineId = String(disciplineId || "").trim();
+            if (!Number.isFinite(bestTournamentAverage) || bestTournamentAverage <= 0) {
+                return "";
+            }
+
+            switch (normalizedDisciplineId) {
+                case "13":
+                    return bestTournamentAverage >= 2.5 ? "1" : "2";
+                default:
+                    return "";
+            }
+        }
+
+        function createSeasonPlayerSummary(tournaments, disciplineId, includeLinks = false) {
             const playerMap = new Map();
 
             tournaments.forEach((tournament, tournamentIndex) => {
@@ -772,6 +786,10 @@
                     }
                     playerMap.set(entry.name, playerSummary);
                 });
+            });
+
+            Array.from(playerMap.values()).forEach((entry) => {
+                entry.earnedClass = determineEarnedClass(disciplineId, entry.bestTournamentAverage);
             });
 
             return playerMap;
@@ -967,7 +985,7 @@
             `;
         }
 
-        function buildSeasonRanking(seasonBundles) {
+        function buildSeasonRanking(seasonBundles, disciplineId = "") {
             const bundles = Array.isArray(seasonBundles) ? seasonBundles.filter((entry) => entry?.season) : [];
             if (!bundles.length) return "";
 
@@ -979,9 +997,9 @@
             const previousShort1 = formatSeasonShortLabel(previousSeason1);
             const previousShort2 = formatSeasonShortLabel(previousSeason2);
 
-            const currentMap = createSeasonPlayerSummary(currentBundle?.tournaments || [], true);
-            const previousMap1 = createSeasonPlayerSummary(previousBundle1?.tournaments || [], false);
-            const previousMap2 = createSeasonPlayerSummary(previousBundle2?.tournaments || [], false);
+            const currentMap = createSeasonPlayerSummary(currentBundle?.tournaments || [], disciplineId, true);
+            const previousMap1 = createSeasonPlayerSummary(previousBundle1?.tournaments || [], disciplineId, false);
+            const previousMap2 = createSeasonPlayerSummary(previousBundle2?.tournaments || [], disciplineId, false);
             const playerNames = new Set([
                 ...currentMap.keys(),
                 ...previousMap1.keys(),
@@ -1108,6 +1126,7 @@
         function renderResults(tournaments, failed = []) {
             const wrap = document.getElementById("resultsWrap");
             if (!wrap) return;
+            const disciplineId = String(document.getElementById("disciplineSelect")?.value || "").trim();
 
             const validTournaments = Array.isArray(tournaments)
                 ? tournaments.filter((entry) => Array.isArray(entry?.matches) && entry.matches.length)
@@ -1123,7 +1142,7 @@
                 ${buildSeasonRanking([{
                     season: String(validTournaments[0]?.meta?.season || document.getElementById("seasonInput")?.value || "").trim(),
                     tournaments: validTournaments,
-                }])}
+                }], disciplineId)}
                 ${buildFailedBlock(failed)}
             `;
         }
@@ -1131,6 +1150,7 @@
         function renderSeasonResults(seasonBundles, failed = []) {
             const wrap = document.getElementById("resultsWrap");
             if (!wrap) return;
+            const disciplineId = String(document.getElementById("disciplineSelect")?.value || "").trim();
 
             const validSeasonBundles = Array.isArray(seasonBundles)
                 ? seasonBundles.filter((entry) => Array.isArray(entry?.tournaments) && entry.tournaments.length)
@@ -1142,7 +1162,7 @@
             }
 
             wrap.innerHTML = `
-                ${buildSeasonRanking(validSeasonBundles)}
+                ${buildSeasonRanking(validSeasonBundles, disciplineId)}
                 ${buildFailedBlock(failed)}
             `;
         }
