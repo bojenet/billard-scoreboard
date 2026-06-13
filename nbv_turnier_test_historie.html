@@ -464,30 +464,9 @@
                 </div>
                 <button class="btn" type="button" onclick="loadSeasonRanking()">Saison laden</button>
             </div>
-            <div class="toolbar">
-                <div class="field">
-                    <label for="sourceUrlInput1">NBV Turnier-URL 1</label>
-                    <input
-                        id="sourceUrlInput1"
-                        type="url"
-                        value="https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--"
-                        placeholder="https://www.ndbv.de/sb_meisterschaft.php?p=20-10-2025/2026-882---2-4-10--"
-                    >
-                </div>
-                <div class="field">
-                    <label for="sourceUrlInput2">NBV Turnier-URL 2</label>
-                    <input
-                        id="sourceUrlInput2"
-                        type="url"
-                        value=""
-                        placeholder="https://www.ndbv.de/sb_einzelergebnisse.php?p=20-10-2025/2026-842----2-1-10-"
-                    >
-                </div>
-                <button class="btn" type="button" onclick="loadTournaments(true)">Laden</button>
-            </div>
             <div id="statusLine" class="status-line"></div>
             <div id="resultsWrap">
-                <div class="empty-state">Noch kein Turnier geladen.</div>
+                <div class="empty-state">Saison auswählen.</div>
             </div>
         </div>
     </div>
@@ -719,9 +698,10 @@
 
         function formatAverage(value) {
             if (!Number.isFinite(value)) return "-";
-            return value.toLocaleString("de-DE", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
+            const truncated = Math.trunc(value * 1000) / 1000;
+            return truncated.toLocaleString("de-DE", {
+                minimumFractionDigits: 3,
+                maximumFractionDigits: 3,
             });
         }
 
@@ -869,9 +849,12 @@
                 "wilfried auel": "BCW",
                 "lothar kämmer": "BCW",
                 "christian pusch": "BCW",
+                "dr. christian pusch": "BCW",
                 "joachim richter": "BCW",
                 "kay schumacher": "BCW",
                 "nils langemann": "BCW",
+                "philipp jüde": "BGH",
+                "philipp juede": "BGH",
                 "michael ernst": "BGH",
                 "regado ernst": "BGH",
                 "thorsten hottenrott": "BGH",
@@ -1446,33 +1429,10 @@
             }
         }
 
-        async function loadTournaments(forceRefresh = false) {
-            const url1 = String(document.getElementById("sourceUrlInput1")?.value || "").trim();
-            const url2 = String(document.getElementById("sourceUrlInput2")?.value || "").trim();
-            const urls = [url1, url2].filter(Boolean);
-            if (!urls.length) return;
-
-            try {
-                setStatus("Lade ausgewählte Turniere...");
-                const results = [];
-                for (const url of urls) {
-                    const data = await loadSingleTournament(url, forceRefresh);
-                    if (data) results.push(data);
-                }
-                renderResults(results);
-                setStatus(`${results.length} Turniere geladen.`);
-            } catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Der Turnierabruf ist aktuell nicht verfügbar.<br>${escapeHtml(message)}</div>`;
-                setStatus("");
-            }
-        }
-
         async function initPage() {
             try {
                 const user = await requireAuth();
                 if (!user) return;
-                await loadTournaments(false);
             } finally {
                 document.body.classList.add("page-ready");
             }

@@ -690,9 +690,10 @@
 
         function formatAverage(value) {
             if (!Number.isFinite(value)) return "-";
-            return value.toLocaleString("de-DE", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
+            const truncated = Math.trunc(value * 1000) / 1000;
+            return truncated.toLocaleString("de-DE", {
+                minimumFractionDigits: 3,
+                maximumFractionDigits: 3,
             });
         }
 
