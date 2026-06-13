@@ -371,6 +371,14 @@
             color: #157347;
         }
 
+        .btg-link {
+            color: #157347;
+            font-weight: 800;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            white-space: nowrap;
+        }
+
         .empty-state {
             border: 1px dashed #c5cfda;
             border-radius: 6px;
@@ -690,6 +698,16 @@
 
         function formatAverageOrBlank(value) {
             return Number.isFinite(value) && value > 0 ? formatAverage(value) : "";
+        }
+
+        function buildBestTournamentAverageLink(row) {
+            const value = formatAverageOrBlank(row.bestTournamentAverage);
+            if (!value) return "";
+            const bestLink = Array.isArray(row.links)
+                ? row.links.find((link) => link.isBestAverage && link.url)
+                : null;
+            if (!bestLink) return escapeHtml(value);
+            return `<a class="btg-link" href="${escapeHtml(bestLink.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(`${bestLink.title} · Turnierschnitt ${value}`)}">${escapeHtml(value)}</a>`;
         }
 
         function formatIntegerOrBlank(value) {
@@ -1083,7 +1101,6 @@
                                 <tr>
                                     <th class="ranking-rank">Rang</th>
                                     <th>Spieler</th>
-                                    <th class="ranking-links">Turniere</th>
                                     <th class="ranking-num">Bälle</th>
                                     <th class="ranking-num">Aufn.</th>
                                     <th class="ranking-num">GD ${escapeHtml(currentShort)}</th>
@@ -1101,18 +1118,10 @@
                                     <tr>
                                         <td class="ranking-rank">${escapeHtml(index + 1)}</td>
                                         <td class="ranking-name">${escapeHtml(row.name)}</td>
-                                        <td class="ranking-links">
-                                            <div class="mini-links">
-                                                ${row.links.map((link) => link.url
-                                                    ? `<a class="mini-link${link.isBestAverage ? " best-gd" : ""}" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(`${link.title} · Turnierschnitt ${formatAverage(link.average || 0)}`)}">${escapeHtml(link.label)}</a>`
-                                                    : `<span class="mini-link${link.isBestAverage ? " best-gd" : ""}" title="${escapeHtml(`${link.title} · Turnierschnitt ${formatAverage(link.average || 0)}`)}">${escapeHtml(link.label)}</span>`
-                                                ).join("")}
-                                            </div>
-                                        </td>
                                         <td class="ranking-num">${escapeHtml(formatIntegerOrBlank(row.totalBalls))}</td>
                                         <td class="ranking-num">${escapeHtml(formatIntegerOrBlank(row.totalInnings))}</td>
                                         <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.totalAverage))}</td>
-                                        <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.bestTournamentAverage))}</td>
+                                        <td class="ranking-num">${buildBestTournamentAverageLink(row)}</td>
                                         <td class="ranking-num">${escapeHtml(formatIntegerOrBlank(row.bestHs))}</td>
                                         <td class="ranking-num">${escapeHtml(row.currentClass || "")}</td>
                                         <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.previousAverage1))}</td>
