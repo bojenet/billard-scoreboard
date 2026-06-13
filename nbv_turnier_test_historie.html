@@ -750,24 +750,58 @@
                 return "";
             }
 
-            switch (normalizedDisciplineId) {
-                case "8": {
-                    const thresholds = [
-                        { min: 25, className: "1" },
-                        { min: 16, className: "2" },
-                        { min: 10, className: "3" },
-                        { min: 7, className: "4" },
-                        { min: 4, className: "5" },
-                        { min: 2, className: "6" },
-                        { min: 0, className: "7" },
-                    ];
-                    return thresholds.find((entry) => bestTournamentAverage >= entry.min)?.className || "7";
-                }
-                case "13":
-                    return bestTournamentAverage >= 2.5 ? "1" : "2";
-                default:
-                    return "";
-            }
+            const classThresholds = {
+                "5": [
+                    { min: 0.7, className: "I" },
+                    { min: 0.5, className: "II" },
+                    { min: 0, className: "III" },
+                ],
+                "6": [
+                    { min: 0.8, className: "1" },
+                    { min: 0, className: "2" },
+                ],
+                "7": [
+                    { min: 10, className: "I" },
+                    { min: 5, className: "II" },
+                    { min: 0, className: "III" },
+                ],
+                "8": [
+                    { min: 25, className: "1" },
+                    { min: 16, className: "2" },
+                    { min: 10, className: "3" },
+                    { min: 7, className: "4" },
+                    { min: 4, className: "5" },
+                    { min: 2, className: "6" },
+                    { min: 0, className: "7" },
+                ],
+                "9": [
+                    { min: 6, className: "1" },
+                    { min: 0, className: "2" },
+                ],
+                "10": [
+                    { min: 7, className: "I" },
+                    { min: 0, className: "II" },
+                ],
+                "11": [
+                    { min: 5, className: "1" },
+                    { min: 0, className: "2" },
+                ],
+                "12": [
+                    { min: 5, className: "I" },
+                    { min: 0, className: "II" },
+                ],
+                "13": [
+                    { min: 2.5, className: "1" },
+                    { min: 0, className: "2" },
+                ],
+                "14": [
+                    { min: 3, className: "I" },
+                    { min: 0, className: "II" },
+                ],
+            };
+
+            const thresholds = classThresholds[normalizedDisciplineId] || [];
+            return thresholds.find((entry) => bestTournamentAverage >= entry.min)?.className || "";
         }
 
         function createSeasonPlayerSummary(tournaments, disciplineId, includeLinks = false) {
