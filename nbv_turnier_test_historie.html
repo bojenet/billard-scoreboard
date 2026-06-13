@@ -1167,6 +1167,36 @@
             `;
         }
 
+        async function loadTournamentBatch(events, season, disciplineLabel, concurrency = 6) {
+            const tournaments = new Array(events.length);
+            const failed = [];
+            let nextIndex = 0;
+            let completed = 0;
+            const total = events.length;
+
+            async function worker() {
+                while (nextIndex < total) {
+                    const index = nextIndex;
+                    nextIndex += 1;
+                    const event = events[index];
+                    try {
+                        const tournament = await loadSingleTournament(String(event.link || "").trim(), false);
+                        if (tournament) tournaments[index] = tournament;
+                    } catch (error) {
+                        failed.push(`${season} · ${event.title || event.link}: ${error instanceof Error ? error.message : String(error)}`);
+                    } finally {
+                        completed += 1;
+                        setStatus(`Lade ${disciplineLabel} ${season}: ${completed} von ${total} Turnieren`);
+                    }
+                }
+            }
+
+            const workerCount = Math.min(concurrency, total);
+            await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+            return { tournaments: tournaments.filter(Boolean), failed };
+        }
+
         async function loadSeasonTournamentBundle(season, disciplineId, disciplineLabel, todayIso) {
             const { data, error } = await supabaseClient.functions.invoke("get-nbv-calendar", {
                 body: {
@@ -1179,19 +1209,7 @@
 
             const events = Array.isArray(data?.events) ? data.events : [];
             const candidateEvents = events.filter((event) => String(event?.date || "") <= todayIso);
-            const tournaments = [];
-            const failed = [];
-
-            for (let index = 0; index < candidateEvents.length; index += 1) {
-                const event = candidateEvents[index];
-                setStatus(`Lade ${disciplineLabel} ${season}: Turnier ${index + 1} von ${candidateEvents.length}`);
-                try {
-                    const tournament = await loadSingleTournament(String(event.link || "").trim(), false);
-                    if (tournament) tournaments.push(tournament);
-                } catch (error) {
-                    failed.push(`${season} · ${event.title || event.link}: ${error instanceof Error ? error.message : String(error)}`);
-                }
-            }
+            const { tournaments, failed } = await loadTournamentBatch(candidateEvents, season, disciplineLabel);
 
             return { season, tournaments, failed };
         }
