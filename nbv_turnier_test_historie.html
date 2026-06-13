@@ -727,6 +727,18 @@
             }
 
             switch (normalizedDisciplineId) {
+                case "8": {
+                    const thresholds = [
+                        { min: 25, className: "1" },
+                        { min: 16, className: "2" },
+                        { min: 10, className: "3" },
+                        { min: 7, className: "4" },
+                        { min: 4, className: "5" },
+                        { min: 2, className: "6" },
+                        { min: 0, className: "7" },
+                    ];
+                    return thresholds.find((entry) => bestTournamentAverage >= entry.min)?.className || "7";
+                }
                 case "13":
                     return bestTournamentAverage >= 2.5 ? "1" : "2";
                 default:
