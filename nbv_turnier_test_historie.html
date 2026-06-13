@@ -852,6 +852,47 @@
             return thresholds.find((entry) => bestTournamentAverage >= entry.min)?.className || "";
         }
 
+        function inferClubFromPlayerName(playerName) {
+            const normalized = String(playerName || "").trim().toLowerCase();
+            const clubByPlayer = {
+                "martin smrcka": "BCW",
+                "ulf kiehn": "BCW",
+                "andreas meißner": "BCW",
+                "andreas meissner": "BCW",
+                "hans-jörg schröder": "BCW",
+                "hans-jörg schroeder": "BCW",
+                "jörg unger": "BCW",
+                "dr. jörg unger": "BCW",
+                "gernot ullrich": "BCW",
+                "gernot dr. ullrich": "BCW",
+                "dr. gernot ullrich": "BCW",
+                "wilfried auel": "BCW",
+                "lothar kämmer": "BCW",
+                "christian pusch": "BCW",
+                "joachim richter": "BCW",
+                "kay schumacher": "BCW",
+                "nils langemann": "BCW",
+                "michael ernst": "BGH",
+                "regado ernst": "BGH",
+                "thorsten hottenrott": "BGH",
+                "hans benkert": "BGH",
+                "thorsten kratz": "BGH",
+                "wilfried jahn": "BGH",
+                "claus-dieter scharf": "BGH",
+                "martin metzger": "BGH",
+                "jeffrey weiss": "BGH",
+                "ulrich gross": "BGH",
+                "klaus horn": "TSVNB",
+                "immo von massow": "TSVNB",
+                "kurt jaruschewski": "TSVNB",
+                "emmy von massow": "TSVNB",
+                "wolfgang balzer": "TSVNB",
+                "karl schmid-werter": "TSVNB",
+                "eckehard schoen": "BVK",
+            };
+            return clubByPlayer[normalized] || "";
+        }
+
         function createSeasonPlayerSummary(tournaments, disciplineId, includeLinks = false) {
             const playerMap = new Map();
 
@@ -882,6 +923,7 @@
                 Array.from(tournamentPlayerMap.values()).forEach((entry) => {
                     const playerSummary = playerMap.get(entry.name) || {
                         name: entry.name,
+                        club: inferClubFromPlayerName(entry.name),
                         totalBalls: 0,
                         totalInnings: 0,
                         bestTournamentAverage: 0,
@@ -1127,6 +1169,7 @@
             const ranking = Array.from(playerNames.values())
                 .map((name) => {
                     const current = currentMap.get(name) || {
+                        club: inferClubFromPlayerName(name),
                         totalBalls: 0,
                         totalInnings: 0,
                         bestTournamentAverage: 0,
@@ -1155,6 +1198,7 @@
 
                     return {
                         name,
+                        club: current.club || inferClubFromPlayerName(name),
                         totalBalls: current.totalBalls || 0,
                         totalInnings: current.totalInnings || 0,
                         totalAverage: current.totalInnings > 0 ? current.totalBalls / current.totalInnings : 0,
@@ -1195,6 +1239,7 @@
                                 <tr>
                                     <th class="ranking-rank">Rang</th>
                                     <th>Spieler</th>
+                                    <th>Verein</th>
                                     <th class="ranking-num">Bälle</th>
                                     <th class="ranking-num">Aufn.</th>
                                     <th class="ranking-num">GD ${escapeHtml(currentShort)}</th>
@@ -1213,6 +1258,7 @@
                                     <tr>
                                         <td class="ranking-rank">${escapeHtml(index + 1)}</td>
                                         <td class="ranking-name">${escapeHtml(row.name)}</td>
+                                        <td>${escapeHtml(row.club || "")}</td>
                                         <td class="ranking-num">${escapeHtml(formatIntegerOrBlank(row.totalBalls))}</td>
                                         <td class="ranking-num">${escapeHtml(formatIntegerOrBlank(row.totalInnings))}</td>
                                         <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.totalAverage))}</td>
