@@ -1156,10 +1156,11 @@
 
             if (!ranking.length) return "";
             const classDefinitionLine = buildClassDefinitionLine(disciplineId);
+            const disciplineLabel = NBV_DISCIPLINES[String(disciplineId || "").trim()] || "";
 
             return `
                 <section class="season-block">
-                    <div class="ranking-head">Gesamtrangliste</div>
+                    <div class="ranking-head">Gesamtrangliste${disciplineLabel ? ` - ${escapeHtml(disciplineLabel)}` : ""}</div>
                     ${classDefinitionLine ? `<div class="class-definition-line">${escapeHtml(classDefinitionLine)}</div>` : ""}
                     <div class="ranking-table-wrap">
                         <table class="ranking-table">
