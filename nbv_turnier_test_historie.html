@@ -1174,9 +1174,11 @@
                     };
                     const currentBestTournamentAverage = current.bestTournamentAverage || 0;
                     const previousBestTournamentAverage1 = prev1.bestTournamentAverage || 0;
+                    const previousBestTournamentAverage2 = prev2.bestTournamentAverage || 0;
                     const effectiveBestTournamentAverage = Math.max(
                         currentBestTournamentAverage,
                         previousBestTournamentAverage1,
+                        previousBestTournamentAverage2,
                     );
 
                     return {
