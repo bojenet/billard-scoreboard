@@ -424,7 +424,25 @@
             <div class="season-toolbar">
                 <div class="field">
                     <label for="seasonInput">Saison</label>
-                    <input id="seasonInput" type="text" value="2025/2026" placeholder="2025/2026">
+                    <select id="seasonInput">
+                        <option value="2025/2026" selected>2025/2026</option>
+                        <option value="2024/2025">2024/2025</option>
+                        <option value="2023/2024">2023/2024</option>
+                        <option value="2022/2023">2022/2023</option>
+                        <option value="2021/2022">2021/2022</option>
+                        <option value="2020/2021">2020/2021</option>
+                        <option value="2019/2020">2019/2020</option>
+                        <option value="2018/2019">2018/2019</option>
+                        <option value="2017/2018">2017/2018</option>
+                        <option value="2016/2017">2016/2017</option>
+                        <option value="2015/2016">2015/2016</option>
+                        <option value="2014/2015">2014/2015</option>
+                        <option value="2013/2014">2013/2014</option>
+                        <option value="2012/2013">2012/2013</option>
+                        <option value="2011/2012">2011/2012</option>
+                        <option value="2010/2011">2010/2011</option>
+                        <option value="2009/2010">2009/2010</option>
+                    </select>
                 </div>
                 <div class="field">
                     <label for="disciplineSelect">Disziplin</label>
@@ -1119,22 +1137,31 @@
                     const prev1 = previousMap1.get(name) || {
                         totalBalls: 0,
                         totalInnings: 0,
+                        bestTournamentAverage: 0,
                         earnedClass: "",
                     };
                     const prev2 = previousMap2.get(name) || {
                         totalBalls: 0,
                         totalInnings: 0,
+                        bestTournamentAverage: 0,
                         earnedClass: "",
                     };
+                    const currentBestTournamentAverage = current.bestTournamentAverage || 0;
+                    const previousBestTournamentAverage1 = prev1.bestTournamentAverage || 0;
+                    const effectiveBestTournamentAverage = Math.max(
+                        currentBestTournamentAverage,
+                        previousBestTournamentAverage1,
+                    );
 
                     return {
                         name,
                         totalBalls: current.totalBalls || 0,
                         totalInnings: current.totalInnings || 0,
                         totalAverage: current.totalInnings > 0 ? current.totalBalls / current.totalInnings : 0,
-                        bestTournamentAverage: current.bestTournamentAverage || 0,
+                        bestTournamentAverage: currentBestTournamentAverage,
                         bestHs: current.bestHs || 0,
                         currentClass: current.earnedClass || "",
+                        effectiveClass: determineEarnedClass(disciplineId, effectiveBestTournamentAverage),
                         previousAverage1: prev1.totalInnings > 0 ? prev1.totalBalls / prev1.totalInnings : 0,
                         previousClass1: prev1.earnedClass || "",
                         previousAverage2: prev2.totalInnings > 0 ? prev2.totalBalls / prev2.totalInnings : 0,
@@ -1174,6 +1201,7 @@
                                     <th class="ranking-num">BTG ${escapeHtml(currentShort)}</th>
                                     <th class="ranking-num">HS ${escapeHtml(currentShort)}</th>
                                     <th class="ranking-num">Klasse ${escapeHtml(currentShort)}</th>
+                                    <th class="ranking-num">Klasse aktuell</th>
                                     <th class="ranking-num">GD ${escapeHtml(previousShort1)}</th>
                                     <th class="ranking-num">Klasse ${escapeHtml(previousShort1)}</th>
                                     <th class="ranking-num">GD ${escapeHtml(previousShort2)}</th>
@@ -1191,6 +1219,7 @@
                                         <td class="ranking-num">${buildBestTournamentAverageLink(row)}</td>
                                         <td class="ranking-num">${escapeHtml(formatIntegerOrBlank(row.bestHs))}</td>
                                         <td class="ranking-num">${escapeHtml(row.currentClass || "")}</td>
+                                        <td class="ranking-num">${escapeHtml(row.effectiveClass || "")}</td>
                                         <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.previousAverage1))}</td>
                                         <td class="ranking-num">${escapeHtml(row.previousClass1 || "")}</td>
                                         <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.previousAverage2))}</td>
