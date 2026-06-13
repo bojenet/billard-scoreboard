@@ -281,6 +281,17 @@
             color: var(--head);
         }
 
+        .class-definition-line {
+            padding: 8px 12px;
+            border-bottom: 1px solid #d8dee6;
+            background: #fbfcfd;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.35;
+            white-space: nowrap;
+            overflow-x: auto;
+        }
+
         .ranking-table-wrap {
             overflow-x: auto;
         }
@@ -744,12 +755,8 @@
             return `${parts[0].slice(-2)}/${parts[1].slice(-2)}`;
         }
 
-        function determineEarnedClass(disciplineId, bestTournamentAverage) {
+        function getClassThresholds(disciplineId) {
             const normalizedDisciplineId = String(disciplineId || "").trim();
-            if (!Number.isFinite(bestTournamentAverage) || bestTournamentAverage <= 0) {
-                return "";
-            }
-
             const classThresholds = {
                 "5": [
                     { min: 0.7, className: "I" },
@@ -800,7 +807,30 @@
                 ],
             };
 
-            const thresholds = classThresholds[normalizedDisciplineId] || [];
+            return classThresholds[normalizedDisciplineId] || [];
+        }
+
+        function formatBtgThreshold(value) {
+            return Number(value).toLocaleString("de-DE", {
+                minimumFractionDigits: 3,
+                maximumFractionDigits: 3,
+            });
+        }
+
+        function buildClassDefinitionLine(disciplineId) {
+            const thresholds = getClassThresholds(disciplineId);
+            if (!thresholds.length) return "";
+            return thresholds
+                .map((entry) => `Klasse ${entry.className}: BTG ab ${formatBtgThreshold(entry.min)}`)
+                .join(", ");
+        }
+
+        function determineEarnedClass(disciplineId, bestTournamentAverage) {
+            if (!Number.isFinite(bestTournamentAverage) || bestTournamentAverage <= 0) {
+                return "";
+            }
+
+            const thresholds = getClassThresholds(disciplineId);
             return thresholds.find((entry) => bestTournamentAverage >= entry.min)?.className || "";
         }
 
@@ -1125,10 +1155,12 @@
                 });
 
             if (!ranking.length) return "";
+            const classDefinitionLine = buildClassDefinitionLine(disciplineId);
 
             return `
                 <section class="season-block">
-                    <div class="ranking-head">Gesamtrangliste nach Schnitt mit Historie</div>
+                    <div class="ranking-head">Gesamtrangliste</div>
+                    ${classDefinitionLine ? `<div class="class-definition-line">${escapeHtml(classDefinitionLine)}</div>` : ""}
                     <div class="ranking-table-wrap">
                         <table class="ranking-table">
                             <thead>
