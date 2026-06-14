@@ -340,6 +340,24 @@
             font-variant-numeric: tabular-nums;
         }
 
+        .ranking-current-class {
+            background: #fff1d6;
+            border-left: 2px solid #f59e0b;
+            border-right: 2px solid #f59e0b;
+            color: #7a3b00;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .ranking-table th.ranking-current-class {
+            background: #ffd99a;
+            border-top: 2px solid #f59e0b;
+        }
+
+        .ranking-table tbody tr:last-child td.ranking-current-class {
+            border-bottom: 2px solid #f59e0b;
+        }
+
         .ranking-links {
             width: 140px;
             max-width: 180px;
@@ -1231,11 +1249,11 @@
                                     <th class="ranking-num">BTG ${escapeHtml(currentShort)}</th>
                                     <th class="ranking-num">HS ${escapeHtml(currentShort)}</th>
                                     <th class="ranking-num">Klasse ${escapeHtml(currentShort)}</th>
-                                    <th class="ranking-num">Klasse aktuell</th>
                                     <th class="ranking-num">GD ${escapeHtml(previousShort1)}</th>
                                     <th class="ranking-num">Klasse ${escapeHtml(previousShort1)}</th>
                                     <th class="ranking-num">GD ${escapeHtml(previousShort2)}</th>
                                     <th class="ranking-num">Klasse ${escapeHtml(previousShort2)}</th>
+                                    <th class="ranking-num ranking-current-class">Klasse aktuell</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1250,11 +1268,11 @@
                                         <td class="ranking-num">${buildBestTournamentAverageLink(row)}</td>
                                         <td class="ranking-num">${escapeHtml(formatIntegerOrBlank(row.bestHs))}</td>
                                         <td class="ranking-num">${escapeHtml(row.currentClass || "")}</td>
-                                        <td class="ranking-num">${escapeHtml(row.effectiveClass || "")}</td>
                                         <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.previousAverage1))}</td>
                                         <td class="ranking-num">${escapeHtml(row.previousClass1 || "")}</td>
                                         <td class="ranking-num">${escapeHtml(formatAverageOrBlank(row.previousAverage2))}</td>
                                         <td class="ranking-num">${escapeHtml(row.previousClass2 || "")}</td>
+                                        <td class="ranking-num ranking-current-class">${escapeHtml(row.effectiveClass || "")}</td>
                                     </tr>
                                 `).join("")}
                             </tbody>
