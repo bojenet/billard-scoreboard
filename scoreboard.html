@@ -256,6 +256,36 @@
             padding: clamp(8px, 1.6vw, 20px) clamp(8px, 1.2vw, 16px) clamp(10px, 2.4vw, 40px) clamp(8px, 1.2vw, 16px);
         }
 
+        .shot-clock {
+            display: none;
+            width: 100%;
+            height: clamp(12px, 1.7vw, 24px);
+            background: rgba(57, 212, 123, 0.22);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .shot-clock.visible {
+            display: block;
+        }
+
+        .shot-clock.warning {
+            background: rgba(255, 80, 80, 0.22);
+        }
+
+        .shot-clock-fill {
+            width: 100%;
+            height: 100%;
+            background: #31d475;
+            transform-origin: left center;
+            transform: scaleX(1);
+            transition: transform .35s linear, background-color .2s ease;
+        }
+
+        .shot-clock.warning .shot-clock-fill {
+            background: #ff3f3f;
+        }
+
         .button-row button {
             background: #1c3380;
             color: white;
@@ -691,6 +721,10 @@
 
     </div>
 
+    <div id="shotClock" class="shot-clock" aria-hidden="true">
+        <div id="shotClockFill" class="shot-clock-fill"></div>
+    </div>
+
     <!-- ================= BUTTONS ================= -->
 
     <div class="controls">
@@ -867,9 +901,13 @@
         let lastAnnouncedRemainingKey = "";
         let matchSeriesStorageAvailable = false;
         const FREE_GAME_2X_DISCIPLINE = "Freie Partie 2x";
+        const THREE_CUSHION_DISCIPLINE = "Dreiband";
+        const SHOT_CLOCK_SECONDS = 40;
+        const SHOT_CLOCK_WARNING_SECONDS = 10;
         let freeGame2xPendingPlayer = 0;
         let freeGame2xPendingSeries1 = 0;
         let freeGame2xPendingSeries2 = 0;
+        let shotClockStartedAtMs = Date.now();
 
         function renderMatchMeta() {
             document.getElementById("player1Name").innerText = player1Label;
@@ -1010,9 +1048,43 @@
                     String(m).padStart(2, "0") + ":" +
                     String(s).padStart(2, "0");
 
+                updateShotClock();
                 updatePaceDisplays();
 
             }, 1000);
+        }
+
+        function getActiveDiscipline() {
+            return activePlayer === 1 ? discipline1Label : discipline2Label;
+        }
+
+        function isThreeCushionDiscipline(value) {
+            return String(value || "").trim().toLowerCase() === THREE_CUSHION_DISCIPLINE.toLowerCase();
+        }
+
+        function resetShotClock() {
+            shotClockStartedAtMs = Date.now();
+            updateShotClock();
+        }
+
+        function updateShotClock() {
+            const clock = document.getElementById("shotClock");
+            const fill = document.getElementById("shotClockFill");
+            if (!clock || !fill) return;
+
+            if (finished || !isThreeCushionDiscipline(getActiveDiscipline())) {
+                clock.classList.remove("visible", "warning");
+                fill.style.transform = "scaleX(1)";
+                return;
+            }
+
+            const elapsed = Math.max(0, Math.floor((Date.now() - shotClockStartedAtMs) / 1000));
+            const remaining = Math.max(0, SHOT_CLOCK_SECONDS - elapsed);
+            const progress = remaining / SHOT_CLOCK_SECONDS;
+
+            clock.classList.add("visible");
+            clock.classList.toggle("warning", remaining <= SHOT_CLOCK_WARNING_SECONDS);
+            fill.style.transform = "scaleX(" + progress.toFixed(3) + ")";
         }
 
         function getElapsedSeconds() {
@@ -1132,6 +1204,7 @@
             updateUI();
             startedAtIso = d.started_at || "";
             resetActivePaceTracking();
+            resetShotClock();
             startTimer(d.started_at);
             subscribeToMatch();
             showEndIfFinished();
@@ -1211,6 +1284,7 @@
             document.getElementById("list1").innerText = innings1.join(",");
             document.getElementById("list2").innerText = innings2.join(",");
             updateRemainingHint();
+            updateShotClock();
 
             p1.className = activePlayer === 1 ? "player active-white" : "player inactive-white";
             p2.className = activePlayer === 2 ? "player active-yellow" : "player inactive-yellow";
@@ -1402,6 +1476,7 @@
 
             activePlayer = p;
             activeTurnStartedAtMs = Date.now();
+            resetShotClock();
 
             updateUI();
             checkWinner();
@@ -1478,7 +1553,8 @@
                 inn1,
                 inn2,
                 series1,
-                series2
+                series2,
+                activePlayer
             };
 
             commitActiveTurnTime();
@@ -1510,6 +1586,9 @@
             maxInnings = Number(d.maxInnings || 0);
             startedAtIso = d.started_at || startedAtIso;
             activeTurnStartedAtMs = Date.now();
+            if (previous.activePlayer !== activePlayer) {
+                resetShotClock();
+            }
             if (matchSeriesStorageAvailable) {
                 innings1 = toSeriesArray(d.series_log1);
                 innings2 = toSeriesArray(d.series_log2);
@@ -1578,6 +1657,7 @@
             else if (freeGame2xPendingPlayer === 2) freeGame2xPendingPlayer = 1;
             activePlayer = activePlayer === 1 ? 2 : 1;
             activeTurnStartedAtMs = Date.now();
+            resetShotClock();
             lastAnnouncedRemainingKey = "";
 
             renderMatchMeta();
@@ -1690,6 +1770,7 @@
             activeSeconds1 = Number(prev.activeSeconds1 || 0);
             activeSeconds2 = Number(prev.activeSeconds2 || 0);
             activeTurnStartedAtMs = Date.now();
+            resetShotClock();
             freeGame2xPendingPlayer = prev.freeGame2xPendingPlayer || 0;
             freeGame2xPendingSeries1 = prev.freeGame2xPendingSeries1 || 0;
             freeGame2xPendingSeries2 = prev.freeGame2xPendingSeries2 || 0;
@@ -1703,6 +1784,7 @@
         function showEnd(winner) {
 
             finished = 1;
+            updateShotClock();
 
             let avg1 = inn1 > 0 ? (score1 / inn1).toFixed(3) : "0.000";
             let avg2 = inn2 > 0 ? (score2 / inn2).toFixed(3) : "0.000";
@@ -2061,7 +2143,8 @@
                             inn1,
                             inn2,
                             series1,
-                            series2
+                            series2,
+                            activePlayer
                         };
 
                         if (d) {
@@ -2088,6 +2171,9 @@
                         high1 = d.high1 || 0;
                         high2 = d.high2 || 0;
                         activeTurnStartedAtMs = Date.now();
+                        if (previous.activePlayer !== activePlayer) {
+                            resetShotClock();
+                        }
                         reconcileInningsLists();
 
                         renderMatchMeta();
