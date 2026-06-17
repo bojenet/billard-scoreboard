@@ -209,6 +209,47 @@
             font-size: clamp(22px, 3vw, 48px);
         }
 
+        .timeout-icons {
+            display: flex;
+            gap: clamp(6px, .9vw, 14px);
+            align-items: center;
+            justify-content: center;
+            min-height: clamp(22px, 3vw, 48px);
+        }
+
+        .timeout-icon {
+            position: relative;
+            width: clamp(18px, 2.4vw, 38px);
+            aspect-ratio: 1;
+            border: clamp(2px, .25vw, 4px) solid currentColor;
+            border-radius: 50%;
+            box-sizing: border-box;
+            opacity: .95;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.24));
+        }
+
+        .timeout-icon::before,
+        .timeout-icon::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: 50%;
+            width: clamp(2px, .22vw, 4px);
+            border-radius: 999px;
+            background: currentColor;
+            transform-origin: bottom center;
+        }
+
+        .timeout-icon::before {
+            height: 34%;
+            transform: translateX(-50%) rotate(0deg);
+        }
+
+        .timeout-icon::after {
+            height: 28%;
+            transform: translateX(-50%) rotate(92deg);
+        }
+
         /* ================= CENTER ================= */
 
 
@@ -699,8 +740,11 @@
                 </div>
 
                 <div class="stat-flat">
-                    <span class="stat-title">PACE</span>
-                    <span id="pace1">0</span>
+                    <span class="stat-title">TO</span>
+                    <span class="timeout-icons" aria-label="2 Time-outs">
+                        <span class="timeout-icon" aria-hidden="true"></span>
+                        <span class="timeout-icon" aria-hidden="true"></span>
+                    </span>
                 </div>
             </div>
 
@@ -759,8 +803,11 @@
                 </div>
 
                 <div class="stat-flat">
-                    <span class="stat-title">PACE</span>
-                    <span id="pace2">0</span>
+                    <span class="stat-title">TO</span>
+                    <span class="timeout-icons" aria-label="2 Time-outs">
+                        <span class="timeout-icon" aria-hidden="true"></span>
+                        <span class="timeout-icon" aria-hidden="true"></span>
+                    </span>
                 </div>
             </div>
 
