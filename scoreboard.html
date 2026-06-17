@@ -118,10 +118,12 @@
             flex: 1;
             display: flex;
             flex-direction: column;
+            align-items: center;
             min-height: 0;
         }
 
         .main {
+            width: min(100%, calc((2 * min(41vw, 650px)) + clamp(84px, 15vw, 240px) + (2 * clamp(10px, 3vw, 80px))));
             flex: 1;
             display: flex;
             align-items: center;
@@ -330,7 +332,7 @@
 
         .shot-clock {
             display: none;
-            width: 100%;
+            width: min(100%, calc((2 * min(41vw, 650px)) + clamp(84px, 15vw, 240px) + (2 * clamp(10px, 3vw, 80px))));
             height: clamp(26px, 3.4vw, 48px);
             position: relative;
             padding: clamp(3px, .45vw, 6px);
