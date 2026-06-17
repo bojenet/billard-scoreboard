@@ -114,6 +114,13 @@
 
         /* ================= MAIN ================= */
 
+        .score-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
         .main {
             flex: 1;
             display: flex;
@@ -124,9 +131,13 @@
             min-height: 0;
         }
 
+        body.remote-viewer .score-area {
+            justify-content: center;
+            gap: clamp(10px, 1.5vw, 24px);
+        }
+
         body.remote-viewer .main {
             flex: 0 1 auto;
-            padding-bottom: clamp(8px, 1.2vw, 18px);
         }
 
         .player {
@@ -316,11 +327,6 @@
                 inset 0 1px 0 rgba(255, 255, 255, 0.16),
                 inset 0 -8px 18px rgba(0, 0, 0, 0.22),
                 0 -6px 18px rgba(0, 0, 0, 0.32);
-        }
-
-        body.remote-viewer .shot-clock {
-            margin-top: clamp(6px, 1vw, 16px);
-            margin-bottom: clamp(12px, 2vw, 32px);
         }
 
         .shot-clock.visible {
@@ -724,10 +730,11 @@
 
     <!-- ================= MAIN ================= -->
 
-    <div class="main">
+    <div class="score-area">
+        <div class="main">
 
-        <!-- PLAYER 1 -->
-        <div class="player active-white" id="p1" onclick="playerClick(1)">
+            <!-- PLAYER 1 -->
+            <div class="player active-white" id="p1" onclick="playerClick(1)">
 
             <div class="discipline-big" id="discipline1Big"></div>
 
@@ -759,12 +766,12 @@
             </div>
 
             <div id="list1" style="margin-top:15px;"></div>
-        </div>
+            </div>
 
 
-        <!-- CENTER -->
+            <!-- CENTER -->
 
-        <div id="remainingLabel" class="remaining-label"></div>
+            <div id="remainingLabel" class="remaining-label"></div>
 
         <div id="nachstossLabel" style="
     position:absolute;
@@ -778,7 +785,7 @@
             Nachstoß
         </div>
 
-        <div class="center-wrapper">
+            <div class="center-wrapper">
 
             <div class="center-box">
                 <div class="center-number" id="totalInnings">1</div>
@@ -786,11 +793,11 @@
 
             <div id="currentSeries" class="series-display"></div>
 
-        </div>
+            </div>
 
 
-        <!-- PLAYER 2 -->
-        <div class="player inactive" id="p2" onclick="playerClick(2)">
+            <!-- PLAYER 2 -->
+            <div class="player inactive" id="p2" onclick="playerClick(2)">
 
             <div class="discipline-big" id="discipline2Big"></div>
 
@@ -822,13 +829,14 @@
             </div>
 
             <div id="list2" style="margin-top:15px;"></div>
+            </div>
+
         </div>
 
-    </div>
-
-    <div id="shotClock" class="shot-clock" aria-hidden="true">
-        <div id="shotClockBlocks" class="shot-clock-blocks"></div>
-        <div id="shotClockSeconds" class="shot-clock-seconds">40</div>
+        <div id="shotClock" class="shot-clock" aria-hidden="true">
+            <div id="shotClockBlocks" class="shot-clock-blocks"></div>
+            <div id="shotClockSeconds" class="shot-clock-seconds">40</div>
+        </div>
     </div>
 
     <!-- ================= BUTTONS ================= -->
