@@ -266,6 +266,16 @@
             transform: translateX(-50%) rotate(92deg);
         }
 
+        .stat-mode {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-mode.visible {
+            display: flex;
+        }
+
         /* ================= CENTER ================= */
 
 
@@ -756,11 +766,17 @@
                     <span id="hs1">0</span>
                 </div>
 
-                <div class="stat-flat">
-                    <span class="stat-title">Time-Out</span>
-                    <span class="timeout-icons" aria-label="2 Time-outs">
-                        <span class="timeout-icon" aria-hidden="true"></span>
-                        <span class="timeout-icon" aria-hidden="true"></span>
+                <div class="stat-flat" id="fourthStat1">
+                    <span class="stat-mode visible" id="paceStat1">
+                        <span class="stat-title">PACE</span>
+                        <span id="pace1">0</span>
+                    </span>
+                    <span class="stat-mode" id="timeoutStat1">
+                        <span class="stat-title">Time-Out</span>
+                        <span class="timeout-icons" aria-label="2 Time-outs">
+                            <span class="timeout-icon" aria-hidden="true"></span>
+                            <span class="timeout-icon" aria-hidden="true"></span>
+                        </span>
                     </span>
                 </div>
             </div>
@@ -819,11 +835,17 @@
                     <span id="hs2">0</span>
                 </div>
 
-                <div class="stat-flat">
-                    <span class="stat-title">Time-Out</span>
-                    <span class="timeout-icons" aria-label="2 Time-outs">
-                        <span class="timeout-icon" aria-hidden="true"></span>
-                        <span class="timeout-icon" aria-hidden="true"></span>
+                <div class="stat-flat" id="fourthStat2">
+                    <span class="stat-mode visible" id="paceStat2">
+                        <span class="stat-title">PACE</span>
+                        <span id="pace2">0</span>
+                    </span>
+                    <span class="stat-mode" id="timeoutStat2">
+                        <span class="stat-title">Time-Out</span>
+                        <span class="timeout-icons" aria-label="2 Time-outs">
+                            <span class="timeout-icon" aria-hidden="true"></span>
+                            <span class="timeout-icon" aria-hidden="true"></span>
+                        </span>
                     </span>
                 </div>
             </div>
@@ -1300,6 +1322,19 @@
             if (pace2El) pace2El.innerText = calculatePace(livePoints2, getPlayerActiveSeconds(2));
         }
 
+        function updateFourthStatDisplays() {
+            [
+                { player: 1, discipline: discipline1Label },
+                { player: 2, discipline: discipline2Label }
+            ].forEach((entry) => {
+                const showTimeout = isThreeCushionDiscipline(entry.discipline);
+                const paceEl = document.getElementById("paceStat" + entry.player);
+                const timeoutEl = document.getElementById("timeoutStat" + entry.player);
+                if (paceEl) paceEl.classList.toggle("visible", !showTimeout);
+                if (timeoutEl) timeoutEl.classList.toggle("visible", showTimeout);
+            });
+        }
+
 
         /* ================= LOAD MATCH ================= */
 
@@ -1442,6 +1477,7 @@
             document.getElementById("hs2").innerText = high2;
             document.getElementById("inn1Display").innerText = inn1;
             document.getElementById("inn2Display").innerText = inn2;
+            updateFourthStatDisplays();
             updatePaceDisplays();
 
             document.getElementById("list1").innerText = innings1.join(",");
