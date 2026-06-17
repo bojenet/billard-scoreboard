@@ -113,7 +113,7 @@
 
         .timer-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr);
+            grid-template-columns: minmax(0, 1fr) 86px;
             gap: 12px;
             width: 100%;
         }
@@ -147,6 +147,58 @@
             background: linear-gradient(180deg, #2ad06f, #159b4d);
             color: #061f12;
             box-shadow: 0 10px 24px rgba(32, 207, 104, 0.24);
+        }
+
+        .timeout-use {
+            position: relative;
+            background: #243f87;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .timeout-use-icon {
+            position: relative;
+            width: 30px;
+            height: 30px;
+            border: 3px solid currentColor;
+            border-radius: 50%;
+            box-sizing: border-box;
+            display: inline-block;
+        }
+
+        .timeout-use-icon::before,
+        .timeout-use-icon::after {
+            content: "";
+            position: absolute;
+            background: currentColor;
+            border-radius: 999px;
+            left: 50%;
+            bottom: 50%;
+            transform-origin: bottom center;
+        }
+
+        .timeout-use-icon::before {
+            width: 3px;
+            height: 10px;
+            transform: translateX(-50%);
+        }
+
+        .timeout-use-icon::after {
+            width: 3px;
+            height: 9px;
+            transform: translateX(-50%) rotate(90deg);
+        }
+
+        .timeout-use-slash {
+            position: absolute;
+            width: 44px;
+            height: 4px;
+            background: #ff6b6b;
+            border-radius: 999px;
+            transform: rotate(-38deg);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
         }
 
         button[disabled] {
@@ -387,6 +439,10 @@
 
         <div class="timer-row">
             <button id="startTimerBtn" class="timer-start" onclick="toggleShotClock()">Start Timer</button>
+            <button id="useTimeoutBtn" class="timeout-use" onclick="useTimeout()" aria-label="Time-Out verbrauchen" title="Time-Out verbrauchen">
+                <span class="timeout-use-icon" aria-hidden="true"></span>
+                <span class="timeout-use-slash" aria-hidden="true"></span>
+            </button>
         </div>
 
         <div class="action-row">
@@ -494,6 +550,23 @@ function updateShotClockButton() {
     btn.innerText = matchData && matchData.shot_clock_running ? "Pause Timer" : "Start Timer";
 }
 
+function updateTimeoutButton() {
+    const btn = document.getElementById("useTimeoutBtn");
+    if (!btn) return;
+    const isThreeCushion = !!matchData && isThreeCushionDiscipline(getActiveDiscipline());
+    const activePlayer = Number(matchData?.activePlayer || 1);
+    const used = activePlayer === 1
+        ? Number(matchData?.shot_clock_timeouts1 || 0)
+        : Number(matchData?.shot_clock_timeouts2 || 0);
+    btn.classList.toggle("hidden", !isThreeCushion);
+    btn.disabled =
+        !matchData ||
+        isFinished() ||
+        !shotClockStorageAvailable ||
+        !isThreeCushion ||
+        used >= 2;
+}
+
 function withShotClockReset(updateObj) {
     if (!shotClockStorageAvailable) return updateObj;
     return {
@@ -587,7 +660,9 @@ async function loadMatch() {
     shotClockStorageAvailable =
         Object.prototype.hasOwnProperty.call(data, "shot_clock_running") &&
         Object.prototype.hasOwnProperty.call(data, "shot_clock_started_at") &&
-        Object.prototype.hasOwnProperty.call(data, "shot_clock_remaining_seconds");
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_remaining_seconds") &&
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_timeouts1") &&
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_timeouts2");
     showLoadedMatchUi();
     updateDisplay();
 }
@@ -685,7 +760,9 @@ function subscribeToMatch() {
                 shotClockStorageAvailable =
                     Object.prototype.hasOwnProperty.call(matchData, "shot_clock_running") &&
                     Object.prototype.hasOwnProperty.call(matchData, "shot_clock_started_at") &&
-                    Object.prototype.hasOwnProperty.call(matchData, "shot_clock_remaining_seconds");
+                    Object.prototype.hasOwnProperty.call(matchData, "shot_clock_remaining_seconds") &&
+                    Object.prototype.hasOwnProperty.call(matchData, "shot_clock_timeouts1") &&
+                    Object.prototype.hasOwnProperty.call(matchData, "shot_clock_timeouts2");
                 updateDisplay();
             }
         )
@@ -757,6 +834,7 @@ function updateDisplay() {
         setControlsEnabled(true);
     }
     updateShotClockButton();
+    updateTimeoutButton();
 }
 
 // ===============================
@@ -793,7 +871,9 @@ async function pollMatch() {
     shotClockStorageAvailable =
         Object.prototype.hasOwnProperty.call(data, "shot_clock_running") &&
         Object.prototype.hasOwnProperty.call(data, "shot_clock_started_at") &&
-        Object.prototype.hasOwnProperty.call(data, "shot_clock_remaining_seconds");
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_remaining_seconds") &&
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_timeouts1") &&
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_timeouts2");
     updateDisplay();
 }
 
@@ -854,7 +934,9 @@ function saveHistory() {
         totalInnings: matchData.totalInnings,
         finished: matchData.finished,
         series_log1: toSeriesArray(matchData.series_log1),
-        series_log2: toSeriesArray(matchData.series_log2)
+        series_log2: toSeriesArray(matchData.series_log2),
+        shot_clock_timeouts1: Number(matchData.shot_clock_timeouts1 || 0),
+        shot_clock_timeouts2: Number(matchData.shot_clock_timeouts2 || 0)
     });
 }
 
@@ -951,6 +1033,34 @@ async function toggleShotClock() {
         shot_clock_started_at: new Date().toISOString(),
         shot_clock_remaining_seconds: remaining > 0 ? remaining : 40
     });
+}
+
+async function useTimeout() {
+    if (!matchData) return;
+    if (isFinished()) return;
+    if (!shotClockStorageAvailable) return;
+    if (!isThreeCushionDiscipline(getActiveDiscipline())) return;
+
+    const activePlayer = Number(matchData.activePlayer || 1);
+    const currentUsed = activePlayer === 1
+        ? Number(matchData.shot_clock_timeouts1 || 0)
+        : Number(matchData.shot_clock_timeouts2 || 0);
+    if (currentUsed >= 2) return;
+
+    saveHistory();
+
+    const updateObj = {
+        shot_clock_running: true,
+        shot_clock_started_at: new Date().toISOString(),
+        shot_clock_remaining_seconds: 40
+    };
+    if (activePlayer === 1) {
+        updateObj.shot_clock_timeouts1 = currentUsed + 1;
+    } else {
+        updateObj.shot_clock_timeouts2 = currentUsed + 1;
+    }
+
+    await updateMatch(updateObj);
 }
 
 // ===============================

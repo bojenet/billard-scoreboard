@@ -266,6 +266,11 @@
             transform: translateX(-50%) rotate(92deg);
         }
 
+        .timeout-icon.used {
+            opacity: .22;
+            filter: grayscale(1);
+        }
+
         .stat-mode {
             display: none;
             flex-direction: column;
@@ -773,7 +778,7 @@
                     </span>
                     <span class="stat-mode" id="timeoutStat1">
                         <span class="stat-title">Time-Out</span>
-                        <span class="timeout-icons" aria-label="2 Time-outs">
+                        <span class="timeout-icons" data-timeout-player="1" aria-label="2 Time-outs">
                             <span class="timeout-icon" aria-hidden="true"></span>
                             <span class="timeout-icon" aria-hidden="true"></span>
                         </span>
@@ -842,7 +847,7 @@
                     </span>
                     <span class="stat-mode" id="timeoutStat2">
                         <span class="stat-title">Time-Out</span>
-                        <span class="timeout-icons" aria-label="2 Time-outs">
+                        <span class="timeout-icons" data-timeout-player="2" aria-label="2 Time-outs">
                             <span class="timeout-icon" aria-hidden="true"></span>
                             <span class="timeout-icon" aria-hidden="true"></span>
                         </span>
@@ -1047,6 +1052,8 @@
         let shotClockRunning = false;
         let shotClockStartedAtMs = 0;
         let shotClockRemainingSeconds = SHOT_CLOCK_SECONDS;
+        let timeoutsUsed1 = 0;
+        let timeoutsUsed2 = 0;
 
         function renderMatchMeta() {
             document.getElementById("player1Name").innerText = player1Label;
@@ -1212,7 +1219,9 @@
             shotClockStorageAvailable =
                 Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_running") &&
                 Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_started_at") &&
-                Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_remaining_seconds");
+                Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_remaining_seconds") &&
+                Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_timeouts1") &&
+                Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_timeouts2");
             if (!shotClockStorageAvailable) {
                 resetShotClock();
                 return;
@@ -1225,6 +1234,8 @@
                 SHOT_CLOCK_SECONDS,
                 Number(row.shot_clock_remaining_seconds ?? SHOT_CLOCK_SECONDS)
             ));
+            timeoutsUsed1 = Math.max(0, Math.min(2, Number(row.shot_clock_timeouts1 || 0)));
+            timeoutsUsed2 = Math.max(0, Math.min(2, Number(row.shot_clock_timeouts2 || 0)));
             updateShotClock();
         }
 
@@ -1332,6 +1343,20 @@
                 const timeoutEl = document.getElementById("timeoutStat" + entry.player);
                 if (paceEl) paceEl.classList.toggle("visible", !showTimeout);
                 if (timeoutEl) timeoutEl.classList.toggle("visible", showTimeout);
+            });
+            updateTimeoutIcons();
+        }
+
+        function updateTimeoutIcons() {
+            [
+                { player: 1, used: timeoutsUsed1 },
+                { player: 2, used: timeoutsUsed2 }
+            ].forEach((entry) => {
+                document
+                    .querySelectorAll('[data-timeout-player="' + entry.player + '"] .timeout-icon')
+                    .forEach((icon, index) => {
+                        icon.classList.toggle("used", index < entry.used);
+                    });
             });
         }
 
@@ -1732,6 +1757,8 @@
                     ? new Date(shotClockStartedAtMs).toISOString()
                     : null;
                 updateData.shot_clock_remaining_seconds = shotClockRemainingSeconds;
+                updateData.shot_clock_timeouts1 = timeoutsUsed1;
+                updateData.shot_clock_timeouts2 = timeoutsUsed2;
             }
 
             const { error } = await supabaseClient
