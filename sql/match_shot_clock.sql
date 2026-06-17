@@ -1,0 +1,3 @@
+alter table public.matches
+  add column if not exists shot_clock_running boolean not null default false,
+  add column if not exists shot_clock_started_at timestamptz;

@@ -949,6 +949,7 @@
         let ownedPlayerNames = [];
         let lastAnnouncedRemainingKey = "";
         let matchSeriesStorageAvailable = false;
+        let shotClockStorageAvailable = false;
         const FREE_GAME_2X_DISCIPLINE = "Freie Partie 2x";
         const THREE_CUSHION_DISCIPLINE = "Dreiband";
         const SHOT_CLOCK_SECONDS = 40;
@@ -956,7 +957,8 @@
         let freeGame2xPendingPlayer = 0;
         let freeGame2xPendingSeries1 = 0;
         let freeGame2xPendingSeries2 = 0;
-        let shotClockStartedAtMs = Date.now();
+        let shotClockRunning = false;
+        let shotClockStartedAtMs = 0;
 
         function renderMatchMeta() {
             document.getElementById("player1Name").innerText = player1Label;
@@ -1112,7 +1114,23 @@
         }
 
         function resetShotClock() {
-            shotClockStartedAtMs = Date.now();
+            shotClockRunning = false;
+            shotClockStartedAtMs = 0;
+            updateShotClock();
+        }
+
+        function setShotClockFromMatch(row) {
+            shotClockStorageAvailable =
+                Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_running") &&
+                Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_started_at");
+            if (!shotClockStorageAvailable) {
+                resetShotClock();
+                return;
+            }
+
+            shotClockRunning = Boolean(row.shot_clock_running);
+            const startedAt = row.shot_clock_started_at ? new Date(row.shot_clock_started_at).getTime() : 0;
+            shotClockStartedAtMs = Number.isFinite(startedAt) ? startedAt : 0;
             updateShotClock();
         }
 
@@ -1143,7 +1161,9 @@
                 return;
             }
 
-            const elapsed = Math.max(0, Math.floor((Date.now() - shotClockStartedAtMs) / 1000));
+            const elapsed = shotClockRunning && shotClockStartedAtMs
+                ? Math.max(0, Math.floor((Date.now() - shotClockStartedAtMs) / 1000))
+                : 0;
             const remaining = Math.max(0, SHOT_CLOCK_SECONDS - elapsed);
             const elapsedBlocks = Math.min(SHOT_CLOCK_SECONDS, elapsed);
 
@@ -1247,6 +1267,7 @@
             matchSeriesStorageAvailable =
                 Object.prototype.hasOwnProperty.call(d, "series_log1") &&
                 Object.prototype.hasOwnProperty.call(d, "series_log2");
+            setShotClockFromMatch(d);
 
             target1 = Number(d.target1 || 0);
             target2 = Number(d.target2 || 0);
@@ -1272,7 +1293,6 @@
             updateUI();
             startedAtIso = d.started_at || "";
             resetActivePaceTracking();
-            resetShotClock();
             startTimer(d.started_at);
             subscribeToMatch();
             showEndIfFinished();
@@ -1454,6 +1474,7 @@
                 }
             }
 
+            resetShotClock();
             updateUI();
             await updateMatchInDB();
         }
@@ -1532,6 +1553,7 @@
             if (keepSamePlayerForSecondInning) {
                 activePlayer = previousActivePlayer;
                 activeTurnStartedAtMs = Date.now();
+                resetShotClock();
                 updateUI();
                 checkWinner();
                 updateMatchInDB();
@@ -1593,6 +1615,13 @@
                 updateData.series_log2 = innings2;
             }
 
+            if (shotClockStorageAvailable) {
+                updateData.shot_clock_running = shotClockRunning;
+                updateData.shot_clock_started_at = shotClockRunning && shotClockStartedAtMs
+                    ? new Date(shotClockStartedAtMs).toISOString()
+                    : null;
+            }
+
             const { error } = await supabaseClient
                 .from("matches")
                 .update(updateData)
@@ -1642,6 +1671,7 @@
             matchSeriesStorageAvailable =
                 Object.prototype.hasOwnProperty.call(d, "series_log1") &&
                 Object.prototype.hasOwnProperty.call(d, "series_log2");
+            setShotClockFromMatch(d);
             target1 = Number(d.target1 || 0);
             target2 = Number(d.target2 || 0);
             totalInnings = Number(d.totalInnings || 1);
@@ -1654,9 +1684,6 @@
             maxInnings = Number(d.maxInnings || 0);
             startedAtIso = d.started_at || startedAtIso;
             activeTurnStartedAtMs = Date.now();
-            if (previous.activePlayer !== activePlayer) {
-                resetShotClock();
-            }
             if (matchSeriesStorageAvailable) {
                 innings1 = toSeriesArray(d.series_log1);
                 innings2 = toSeriesArray(d.series_log2);
@@ -2229,6 +2256,7 @@
                         discipline2Label = String(d.discipline2 || "");
                         player1Id = d.player1_id ?? null;
                         player2Id = d.player2_id ?? null;
+                        setShotClockFromMatch(d);
                         target1 = Number(d.target1 || 0);
                         target2 = Number(d.target2 || 0);
                         totalInnings = d.totalInnings;
@@ -2239,9 +2267,6 @@
                         high1 = d.high1 || 0;
                         high2 = d.high2 || 0;
                         activeTurnStartedAtMs = Date.now();
-                        if (previous.activePlayer !== activePlayer) {
-                            resetShotClock();
-                        }
                         reconcileInningsLists();
 
                         renderMatchMeta();

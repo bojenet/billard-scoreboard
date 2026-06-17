@@ -118,6 +118,13 @@
             width: 100%;
         }
 
+        .timer-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 12px;
+            width: 100%;
+        }
+
         button {
             padding: 20px;
             font-size: 18px;
@@ -141,6 +148,12 @@
 
         .danger {
             background: #aa2222;
+        }
+
+        .timer-start {
+            background: linear-gradient(180deg, #2ad06f, #159b4d);
+            color: #061f12;
+            box-shadow: 0 10px 24px rgba(32, 207, 104, 0.24);
         }
 
         button[disabled] {
@@ -375,6 +388,10 @@
             <button onclick="add(-1)">-1</button>
         </div>
 
+        <div class="timer-row">
+            <button id="startTimerBtn" class="timer-start" onclick="startShotClock()">Start Timer</button>
+        </div>
+
         <div class="action-row">
             <button class="switch" onclick="switchPlayer()">Wechsel</button>
             <button onclick="undo()">Undo</button>
@@ -402,6 +419,7 @@ let remoteChannel = null;
 let pollId = null;
 let remoteHistory = [];
 let matchSeriesStorageAvailable = false;
+let shotClockStorageAvailable = false;
 let voiceRecognition = null;
 let voiceActive = false;
 let voiceSupported = false;
@@ -474,6 +492,38 @@ function updateVoiceButton() {
     btn.innerText = voiceActive ? "Sprache an" : "Sprache aus";
     btn.classList.toggle("mic-active", voiceActive);
     btn.disabled = !voiceSupported;
+}
+
+function getActiveDiscipline() {
+    if (!matchData) return "";
+    return Number(matchData.activePlayer || 1) === 1
+        ? matchData.discipline1
+        : matchData.discipline2;
+}
+
+function isThreeCushionDiscipline(value) {
+    return String(value || "").trim().toLowerCase() === "dreiband";
+}
+
+function updateShotClockButton() {
+    const btn = document.getElementById("startTimerBtn");
+    if (!btn) return;
+    const canStart =
+        !!matchData &&
+        !isFinished() &&
+        shotClockStorageAvailable &&
+        isThreeCushionDiscipline(getActiveDiscipline());
+    btn.disabled = !canStart;
+    btn.innerText = matchData && matchData.shot_clock_running ? "Timer läuft" : "Start Timer";
+}
+
+function withShotClockReset(updateObj) {
+    if (!shotClockStorageAvailable) return updateObj;
+    return {
+        ...updateObj,
+        shot_clock_running: false,
+        shot_clock_started_at: null
+    };
 }
 
 function parseVoiceCommand(raw) {
@@ -757,6 +807,9 @@ async function loadMatch() {
     matchSeriesStorageAvailable =
         Object.prototype.hasOwnProperty.call(data, "series_log1") &&
         Object.prototype.hasOwnProperty.call(data, "series_log2");
+    shotClockStorageAvailable =
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_running") &&
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_started_at");
     showLoadedMatchUi();
     updateDisplay();
 }
@@ -851,6 +904,9 @@ function subscribeToMatch() {
                 matchSeriesStorageAvailable =
                     Object.prototype.hasOwnProperty.call(matchData, "series_log1") &&
                     Object.prototype.hasOwnProperty.call(matchData, "series_log2");
+                shotClockStorageAvailable =
+                    Object.prototype.hasOwnProperty.call(matchData, "shot_clock_running") &&
+                    Object.prototype.hasOwnProperty.call(matchData, "shot_clock_started_at");
                 updateDisplay();
             }
         )
@@ -921,6 +977,7 @@ function updateDisplay() {
             "Serie: " + (currentSeries > 0 ? "+" + currentSeries : "0");
         setControlsEnabled(true);
     }
+    updateShotClockButton();
 }
 
 // ===============================
@@ -954,6 +1011,9 @@ async function pollMatch() {
     matchSeriesStorageAvailable =
         Object.prototype.hasOwnProperty.call(data, "series_log1") &&
         Object.prototype.hasOwnProperty.call(data, "series_log2");
+    shotClockStorageAvailable =
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_running") &&
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_started_at");
     updateDisplay();
 }
 
@@ -1054,7 +1114,7 @@ async function add(value) {
             series2 = target2 - score2;
     }
 
-    await updateMatch({ series1, series2 });
+    await updateMatch(withShotClockReset({ series1, series2 }));
 }
 
 async function setSeriesValue(value) {
@@ -1084,7 +1144,22 @@ async function setSeriesValue(value) {
         series2 = Math.max(0, nextValue);
     }
 
-    await updateMatch({ series1, series2 });
+    await updateMatch(withShotClockReset({ series1, series2 }));
+}
+
+async function startShotClock() {
+    if (!matchData) return;
+    if (isFinished()) return;
+    if (!shotClockStorageAvailable) {
+        console.warn("Timer-Spalten fehlen in der matches-Tabelle.");
+        return;
+    }
+    if (!isThreeCushionDiscipline(getActiveDiscipline())) return;
+
+    await updateMatch({
+        shot_clock_running: true,
+        shot_clock_started_at: new Date().toISOString()
+    });
 }
 
 // ===============================
@@ -1156,7 +1231,7 @@ async function switchPlayer() {
         nextState.finished = 1;
     }
 
-    await updateMatch(nextState);
+    await updateMatch(withShotClockReset(nextState));
 }
 
 async function undo() {
@@ -1164,7 +1239,7 @@ async function undo() {
     if (isFinished()) return;
     if (!remoteHistory.length) return;
     const prev = remoteHistory.pop();
-    await updateMatch(prev);
+    await updateMatch(withShotClockReset(prev));
 }
 
 // ===============================
@@ -1174,7 +1249,7 @@ async function undo() {
 async function finish() {
     if (!matchData) return;
     if (isFinished()) return;
-    await updateMatch({ finished: 1 });
+    await updateMatch(withShotClockReset({ finished: 1 }));
 }
 
 // INIT
