@@ -959,6 +959,7 @@
         let freeGame2xPendingSeries2 = 0;
         let shotClockRunning = false;
         let shotClockStartedAtMs = 0;
+        let shotClockRemainingSeconds = SHOT_CLOCK_SECONDS;
 
         function renderMatchMeta() {
             document.getElementById("player1Name").innerText = player1Label;
@@ -1116,13 +1117,15 @@
         function resetShotClock() {
             shotClockRunning = false;
             shotClockStartedAtMs = 0;
+            shotClockRemainingSeconds = SHOT_CLOCK_SECONDS;
             updateShotClock();
         }
 
         function setShotClockFromMatch(row) {
             shotClockStorageAvailable =
                 Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_running") &&
-                Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_started_at");
+                Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_started_at") &&
+                Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_remaining_seconds");
             if (!shotClockStorageAvailable) {
                 resetShotClock();
                 return;
@@ -1131,6 +1134,10 @@
             shotClockRunning = Boolean(row.shot_clock_running);
             const startedAt = row.shot_clock_started_at ? new Date(row.shot_clock_started_at).getTime() : 0;
             shotClockStartedAtMs = Number.isFinite(startedAt) ? startedAt : 0;
+            shotClockRemainingSeconds = Math.max(0, Math.min(
+                SHOT_CLOCK_SECONDS,
+                Number(row.shot_clock_remaining_seconds ?? SHOT_CLOCK_SECONDS)
+            ));
             updateShotClock();
         }
 
@@ -1161,11 +1168,13 @@
                 return;
             }
 
-            const elapsed = shotClockRunning && shotClockStartedAtMs
+            const runningElapsed = shotClockRunning && shotClockStartedAtMs
                 ? Math.max(0, Math.floor((Date.now() - shotClockStartedAtMs) / 1000))
                 : 0;
-            const remaining = Math.max(0, SHOT_CLOCK_SECONDS - elapsed);
-            const elapsedBlocks = Math.min(SHOT_CLOCK_SECONDS, elapsed);
+            const remaining = shotClockRunning
+                ? Math.max(0, shotClockRemainingSeconds - runningElapsed)
+                : shotClockRemainingSeconds;
+            const elapsedBlocks = Math.min(SHOT_CLOCK_SECONDS, SHOT_CLOCK_SECONDS - remaining);
 
             clock.classList.add("visible");
             clock.classList.toggle("warning", remaining <= SHOT_CLOCK_WARNING_SECONDS);
@@ -1620,6 +1629,7 @@
                 updateData.shot_clock_started_at = shotClockRunning && shotClockStartedAtMs
                     ? new Date(shotClockStartedAtMs).toISOString()
                     : null;
+                updateData.shot_clock_remaining_seconds = shotClockRemainingSeconds;
             }
 
             const { error } = await supabaseClient

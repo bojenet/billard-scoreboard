@@ -162,6 +162,10 @@
             transform: none !important;
         }
 
+        .hidden {
+            display: none !important;
+        }
+
         .mini-board {
             width: 100%;
             max-width: 720px;
@@ -389,7 +393,7 @@
         </div>
 
         <div class="timer-row">
-            <button id="startTimerBtn" class="timer-start" onclick="startShotClock()">Start Timer</button>
+            <button id="startTimerBtn" class="timer-start" onclick="toggleShotClock()">Start Timer</button>
         </div>
 
         <div class="action-row">
@@ -508,13 +512,15 @@ function isThreeCushionDiscipline(value) {
 function updateShotClockButton() {
     const btn = document.getElementById("startTimerBtn");
     if (!btn) return;
+    const isThreeCushion = !!matchData && isThreeCushionDiscipline(getActiveDiscipline());
+    btn.classList.toggle("hidden", !isThreeCushion);
     const canStart =
         !!matchData &&
         !isFinished() &&
         shotClockStorageAvailable &&
-        isThreeCushionDiscipline(getActiveDiscipline());
+        isThreeCushion;
     btn.disabled = !canStart;
-    btn.innerText = matchData && matchData.shot_clock_running ? "Timer läuft" : "Start Timer";
+    btn.innerText = matchData && matchData.shot_clock_running ? "Pause Timer" : "Start Timer";
 }
 
 function withShotClockReset(updateObj) {
@@ -522,8 +528,19 @@ function withShotClockReset(updateObj) {
     return {
         ...updateObj,
         shot_clock_running: false,
-        shot_clock_started_at: null
+        shot_clock_started_at: null,
+        shot_clock_remaining_seconds: 40
     };
+}
+
+function getShotClockRemainingSeconds() {
+    if (!matchData) return 40;
+    const storedRemaining = Math.max(0, Math.min(40, Number(matchData.shot_clock_remaining_seconds ?? 40)));
+    if (!matchData.shot_clock_running || !matchData.shot_clock_started_at) return storedRemaining;
+    const startedAt = new Date(matchData.shot_clock_started_at).getTime();
+    if (!Number.isFinite(startedAt)) return storedRemaining;
+    const elapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+    return Math.max(0, storedRemaining - elapsed);
 }
 
 function parseVoiceCommand(raw) {
@@ -809,7 +826,8 @@ async function loadMatch() {
         Object.prototype.hasOwnProperty.call(data, "series_log2");
     shotClockStorageAvailable =
         Object.prototype.hasOwnProperty.call(data, "shot_clock_running") &&
-        Object.prototype.hasOwnProperty.call(data, "shot_clock_started_at");
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_started_at") &&
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_remaining_seconds");
     showLoadedMatchUi();
     updateDisplay();
 }
@@ -906,7 +924,8 @@ function subscribeToMatch() {
                     Object.prototype.hasOwnProperty.call(matchData, "series_log2");
                 shotClockStorageAvailable =
                     Object.prototype.hasOwnProperty.call(matchData, "shot_clock_running") &&
-                    Object.prototype.hasOwnProperty.call(matchData, "shot_clock_started_at");
+                    Object.prototype.hasOwnProperty.call(matchData, "shot_clock_started_at") &&
+                    Object.prototype.hasOwnProperty.call(matchData, "shot_clock_remaining_seconds");
                 updateDisplay();
             }
         )
@@ -1013,7 +1032,8 @@ async function pollMatch() {
         Object.prototype.hasOwnProperty.call(data, "series_log2");
     shotClockStorageAvailable =
         Object.prototype.hasOwnProperty.call(data, "shot_clock_running") &&
-        Object.prototype.hasOwnProperty.call(data, "shot_clock_started_at");
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_started_at") &&
+        Object.prototype.hasOwnProperty.call(data, "shot_clock_remaining_seconds");
     updateDisplay();
 }
 
@@ -1147,7 +1167,7 @@ async function setSeriesValue(value) {
     await updateMatch(withShotClockReset({ series1, series2 }));
 }
 
-async function startShotClock() {
+async function toggleShotClock() {
     if (!matchData) return;
     if (isFinished()) return;
     if (!shotClockStorageAvailable) {
@@ -1156,9 +1176,20 @@ async function startShotClock() {
     }
     if (!isThreeCushionDiscipline(getActiveDiscipline())) return;
 
+    if (matchData.shot_clock_running) {
+        await updateMatch({
+            shot_clock_running: false,
+            shot_clock_started_at: null,
+            shot_clock_remaining_seconds: getShotClockRemainingSeconds()
+        });
+        return;
+    }
+
+    const remaining = getShotClockRemainingSeconds();
     await updateMatch({
         shot_clock_running: true,
-        shot_clock_started_at: new Date().toISOString()
+        shot_clock_started_at: new Date().toISOString(),
+        shot_clock_remaining_seconds: remaining > 0 ? remaining : 40
     });
 }
 
