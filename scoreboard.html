@@ -124,6 +124,11 @@
             min-height: 0;
         }
 
+        body.remote-viewer .main {
+            flex: 0 1 auto;
+            padding-bottom: clamp(8px, 1.2vw, 18px);
+        }
+
         .player {
             width: min(41vw, 650px);
             border-radius: clamp(14px, 2.2vw, 30px);
@@ -311,6 +316,11 @@
                 inset 0 1px 0 rgba(255, 255, 255, 0.16),
                 inset 0 -8px 18px rgba(0, 0, 0, 0.22),
                 0 -6px 18px rgba(0, 0, 0, 0.32);
+        }
+
+        body.remote-viewer .shot-clock {
+            margin-top: clamp(6px, 1vw, 16px);
+            margin-bottom: clamp(12px, 2vw, 32px);
         }
 
         .shot-clock.visible {
@@ -1366,6 +1376,7 @@
         function applyControlMode() {
 
             const controls = document.querySelector(".controls");
+            document.body.classList.toggle("remote-viewer", viewerMode);
 
             console.log("applyControlMode läuft – viewerMode:", viewerMode);
 
