@@ -259,31 +259,79 @@
         .shot-clock {
             display: none;
             width: 100%;
-            height: clamp(12px, 1.7vw, 24px);
-            background: rgba(57, 212, 123, 0.22);
+            height: clamp(26px, 3.4vw, 48px);
+            position: relative;
+            padding: clamp(3px, .45vw, 6px);
+            box-sizing: border-box;
+            background: rgba(57, 212, 123, 0.16);
             overflow: hidden;
             flex-shrink: 0;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.16),
+                inset 0 -8px 18px rgba(0, 0, 0, 0.22),
+                0 -6px 18px rgba(0, 0, 0, 0.32);
         }
 
         .shot-clock.visible {
-            display: block;
+            display: grid;
+            align-items: stretch;
         }
 
         .shot-clock.warning {
-            background: rgba(255, 80, 80, 0.22);
+            background: rgba(255, 80, 80, 0.16);
         }
 
-        .shot-clock-fill {
+        .shot-clock-blocks {
+            display: grid;
+            grid-template-columns: repeat(40, minmax(0, 1fr));
+            gap: clamp(2px, .22vw, 4px);
             width: 100%;
             height: 100%;
-            background: #31d475;
-            transform-origin: left center;
-            transform: scaleX(1);
-            transition: transform .35s linear, background-color .2s ease;
         }
 
-        .shot-clock.warning .shot-clock-fill {
-            background: #ff3f3f;
+        .shot-clock-block {
+            border-radius: 3px;
+            background: linear-gradient(180deg, #5df29b 0%, #24c967 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.34),
+                inset 0 -6px 12px rgba(0, 0, 0, 0.18),
+                0 3px 10px rgba(17, 207, 94, 0.22);
+            transition: background-color .18s ease, opacity .18s ease, box-shadow .18s ease;
+        }
+
+        .shot-clock-block.elapsed {
+            background: rgba(113, 213, 151, 0.2);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+            opacity: .7;
+        }
+
+        .shot-clock.warning .shot-clock-block:not(.elapsed) {
+            background: linear-gradient(180deg, #ff6868 0%, #f22f2f 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.28),
+                inset 0 -6px 12px rgba(0, 0, 0, 0.2),
+                0 3px 12px rgba(255, 64, 64, 0.3);
+        }
+
+        .shot-clock.warning .shot-clock-block.elapsed {
+            background: rgba(255, 112, 112, 0.2);
+        }
+
+        .shot-clock-seconds {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(18px, 2.6vw, 38px);
+            font-weight: 900;
+            line-height: 1;
+            color: #ffffff;
+            text-shadow:
+                0 2px 5px rgba(0, 0, 0, 0.75),
+                0 0 14px rgba(0, 0, 0, 0.45);
+            pointer-events: none;
+            font-variant-numeric: tabular-nums;
         }
 
         .button-row button {
@@ -722,7 +770,8 @@
     </div>
 
     <div id="shotClock" class="shot-clock" aria-hidden="true">
-        <div id="shotClockFill" class="shot-clock-fill"></div>
+        <div id="shotClockBlocks" class="shot-clock-blocks"></div>
+        <div id="shotClockSeconds" class="shot-clock-seconds">40</div>
     </div>
 
     <!-- ================= BUTTONS ================= -->
@@ -1067,24 +1116,43 @@
             updateShotClock();
         }
 
+        function renderShotClockBlocks() {
+            const blocks = document.getElementById("shotClockBlocks");
+            if (!blocks || blocks.children.length === SHOT_CLOCK_SECONDS) return;
+
+            blocks.innerHTML = "";
+            for (let i = 0; i < SHOT_CLOCK_SECONDS; i++) {
+                const block = document.createElement("span");
+                block.className = "shot-clock-block";
+                blocks.appendChild(block);
+            }
+        }
+
         function updateShotClock() {
             const clock = document.getElementById("shotClock");
-            const fill = document.getElementById("shotClockFill");
-            if (!clock || !fill) return;
+            const blocks = document.getElementById("shotClockBlocks");
+            const secondsEl = document.getElementById("shotClockSeconds");
+            if (!clock || !blocks || !secondsEl) return;
+
+            renderShotClockBlocks();
 
             if (finished || !isThreeCushionDiscipline(getActiveDiscipline())) {
                 clock.classList.remove("visible", "warning");
-                fill.style.transform = "scaleX(1)";
+                secondsEl.innerText = String(SHOT_CLOCK_SECONDS);
+                Array.from(blocks.children).forEach((block) => block.classList.remove("elapsed"));
                 return;
             }
 
             const elapsed = Math.max(0, Math.floor((Date.now() - shotClockStartedAtMs) / 1000));
             const remaining = Math.max(0, SHOT_CLOCK_SECONDS - elapsed);
-            const progress = remaining / SHOT_CLOCK_SECONDS;
+            const elapsedBlocks = Math.min(SHOT_CLOCK_SECONDS, elapsed);
 
             clock.classList.add("visible");
             clock.classList.toggle("warning", remaining <= SHOT_CLOCK_WARNING_SECONDS);
-            fill.style.transform = "scaleX(" + progress.toFixed(3) + ")";
+            secondsEl.innerText = String(remaining);
+            Array.from(blocks.children).forEach((block, index) => {
+                block.classList.toggle("elapsed", index < elapsedBlocks);
+            });
         }
 
         function getElapsedSeconds() {
