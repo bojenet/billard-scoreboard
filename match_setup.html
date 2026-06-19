@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Neues Match</title>
 
     <style>
@@ -380,6 +381,193 @@
                 width: 100%;
             }
         }
+
+        @media (max-width: 640px) {
+            body {
+                background: #161822;
+            }
+
+            .header {
+                padding: 14px 14px 8px;
+                font-size: 24px;
+                line-height: 1.1;
+            }
+
+            .container {
+                width: auto;
+                margin: 0;
+                padding: 0 12px calc(18px + env(safe-area-inset-bottom));
+            }
+
+            .players-row {
+                gap: 10px;
+            }
+
+            .section {
+                padding: 14px;
+                border-radius: 16px;
+                margin-bottom: 10px;
+                box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+            }
+
+            .section h3 {
+                font-size: 22px;
+                margin-bottom: 12px;
+            }
+
+            .player-column .field-title {
+                margin: 14px 0 8px;
+                font-size: 17px;
+            }
+
+            .touch-player-select,
+            .touch-select {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .touch-player-btn,
+            .touch-select-btn {
+                min-height: 44px;
+                padding: 10px 8px;
+                border-radius: 11px;
+                font-size: 14px;
+                line-height: 1.15;
+                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                white-space: normal;
+            }
+
+            .setup-pair {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-top: 14px !important;
+            }
+
+            select,
+            input {
+                width: 100%;
+                min-height: 44px;
+                box-sizing: border-box;
+                font-size: 16px;
+                border-radius: 12px;
+            }
+
+            #player1,
+            #player2,
+            #discipline1,
+            #discipline2 {
+                display: block !important;
+                appearance: auto;
+                background: #f2f4fa;
+                color: #111827;
+                margin-bottom: 6px;
+            }
+
+            .touch-player-select,
+            .touch-select {
+                display: none !important;
+            }
+
+            .quick-defaults {
+                display: grid;
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+                gap: 7px;
+            }
+
+            .adjust {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 7px;
+            }
+
+            .max-adjust {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 7px;
+            }
+
+            .quick-defaults button,
+            .adjust button,
+            .max-adjust button {
+                min-height: 38px;
+                padding: 8px 4px;
+                font-size: 14px;
+                border-radius: 9px;
+            }
+
+            .control-mode-wrapper {
+                gap: 10px;
+                margin: 10px 0 12px;
+            }
+
+            .mode-card {
+                padding: 14px;
+                border-radius: 14px;
+            }
+
+            .mode-title {
+                font-size: 18px;
+            }
+
+            .mode-sub {
+                font-size: 14px;
+            }
+
+            .button-row-bottom {
+                position: sticky;
+                bottom: 0;
+                z-index: 50;
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px;
+                margin: 12px -12px 0;
+                padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+                background: linear-gradient(180deg, rgba(22, 24, 34, 0), #161822 24%);
+                backdrop-filter: blur(10px);
+            }
+
+            .btn {
+                padding: 13px 8px;
+                min-height: 48px;
+                border-radius: 13px;
+                font-size: 15px;
+                line-height: 1.1;
+            }
+
+            .btn-start {
+                grid-column: 1 / -1;
+                font-size: 18px;
+            }
+
+            .form-message {
+                font-size: 14px;
+                margin-top: 8px;
+            }
+
+            .obs-box {
+                padding: 14px;
+                border-radius: 14px;
+            }
+
+            .obs-actions {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .quick-defaults {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .button-row-bottom {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 
@@ -400,21 +588,20 @@
                 <select id="player1" style="display:none;"></select>
                 <div id="touchPlayer1" class="touch-player-select"></div>
 
-                <!-- DISCIPLINE -->
-                <select id="discipline1" style="display:none;">
-                    <option value="Freie Partie">Freie Partie</option>
-                    <option value="Freie Partie 2x">Freie Partie 2x</option>
-                    <option value="Cadre 35/2">Cadre 35/2</option>
-                    <option value="Cadre 52/2">Cadre 52/2</option>
-                    <option value="Cadre 47/2">Cadre 47/2</option>
-                    <option value="Cadre 47/1">Cadre 47/1</option>
-                    <option value="Cadre 71/2">Cadre 71/2</option>
-                    <option value="Einband">Einband</option>
-                    <option value="Dreiband">Dreiband</option>
-                </select>
-
                 <div style="margin-top:14px;">
                     <div class="field-title">Disziplin</div>
+                    <select id="discipline1" style="display:none;">
+                        <option value="">Disziplin wählen</option>
+                        <option value="Freie Partie">Freie Partie</option>
+                        <option value="Freie Partie 2x">Freie Partie 2x</option>
+                        <option value="Cadre 35/2">Cadre 35/2</option>
+                        <option value="Cadre 52/2">Cadre 52/2</option>
+                        <option value="Cadre 47/2">Cadre 47/2</option>
+                        <option value="Cadre 47/1">Cadre 47/1</option>
+                        <option value="Cadre 71/2">Cadre 71/2</option>
+                        <option value="Einband">Einband</option>
+                        <option value="Dreiband">Dreiband</option>
+                    </select>
                     <div id="touchDiscipline1" class="touch-select"></div>
                 </div>
 
@@ -463,21 +650,20 @@
                 <select id="player2" style="display:none;"></select>
                 <div id="touchPlayer2" class="touch-player-select"></div>
 
-                <!-- DISCIPLINE -->
-                <select id="discipline2" style="display:none;">
-                    <option value="Freie Partie">Freie Partie</option>
-                    <option value="Freie Partie 2x">Freie Partie 2x</option>
-                    <option value="Cadre 35/2">Cadre 35/2</option>
-                    <option value="Cadre 52/2">Cadre 52/2</option>
-                    <option value="Cadre 47/2">Cadre 47/2</option>
-                    <option value="Cadre 47/1">Cadre 47/1</option>
-                    <option value="Cadre 71/2">Cadre 71/2</option>
-                    <option value="Einband">Einband</option>
-                    <option value="Dreiband">Dreiband</option>
-                </select>
-
                 <div style="margin-top:14px;">
                     <div class="field-title">Disziplin</div>
+                    <select id="discipline2" style="display:none;">
+                        <option value="">Disziplin wählen</option>
+                        <option value="Freie Partie">Freie Partie</option>
+                        <option value="Freie Partie 2x">Freie Partie 2x</option>
+                        <option value="Cadre 35/2">Cadre 35/2</option>
+                        <option value="Cadre 52/2">Cadre 52/2</option>
+                        <option value="Cadre 47/2">Cadre 47/2</option>
+                        <option value="Cadre 47/1">Cadre 47/1</option>
+                        <option value="Cadre 71/2">Cadre 71/2</option>
+                        <option value="Einband">Einband</option>
+                        <option value="Dreiband">Dreiband</option>
+                    </select>
                     <div id="touchDiscipline2" class="touch-select"></div>
                 </div>
 
@@ -723,6 +909,8 @@
                 p2.innerHTML = "";
                 t1.innerHTML = "";
                 t2.innerHTML = "";
+                p1.add(new Option("Spieler wählen", ""));
+                p2.add(new Option("Spieler wählen", ""));
 
                 availablePlayers.forEach(p => {
                     const playerId = String(p.id);
@@ -754,8 +942,6 @@
 
                 p1.value = "";
                 p2.value = "";
-                p1.selectedIndex = -1;
-                p2.selectedIndex = -1;
             }
 
             /* DISCIPLINE TOUCH */
@@ -765,6 +951,7 @@
 
                 for (let i = 0; i < select.options.length; i++) {
                     const option = select.options[i];
+                    if (!option.value) continue;
                     const btn = document.createElement("div");
                     btn.className = "touch-select-btn";
                     btn.innerText = option.text;
@@ -886,8 +1073,6 @@
                     const p2SelectValue = document.getElementById('player2').value;
                     const d1 = document.getElementById('discipline1').value;
                     const d2 = document.getElementById('discipline2').value;
-                    const d1Selected = !!document.querySelector('#touchDiscipline1 .touch-select-btn.active');
-                    const d2Selected = !!document.querySelector('#touchDiscipline2 .touch-select-btn.active');
                     const target1 = parseInt(document.getElementById('target1').value, 10);
                     const target2 = parseInt(document.getElementById('target2').value, 10);
                     const maxInnings = parseInt(document.getElementById('maxInnings1').value, 10);
@@ -911,7 +1096,7 @@
                         return;
                     }
 
-                    if (!d1 || !d2 || !d1Selected || !d2Selected) {
+                    if (!d1 || !d2) {
                         setFormMessage("Bitte für beide Spieler eine Disziplin wählen.", "error");
                         return;
                     }
