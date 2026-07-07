@@ -508,6 +508,12 @@
             color: #8b2d2d;
         }
 
+        .mini-btn.pdf {
+            border-color: #b7c9dc;
+            color: #254b70;
+            background: #f5f9fd;
+        }
+
         .mini-btn.icon {
             min-width: 28px;
             padding: 4px 0;
@@ -1880,6 +1886,234 @@
             }
         }
 
+        function getCalendarEventById(eventId) {
+            return getAllEvents().find((event) => String(event?.id || "") === String(eventId || ""));
+        }
+
+        function formatInvitationDate(dateValue) {
+            const date = createUtcDateFromIso(dateValue);
+            if (!date) return String(dateValue || "");
+            const weekday = new Intl.DateTimeFormat("de-DE", {
+                weekday: "long",
+                timeZone: "UTC"
+            }).format(date);
+            const day = new Intl.DateTimeFormat("de-DE", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                timeZone: "UTC"
+            }).format(date);
+            return `${weekday}, ${day}`;
+        }
+
+        function buildInvitationPrintHtml(invitation) {
+            const facts = [
+                ["Turnier", invitation?.title],
+                ["Saison", invitation?.season],
+                ["Datum", formatInvitationDate(invitation?.date)],
+                ["Spielbeginn", invitation?.startTime ? `${invitation.startTime} Uhr` : ""],
+                ["Meldeschluss", invitation?.registrationDeadline],
+                ["Austragungsort", [invitation?.locationName, ...(Array.isArray(invitation?.locationAddress) ? invitation.locationAddress : [])].filter(Boolean).join("<br>")],
+                ["Disziplin", invitation?.discipline],
+                ["Kategorie", invitation?.category],
+                ["Typ", invitation?.tournamentType],
+                ["Kürzel", invitation?.shortCode]
+            ];
+            const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
+            const createdAt = new Intl.DateTimeFormat("de-DE", {
+                dateStyle: "medium",
+                timeStyle: "short"
+            }).format(new Date());
+
+            return `<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>Einladung ${escapeHtml(invitation?.title || "NBV Turnier")}</title>
+    <style>
+        @page { size: A4; margin: 16mm 18mm; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            color: #172033;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            line-height: 1.38;
+        }
+        h1 {
+            margin: 0 0 6px;
+            text-align: center;
+            font-size: 28px;
+            line-height: 1.15;
+        }
+        .subtitle {
+            margin: 0 0 18px;
+            text-align: center;
+            color: #526071;
+            font-size: 13px;
+        }
+        h2 {
+            margin: 18px 0 8px;
+            font-size: 16px;
+            line-height: 1.2;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        th, td {
+            border: 1px solid #d8dee7;
+            padding: 7px 9px;
+            vertical-align: top;
+            text-align: left;
+            overflow-wrap: anywhere;
+        }
+        th {
+            background: #172033;
+            color: #fff;
+        }
+        .facts td:first-child {
+            width: 24%;
+            background: #eef2f6;
+            font-weight: 700;
+        }
+        .participants th:first-child,
+        .participants td:first-child {
+            width: 9%;
+        }
+        .participants tr:nth-child(odd) td {
+            background: #f7f9fb;
+        }
+        .note {
+            margin: 0;
+        }
+        .footer {
+            margin-top: 18px;
+            color: #687386;
+            font-size: 10px;
+            overflow-wrap: anywhere;
+        }
+        .toolbar {
+            position: sticky;
+            top: 0;
+            margin: -8px -8px 16px;
+            padding: 8px;
+            background: #f4f7fb;
+            border-bottom: 1px solid #d8dee7;
+            text-align: right;
+        }
+        .toolbar button {
+            border: 1px solid #b7c9dc;
+            border-radius: 4px;
+            background: #fff;
+            color: #254b70;
+            font-weight: 700;
+            padding: 7px 10px;
+            cursor: pointer;
+        }
+        @media print {
+            .toolbar { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button type="button" onclick="window.print()">PDF speichern</button>
+    </div>
+    <h1>Einladung zum Turnier</h1>
+    <p class="subtitle">Norddeutscher Billard-Verband e.V. - ${escapeHtml(invitation?.section || "Karambol")}</p>
+    <table class="facts">
+        <tbody>
+            ${facts.map(([label, value]) => `
+                <tr>
+                    <td>${escapeHtml(label)}</td>
+                    <td>${value ? String(value).split("<br>").map(escapeHtml).join("<br>") : "-"}</td>
+                </tr>
+            `).join("")}
+        </tbody>
+    </table>
+    <h2>Hinweise</h2>
+    <p class="note">Bitte rechtzeitig vor Spielbeginn am Austragungsort eintreffen. Die endgültige Turnierdurchführung, Teilnehmerliste und Ergebnisse werden über die NBV-Seite geführt.</p>
+    ${participants.length ? `
+        <h2>Teilnehmerliste</h2>
+        <table class="participants">
+            <thead>
+                <tr>
+                    <th>Nr.</th>
+                    <th>Teilnehmer</th>
+                    <th>Verein</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${participants.map((participant) => `
+                    <tr>
+                        <td>${escapeHtml(participant?.number || "")}</td>
+                        <td>${escapeHtml(participant?.name || "")}</td>
+                        <td>${escapeHtml(participant?.club || "")}</td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        </table>
+    ` : ""}
+    <div class="footer">
+        <div>Quelle: ${escapeHtml(invitation?.sourceUrl || "")}</div>
+        <div>Erstellt am ${escapeHtml(createdAt)}</div>
+    </div>
+    <script>
+        window.addEventListener("load", () => setTimeout(() => window.print(), 250));
+    <\/script>
+</body>
+</html>`;
+        }
+
+        function writeInvitationWindow(targetWindow, html) {
+            if (!targetWindow) return;
+            targetWindow.document.open();
+            targetWindow.document.write(html);
+            targetWindow.document.close();
+        }
+
+        async function createNbvInvitationPdf(eventId) {
+            if (!isCalendarAdmin) return;
+            const event = getCalendarEventById(eventId);
+            if (!event?.link) {
+                showCalendarMessage("Für diesen Termin ist keine NBV-Detailseite hinterlegt.", "error");
+                return;
+            }
+
+            const printWindow = window.open("", "_blank");
+            if (printWindow) {
+                writeInvitationWindow(printWindow, "<!doctype html><html><head><meta charset='utf-8'><title>Einladung wird erstellt</title></head><body style='font-family: Arial, sans-serif; padding: 24px;'>Einladung wird erstellt...</body></html>");
+            }
+
+            showCalendarMessage("Einladung wird aus der NBV-Seite erstellt...", "ok");
+            try {
+                const { data, error } = await supabaseClient.functions.invoke("get-nbv-tournament-invitation", {
+                    body: { sourceUrl: event.link }
+                });
+                if (error) throw error;
+                const invitation = data?.invitation;
+                if (!invitation?.title) {
+                    throw new Error("Die NBV-Seite konnte nicht als Turniereinladung gelesen werden.");
+                }
+                const html = buildInvitationPrintHtml(invitation);
+                if (printWindow) {
+                    writeInvitationWindow(printWindow, html);
+                } else {
+                    const fallback = window.open("", "_blank");
+                    writeInvitationWindow(fallback, html);
+                }
+                showCalendarMessage("Einladung wurde erstellt. Im neuen Fenster kann sie als PDF gespeichert werden.", "ok");
+            } catch (error) {
+                console.warn("NBV-Einladung konnte nicht erstellt werden:", error);
+                if (printWindow) {
+                    printWindow.close();
+                }
+                showCalendarMessage(`Einladung konnte nicht erstellt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
+        }
+
         function renderFilters() {
             const wrap = document.getElementById("calendarFilters");
             if (!wrap) return;
@@ -2125,6 +2359,10 @@
                                                                     <button class="mini-btn icon" type="button" title="Duplizieren" aria-label="Planungstermin duplizieren" onclick="duplicatePlanningEvent('${escapeHtml(event.id)}')">+</button>
                                                                     <button class="mini-btn" type="button" onclick="startPlanningEventEdit('${escapeHtml(event.id)}')">Bearbeiten</button>
                                                                     <button class="mini-btn danger" type="button" onclick="removePlanningEvent('${escapeHtml(event.id)}')">Löschen</button>
+                                                                </div>
+                                                            ` : isCalendarAdmin && event.link && event.source !== "manual" && event.source !== "planning" ? `
+                                                                <div class="event-actions">
+                                                                    <button class="mini-btn pdf" type="button" onclick="createNbvInvitationPdf('${escapeHtml(event.id)}')">Einladung PDF</button>
                                                                 </div>
                                                             ` : ""}
                                                         </div>
