@@ -1041,8 +1041,10 @@
             { id: "nordcup", label: "NordCup" }
         ];
         const NBV_DISCIPLINES = {
+            "33": "5-Kegel",
             "56": "Biathlon",
             "36": "Billard Kegeln",
+            "57": "BK2K",
             "9": "Cadre 35/2",
             "10": "Cadre 47/2",
             "11": "Cadre 52/2",
@@ -1836,6 +1838,12 @@
             return `${baseUrl}?${params.toString()}`;
         }
 
+        function getPreviousSeasonText(season) {
+            const match = String(season || "").trim().match(/^(20\d{2})\/(20\d{2})$/);
+            if (!match) return "";
+            return `${Number(match[1]) - 1}/${Number(match[2]) - 1}`;
+        }
+
         function updateCalendarFeedUi() {
             const url = getCalendarFeedUrl();
             const label = document.getElementById("calendarFeedUrl");
@@ -2007,17 +2015,28 @@
 
         function drawParticipantTable(doc, invitation, state) {
             const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
-            ensureInvitationPage(doc, invitation, state, 24 + participants.length * 8);
+            ensureInvitationPage(doc, invitation, state, 30 + participants.length * 8);
             state.y = drawSectionTitle(doc, "Setzliste / Teilnehmer", state.y);
+            if (invitation?.rankingSeason || invitation?.seedingNote) {
+                const note = invitation?.seedingNote
+                    || `Setzliste nach GD-Rangliste ${getPdfText(invitation.rankingSeason)}.`;
+                doc.setTextColor(90, 101, 114);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(9);
+                doc.text(doc.splitTextToSize(getPdfText(note), 168), 24, state.y + 2);
+                state.y += 7;
+            }
 
             doc.setFillColor(31, 43, 58);
             doc.rect(24, state.y, 168, 8, "F");
             doc.setTextColor(255, 255, 255);
             doc.setFont("helvetica", "bold");
             doc.setFontSize(9);
-            doc.text("Nr.", 28, state.y + 5.2);
-            doc.text("Name", 44, state.y + 5.2);
-            doc.text("Verein", 136, state.y + 5.2);
+            doc.text("Setz.", 28, state.y + 5.2);
+            doc.text("Rang", 48, state.y + 5.2);
+            doc.text("GD", 67, state.y + 5.2);
+            doc.text("Name", 91, state.y + 5.2);
+            doc.text("Verein", 154, state.y + 5.2);
             state.y += 8;
 
             if (!participants.length) {
@@ -2038,8 +2057,10 @@
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(9.5);
                 doc.text(getPdfText(participant?.number || String(index + 1)), 28, state.y + 5.3);
-                doc.text(doc.splitTextToSize(getPdfText(participant?.name || ""), 84), 44, state.y + 5.3);
-                doc.text(doc.splitTextToSize(getPdfText(participant?.club || ""), 54), 136, state.y + 5.3);
+                doc.text(getPdfText(participant?.seedRank || "-"), 48, state.y + 5.3);
+                doc.text(getPdfText(participant?.seedGd || "-"), 67, state.y + 5.3);
+                doc.text(doc.splitTextToSize(getPdfText(participant?.name || ""), 58), 91, state.y + 5.3);
+                doc.text(doc.splitTextToSize(getPdfText(participant?.club || ""), 36), 154, state.y + 5.3);
                 state.y += 8;
             });
             state.y += 6;
@@ -2203,8 +2224,14 @@
 
             showCalendarMessage("PDF-Einladung wird aus der NBV-Seite erstellt...", "ok");
             try {
+                const rankingSeason = getPreviousSeasonText(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON);
                 const { data, error } = await supabaseClient.functions.invoke("get-nbv-tournament-invitation", {
-                    body: { sourceUrl: event.link }
+                    body: {
+                        sourceUrl: event.link,
+                        disciplineId: event.disciplineId || "",
+                        disciplineLabel: event.disciplineLabel || NBV_DISCIPLINES[event.disciplineId] || "",
+                        rankingSeason
+                    }
                 });
                 if (error) throw error;
                 const invitation = data?.invitation;

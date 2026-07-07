@@ -6,12 +6,18 @@ const corsHeaders = {
 
 type InvitationRequest = {
   sourceUrl?: string;
+  disciplineId?: string;
+  disciplineLabel?: string;
+  rankingSeason?: string;
 };
 
 type InvitationParticipant = {
   number: string;
   name: string;
   club: string;
+  seedRank?: string;
+  seedGd?: string;
+  originalNumber?: string;
 };
 
 type InvitationPayload = {
@@ -27,9 +33,20 @@ type InvitationPayload = {
   registrationDeadline: string;
   section: string;
   discipline: string;
+  disciplineId: string;
   category: string;
   tournamentType: string;
+  rankingSeason: string;
+  rankingSourceUrl: string;
+  seedingNote: string;
   participants: InvitationParticipant[];
+};
+
+type RankingRow = {
+  rank: string;
+  gd: string;
+  name: string;
+  club: string;
 };
 
 type TableRow = {
@@ -95,6 +112,111 @@ function parseSeasonFromUrl(sourceUrl: string) {
     const match = sourceUrl.match(/\b(20\d{2}\/20\d{2})\b/);
     return match?.[1] || "";
   }
+}
+
+function getPreviousSeason(season: string) {
+  const match = cleanInline(season).match(/^(20\d{2})\/(20\d{2})$/);
+  if (!match) return "";
+  const start = Number(match[1]) - 1;
+  const end = Number(match[2]) - 1;
+  return `${start}/${end}`;
+}
+
+function buildGdRankingUrl(season: string, disciplineId: string) {
+  const safeSeason = cleanInline(season);
+  const safeDisciplineId = cleanInline(disciplineId).replace(/[^\d]/g, "");
+  if (!safeSeason || !safeDisciplineId) return "";
+  return `https://www.ndbv.de/btd.php?p=20--${safeSeason}---${safeDisciplineId}-2---1`;
+}
+
+function normalizeName(value: string) {
+  return cleanInline(value)
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .replace(/\b(dr|prof|professor|dipl|ing)\b\.?/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function nameVariants(value: string) {
+  const raw = cleanInline(value);
+  const variants = new Set<string>();
+  const add = (candidate: string) => {
+    const normalized = normalizeName(candidate);
+    if (normalized) variants.add(normalized);
+  };
+
+  add(raw);
+  if (raw.includes(",")) {
+    const [lastName, ...rest] = raw.split(",");
+    add(`${rest.join(" ")} ${lastName}`);
+  } else {
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+      add(`${parts.slice(1).join(" ")} ${parts[0]}`);
+    }
+  }
+
+  return variants;
+}
+
+function parseGdRanking(html: string): RankingRow[] {
+  return extractTableRows(html)
+    .map((row) => {
+      const cells = row.cells.map(cleanInline);
+      const rank = cells[0] || "";
+      const gd = cells[1] || "";
+      if (!/^\d+$/.test(rank) || !gd) return null;
+
+      const playerCell = row.cells.find((cell, index) => index >= 2 && cleanText(cell).split("\n").filter(Boolean).length >= 2) || "";
+      const lines = cleanText(playerCell).split("\n").map(cleanInline).filter(Boolean);
+      const name = lines[0] || "";
+      const club = lines.slice(1).join(" ");
+      if (!name) return null;
+      return { rank, gd, name, club };
+    })
+    .filter((row): row is RankingRow => Boolean(row));
+}
+
+function applySeeding(invitation: InvitationPayload, rankingRows: RankingRow[]) {
+  if (!invitation.participants.length || !rankingRows.length) return;
+
+  const rankingByKey = new Map<string, RankingRow>();
+  rankingRows.forEach((row) => {
+    nameVariants(row.name).forEach((key) => {
+      if (!rankingByKey.has(key)) rankingByKey.set(key, row);
+    });
+  });
+
+  const seeded = invitation.participants.map((participant, originalIndex) => {
+    let ranking: RankingRow | undefined;
+    for (const key of nameVariants(participant.name)) {
+      ranking = rankingByKey.get(key);
+      if (ranking) break;
+    }
+    return {
+      participant: {
+        ...participant,
+        originalNumber: participant.number,
+        seedRank: ranking?.rank || "",
+        seedGd: ranking?.gd || "",
+      },
+      originalIndex,
+      rankNumber: Number(ranking?.rank || Number.POSITIVE_INFINITY),
+    };
+  });
+
+  seeded.sort((left, right) => {
+    if (left.rankNumber !== right.rankNumber) return left.rankNumber - right.rankNumber;
+    return left.originalIndex - right.originalIndex;
+  });
+
+  invitation.participants = seeded.map((entry, index) => ({
+    ...entry.participant,
+    number: String(index + 1),
+  }));
 }
 
 function parseCellAttributes(attrs: string) {
@@ -163,8 +285,12 @@ function parseInvitation(html: string, sourceUrl: string): InvitationPayload {
     registrationDeadline: "",
     section: "",
     discipline: "",
+    disciplineId: "",
     category: "",
     tournamentType: "",
+    rankingSeason: "",
+    rankingSourceUrl: "",
+    seedingNote: "",
     participants: [],
   };
 
@@ -284,6 +410,32 @@ Deno.serve(async (request) => {
 
     const html = await fetchHtmlWithRetry(sourceUrl);
     const invitation = parseInvitation(html, sourceUrl);
+    invitation.disciplineId = cleanInline(body?.disciplineId || "");
+    if (!invitation.discipline && body?.disciplineLabel) {
+      invitation.discipline = cleanInline(body.disciplineLabel);
+    }
+
+    const rankingSeason = cleanInline(body?.rankingSeason || getPreviousSeason(invitation.season));
+    const rankingSourceUrl = buildGdRankingUrl(rankingSeason, invitation.disciplineId);
+    invitation.rankingSeason = rankingSeason;
+    invitation.rankingSourceUrl = rankingSourceUrl;
+
+    if (rankingSourceUrl) {
+      try {
+        const rankingHtml = await fetchHtmlWithRetry(rankingSourceUrl);
+        const rankingRows = parseGdRanking(rankingHtml);
+        applySeeding(invitation, rankingRows);
+        invitation.seedingNote = rankingRows.length
+          ? `Setzliste nach GD-Rangliste ${rankingSeason}.`
+          : `Keine GD-Ranglisteneinträge für ${rankingSeason} gefunden.`;
+      } catch (rankingError) {
+        invitation.seedingNote = `GD-Rangliste ${rankingSeason} konnte nicht geladen werden.`;
+        console.warn("GD-Rangliste konnte nicht geladen werden", {
+          rankingSourceUrl,
+          message: rankingError instanceof Error ? rankingError.message : String(rankingError),
+        });
+      }
+    }
 
     return new Response(JSON.stringify({ invitation }), {
       status: 200,
