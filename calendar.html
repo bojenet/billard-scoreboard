@@ -1932,23 +1932,17 @@
         }
 
         function drawInvitationHeader(doc, pageNumber) {
-            doc.setFillColor(26, 57, 45);
-            doc.roundedRect(18, 14, 10, 10, 2, 2, "F");
-            doc.setTextColor(255, 255, 255);
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(7);
-            doc.text("NBV", 23, 20.5, { align: "center" });
-
             doc.setTextColor(32, 43, 54);
+            doc.setFont("helvetica", "bold");
             doc.setFontSize(9);
-            doc.text("NBV", 33, 17.8);
+            doc.text("NBV", 18, 17.8);
             doc.setFont("helvetica", "normal");
-            doc.text("Turniereinladung Karambolage/Kegel", 33, 22.2);
+            doc.text("Turniereinladung Karambolage/Kegel", 18, 22.2);
             doc.setFontSize(8);
             doc.text(`Seite ${pageNumber}`, 18, 36);
             doc.setDrawColor(162, 170, 180);
             doc.setLineWidth(1.2);
-            doc.line(42, 38, 192, 38);
+            doc.line(18, 38, 192, 38);
         }
 
         function drawInvitationFooter(doc, invitation) {
@@ -1966,18 +1960,11 @@
 
         function drawSectionTitle(doc, title, y) {
             doc.setFillColor(213, 218, 223);
-            doc.rect(42, y, 150, 8, "F");
-            doc.setFillColor(232, 36, 45);
-            doc.triangle(18, y, 25, y, 30, y + 4, "F");
-            doc.triangle(18, y + 8, 25, y + 8, 30, y + 4, "F");
-            doc.setDrawColor(172, 0, 9);
-            doc.setLineWidth(0.4);
-            doc.line(18, y, 25, y);
-            doc.line(18, y + 8, 25, y + 8);
+            doc.rect(18, y, 174, 8, "F");
             doc.setTextColor(43, 132, 55);
             doc.setFont("helvetica", "bold");
             doc.setFontSize(14);
-            doc.text(title, 46, y + 5.8);
+            doc.text(title, 22, y + 5.8);
             return y + 14;
         }
 
@@ -1992,9 +1979,9 @@
         }
 
         function drawFieldRows(doc, rows, y) {
-            const labelX = 42;
-            const valueX = 78;
-            const valueWidth = 113;
+            const labelX = 24;
+            const valueX = 66;
+            const valueWidth = 126;
             rows.forEach(([label, value]) => {
                 const text = Array.isArray(value) ? value.filter(Boolean).join("\n") : getPdfText(value);
                 if (!text) return;
@@ -2024,19 +2011,19 @@
             state.y = drawSectionTitle(doc, "Setzliste / Teilnehmer", state.y);
 
             doc.setFillColor(31, 43, 58);
-            doc.rect(42, state.y, 150, 8, "F");
+            doc.rect(24, state.y, 168, 8, "F");
             doc.setTextColor(255, 255, 255);
             doc.setFont("helvetica", "bold");
             doc.setFontSize(9);
-            doc.text("Nr.", 45, state.y + 5.2);
-            doc.text("Name", 58, state.y + 5.2);
-            doc.text("Verein", 138, state.y + 5.2);
+            doc.text("Nr.", 28, state.y + 5.2);
+            doc.text("Name", 44, state.y + 5.2);
+            doc.text("Verein", 136, state.y + 5.2);
             state.y += 8;
 
             if (!participants.length) {
                 doc.setTextColor(20, 29, 38);
                 doc.setFont("helvetica", "normal");
-                doc.text("Noch keine Teilnehmerliste auf der NBV-Seite hinterlegt.", 42, state.y + 6);
+                doc.text("Noch keine Teilnehmerliste auf der NBV-Seite hinterlegt.", 24, state.y + 6);
                 state.y += 14;
                 return;
             }
@@ -2044,15 +2031,15 @@
             participants.forEach((participant, index) => {
                 ensureInvitationPage(doc, invitation, state, 9);
                 doc.setFillColor(index % 2 === 0 ? 247 : 255, index % 2 === 0 ? 249 : 255, index % 2 === 0 ? 251 : 255);
-                doc.rect(42, state.y, 150, 8, "F");
+                doc.rect(24, state.y, 168, 8, "F");
                 doc.setDrawColor(220, 226, 233);
-                doc.rect(42, state.y, 150, 8);
+                doc.rect(24, state.y, 168, 8);
                 doc.setTextColor(20, 29, 38);
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(9.5);
-                doc.text(getPdfText(participant?.number || String(index + 1)), 45, state.y + 5.3);
-                doc.text(doc.splitTextToSize(getPdfText(participant?.name || ""), 72), 58, state.y + 5.3);
-                doc.text(doc.splitTextToSize(getPdfText(participant?.club || ""), 48), 138, state.y + 5.3);
+                doc.text(getPdfText(participant?.number || String(index + 1)), 28, state.y + 5.3);
+                doc.text(doc.splitTextToSize(getPdfText(participant?.name || ""), 84), 44, state.y + 5.3);
+                doc.text(doc.splitTextToSize(getPdfText(participant?.club || ""), 54), 136, state.y + 5.3);
                 state.y += 8;
             });
             state.y += 6;
@@ -2087,10 +2074,10 @@
         function drawModeTable(doc, invitation, state, mode) {
             if (!mode?.rows?.length) return;
             ensureInvitationPage(doc, invitation, state, 12 + mode.rows.length * 13);
-            const tableX = 42;
-            const widths = [20, 64, 66];
+            const tableX = 24;
+            const widths = [22, 72, 74];
             doc.setFillColor(31, 43, 58);
-            doc.rect(tableX, state.y, 150, 8, "F");
+            doc.rect(tableX, state.y, 168, 8, "F");
             doc.setTextColor(255, 255, 255);
             doc.setFont("helvetica", "bold");
             doc.setFontSize(9);
@@ -2105,9 +2092,9 @@
                 const line2 = doc.splitTextToSize(getPdfText(row[2]), widths[2] - 7);
                 const height = Math.max(9, Math.max(line1.length, line2.length) * 4.5 + 4);
                 doc.setFillColor(index % 2 === 0 ? 247 : 255, index % 2 === 0 ? 249 : 255, index % 2 === 0 ? 251 : 255);
-                doc.rect(tableX, state.y, 150, height, "F");
+                doc.rect(tableX, state.y, 168, height, "F");
                 doc.setDrawColor(220, 226, 233);
-                doc.rect(tableX, state.y, 150, height);
+                doc.rect(tableX, state.y, 168, height);
                 doc.line(tableX + widths[0], state.y, tableX + widths[0], state.y + height);
                 doc.line(tableX + widths[0] + widths[1], state.y, tableX + widths[0] + widths[1], state.y + height);
                 doc.setTextColor(20, 29, 38);
@@ -2146,12 +2133,12 @@
             drawInvitationHeader(doc, state.pageNumber);
 
             doc.setFillColor(224, 227, 229);
-            doc.rect(42, 46, 150, 36, "F");
+            doc.rect(24, 46, 168, 36, "F");
             doc.setTextColor(43, 132, 55);
             doc.setFont("helvetica", "bold");
             doc.setFontSize(26);
             doc.text("Einladung", 117, 58, { align: "center" });
-            const titleLines = doc.splitTextToSize(getPdfText(invitation?.title || "NBV Turnier"), 134);
+            const titleLines = doc.splitTextToSize(getPdfText(invitation?.title || "NBV Turnier"), 152);
             doc.setFontSize(titleLines.length > 1 ? 20 : 23);
             doc.text(titleLines, 117, 69, { align: "center" });
             state.y = 92;
@@ -2200,7 +2187,7 @@
                 ["Vorbehalte", "Die Einladung steht unter dem Vorbehalt von kurzfristigen Änderungen durch den Landessportwart bzw. die Turnierleitung gemäß STO-BTK."]
             ], state.y);
             state.y += 8;
-            drawWrappedText(doc, "Mit sportlichem Gruß", 42, state.y, 140, 5.5, "normal", 11);
+            drawWrappedText(doc, "Mit sportlichem Gruß", 24, state.y, 168, 5.5, "normal", 11);
 
             drawInvitationFooter(doc, invitation);
             doc.save(getInvitationPdfFilename(invitation));
