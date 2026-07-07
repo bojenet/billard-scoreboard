@@ -1016,6 +1016,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/jspdf.umd.min.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/calendar_access.js"></script>
@@ -1906,172 +1907,231 @@
             return `${weekday}, ${day}`;
         }
 
-        function buildInvitationPrintHtml(invitation) {
-            const facts = [
-                ["Turnier", invitation?.title],
-                ["Saison", invitation?.season],
-                ["Datum", formatInvitationDate(invitation?.date)],
-                ["Spielbeginn", invitation?.startTime ? `${invitation.startTime} Uhr` : ""],
-                ["Meldeschluss", invitation?.registrationDeadline],
-                ["Austragungsort", [invitation?.locationName, ...(Array.isArray(invitation?.locationAddress) ? invitation.locationAddress : [])].filter(Boolean).join("<br>")],
-                ["Disziplin", invitation?.discipline],
-                ["Kategorie", invitation?.category],
-                ["Typ", invitation?.tournamentType],
-                ["Kürzel", invitation?.shortCode]
-            ];
+        function getJsPdfConstructor() {
+            return window.jspdf?.jsPDF || window.jsPDF || null;
+        }
+
+        function getInvitationPdfFilename(invitation) {
+            const datePart = String(invitation?.date || "")
+                .replace(/[^0-9]+/g, "-")
+                .replace(/^-|-$/g, "");
+            const titlePart = String(invitation?.title || "nbv-turnier")
+                .toLowerCase()
+                .replace(/ä/g, "ae")
+                .replace(/ö/g, "oe")
+                .replace(/ü/g, "ue")
+                .replace(/ß/g, "ss")
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/-+/g, "-")
+                .replace(/^-|-$/g, "");
+            return `NBV-Einladung-${datePart || "Termin"}-${titlePart || "Turnier"}.pdf`;
+        }
+
+        function getPdfText(value) {
+            return String(value || "").replace(/\s+/g, " ").trim();
+        }
+
+        function drawInvitationHeader(doc, pageNumber) {
+            doc.setFillColor(26, 57, 45);
+            doc.roundedRect(18, 14, 10, 10, 2, 2, "F");
+            doc.setTextColor(255, 255, 255);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(7);
+            doc.text("NBV", 23, 20.5, { align: "center" });
+
+            doc.setTextColor(32, 43, 54);
+            doc.setFontSize(9);
+            doc.text("NBV", 33, 17.8);
+            doc.setFont("helvetica", "normal");
+            doc.text("Turniereinladung Karambolage/Kegel", 33, 22.2);
+            doc.setFontSize(8);
+            doc.text(`Seite ${pageNumber}`, 18, 36);
+            doc.setDrawColor(162, 170, 180);
+            doc.setLineWidth(1.2);
+            doc.line(42, 38, 192, 38);
+        }
+
+        function drawInvitationFooter(doc, invitation) {
+            const source = getPdfText(invitation?.sourceUrl || "");
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8);
+            doc.setTextColor(83, 97, 112);
+            doc.text("-Verbandsinternes Dokument-", 18, 284);
+            doc.text("Norddeutscher Billard-Verband e.V.", 192, 284, { align: "right" });
+            if (source) {
+                const shortSource = source.length > 110 ? `${source.slice(0, 107)}...` : source;
+                doc.text(`Quelle: ${shortSource}`, 18, 290);
+            }
+        }
+
+        function drawSectionTitle(doc, title, y) {
+            doc.setFillColor(213, 218, 223);
+            doc.rect(42, y, 150, 8, "F");
+            doc.setFillColor(232, 36, 45);
+            doc.triangle(18, y, 25, y, 30, y + 4, "F");
+            doc.triangle(18, y + 8, 25, y + 8, 30, y + 4, "F");
+            doc.setDrawColor(172, 0, 9);
+            doc.setLineWidth(0.4);
+            doc.line(18, y, 25, y);
+            doc.line(18, y + 8, 25, y + 8);
+            doc.setTextColor(43, 132, 55);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text(title, 46, y + 5.8);
+            return y + 14;
+        }
+
+        function drawWrappedText(doc, text, x, y, width, lineHeight = 5, style = "normal", size = 11) {
+            const content = getPdfText(text);
+            if (!content) return y;
+            doc.setFont("helvetica", style);
+            doc.setFontSize(size);
+            const lines = doc.splitTextToSize(content, width);
+            doc.text(lines, x, y);
+            return y + lines.length * lineHeight;
+        }
+
+        function drawFieldRows(doc, rows, y) {
+            const labelX = 42;
+            const valueX = 78;
+            const valueWidth = 113;
+            rows.forEach(([label, value]) => {
+                const text = Array.isArray(value) ? value.filter(Boolean).join("\n") : getPdfText(value);
+                if (!text) return;
+                doc.setTextColor(20, 29, 38);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(11);
+                doc.text(`${label}:`, labelX, y);
+                const lines = String(text).split("\n").flatMap((line) => doc.splitTextToSize(getPdfText(line), valueWidth));
+                doc.text(lines, valueX, y);
+                y += Math.max(7, lines.length * 5.2 + 2);
+            });
+            return y;
+        }
+
+        function ensureInvitationPage(doc, invitation, state, neededHeight) {
+            if (state.y + neededHeight <= 274) return;
+            drawInvitationFooter(doc, invitation);
+            doc.addPage();
+            state.pageNumber += 1;
+            drawInvitationHeader(doc, state.pageNumber);
+            state.y = 48;
+        }
+
+        function drawParticipantTable(doc, invitation, state) {
             const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
-            const createdAt = new Intl.DateTimeFormat("de-DE", {
-                dateStyle: "medium",
-                timeStyle: "short"
-            }).format(new Date());
+            ensureInvitationPage(doc, invitation, state, 24 + participants.length * 8);
+            state.y = drawSectionTitle(doc, "Setzliste / Teilnehmer", state.y);
 
-            return `<!doctype html>
-<html lang="de">
-<head>
-    <meta charset="utf-8">
-    <title>Einladung ${escapeHtml(invitation?.title || "NBV Turnier")}</title>
-    <style>
-        @page { size: A4; margin: 16mm 18mm; }
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            color: #172033;
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 12px;
-            line-height: 1.38;
-        }
-        h1 {
-            margin: 0 0 6px;
-            text-align: center;
-            font-size: 28px;
-            line-height: 1.15;
-        }
-        .subtitle {
-            margin: 0 0 18px;
-            text-align: center;
-            color: #526071;
-            font-size: 13px;
-        }
-        h2 {
-            margin: 18px 0 8px;
-            font-size: 16px;
-            line-height: 1.2;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-        th, td {
-            border: 1px solid #d8dee7;
-            padding: 7px 9px;
-            vertical-align: top;
-            text-align: left;
-            overflow-wrap: anywhere;
-        }
-        th {
-            background: #172033;
-            color: #fff;
-        }
-        .facts td:first-child {
-            width: 24%;
-            background: #eef2f6;
-            font-weight: 700;
-        }
-        .participants th:first-child,
-        .participants td:first-child {
-            width: 9%;
-        }
-        .participants tr:nth-child(odd) td {
-            background: #f7f9fb;
-        }
-        .note {
-            margin: 0;
-        }
-        .footer {
-            margin-top: 18px;
-            color: #687386;
-            font-size: 10px;
-            overflow-wrap: anywhere;
-        }
-        .toolbar {
-            position: sticky;
-            top: 0;
-            margin: -8px -8px 16px;
-            padding: 8px;
-            background: #f4f7fb;
-            border-bottom: 1px solid #d8dee7;
-            text-align: right;
-        }
-        .toolbar button {
-            border: 1px solid #b7c9dc;
-            border-radius: 4px;
-            background: #fff;
-            color: #254b70;
-            font-weight: 700;
-            padding: 7px 10px;
-            cursor: pointer;
-        }
-        @media print {
-            .toolbar { display: none; }
-        }
-    </style>
-</head>
-<body>
-    <div class="toolbar">
-        <button type="button" onclick="window.print()">PDF speichern</button>
-    </div>
-    <h1>Einladung zum Turnier</h1>
-    <p class="subtitle">Norddeutscher Billard-Verband e.V. - ${escapeHtml(invitation?.section || "Karambol")}</p>
-    <table class="facts">
-        <tbody>
-            ${facts.map(([label, value]) => `
-                <tr>
-                    <td>${escapeHtml(label)}</td>
-                    <td>${value ? String(value).split("<br>").map(escapeHtml).join("<br>") : "-"}</td>
-                </tr>
-            `).join("")}
-        </tbody>
-    </table>
-    <h2>Hinweise</h2>
-    <p class="note">Bitte rechtzeitig vor Spielbeginn am Austragungsort eintreffen. Die endgültige Turnierdurchführung, Teilnehmerliste und Ergebnisse werden über die NBV-Seite geführt.</p>
-    ${participants.length ? `
-        <h2>Teilnehmerliste</h2>
-        <table class="participants">
-            <thead>
-                <tr>
-                    <th>Nr.</th>
-                    <th>Teilnehmer</th>
-                    <th>Verein</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${participants.map((participant) => `
-                    <tr>
-                        <td>${escapeHtml(participant?.number || "")}</td>
-                        <td>${escapeHtml(participant?.name || "")}</td>
-                        <td>${escapeHtml(participant?.club || "")}</td>
-                    </tr>
-                `).join("")}
-            </tbody>
-        </table>
-    ` : ""}
-    <div class="footer">
-        <div>Quelle: ${escapeHtml(invitation?.sourceUrl || "")}</div>
-        <div>Erstellt am ${escapeHtml(createdAt)}</div>
-    </div>
-    <script>
-        window.addEventListener("load", () => setTimeout(() => window.print(), 250));
-    <\/script>
-</body>
-</html>`;
+            doc.setFillColor(31, 43, 58);
+            doc.rect(42, state.y, 150, 8, "F");
+            doc.setTextColor(255, 255, 255);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.text("Nr.", 45, state.y + 5.2);
+            doc.text("Name", 58, state.y + 5.2);
+            doc.text("Verein", 138, state.y + 5.2);
+            state.y += 8;
+
+            if (!participants.length) {
+                doc.setTextColor(20, 29, 38);
+                doc.setFont("helvetica", "normal");
+                doc.text("Noch keine Teilnehmerliste auf der NBV-Seite hinterlegt.", 42, state.y + 6);
+                state.y += 14;
+                return;
+            }
+
+            participants.forEach((participant, index) => {
+                ensureInvitationPage(doc, invitation, state, 9);
+                doc.setFillColor(index % 2 === 0 ? 247 : 255, index % 2 === 0 ? 249 : 255, index % 2 === 0 ? 251 : 255);
+                doc.rect(42, state.y, 150, 8, "F");
+                doc.setDrawColor(220, 226, 233);
+                doc.rect(42, state.y, 150, 8);
+                doc.setTextColor(20, 29, 38);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(9.5);
+                doc.text(getPdfText(participant?.number || String(index + 1)), 45, state.y + 5.3);
+                doc.text(doc.splitTextToSize(getPdfText(participant?.name || ""), 72), 58, state.y + 5.3);
+                doc.text(doc.splitTextToSize(getPdfText(participant?.club || ""), 48), 138, state.y + 5.3);
+                state.y += 8;
+            });
+            state.y += 6;
         }
 
-        function writeInvitationWindow(targetWindow, html) {
-            if (!targetWindow) return;
-            targetWindow.document.open();
-            targetWindow.document.write(html);
-            targetWindow.document.close();
+        function drawInvitationPdf(invitation) {
+            const JsPDF = getJsPdfConstructor();
+            if (!JsPDF) {
+                throw new Error("PDF-Bibliothek konnte nicht geladen werden.");
+            }
+
+            const doc = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+            const state = { pageNumber: 1, y: 48 };
+            drawInvitationHeader(doc, state.pageNumber);
+
+            doc.setFillColor(224, 227, 229);
+            doc.rect(42, 46, 150, 36, "F");
+            doc.setTextColor(43, 132, 55);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(26);
+            doc.text("Einladung", 117, 58, { align: "center" });
+            const titleLines = doc.splitTextToSize(getPdfText(invitation?.title || "NBV Turnier"), 134);
+            doc.setFontSize(titleLines.length > 1 ? 20 : 23);
+            doc.text(titleLines, 117, 69, { align: "center" });
+            state.y = 92;
+
+            state.y = drawSectionTitle(doc, "Turnierinformationen", state.y);
+            state.y = drawFieldRows(doc, [
+                ["Veranstalter", "Norddeutscher Billard-Verband e.V. (NBV)"],
+                ["Verantwortlicher", "Landessportwart Karambolage/Kegel"],
+                ["Turnierleitung", "stellt der Ausrichter"],
+                ["Bezeichnung", invitation?.title],
+                ["Kurz", invitation?.shortCode],
+                ["Startberechtigt", "Alle gemeldeten NBV-Sportler/innen, die in der Billard-Area als aktiv gemeldet sind."],
+                ["Altersklassen", invitation?.category || "offen NBV"]
+            ], state.y);
+
+            ensureInvitationPage(doc, invitation, state, 46);
+            state.y += 4;
+            state.y = drawSectionTitle(doc, "Termine / Uhrzeit", state.y);
+            state.y = drawFieldRows(doc, [
+                ["Termin", formatInvitationDate(invitation?.date)],
+                ["Turnierbeginn", invitation?.startTime ? `${invitation.startTime} Uhr` : ""],
+                ["Meldeschluss", invitation?.registrationDeadline],
+                ["Akkreditierung", "jeweils bis 15 Minuten vor Turnierbeginn"]
+            ], state.y);
+
+            ensureInvitationPage(doc, invitation, state, 42);
+            state.y += 4;
+            state.y = drawSectionTitle(doc, "Spielort / Dresscode", state.y);
+            state.y = drawFieldRows(doc, [
+                ["Spielort", [invitation?.locationName, ...(Array.isArray(invitation?.locationAddress) ? invitation.locationAddress : [])]],
+                ["Kleidung", "gem. Pkt. 1.3 Spielkleidung der STO-BT Karambolage des NBV"]
+            ], state.y);
+
+            ensureInvitationPage(doc, invitation, state, 52);
+            state.y += 4;
+            state.y = drawSectionTitle(doc, "Modus / Turnierbesonderheit", state.y);
+            state.y = drawFieldRows(doc, [
+                ["Disziplin", invitation?.discipline],
+                ["Sparte", invitation?.section],
+                ["Modus", invitation?.tournamentType || "Der Turniermodus wird entsprechend der STO-BTK je nach Anmeldezahl festgelegt."]
+            ], state.y);
+
+            drawParticipantTable(doc, invitation, state);
+
+            ensureInvitationPage(doc, invitation, state, 82);
+            state.y = drawSectionTitle(doc, "Wichtiges", state.y);
+            state.y = drawFieldRows(doc, [
+                ["Regeln", "Es gelten die Spielregeln und Spielregularien der DBU und die Bestimmungen der STO-BTK des NBV."],
+                ["Doping", "Die Teilnehmer dieses Turniers erkennen mit ihrer Meldung die Richtlinien der NADA inklusive der Durchführungsbestimmungen für Dopingkontrollen in der aktuellen Fassung an."],
+                ["Haftung", "Der Veranstalter übernimmt keine Haftung für Sach- und Personenschäden sowie Entwendung von Wertsachen im Zusammenhang mit der Meisterschaft."],
+                ["Vorbehalte", "Die Einladung steht unter dem Vorbehalt von kurzfristigen Änderungen durch den Landessportwart bzw. die Turnierleitung gemäß STO-BTK."]
+            ], state.y);
+            state.y += 8;
+            drawWrappedText(doc, "Mit sportlichem Gruß", 42, state.y, 140, 5.5, "normal", 11);
+
+            drawInvitationFooter(doc, invitation);
+            doc.save(getInvitationPdfFilename(invitation));
         }
 
         async function createNbvInvitationPdf(eventId) {
@@ -2082,12 +2142,7 @@
                 return;
             }
 
-            const printWindow = window.open("", "_blank");
-            if (printWindow) {
-                writeInvitationWindow(printWindow, "<!doctype html><html><head><meta charset='utf-8'><title>Einladung wird erstellt</title></head><body style='font-family: Arial, sans-serif; padding: 24px;'>Einladung wird erstellt...</body></html>");
-            }
-
-            showCalendarMessage("Einladung wird aus der NBV-Seite erstellt...", "ok");
+            showCalendarMessage("PDF-Einladung wird aus der NBV-Seite erstellt...", "ok");
             try {
                 const { data, error } = await supabaseClient.functions.invoke("get-nbv-tournament-invitation", {
                     body: { sourceUrl: event.link }
@@ -2097,19 +2152,10 @@
                 if (!invitation?.title) {
                     throw new Error("Die NBV-Seite konnte nicht als Turniereinladung gelesen werden.");
                 }
-                const html = buildInvitationPrintHtml(invitation);
-                if (printWindow) {
-                    writeInvitationWindow(printWindow, html);
-                } else {
-                    const fallback = window.open("", "_blank");
-                    writeInvitationWindow(fallback, html);
-                }
-                showCalendarMessage("Einladung wurde erstellt. Im neuen Fenster kann sie als PDF gespeichert werden.", "ok");
+                drawInvitationPdf(invitation);
+                showCalendarMessage("PDF-Einladung wurde erstellt und als Download gestartet.", "ok");
             } catch (error) {
                 console.warn("NBV-Einladung konnte nicht erstellt werden:", error);
-                if (printWindow) {
-                    printWindow.close();
-                }
                 showCalendarMessage(`Einladung konnte nicht erstellt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
