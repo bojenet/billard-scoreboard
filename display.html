@@ -217,11 +217,15 @@
                         table: "matches"
                     },
                     (payload) => {
-                        const row = payload.new || payload.old || {};
-                        const rowTable = String(row.display_table || "").toLowerCase();
-                        const rowId = String(row.id || "");
+                        const newRow = payload.new || {};
+                        const oldRow = payload.old || {};
+                        const rowId = String(newRow.id || oldRow.id || "");
+                        const hasNewTable = Object.prototype.hasOwnProperty.call(newRow, "display_table");
+                        const newTable = hasNewTable ? String(newRow.display_table || "").toLowerCase() : "";
+                        const oldTable = String(oldRow.display_table || "").toLowerCase();
+                        const rowTable = newTable || oldTable;
                         const isCurrentMatch = currentMatchId && currentMatchId === rowId;
-                        if (isCurrentMatch && rowTable !== displayTableId) {
+                        if (isCurrentMatch && hasNewTable && newTable === "") {
                             showIdle("Bereit für neues Match");
                             return;
                         }
