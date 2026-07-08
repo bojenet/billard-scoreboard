@@ -88,6 +88,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
 
     <script>
         const params = new URLSearchParams(window.location.search);
@@ -102,6 +103,7 @@
         let currentMatchId = "";
         let channel = null;
         let pollTimer = null;
+        let currentUserId = "";
 
         document.getElementById("tableLabel").innerText = tableLabel;
 
@@ -142,7 +144,7 @@
 
             const { data, error } = await supabaseClient
                 .from("matches")
-                .select("id,display_table,status,finished,started_at")
+                .select("id,display_table,status,finished,started_at,player1,player2")
                 .eq("display_table", tableId)
                 .eq("status", 1)
                 .eq("finished", 0)
@@ -188,9 +190,16 @@
                 .subscribe();
         }
 
-        loadActiveMatch();
-        subscribeToTable();
-        pollTimer = setInterval(loadActiveMatch, 10000);
+        async function initDisplay() {
+            const user = await requireAuth();
+            if (!user) return;
+            currentUserId = user.id;
+            loadActiveMatch();
+            subscribeToTable();
+            pollTimer = setInterval(loadActiveMatch, 10000);
+        }
+
+        initDisplay();
 
         window.addEventListener("beforeunload", () => {
             if (pollTimer) clearInterval(pollTimer);
