@@ -93,12 +93,23 @@
         const params = new URLSearchParams(window.location.search);
         const tableId = String(params.get("table") || "").trim().toLowerCase();
         const tableNames = {
+            1: "Tisch 1",
+            2: "Tisch 2",
             tisch1: "Tisch 1",
             tisch2: "Tisch 2",
             buli1: "Tisch 1",
             buli2: "Tisch 2"
         };
+        const tableIds = {
+            1: "tisch1",
+            2: "tisch2",
+            tisch1: "tisch1",
+            tisch2: "tisch2",
+            buli1: "tisch1",
+            buli2: "tisch2"
+        };
         const tableLabel = tableNames[tableId] || (tableId ? tableId : "Display");
+        const displayTableId = tableIds[tableId] || tableId;
         let currentMatchId = "";
         let channel = null;
         let pollTimer = null;
@@ -135,7 +146,7 @@
         }
 
         async function loadActiveMatch() {
-            if (!tableId) {
+            if (!displayTableId) {
                 showIdle("Display-Link ohne Tisch", true);
                 return;
             }
@@ -143,9 +154,9 @@
             const { data, error } = await supabaseClient
                 .from("matches")
                 .select("id,display_table,status,finished,started_at,player1,player2")
-                .eq("display_table", tableId)
+                .eq("display_table", displayTableId)
                 .eq("status", 1)
-                .eq("finished", 0)
+                .eq("finished", false)
                 .order("started_at", { ascending: false })
                 .limit(1);
 
@@ -168,9 +179,9 @@
         }
 
         function subscribeToTable() {
-            if (!tableId) return;
+            if (!displayTableId) return;
             channel = supabaseClient
-                .channel("display-" + tableId)
+                .channel("display-" + displayTableId)
                 .on(
                     "postgres_changes",
                     {
@@ -180,7 +191,7 @@
                     },
                     (payload) => {
                         const row = payload.new || payload.old || {};
-                        if (String(row.display_table || "").toLowerCase() === tableId || currentMatchId === String(row.id || "")) {
+                        if (String(row.display_table || "").toLowerCase() === displayTableId || currentMatchId === String(row.id || "")) {
                             loadActiveMatch();
                         }
                     }
