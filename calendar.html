@@ -2195,10 +2195,9 @@
             doc.setFont("helvetica", "bold");
             doc.setFontSize(9);
             doc.text("Setz.", 28, state.y + 5.2);
-            doc.text("Rang", 48, state.y + 5.2);
-            doc.text("GD", 67, state.y + 5.2);
-            doc.text("Name", 91, state.y + 5.2);
-            doc.text("Verein", 154, state.y + 5.2);
+            doc.text("GD", 50, state.y + 5.2);
+            doc.text("Name", 76, state.y + 5.2);
+            doc.text("Verein", 148, state.y + 5.2);
             state.y += 8;
 
             if (!participants.length) {
@@ -2219,10 +2218,9 @@
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(9.5);
                 doc.text(getPdfText(participant?.number || String(index + 1)), 28, state.y + 5.3);
-                doc.text(getPdfText(participant?.seedRank || "-"), 48, state.y + 5.3);
-                doc.text(getPdfText(participant?.seedGd || "-"), 67, state.y + 5.3);
-                doc.text(doc.splitTextToSize(getPdfText(participant?.name || ""), 58), 91, state.y + 5.3);
-                doc.text(doc.splitTextToSize(getPdfText(participant?.club || ""), 36), 154, state.y + 5.3);
+                doc.text(getPdfText(participant?.seedGd || "-"), 50, state.y + 5.3);
+                doc.text(doc.splitTextToSize(getPdfText(participant?.name || ""), 66), 76, state.y + 5.3);
+                doc.text(doc.splitTextToSize(getPdfText(participant?.club || ""), 42), 148, state.y + 5.3);
                 state.y += 8;
             });
             state.y += 6;
