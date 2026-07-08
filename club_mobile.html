@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b1024">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Club Match</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #080d1c;
+            --panel: #171b2b;
+            --panel-2: #20263a;
+            --line: rgba(255, 255, 255, 0.12);
+            --text: #ffffff;
+            --muted: rgba(255, 255, 255, 0.64);
+            --blue: #263f96;
+            --blue-2: #3454bf;
+            --yellow: #ffd84a;
+            --green: #29c46a;
+            --red: #c93b3b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: max(12px, env(safe-area-inset-top)) 12px max(18px, env(safe-area-inset-bottom));
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, "Segoe UI", sans-serif;
+        }
+
+        .app {
+            width: min(100%, 560px);
+            margin: 0 auto;
+            display: grid;
+            gap: 12px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 44px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: 0;
+        }
+
+        .ghost {
+            min-height: 40px;
+            padding: 0 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: transparent;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .two {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .field {
+            display: grid;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 800;
+        }
+
+        select,
+        input {
+            width: 100%;
+            min-height: 48px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #f4f6fb;
+            color: #111522;
+            font-size: 17px;
+            font-weight: 700;
+            padding: 0 12px;
+        }
+
+        .segmented {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .segmented button,
+        .quick button,
+        .start-btn,
+        .control-btn {
+            border: 0;
+            border-radius: 12px;
+            color: var(--text);
+            background: var(--blue);
+            font-weight: 900;
+            font-size: 17px;
+            min-height: 54px;
+            padding: 0 12px;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            opacity: 0.45;
+        }
+
+        .segmented button.active {
+            background: var(--yellow);
+            color: #101010;
+        }
+
+        .quick {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .quick button {
+            min-height: 42px;
+            font-size: 14px;
+            background: var(--panel-2);
+        }
+
+        .start-btn {
+            width: 100%;
+            min-height: 60px;
+            background: var(--green);
+            color: #061a0e;
+            font-size: 19px;
+        }
+
+        .message {
+            min-height: 20px;
+            color: var(--muted);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .message.error {
+            color: #ffb3b3;
+        }
+
+        .score-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .score-card {
+            min-height: 160px;
+            border-radius: 14px;
+            background: #18244c;
+            padding: 12px;
+            border: 2px solid transparent;
+            display: grid;
+            align-content: space-between;
+        }
+
+        .score-card.yellow {
+            background: var(--yellow);
+            color: #101010;
+        }
+
+        .score-card.active {
+            border-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+        }
+
+        .player-name {
+            font-size: 16px;
+            font-weight: 900;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .discipline {
+            margin-top: 4px;
+            font-size: 12px;
+            opacity: 0.72;
+            font-weight: 800;
+        }
+
+        .score {
+            text-align: center;
+            font-size: 76px;
+            line-height: 1;
+            font-weight: 900;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 800;
+            opacity: 0.82;
+        }
+
+        .stat strong {
+            display: block;
+            font-size: 18px;
+            opacity: 1;
+        }
+
+        .series {
+            text-align: center;
+            padding: 12px;
+            border-radius: 12px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        .point-pad {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .point-pad .big {
+            grid-column: span 3;
+            min-height: 116px;
+            font-size: 48px;
+            background: var(--blue-2);
+        }
+
+        .control-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .control-btn.switch {
+            background: var(--yellow);
+            color: #101010;
+        }
+
+        .control-btn.danger {
+            background: var(--red);
+        }
+
+        .timer-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 64px;
+            gap: 10px;
+        }
+
+        .timer {
+            background: var(--green);
+            color: #061a0e;
+        }
+
+        .timeout {
+            background: var(--panel-2);
+            font-size: 22px;
+        }
+
+        @media (max-width: 380px) {
+            body {
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+
+            .panel {
+                padding: 12px;
+            }
+
+            .score {
+                font-size: 64px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="app">
+        <div class="topbar">
+            <h1>Club Match</h1>
+            <button id="newMatchBtn" class="ghost hidden" type="button" onclick="resetToSetup()">Neu</button>
+        </div>
+
+        <section id="setupView" class="panel grid">
+            <div class="field">
+                <label for="displayTable">Anzeige</label>
+                <div class="segmented" id="displayButtons">
+                    <button type="button" data-table="tisch1" class="active" onclick="selectDisplay('tisch1')">Tisch 1</button>
+                    <button type="button" data-table="tisch2" onclick="selectDisplay('tisch2')">Tisch 2</button>
+                </div>
+                <input id="displayTable" type="hidden" value="tisch1">
+            </div>
+
+            <div class="grid two">
+                <div class="field">
+                    <label for="player1">Spieler 1</label>
+                    <select id="player1"></select>
+                </div>
+                <div class="field">
+                    <label for="player2">Spieler 2</label>
+                    <select id="player2"></select>
+                </div>
+            </div>
+
+            <div class="grid two">
+                <div class="field">
+                    <label for="discipline1">Disziplin 1</label>
+                    <select id="discipline1"></select>
+                </div>
+                <div class="field">
+                    <label for="discipline2">Disziplin 2</label>
+                    <select id="discipline2"></select>
+                </div>
+            </div>
+
+            <div class="grid two">
+                <div class="field">
+                    <label for="target1">Punkte 1</label>
+                    <input id="target1" type="number" inputmode="numeric" min="1" value="50">
+                </div>
+                <div class="field">
+                    <label for="target2">Punkte 2</label>
+                    <input id="target2" type="number" inputmode="numeric" min="1" value="50">
+                </div>
+            </div>
+
+            <div class="quick">
+                <button type="button" onclick="setTargets(30)">30</button>
+                <button type="button" onclick="setTargets(40)">40</button>
+                <button type="button" onclick="setTargets(50)">50</button>
+                <button type="button" onclick="setTargets(100)">100</button>
+            </div>
+
+            <div class="field">
+                <label for="maxInnings">Maximale Aufnahmen</label>
+                <input id="maxInnings" type="number" inputmode="numeric" min="1" value="15">
+            </div>
+
+            <button id="startBtn" class="start-btn" type="button" onclick="startMatch()">Match starten</button>
+            <div id="setupMessage" class="message"></div>
+        </section>
+
+        <section id="controlView" class="grid hidden">
+            <div class="score-grid">
+                <div id="card1" class="score-card">
+                    <div>
+                        <div id="name1" class="player-name">Spieler 1</div>
+                        <div id="disc1" class="discipline">-</div>
+                    </div>
+                    <div id="score1" class="score">0</div>
+                    <div class="stats">
+                        <div class="stat">A<strong id="inn1">0</strong></div>
+                        <div class="stat">DS<strong id="avg1">0.000</strong></div>
+                        <div class="stat">HS<strong id="high1">0</strong></div>
+                    </div>
+                </div>
+                <div id="card2" class="score-card yellow">
+                    <div>
+                        <div id="name2" class="player-name">Spieler 2</div>
+                        <div id="disc2" class="discipline">-</div>
+                    </div>
+                    <div id="score2" class="score">0</div>
+                    <div class="stats">
+                        <div class="stat">A<strong id="inn2">0</strong></div>
+                        <div class="stat">DS<strong id="avg2">0.000</strong></div>
+                        <div class="stat">HS<strong id="high2">0</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="seriesInfo" class="series">Serie: 0</div>
+
+            <div id="timerControls" class="timer-row hidden">
+                <button id="timerBtn" class="control-btn timer" type="button" onclick="toggleShotClock()">Start Timer</button>
+                <button class="control-btn timeout" type="button" onclick="useTimeout()" aria-label="Time-Out">⏱</button>
+            </div>
+
+            <div class="point-pad">
+                <button class="control-btn big" type="button" onclick="addPoints(1)">+1</button>
+                <button class="control-btn" type="button" onclick="addPoints(5)">+5</button>
+                <button class="control-btn" type="button" onclick="addPoints(10)">+10</button>
+                <button class="control-btn" type="button" onclick="addPoints(-1)">-1</button>
+            </div>
+
+            <div class="control-row">
+                <button class="control-btn switch" type="button" onclick="switchPlayer()">Wechsel</button>
+                <button class="control-btn" type="button" onclick="undo()">Undo</button>
+                <button class="control-btn danger" type="button" onclick="finishMatch()">Ende</button>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+
+    <script>
+        const DISCIPLINES = [
+            "Freie Partie",
+            "Freie Partie 2x",
+            "Cadre 35/2",
+            "Cadre 52/2",
+            "Cadre 47/2",
+            "Cadre 47/1",
+            "Cadre 71/2",
+            "Einband",
+            "Dreiband"
+        ];
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+        let currentUserId = "";
+        let isAdmin = false;
+        let players = [];
+        let matchId = new URLSearchParams(window.location.search).get("match") || "";
+        let matchData = null;
+        let channel = null;
+        let pollId = null;
+        let history = [];
+
+        function normalizeUuid(value) {
+            const raw = String(value || "").trim();
+            return uuidRegex.test(raw) ? raw : null;
+        }
+
+        function setMessage(text, type) {
+            const el = document.getElementById("setupMessage");
+            el.innerText = text || "";
+            el.className = "message " + (type || "");
+        }
+
+        function selectDisplay(table) {
+            document.getElementById("displayTable").value = table;
+            document.querySelectorAll("#displayButtons button").forEach((btn) => {
+                btn.classList.toggle("active", btn.dataset.table === table);
+            });
+        }
+
+        function setTargets(value) {
+            document.getElementById("target1").value = value;
+            document.getElementById("target2").value = value;
+        }
+
+        function fillSelect(select, values, placeholder) {
+            select.innerHTML = "";
+            select.add(new Option(placeholder, ""));
+            values.forEach((value) => select.add(new Option(value.name || value, value.id || value)));
+        }
+
+        async function loadPlayers() {
+            let query = supabaseClient
+                .from("players")
+                .select("id,name,user_id")
+                .order("name", { ascending: true });
+            if (!isAdmin) query = query.eq("user_id", currentUserId);
+            let { data, error } = await query;
+
+            if (error && String(error.message || "").toLowerCase().includes("user_id")) {
+                const fallback = await supabaseClient
+                    .from("players")
+                    .select("id,name")
+                    .order("name", { ascending: true });
+                data = fallback.data;
+                error = fallback.error;
+            }
+
+            if (error) {
+                console.error(error);
+                setMessage("Spieler konnten nicht geladen werden.", "error");
+                return;
+            }
+
+            const byName = new Map();
+            (data || []).forEach((row) => {
+                const name = String(row.name || "").trim();
+                if (!name || name === "?") return;
+                const key = name.toLowerCase();
+                if (!byName.has(key) || (!byName.get(key).user_id && row.user_id)) {
+                    byName.set(key, { id: row.id, name, user_id: row.user_id || null });
+                }
+            });
+            players = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name, "de"));
+            fillSelect(document.getElementById("player1"), players, "Spieler wählen");
+            fillSelect(document.getElementById("player2"), players, "Spieler wählen");
+        }
+
+        function loadDisciplines() {
+            fillSelect(document.getElementById("discipline1"), DISCIPLINES, "Disziplin wählen");
+            fillSelect(document.getElementById("discipline2"), DISCIPLINES, "Disziplin wählen");
+            document.getElementById("discipline1").value = "Dreiband";
+            document.getElementById("discipline2").value = "Dreiband";
+        }
+
+        function showSetup() {
+            document.getElementById("setupView").classList.remove("hidden");
+            document.getElementById("controlView").classList.add("hidden");
+            document.getElementById("newMatchBtn").classList.add("hidden");
+        }
+
+        function showControl() {
+            document.getElementById("setupView").classList.add("hidden");
+            document.getElementById("controlView").classList.remove("hidden");
+            document.getElementById("newMatchBtn").classList.remove("hidden");
+        }
+
+        async function startMatch() {
+            setMessage("");
+            const p1Id = document.getElementById("player1").value;
+            const p2Id = document.getElementById("player2").value;
+            const p1 = players.find((x) => String(x.id) === String(p1Id));
+            const p2 = players.find((x) => String(x.id) === String(p2Id));
+            const d1 = document.getElementById("discipline1").value;
+            const d2 = document.getElementById("discipline2").value;
+            const target1 = parseInt(document.getElementById("target1").value, 10);
+            const target2 = parseInt(document.getElementById("target2").value, 10);
+            const maxInnings = parseInt(document.getElementById("maxInnings").value, 10);
+            const displayTable = document.getElementById("displayTable").value;
+
+            if (!p1 || !p2 || p1.id === p2.id) return setMessage("Bitte zwei unterschiedliche Spieler wählen.", "error");
+            if (!d1 || !d2) return setMessage("Bitte Disziplinen wählen.", "error");
+            if (!displayTable) return setMessage("Bitte Tisch 1 oder Tisch 2 wählen.", "error");
+            if (!Number.isInteger(target1) || target1 < 1 || !Number.isInteger(target2) || target2 < 1) {
+                return setMessage("Bitte gültige Punkte eingeben.", "error");
+            }
+            if (!Number.isInteger(maxInnings) || maxInnings < 1) {
+                return setMessage("Bitte gültige Aufnahmen eingeben.", "error");
+            }
+
+            document.getElementById("startBtn").disabled = true;
+            const payload = {
+                player1: p1.name,
+                player2: p2.name,
+                discipline1: d1,
+                discipline2: d2,
+                target1,
+                target2,
+                maxInnings,
+                score1: 0,
+                score2: 0,
+                series1: 0,
+                series2: 0,
+                high1: 0,
+                high2: 0,
+                inn1: 0,
+                inn2: 0,
+                totalInnings: 1,
+                activePlayer: 1,
+                started_at: new Date().toISOString(),
+                status: 1,
+                finished: false,
+                controlMode: "remote",
+                display_table: displayTable,
+                created_by: currentUserId,
+                player1_id: normalizeUuid(p1.user_id),
+                player2_id: normalizeUuid(p2.user_id),
+                shot_clock_running: false,
+                shot_clock_started_at: null,
+                shot_clock_remaining_seconds: 40,
+                shot_clock_timeouts1: 0,
+                shot_clock_timeouts2: 0,
+                series_log1: [],
+                series_log2: []
+            };
+
+            const { data, error } = await supabaseClient
+                .from("matches")
+                .insert([payload])
+                .select()
+                .single();
+
+            document.getElementById("startBtn").disabled = false;
+            if (error) {
+                console.error(error);
+                setMessage("Match konnte nicht gestartet werden.", "error");
+                return;
+            }
+
+            matchId = data.id;
+            matchData = data;
+            history = [];
+            window.history.replaceState(null, "", "/club_mobile.html?match=" + encodeURIComponent(matchId));
+            subscribe();
+            showControl();
+            updateDisplay();
+        }
+
+        async function loadMatch() {
+            if (!matchId) {
+                showSetup();
+                return;
+            }
+            const { data, error } = await supabaseClient
+                .from("matches")
+                .select("*")
+                .eq("id", matchId)
+                .single();
+            if (error || !data) {
+                console.error(error);
+                setMessage("Match wurde nicht gefunden.", "error");
+                showSetup();
+                return;
+            }
+            matchData = data;
+            history = [];
+            showControl();
+            updateDisplay();
+            subscribe();
+        }
+
+        function toArray(value) {
+            if (Array.isArray(value)) return value.map((x) => Number(x || 0));
+            if (typeof value === "string") {
+                try {
+                    const parsed = JSON.parse(value);
+                    return Array.isArray(parsed) ? parsed.map((x) => Number(x || 0)) : [];
+                } catch (_) {
+                    return [];
+                }
+            }
+            return [];
+        }
+
+        function avg(score, inn) {
+            return Number(inn || 0) > 0 ? (Number(score || 0) / Number(inn || 0)).toFixed(3) : "0.000";
+        }
+
+        function isFinished() {
+            return !!(matchData && matchData.finished);
+        }
+
+        function activeDiscipline() {
+            if (!matchData) return "";
+            return Number(matchData.activePlayer || 1) === 1 ? matchData.discipline1 : matchData.discipline2;
+        }
+
+        function isDreiband() {
+            return String(activeDiscipline() || "").toLowerCase() === "dreiband";
+        }
+
+        function getShotClockRemaining() {
+            if (!matchData) return 40;
+            const base = Number(matchData.shot_clock_remaining_seconds || 40);
+            if (!matchData.shot_clock_running || !matchData.shot_clock_started_at) return base;
+            const elapsed = Math.floor((Date.now() - new Date(matchData.shot_clock_started_at).getTime()) / 1000);
+            return Math.max(0, base - elapsed);
+        }
+
+        function shotClockReset(update) {
+            if (!isDreiband()) return update;
+            return {
+                ...update,
+                shot_clock_running: false,
+                shot_clock_started_at: null,
+                shot_clock_remaining_seconds: 40
+            };
+        }
+
+        function updateDisplay() {
+            if (!matchData) return;
+            document.getElementById("name1").innerText = matchData.player1 || "Spieler 1";
+            document.getElementById("name2").innerText = matchData.player2 || "Spieler 2";
+            document.getElementById("disc1").innerText = (matchData.discipline1 || "-") + " · " + (matchData.target1 || "-");
+            document.getElementById("disc2").innerText = (matchData.discipline2 || "-") + " · " + (matchData.target2 || "-");
+            document.getElementById("score1").innerText = matchData.score1 || 0;
+            document.getElementById("score2").innerText = matchData.score2 || 0;
+            document.getElementById("inn1").innerText = matchData.inn1 || 0;
+            document.getElementById("inn2").innerText = matchData.inn2 || 0;
+            document.getElementById("avg1").innerText = avg(matchData.score1, matchData.inn1);
+            document.getElementById("avg2").innerText = avg(matchData.score2, matchData.inn2);
+            document.getElementById("high1").innerText = matchData.high1 || 0;
+            document.getElementById("high2").innerText = matchData.high2 || 0;
+
+            document.getElementById("card1").classList.toggle("active", Number(matchData.activePlayer || 1) === 1);
+            document.getElementById("card2").classList.toggle("active", Number(matchData.activePlayer || 1) === 2);
+            const currentSeries = Number(matchData.activePlayer || 1) === 1
+                ? Number(matchData.series1 || 0)
+                : Number(matchData.series2 || 0);
+            document.getElementById("seriesInfo").innerText = isFinished()
+                ? "Partie beendet"
+                : "Serie: " + (currentSeries > 0 ? "+" + currentSeries : "0");
+
+            const timerControls = document.getElementById("timerControls");
+            timerControls.classList.toggle("hidden", !isDreiband() || isFinished());
+            const timerBtn = document.getElementById("timerBtn");
+            timerBtn.innerText = matchData.shot_clock_running
+                ? "Pause Timer · " + getShotClockRemaining()
+                : "Start Timer · " + getShotClockRemaining();
+
+            document.querySelectorAll("#controlView button").forEach((btn) => {
+                if (btn.id === "newMatchBtn") return;
+                btn.disabled = isFinished();
+            });
+        }
+
+        async function updateMatch(update) {
+            if (!matchId) return;
+            const { error } = await supabaseClient
+                .from("matches")
+                .update(update)
+                .eq("id", matchId);
+            if (error) {
+                console.error(error);
+                return;
+            }
+            matchData = { ...matchData, ...update };
+            updateDisplay();
+        }
+
+        function saveHistory() {
+            if (!matchData) return;
+            history.push({
+                score1: matchData.score1,
+                score2: matchData.score2,
+                series1: matchData.series1,
+                series2: matchData.series2,
+                high1: matchData.high1,
+                high2: matchData.high2,
+                activePlayer: matchData.activePlayer,
+                inn1: matchData.inn1,
+                inn2: matchData.inn2,
+                totalInnings: matchData.totalInnings,
+                finished: matchData.finished,
+                series_log1: toArray(matchData.series_log1),
+                series_log2: toArray(matchData.series_log2),
+                shot_clock_timeouts1: Number(matchData.shot_clock_timeouts1 || 0),
+                shot_clock_timeouts2: Number(matchData.shot_clock_timeouts2 || 0)
+            });
+        }
+
+        async function addPoints(delta) {
+            if (!matchData || isFinished()) return;
+            saveHistory();
+            const active = Number(matchData.activePlayer || 1);
+            const update = {};
+            if (active === 1) {
+                const max = Math.max(0, Number(matchData.target1 || 0) - Number(matchData.score1 || 0));
+                update.series1 = Math.min(max, Math.max(0, Number(matchData.series1 || 0) + Number(delta || 0)));
+            } else {
+                const max = Math.max(0, Number(matchData.target2 || 0) - Number(matchData.score2 || 0));
+                update.series2 = Math.min(max, Math.max(0, Number(matchData.series2 || 0) + Number(delta || 0)));
+            }
+            await updateMatch(shotClockReset(update));
+        }
+
+        function detectWinner(state) {
+            const score1 = Number(state.score1 || 0);
+            const score2 = Number(state.score2 || 0);
+            const inn1 = Number(state.inn1 || 0);
+            const inn2 = Number(state.inn2 || 0);
+            const target1 = Number(state.target1 || 0);
+            const target2 = Number(state.target2 || 0);
+            const maxInnings = Number(state.maxInnings || 0);
+            if (inn1 === inn2) {
+                if (target1 > 0 && score1 >= target1 && score2 < target2) return 1;
+                if (target2 > 0 && score2 >= target2 && score1 < target1) return 2;
+                if (target1 > 0 && target2 > 0 && score1 >= target1 && score2 >= target2) {
+                    if (score1 > score2) return 1;
+                    if (score2 > score1) return 2;
+                    return 0;
+                }
+            }
+            if (maxInnings > 0 && inn1 === inn2 && inn1 >= maxInnings && inn2 >= maxInnings) {
+                const p1 = target1 > 0 ? score1 / target1 : 0;
+                const p2 = target2 > 0 ? score2 / target2 : 0;
+                if (p1 > p2) return 1;
+                if (p2 > p1) return 2;
+                return 0;
+            }
+            return null;
+        }
+
+        async function switchPlayer() {
+            if (!matchData || isFinished()) return;
+            saveHistory();
+            let active = Number(matchData.activePlayer || 1);
+            let score1 = Number(matchData.score1 || 0);
+            let score2 = Number(matchData.score2 || 0);
+            let series1 = Number(matchData.series1 || 0);
+            let series2 = Number(matchData.series2 || 0);
+            let high1 = Number(matchData.high1 || 0);
+            let high2 = Number(matchData.high2 || 0);
+            let inn1 = Number(matchData.inn1 || 0);
+            let inn2 = Number(matchData.inn2 || 0);
+            let totalInnings = Number(matchData.totalInnings || 1);
+            const log1 = toArray(matchData.series_log1);
+            const log2 = toArray(matchData.series_log2);
+
+            if (active === 1) {
+                score1 += series1;
+                high1 = Math.max(high1, series1);
+                log1.push(series1);
+                series1 = 0;
+                inn1++;
+                active = 2;
+            } else {
+                score2 += series2;
+                high2 = Math.max(high2, series2);
+                log2.push(series2);
+                series2 = 0;
+                inn2++;
+                totalInnings++;
+                active = 1;
+            }
+
+            const next = {
+                score1,
+                score2,
+                series1,
+                series2,
+                high1,
+                high2,
+                activePlayer: active,
+                inn1,
+                inn2,
+                totalInnings,
+                series_log1: log1,
+                series_log2: log2,
+                finished: false
+            };
+            if (detectWinner({ ...matchData, ...next }) !== null) next.finished = true;
+            await updateMatch(shotClockReset(next));
+        }
+
+        async function undo() {
+            if (!matchData || !history.length) return;
+            const prev = history.pop();
+            await updateMatch(shotClockReset(prev));
+        }
+
+        async function finishMatch() {
+            if (!matchData || isFinished()) return;
+            await updateMatch(shotClockReset({ finished: true }));
+        }
+
+        async function toggleShotClock() {
+            if (!matchData || isFinished() || !isDreiband()) return;
+            if (matchData.shot_clock_running) {
+                await updateMatch({
+                    shot_clock_running: false,
+                    shot_clock_started_at: null,
+                    shot_clock_remaining_seconds: getShotClockRemaining()
+                });
+                return;
+            }
+            const remaining = getShotClockRemaining();
+            await updateMatch({
+                shot_clock_running: true,
+                shot_clock_started_at: new Date().toISOString(),
+                shot_clock_remaining_seconds: remaining > 0 ? remaining : 40
+            });
+        }
+
+        async function useTimeout() {
+            if (!matchData || isFinished() || !isDreiband()) return;
+            saveHistory();
+            const active = Number(matchData.activePlayer || 1);
+            const key = active === 1 ? "shot_clock_timeouts1" : "shot_clock_timeouts2";
+            const used = Number(matchData[key] || 0);
+            if (used >= 2) return;
+            await updateMatch({
+                [key]: used + 1,
+                shot_clock_running: true,
+                shot_clock_started_at: new Date().toISOString(),
+                shot_clock_remaining_seconds: 40
+            });
+        }
+
+        function subscribe() {
+            if (!matchId) return;
+            if (channel) supabaseClient.removeChannel(channel);
+            channel = supabaseClient
+                .channel("club-mobile-" + matchId)
+                .on("postgres_changes", {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "matches",
+                    filter: "id=eq." + matchId
+                }, (payload) => {
+                    matchData = payload.new;
+                    updateDisplay();
+                })
+                .subscribe();
+        }
+
+        async function pollMatch() {
+            if (!matchId) return;
+            const { data, error } = await supabaseClient
+                .from("matches")
+                .select("*")
+                .eq("id", matchId)
+                .single();
+            if (!error && data) {
+                matchData = data;
+                updateDisplay();
+            }
+        }
+
+        function resetToSetup() {
+            matchId = "";
+            matchData = null;
+            history = [];
+            if (channel) supabaseClient.removeChannel(channel);
+            channel = null;
+            window.history.replaceState(null, "", "/club_mobile.html");
+            showSetup();
+        }
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            const user = await requireAuth();
+            if (!user) return;
+            currentUserId = user.id;
+            isAdmin = await hasAdminAccess(user);
+            loadDisciplines();
+            await loadPlayers();
+            await loadMatch();
+            pollId = setInterval(() => {
+                pollMatch();
+                if (matchData && matchData.shot_clock_running) updateDisplay();
+            }, 1000);
+        });
+
+        window.addEventListener("beforeunload", () => {
+            if (pollId) clearInterval(pollId);
+            if (channel) supabaseClient.removeChannel(channel);
+        });
+    </script>
+</body>
+
+</html>
