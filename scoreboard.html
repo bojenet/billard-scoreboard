@@ -134,12 +134,55 @@
         }
 
         body.remote-viewer .score-area {
-            justify-content: center;
-            gap: clamp(10px, 1.5vw, 24px);
+            flex: 1;
+            display: grid;
+            grid-template-rows: minmax(0, 1fr) auto;
+            justify-items: center;
+            align-items: center;
+            gap: clamp(14px, 2vh, 28px);
+            padding: clamp(12px, 2vh, 28px) 0 clamp(24px, 3vh, 48px);
+            box-sizing: border-box;
         }
 
         body.remote-viewer .main {
-            flex: 0 1 auto;
+            width: min(94vw, 1760px);
+            flex: none;
+            align-self: center;
+            gap: clamp(24px, 4vw, 92px);
+            padding: 0;
+        }
+
+        body.remote-viewer .player {
+            width: min(38vw, 690px);
+            min-height: min(58vh, 640px);
+            justify-content: space-between;
+        }
+
+        body.remote-viewer .score {
+            font-size: min(clamp(96px, 19vw, 340px), 32vh);
+        }
+
+        body.remote-viewer .center-wrapper {
+            width: clamp(110px, 15vw, 260px);
+            height: clamp(150px, 20vh, 290px);
+        }
+
+        body.remote-viewer .center-box {
+            width: clamp(110px, 15vw, 260px);
+            height: clamp(110px, 15vw, 260px);
+        }
+
+        body.remote-viewer #totalInnings {
+            font-size: min(clamp(56px, 8vw, 140px), 20vh);
+        }
+
+        body.remote-viewer .series-display {
+            top: clamp(110px, 16vh, 250px);
+        }
+
+        body.remote-viewer .shot-clock {
+            width: min(94vw, 1760px);
+            margin: 0;
         }
 
         .player {
