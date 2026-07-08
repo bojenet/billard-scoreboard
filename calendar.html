@@ -632,6 +632,10 @@
             padding: 18px 18px 16px;
         }
 
+        .modal-card.wide {
+            width: min(1040px, 100%);
+        }
+
         .modal-head {
             display: flex;
             justify-content: space-between;
@@ -656,6 +660,85 @@
             font-size: 22px;
             line-height: 1;
             cursor: pointer;
+        }
+
+        .invitation-editor {
+            display: grid;
+            gap: 16px;
+        }
+
+        .editor-section {
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: var(--soft);
+            padding: 12px;
+        }
+
+        .editor-section h3 {
+            margin: 0 0 10px;
+            font-size: 16px;
+            color: var(--head);
+        }
+
+        .editor-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .participant-editor-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .participant-editor-row {
+            display: grid;
+            grid-template-columns: 72px 76px 90px minmax(180px, 1fr) minmax(150px, 0.8fr) 82px;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            border: 1px solid #d9dee5;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        .participant-editor-row.header {
+            background: #eef2f6;
+            font-size: 12px;
+            font-weight: 700;
+            color: #374151;
+            text-transform: uppercase;
+        }
+
+        .row-tools {
+            display: flex;
+            gap: 4px;
+            justify-content: flex-end;
+        }
+
+        .icon-btn {
+            width: 34px;
+            height: 34px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #fff;
+            color: #334155;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        textarea {
+            box-sizing: border-box;
+            width: 100%;
+            min-height: 82px;
+            border: 1px solid #bfc7d2;
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            background: #fff;
+            color: #10131c;
+            resize: vertical;
         }
 
         .btn {
@@ -822,6 +905,18 @@
                 max-height: min(92vh, 760px);
                 border-radius: 16px 16px 0 0;
                 padding: 14px 12px 12px;
+            }
+            .editor-grid {
+                grid-template-columns: 1fr;
+            }
+            .participant-editor-row {
+                grid-template-columns: 58px 64px 76px minmax(120px, 1fr);
+            }
+            .participant-editor-row.header span:nth-child(5),
+            .participant-editor-row.header span:nth-child(6),
+            .participant-editor-row input:nth-child(5),
+            .participant-editor-row .row-tools {
+                grid-column: 1 / -1;
             }
             .modal-title {
                 font-size: 18px;
@@ -1015,6 +1110,72 @@
         </div>
     </div>
 
+    <div id="invitationEditorModal" class="modal-backdrop" onclick="handleInvitationEditorBackdrop(event)">
+        <div class="modal-card wide" onclick="event.stopPropagation()">
+            <div class="modal-head">
+                <div>
+                    <h2 class="modal-title">Einladung vorbereiten</h2>
+                    <div id="invitationEditorSubtitle" class="panel-sub">NBV-Daten prüfen, Setzliste und Modus anpassen, dann PDF erzeugen.</div>
+                </div>
+                <button class="modal-close" type="button" onclick="closeInvitationEditorModal()" aria-label="Schließen">&times;</button>
+            </div>
+            <div class="invitation-editor">
+                <div class="editor-section">
+                    <h3>Turnierdaten</h3>
+                    <div class="editor-grid">
+                        <div>
+                            <label class="field-title" for="invitationEditorTitle">Titel</label>
+                            <input id="invitationEditorTitle" type="text" oninput="updateInvitationDraftField('title', this.value)">
+                        </div>
+                        <div>
+                            <label class="field-title" for="invitationEditorStartTime">Beginn</label>
+                            <input id="invitationEditorStartTime" type="time" oninput="updateInvitationDraftField('startTime', this.value)">
+                        </div>
+                        <div>
+                            <label class="field-title" for="invitationEditorLocationName">Spielort</label>
+                            <input id="invitationEditorLocationName" type="text" oninput="updateInvitationDraftField('locationName', this.value)">
+                        </div>
+                        <div>
+                            <label class="field-title" for="invitationEditorRegistrationDeadline">Meldeschluss</label>
+                            <input id="invitationEditorRegistrationDeadline" type="text" oninput="updateInvitationDraftField('registrationDeadline', this.value)">
+                        </div>
+                    </div>
+                </div>
+                <div class="editor-section">
+                    <h3>Modus</h3>
+                    <div class="editor-grid">
+                        <div>
+                            <label class="field-title" for="invitationEditorMode">Turniermodus</label>
+                            <select id="invitationEditorMode" onchange="handleInvitationModeChange(this.value)"></select>
+                        </div>
+                        <div>
+                            <label class="field-title" for="invitationEditorOverrideReason">Begründung bei Abweichung</label>
+                            <input id="invitationEditorOverrideReason" type="text" placeholder="z. B. Entscheidung Turnierleitung" oninput="updateInvitationDraftField('overrideReason', this.value)">
+                        </div>
+                    </div>
+                    <div id="invitationEditorModeInfo" class="modal-message"></div>
+                </div>
+                <div class="editor-section">
+                    <h3>Setzliste</h3>
+                    <div id="invitationParticipantEditor" class="participant-editor-list"></div>
+                    <div class="button-row">
+                        <button class="btn btn-secondary" type="button" onclick="addInvitationParticipant()">Teilnehmer hinzufügen</button>
+                        <button class="btn btn-secondary" type="button" onclick="renumberInvitationParticipants()">Neu nummerieren</button>
+                    </div>
+                </div>
+                <div class="editor-section">
+                    <h3>Zusatzhinweise</h3>
+                    <textarea id="invitationEditorExtraNotes" placeholder="Optionaler Hinweis für die Einladung" oninput="updateInvitationDraftField('extraNotes', this.value)"></textarea>
+                </div>
+            </div>
+            <div class="button-row">
+                <button class="btn btn-save" type="button" onclick="generateInvitationPdfFromEditor()">PDF erstellen</button>
+                <button class="btn btn-secondary" type="button" onclick="closeInvitationEditorModal()">Schließen</button>
+            </div>
+            <div id="invitationEditorMessage" class="modal-message"></div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/jspdf.umd.min.js"></script>
     <script src="js/supabase.js"></script>
@@ -1070,6 +1231,7 @@
         let calendarAccessMode = "hidden";
         let editingManualEventId = null;
         let editingPlanningEventId = null;
+        let currentInvitationDraft = null;
         let draggingPlanningEventId = null;
         let currentCalendarSeason = DEFAULT_NBV_CALENDAR_SEASON;
         let currentCalendarSourceUrl = "";
@@ -2331,7 +2493,7 @@
 
         function getInvitationMode(invitation) {
             const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
-            const code = getSportordnungModeCode(invitation);
+            const code = invitation?.selectedModeCode || invitation?.modeCode || getSportordnungModeCode(invitation);
             const mode = SPORTORDNUNG_MODES[code] || null;
             if (!mode) {
                 return {
@@ -2346,7 +2508,9 @@
             return {
                 ...mode,
                 code,
-                summary: `Turniermodus ${code} gemäß STO-BTK Anhang Turniermodi.`,
+                summary: invitation?.overrideReason
+                    ? `Turniermodus ${code} nach Festlegung durch Landessportwart bzw. Turnierleitung.`
+                    : `Turniermodus ${code} gemäß STO-BTK Anhang Turniermodi.`,
                 scoring: getScoringText(mode)
             };
         }
@@ -2397,6 +2561,9 @@
                 ["Modus", [mode.code, mode.title].filter(Boolean).join(" - ")],
                 ["Beschreibung", mode.summary],
                 ["Rahmen", mode.details],
+                ["Gruppen", mode.groups],
+                ["Anpassung", mode.adjustment],
+                ["Abweichung", invitation?.overrideReason],
                 ["Wertung", mode.scoring]
             ], state.y);
             drawModeTable(doc, invitation, state, mode);
@@ -2463,6 +2630,7 @@
             state.y = drawFieldRows(doc, [
                 ["Regeln", "Es gelten die Spielregeln und Spielregularien der DBU und die Bestimmungen der STO-BTK des NBV."],
                 ["Doping", "Die Teilnehmer dieses Turniers erkennen mit ihrer Meldung die Richtlinien der NADA inklusive der Durchführungsbestimmungen für Dopingkontrollen in der aktuellen Fassung an."],
+                ["Hinweis", invitation?.extraNotes],
                 ["Haftung", "Der Veranstalter übernimmt keine Haftung für Sach- und Personenschäden sowie Entwendung von Wertsachen im Zusammenhang mit der Meisterschaft."],
                 ["Vorbehalte", "Die Einladung steht unter dem Vorbehalt von kurzfristigen Änderungen durch den Landessportwart bzw. die Turnierleitung gemäß STO-BTK."]
             ], state.y);
@@ -2473,6 +2641,194 @@
             doc.save(getInvitationPdfFilename(invitation));
         }
 
+        function cloneInvitationDraft(invitation) {
+            return JSON.parse(JSON.stringify(invitation || {}));
+        }
+
+        function openInvitationEditorModal(invitation) {
+            currentInvitationDraft = cloneInvitationDraft(invitation);
+            if (!currentInvitationDraft.selectedModeCode) {
+                currentInvitationDraft.selectedModeCode = getSportordnungModeCode(currentInvitationDraft);
+            }
+            renderInvitationEditor();
+            const modal = document.getElementById("invitationEditorModal");
+            if (modal) modal.classList.add("open");
+        }
+
+        function closeInvitationEditorModal() {
+            const modal = document.getElementById("invitationEditorModal");
+            if (modal) modal.classList.remove("open");
+        }
+
+        function handleInvitationEditorBackdrop(event) {
+            if (event.target?.id === "invitationEditorModal") {
+                closeInvitationEditorModal();
+            }
+        }
+
+        function updateInvitationDraftField(field, value) {
+            if (!currentInvitationDraft) return;
+            currentInvitationDraft[field] = value;
+        }
+
+        function getSortedModeCodes() {
+            return Object.keys(SPORTORDNUNG_MODES).sort((left, right) => {
+                const leftNumber = Number(left.replace(/\D/g, ""));
+                const rightNumber = Number(right.replace(/\D/g, ""));
+                return leftNumber - rightNumber;
+            });
+        }
+
+        function renderInvitationModeSelect() {
+            const select = document.getElementById("invitationEditorMode");
+            if (!select || !currentInvitationDraft) return;
+            const suggested = getSportordnungModeCode(currentInvitationDraft);
+            const selected = currentInvitationDraft.selectedModeCode || suggested;
+            select.innerHTML = getSortedModeCodes().map((code) => {
+                const mode = SPORTORDNUNG_MODES[code];
+                const suffix = code === suggested ? " (Vorschlag)" : "";
+                return `<option value="${escapeHtml(code)}"${code === selected ? " selected" : ""}>${escapeHtml(`${code} - ${mode.title}${suffix}`)}</option>`;
+            }).join("");
+            renderInvitationModeInfo();
+        }
+
+        function renderInvitationModeInfo() {
+            const el = document.getElementById("invitationEditorModeInfo");
+            if (!el || !currentInvitationDraft) return;
+            const suggested = getSportordnungModeCode(currentInvitationDraft);
+            const selected = currentInvitationDraft.selectedModeCode || suggested;
+            const mode = SPORTORDNUNG_MODES[selected];
+            const count = Array.isArray(currentInvitationDraft.participants) ? currentInvitationDraft.participants.length : 0;
+            const deviation = selected !== suggested
+                ? ` Abweichung vom STO-Vorschlag ${suggested}; bitte Begründung ausfüllen.`
+                : "";
+            el.textContent = mode
+                ? `${count} Teilnehmer: ${selected} - ${mode.details}.${deviation}`
+                : `${count} Teilnehmer: Kein Modus gewählt.`;
+            el.className = "modal-message" + (selected !== suggested ? " error" : " ok");
+        }
+
+        function renderInvitationParticipantEditor() {
+            const wrap = document.getElementById("invitationParticipantEditor");
+            if (!wrap || !currentInvitationDraft) return;
+            const participants = Array.isArray(currentInvitationDraft.participants) ? currentInvitationDraft.participants : [];
+            const header = `
+                <div class="participant-editor-row header">
+                    <span>Setz.</span>
+                    <span>Rang</span>
+                    <span>GD</span>
+                    <span>Name</span>
+                    <span>Verein</span>
+                    <span></span>
+                </div>`;
+            const rows = participants.map((participant, index) => `
+                <div class="participant-editor-row">
+                    <input type="text" value="${escapeHtml(participant.number || String(index + 1))}" onchange="updateInvitationParticipant(${index}, 'number', this.value)">
+                    <input type="text" value="${escapeHtml(participant.seedRank || "")}" onchange="updateInvitationParticipant(${index}, 'seedRank', this.value)">
+                    <input type="text" value="${escapeHtml(participant.seedGd || "")}" onchange="updateInvitationParticipant(${index}, 'seedGd', this.value)">
+                    <input type="text" value="${escapeHtml(participant.name || "")}" onchange="updateInvitationParticipant(${index}, 'name', this.value)">
+                    <input type="text" value="${escapeHtml(participant.club || "")}" onchange="updateInvitationParticipant(${index}, 'club', this.value)">
+                    <div class="row-tools">
+                        <button class="icon-btn" type="button" title="Nach oben" onclick="moveInvitationParticipant(${index}, -1)">Up</button>
+                        <button class="icon-btn" type="button" title="Nach unten" onclick="moveInvitationParticipant(${index}, 1)">Dn</button>
+                        <button class="icon-btn" type="button" title="Entfernen" onclick="removeInvitationParticipant(${index})">x</button>
+                    </div>
+                </div>
+            `).join("");
+            wrap.innerHTML = header + (rows || `<div class="empty-state">Noch keine Teilnehmerliste hinterlegt.</div>`);
+        }
+
+        function renderInvitationEditor() {
+            if (!currentInvitationDraft) return;
+            const subtitle = document.getElementById("invitationEditorSubtitle");
+            if (subtitle) {
+                subtitle.textContent = `${currentInvitationDraft.discipline || "Disziplin"} - ${formatInvitationDate(currentInvitationDraft.date) || "Termin offen"}`;
+            }
+            const fields = {
+                invitationEditorTitle: currentInvitationDraft.title || "",
+                invitationEditorStartTime: currentInvitationDraft.startTime || "",
+                invitationEditorLocationName: currentInvitationDraft.locationName || "",
+                invitationEditorRegistrationDeadline: currentInvitationDraft.registrationDeadline || "",
+                invitationEditorOverrideReason: currentInvitationDraft.overrideReason || "",
+                invitationEditorExtraNotes: currentInvitationDraft.extraNotes || ""
+            };
+            Object.entries(fields).forEach(([id, value]) => {
+                const el = document.getElementById(id);
+                if (el) el.value = value;
+            });
+            renderInvitationModeSelect();
+            renderInvitationParticipantEditor();
+            setModalMessage("invitationEditorMessage", "", "");
+        }
+
+        function handleInvitationModeChange(modeCode) {
+            if (!currentInvitationDraft) return;
+            currentInvitationDraft.selectedModeCode = modeCode;
+            renderInvitationModeInfo();
+        }
+
+        function updateInvitationParticipant(index, field, value) {
+            if (!currentInvitationDraft || !Array.isArray(currentInvitationDraft.participants)) return;
+            if (!currentInvitationDraft.participants[index]) return;
+            currentInvitationDraft.participants[index][field] = value;
+        }
+
+        function moveInvitationParticipant(index, direction) {
+            if (!currentInvitationDraft || !Array.isArray(currentInvitationDraft.participants)) return;
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= currentInvitationDraft.participants.length) return;
+            const participants = currentInvitationDraft.participants;
+            [participants[index], participants[targetIndex]] = [participants[targetIndex], participants[index]];
+            renumberInvitationParticipants();
+        }
+
+        function removeInvitationParticipant(index) {
+            if (!currentInvitationDraft || !Array.isArray(currentInvitationDraft.participants)) return;
+            currentInvitationDraft.participants.splice(index, 1);
+            renumberInvitationParticipants();
+        }
+
+        function addInvitationParticipant() {
+            if (!currentInvitationDraft) return;
+            if (!Array.isArray(currentInvitationDraft.participants)) {
+                currentInvitationDraft.participants = [];
+            }
+            currentInvitationDraft.participants.push({
+                number: String(currentInvitationDraft.participants.length + 1),
+                seedRank: "",
+                seedGd: "",
+                name: "",
+                club: ""
+            });
+            renderInvitationParticipantEditor();
+            renderInvitationModeSelect();
+        }
+
+        function renumberInvitationParticipants() {
+            if (!currentInvitationDraft || !Array.isArray(currentInvitationDraft.participants)) return;
+            currentInvitationDraft.participants = currentInvitationDraft.participants.map((participant, index) => ({
+                ...participant,
+                number: String(index + 1)
+            }));
+            if (!currentInvitationDraft.overrideReason) {
+                currentInvitationDraft.selectedModeCode = getSportordnungModeCode(currentInvitationDraft);
+            }
+            renderInvitationParticipantEditor();
+            renderInvitationModeSelect();
+        }
+
+        function generateInvitationPdfFromEditor() {
+            if (!currentInvitationDraft) return;
+            const selected = currentInvitationDraft.selectedModeCode || getSportordnungModeCode(currentInvitationDraft);
+            const suggested = getSportordnungModeCode(currentInvitationDraft);
+            if (selected !== suggested && !String(currentInvitationDraft.overrideReason || "").trim()) {
+                setModalMessage("invitationEditorMessage", "Bitte eine Begründung für die Modusabweichung eintragen.", "error");
+                return;
+            }
+            drawInvitationPdf(cloneInvitationDraft(currentInvitationDraft));
+            setModalMessage("invitationEditorMessage", "PDF wurde erstellt und als Download gestartet.", "ok");
+        }
+
         async function createNbvInvitationPdf(eventId) {
             if (!isCalendarAdmin) return;
             const event = getCalendarEventById(eventId);
@@ -2481,7 +2837,7 @@
                 return;
             }
 
-            showCalendarMessage("PDF-Einladung wird aus der NBV-Seite erstellt...", "ok");
+            showCalendarMessage("Einladung wird aus NBV-Seite, GD-Rangliste und STO-BTK vorbereitet...", "ok");
             try {
                 const rankingSeason = getPreviousSeasonText(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON);
                 const { data, error } = await supabaseClient.functions.invoke("get-nbv-tournament-invitation", {
@@ -2497,8 +2853,8 @@
                 if (!invitation?.title) {
                     throw new Error("Die NBV-Seite konnte nicht als Turniereinladung gelesen werden.");
                 }
-                drawInvitationPdf(invitation);
-                showCalendarMessage("PDF-Einladung wurde erstellt und als Download gestartet.", "ok");
+                openInvitationEditorModal(invitation);
+                showCalendarMessage("Einladung wurde vorbereitet und kann geprüft werden.", "ok");
             } catch (error) {
                 console.warn("NBV-Einladung konnte nicht erstellt werden:", error);
                 showCalendarMessage(`Einladung konnte nicht erstellt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
@@ -2753,7 +3109,7 @@
                                                                 </div>
                                                             ` : isCalendarAdmin && event.link && event.source !== "manual" && event.source !== "planning" ? `
                                                                 <div class="event-actions">
-                                                                    <button class="mini-btn pdf" type="button" onclick="createNbvInvitationPdf('${escapeHtml(event.id)}')">Einladung PDF</button>
+                                                                    <button class="mini-btn pdf" type="button" onclick="createNbvInvitationPdf('${escapeHtml(event.id)}')">Einladung vorbereiten</button>
                                                                 </div>
                                                             ` : ""}
                                                         </div>
@@ -3391,6 +3747,7 @@
             if (event.key === "Escape") {
                 closeManualEventModal();
                 closePlanningEventModal();
+                closeInvitationEditorModal();
             }
         });
 
