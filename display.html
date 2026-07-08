@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tisch Display</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #090f24;
+            color: #ffffff;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at 50% 42%, rgba(28, 51, 128, 0.45), transparent 44%),
+                linear-gradient(180deg, #0f1c3f, #070c1f);
+        }
+
+        .display-frame {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: none;
+            background: #090f24;
+        }
+
+        .display-frame.visible {
+            display: block;
+        }
+
+        .idle {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 6vw;
+            box-sizing: border-box;
+        }
+
+        .idle.hidden {
+            display: none;
+        }
+
+        .table-label {
+            font-size: clamp(48px, 8vw, 130px);
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: 0;
+        }
+
+        .idle-status {
+            margin-top: clamp(18px, 3vw, 42px);
+            font-size: clamp(22px, 2.8vw, 44px);
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.74);
+        }
+
+        .idle-sub {
+            margin-top: clamp(12px, 1.8vw, 26px);
+            font-size: clamp(15px, 1.5vw, 24px);
+            color: rgba(255, 255, 255, 0.48);
+        }
+
+        .error {
+            color: #ffb3b3;
+        }
+    </style>
+</head>
+
+<body>
+    <iframe id="displayFrame" class="display-frame" title="Scoreboard Anzeige"></iframe>
+
+    <div id="idleScreen" class="idle">
+        <div id="tableLabel" class="table-label">Tisch</div>
+        <div id="idleStatus" class="idle-status">Bereit für neues Match</div>
+        <div id="idleSub" class="idle-sub">Dieses Display aktualisiert sich automatisch.</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const tableId = String(params.get("table") || "").trim().toLowerCase();
+        const tableNames = {
+            tisch1: "Tisch 1",
+            tisch2: "Tisch 2",
+            buli1: "Tisch 1",
+            buli2: "Tisch 2"
+        };
+        const tableLabel = tableNames[tableId] || (tableId ? tableId : "Display");
+        let currentMatchId = "";
+        let channel = null;
+        let pollTimer = null;
+
+        document.getElementById("tableLabel").innerText = tableLabel;
+
+        function showIdle(message, isError = false) {
+            const frame = document.getElementById("displayFrame");
+            const idle = document.getElementById("idleScreen");
+            const status = document.getElementById("idleStatus");
+            frame.classList.remove("visible");
+            frame.removeAttribute("src");
+            idle.classList.remove("hidden");
+            status.innerText = message || "Bereit für neues Match";
+            status.classList.toggle("error", Boolean(isError));
+            currentMatchId = "";
+        }
+
+        function showMatch(matchId) {
+            const id = String(matchId || "");
+            if (!id) {
+                showIdle();
+                return;
+            }
+            const frame = document.getElementById("displayFrame");
+            const idle = document.getElementById("idleScreen");
+            const nextSrc = "/scoreboard.html?match=" + encodeURIComponent(id);
+            if (currentMatchId !== id || !frame.src.endsWith(nextSrc)) {
+                frame.src = nextSrc;
+            }
+            currentMatchId = id;
+            idle.classList.add("hidden");
+            frame.classList.add("visible");
+        }
+
+        async function loadActiveMatch() {
+            if (!tableId) {
+                showIdle("Display-Link ohne Tisch", true);
+                return;
+            }
+
+            const { data, error } = await supabaseClient
+                .from("matches")
+                .select("id,display_table,status,finished,started_at")
+                .eq("display_table", tableId)
+                .eq("status", 1)
+                .eq("finished", 0)
+                .order("started_at", { ascending: false })
+                .limit(1);
+
+            if (error) {
+                console.error("Display Match laden fehlgeschlagen:", error);
+                const message = String(error.message || "").toLowerCase().includes("display_table")
+                    ? "Display-Feld fehlt in Supabase"
+                    : "Anzeige konnte Match nicht laden";
+                showIdle(message, true);
+                return;
+            }
+
+            const match = Array.isArray(data) && data.length ? data[0] : null;
+            if (!match) {
+                showIdle("Bereit für neues Match");
+                return;
+            }
+
+            showMatch(match.id);
+        }
+
+        function subscribeToTable() {
+            if (!tableId) return;
+            channel = supabaseClient
+                .channel("display-" + tableId)
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "*",
+                        schema: "public",
+                        table: "matches"
+                    },
+                    (payload) => {
+                        const row = payload.new || payload.old || {};
+                        if (String(row.display_table || "").toLowerCase() === tableId || currentMatchId === String(row.id || "")) {
+                            loadActiveMatch();
+                        }
+                    }
+                )
+                .subscribe();
+        }
+
+        loadActiveMatch();
+        subscribeToTable();
+        pollTimer = setInterval(loadActiveMatch, 10000);
+
+        window.addEventListener("beforeunload", () => {
+            if (pollTimer) clearInterval(pollTimer);
+            if (channel) supabaseClient.removeChannel(channel);
+        });
+    </script>
+</body>
+
+</html>

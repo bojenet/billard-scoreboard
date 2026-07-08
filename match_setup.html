@@ -314,6 +314,13 @@
             margin: 14px 0 10px 0;
         }
 
+        .display-table-wrapper {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin: 14px 0 10px 0;
+        }
+
         .mode-card {
             flex: 1;
             background: linear-gradient(180deg, #2e3142, #262a3a);
@@ -330,6 +337,20 @@
 
         .mode-card.active {
             border: 2px solid #5c73ee;
+            background: linear-gradient(180deg, #38406a, #2d3562);
+        }
+
+        .display-card {
+            background: linear-gradient(180deg, #2e3142, #262a3a);
+            padding: 14px 16px;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: .2s ease;
+            border: 2px solid #3b4060;
+        }
+
+        .display-card.active {
+            border-color: #5c73ee;
             background: linear-gradient(180deg, #38406a, #2d3562);
         }
 
@@ -375,6 +396,10 @@
 
             .control-mode-wrapper {
                 flex-direction: column;
+            }
+
+            .display-table-wrapper {
+                grid-template-columns: 1fr;
             }
 
             .max-innings-inline {
@@ -504,7 +529,17 @@
                 margin: 10px 0 12px;
             }
 
+            .display-table-wrapper {
+                gap: 10px;
+                margin: 10px 0 12px;
+            }
+
             .mode-card {
+                padding: 14px;
+                border-radius: 14px;
+            }
+
+            .display-card {
                 padding: 14px;
                 border-radius: 14px;
             }
@@ -700,6 +735,23 @@
 
         </div>
 
+        <div class="display-table-wrapper">
+            <div class="display-card active" data-display-table="" onclick="selectDisplayTable('')">
+                <div class="mode-title">Kein Display</div>
+                <div class="mode-sub">Wie bisher starten</div>
+            </div>
+
+            <div class="display-card" data-display-table="tisch1" onclick="selectDisplayTable('tisch1')">
+                <div class="mode-title">Tisch 1</div>
+                <div class="mode-sub">Pi Display 1</div>
+            </div>
+
+            <div class="display-card" data-display-table="tisch2" onclick="selectDisplayTable('tisch2')">
+                <div class="mode-title">Tisch 2</div>
+                <div class="mode-sub">Pi Display 2</div>
+            </div>
+        </div>
+
         <div class="control-mode-wrapper">
 
             <div class="mode-card active" data-mode="local" onclick="selectMode('local')">
@@ -715,6 +767,7 @@
         </div>
 
         <input type="hidden" id="controlMode" value="local">
+        <input type="hidden" id="displayTable" value="">
 
         <div class="button-row-bottom">
             <button class="btn btn-start" onclick="startMatch()">
@@ -756,6 +809,7 @@
         <script>
 
             let selectedMode = "local";
+            let selectedDisplayTable = "";
             let currentUserId = "";
             let ownedPlayerNames = [];
             let availablePlayers = [];
@@ -768,12 +822,28 @@
             function selectMode(mode) {
 
                 selectedMode = mode;
+                document.getElementById("controlMode").value = mode;
 
                 document.querySelectorAll(".mode-card")
                     .forEach(card => card.classList.remove("active"));
 
                 document.querySelector(`[data-mode='${mode}']`)
                     .classList.add("active");
+            }
+
+            function selectDisplayTable(table) {
+                selectedDisplayTable = String(table || "");
+                document.getElementById("displayTable").value = selectedDisplayTable;
+
+                document.querySelectorAll(".display-card")
+                    .forEach(card => card.classList.remove("active"));
+
+                const activeCard = document.querySelector(`[data-display-table='${selectedDisplayTable}']`);
+                if (activeCard) activeCard.classList.add("active");
+
+                if (selectedDisplayTable) {
+                    selectMode("remote");
+                }
             }
 
             function getLastMatchSetup() {
@@ -847,6 +917,7 @@
                 document.getElementById("target2").value = lastSetup.target2 || "";
                 syncMaxInnings(lastSetup.maxInnings || 15);
                 selectMode(lastSetup.controlMode || "local");
+                selectDisplayTable(lastSetup.displayTable || "");
                 setFormMessage("Letzte Partie übernommen.", "ok");
             }
 
@@ -1076,6 +1147,8 @@
                     const target1 = parseInt(document.getElementById('target1').value, 10);
                     const target2 = parseInt(document.getElementById('target2').value, 10);
                     const maxInnings = parseInt(document.getElementById('maxInnings1').value, 10);
+                    const displayTable = String(document.getElementById("displayTable").value || "");
+                    const effectiveControlMode = displayTable ? "remote" : selectedMode;
 
                     if (!p1SelectValue || !p2SelectValue || p1SelectValue === p2SelectValue) {
                         setFormMessage("Bitte zwei unterschiedliche Spieler wählen.", "error");
@@ -1129,7 +1202,8 @@
                         started_at: new Date().toISOString(),
                         status: 1,
                         finished: false,
-                        controlMode: selectedMode,
+                        controlMode: effectiveControlMode,
+                        display_table: displayTable,
                         stream_token: currentCanCreateStreamOverlay ? generateStreamToken() : ""
                     };
 
@@ -1145,6 +1219,7 @@
                         player1_id: player1Id,
                         player2_id: player2Id
                     };
+                    const { display_table, ...legacyBasePayload } = basePayload;
 
                     let data = null;
                     let error = null;
@@ -1156,10 +1231,15 @@
                     error = insertResult.error;
 
                     const errorMsg = String((error && error.message) || "").toLowerCase();
+                    if (error && displayTable && errorMsg.includes("display_table")) {
+                        console.error(error);
+                        setFormMessage("Display-Feld fehlt in Supabase. Bitte SQL-Migration ausführen.", "error");
+                        return;
+                    }
                     if (error && (errorMsg.includes("column") || errorMsg.includes("uuid"))) {
                         insertResult = await supabaseClient
                             .from("matches")
-                            .insert([basePayload])
+                            .insert([legacyBasePayload])
                             .select();
                         data = insertResult.data;
                         error = insertResult.error;
@@ -1185,11 +1265,16 @@
                         target1,
                         target2,
                         maxInnings,
-                        controlMode: selectedMode
+                        controlMode: effectiveControlMode,
+                        displayTable
                     });
 
                     const matchId = data[0].id;
                     const streamToken = String((data[0] && data[0].stream_token) || basePayload.stream_token || "");
+                    if (displayTable) {
+                        window.location.href = "/remote.html?match=" + matchId;
+                        return;
+                    }
                     if (!currentCanCreateStreamOverlay) {
                         window.location.href = "/scoreboard.html?match=" + matchId;
                         return;
