@@ -205,6 +205,28 @@
             showMatch(match.id);
         }
 
+        async function checkCurrentMatchRelease() {
+            if (!currentMatchId) {
+                await loadActiveMatch();
+                return;
+            }
+
+            const { data, error } = await supabaseClient
+                .from("matches")
+                .select("id,display_table,status")
+                .eq("id", currentMatchId)
+                .maybeSingle();
+
+            if (error || !data) {
+                return;
+            }
+
+            const table = String(data.display_table || "").toLowerCase();
+            if (table !== displayTableId || Number(data.status || 0) !== 1) {
+                showIdle("Bereit für neues Match");
+            }
+        }
+
         function subscribeToTable() {
             if (!displayTableId) return;
             channel = supabaseClient
@@ -221,14 +243,11 @@
                         const oldRow = payload.old || {};
                         const rowId = String(newRow.id || oldRow.id || "");
                         const hasNewTable = Object.prototype.hasOwnProperty.call(newRow, "display_table");
-                        const newTable = hasNewTable ? String(newRow.display_table || "").toLowerCase() : "";
+                        const newTableValue = hasNewTable ? newRow.display_table : undefined;
+                        const newTable = typeof newTableValue === "string" ? newTableValue.toLowerCase() : "";
                         const oldTable = String(oldRow.display_table || "").toLowerCase();
                         const rowTable = newTable || oldTable;
                         const isCurrentMatch = currentMatchId && currentMatchId === rowId;
-                        if (isCurrentMatch && hasNewTable && newTable === "") {
-                            showIdle("Bereit für neues Match");
-                            return;
-                        }
                         if (isCurrentMatch) {
                             showMatch(rowId);
                             return;
@@ -245,7 +264,7 @@
         function initDisplay() {
             loadActiveMatch();
             subscribeToTable();
-            pollTimer = setInterval(() => loadActiveMatch({ keepCurrentOnEmpty: true }), 10000);
+            pollTimer = setInterval(checkCurrentMatchRelease, 10000);
         }
 
         initDisplay();
