@@ -294,114 +294,34 @@
             font-size: 22px;
         }
 
-        .result-hero {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-            gap: 10px;
-            padding: 16px;
-            border-radius: 14px;
-            background: var(--panel);
-            border: 1px solid var(--line);
-        }
-
-        .result-player {
-            min-width: 0;
-        }
-
-        .result-player.right {
-            text-align: right;
-        }
-
-        .result-name {
-            font-size: 15px;
-            font-weight: 900;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .result-score {
-            margin-top: 4px;
-            font-size: 46px;
-            line-height: 1;
-            font-weight: 900;
-        }
-
-        .result-sep {
-            font-size: 32px;
-            font-weight: 900;
-            color: var(--muted);
-        }
-
-        .winner {
-            color: var(--yellow);
-        }
-
-        .summary-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .summary-card {
-            background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            padding: 12px;
-        }
-
-        .summary-title {
-            font-size: 14px;
-            font-weight: 900;
-            margin-bottom: 10px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .summary-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-
-        .summary-stat {
-            color: var(--muted);
-            font-size: 11px;
-            font-weight: 900;
-        }
-
-        .summary-stat strong {
-            display: block;
-            margin-top: 3px;
-            color: var(--text);
-            font-size: 16px;
-        }
-
-        .innings-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .inning-chip {
-            min-width: 30px;
-            min-height: 30px;
-            padding: 7px 8px;
-            border-radius: 8px;
-            background: var(--panel-2);
-            color: var(--text);
-            text-align: center;
-            font-size: 13px;
-            font-weight: 900;
-        }
-
         .end-actions {
             display: grid;
             grid-template-columns: 1fr;
             gap: 10px;
+        }
+
+        .end-confirm {
+            min-height: 280px;
+            display: grid;
+            align-content: center;
+            gap: 12px;
+            text-align: center;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 22px;
+        }
+
+        .end-confirm h2 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .end-confirm p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1.35;
         }
 
         .confirm-btn {
@@ -428,9 +348,6 @@
                 font-size: 64px;
             }
 
-            .summary-grid {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
 </head>
@@ -551,19 +468,11 @@
         </section>
 
         <section id="endView" class="grid hidden">
-            <div class="result-hero">
-                <div id="endPlayer1" class="result-player">
-                    <div id="endName1" class="result-name">Spieler 1</div>
-                    <div id="endScore1" class="result-score">0</div>
-                </div>
-                <div class="result-sep">:</div>
-                <div id="endPlayer2" class="result-player right">
-                    <div id="endName2" class="result-name">Spieler 2</div>
-                    <div id="endScore2" class="result-score">0</div>
-                </div>
+            <div class="end-confirm">
+                <h2>Partie beendet</h2>
+                <p>Das Ergebnis wird auf dem Tisch-Display angezeigt.</p>
+                <p>Nach der Bestätigung wird der Tisch wieder für das nächste Match freigegeben.</p>
             </div>
-
-            <div id="endSummary" class="summary-grid"></div>
 
             <div class="end-actions">
                 <button class="confirm-btn" type="button" onclick="confirmCloseMatch()">Bestätigen und schließen</button>
@@ -689,7 +598,6 @@
             document.getElementById("controlView").classList.add("hidden");
             document.getElementById("endView").classList.remove("hidden");
             document.getElementById("newMatchBtn").classList.add("hidden");
-            renderEndScreen();
         }
 
         async function startMatch() {
@@ -1082,64 +990,6 @@
                 shot_clock_started_at: null,
                 shot_clock_remaining_seconds: 40
             };
-        }
-
-        function getWinnerText() {
-            const score1 = Number(matchData.score1 || 0);
-            const score2 = Number(matchData.score2 || 0);
-            if (score1 > score2) return "player1";
-            if (score2 > score1) return "player2";
-            return "draw";
-        }
-
-        function renderEndScreen() {
-            if (!matchData) return;
-            const log1 = toArray(matchData.series_log1);
-            const log2 = toArray(matchData.series_log2);
-            const winner = getWinnerText();
-            document.getElementById("endName1").innerText = matchData.player1 || "Spieler 1";
-            document.getElementById("endName2").innerText = matchData.player2 || "Spieler 2";
-            document.getElementById("endScore1").innerText = matchData.score1 || 0;
-            document.getElementById("endScore2").innerText = matchData.score2 || 0;
-            document.getElementById("endPlayer1").classList.toggle("winner", winner === "player1");
-            document.getElementById("endPlayer2").classList.toggle("winner", winner === "player2");
-            document.getElementById("endSummary").innerHTML =
-                renderPlayerSummary(1, log1) + renderPlayerSummary(2, log2);
-        }
-
-        function renderPlayerSummary(playerNumber, innings) {
-            const name = playerNumber === 1 ? matchData.player1 : matchData.player2;
-            const score = Number(playerNumber === 1 ? matchData.score1 : matchData.score2);
-            const inn = Number(playerNumber === 1 ? matchData.inn1 : matchData.inn2);
-            const high = Number(playerNumber === 1 ? matchData.high1 : matchData.high2);
-            const chips = innings.length
-                ? innings.map((value) => `<span class="inning-chip">${Number(value || 0)}</span>`).join("")
-                : `<span class="inning-chip">0</span>`;
-            return `
-                <div class="summary-card">
-                    <div class="summary-title">${escapeHtml(name || ("Spieler " + playerNumber))}</div>
-                    <div class="summary-stats">
-                        <div class="summary-stat">Punkte<strong>${score}</strong></div>
-                        <div class="summary-stat">Aufn.<strong>${inn}</strong></div>
-                        <div class="summary-stat">DS<strong>${avg(score, inn)}</strong></div>
-                    </div>
-                    <div class="summary-stats">
-                        <div class="summary-stat">HS<strong>${high}</strong></div>
-                        <div class="summary-stat">Ziel<strong>${Number(playerNumber === 1 ? matchData.target1 : matchData.target2) || "-"}</strong></div>
-                        <div class="summary-stat">Serie<strong>${innings.length}</strong></div>
-                    </div>
-                    <div class="innings-list">${chips}</div>
-                </div>
-            `;
-        }
-
-        function escapeHtml(value) {
-            return String(value || "")
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
         }
 
         async function confirmCloseMatch() {

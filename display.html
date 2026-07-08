@@ -182,7 +182,6 @@
                 .select("id,display_table,status,finished,started_at,player1,player2")
                 .eq("display_table", displayTableId)
                 .eq("status", 1)
-                .eq("finished", false)
                 .order("started_at", { ascending: false })
                 .limit(1);
 
