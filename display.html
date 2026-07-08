@@ -171,7 +171,8 @@
             revealFrame();
         }
 
-        async function loadActiveMatch() {
+        async function loadActiveMatch(options = {}) {
+            const keepCurrentOnEmpty = Boolean(options.keepCurrentOnEmpty);
             if (!displayTableId) {
                 showIdle("Display-Link ohne Tisch", true);
                 return;
@@ -196,6 +197,7 @@
 
             const match = Array.isArray(data) && data.length ? data[0] : null;
             if (!match) {
+                if (keepCurrentOnEmpty && currentMatchId) return;
                 showIdle("Bereit für neues Match");
                 return;
             }
@@ -216,8 +218,20 @@
                     },
                     (payload) => {
                         const row = payload.new || payload.old || {};
-                        if (String(row.display_table || "").toLowerCase() === displayTableId || currentMatchId === String(row.id || "")) {
-                            loadActiveMatch();
+                        const rowTable = String(row.display_table || "").toLowerCase();
+                        const rowId = String(row.id || "");
+                        const isCurrentMatch = currentMatchId && currentMatchId === rowId;
+                        if (isCurrentMatch && rowTable !== displayTableId) {
+                            showIdle("Bereit für neues Match");
+                            return;
+                        }
+                        if (isCurrentMatch) {
+                            showMatch(rowId);
+                            return;
+                        }
+                        if (rowTable === displayTableId) {
+                            showMatch(rowId);
+                            return;
                         }
                     }
                 )
@@ -227,7 +241,7 @@
         function initDisplay() {
             loadActiveMatch();
             subscribeToTable();
-            pollTimer = setInterval(loadActiveMatch, 10000);
+            pollTimer = setInterval(() => loadActiveMatch({ keepCurrentOnEmpty: true }), 10000);
         }
 
         initDisplay();
