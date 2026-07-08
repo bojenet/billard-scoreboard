@@ -294,6 +294,126 @@
             font-size: 22px;
         }
 
+        .result-hero {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 10px;
+            padding: 16px;
+            border-radius: 14px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+        }
+
+        .result-player {
+            min-width: 0;
+        }
+
+        .result-player.right {
+            text-align: right;
+        }
+
+        .result-name {
+            font-size: 15px;
+            font-weight: 900;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .result-score {
+            margin-top: 4px;
+            font-size: 46px;
+            line-height: 1;
+            font-weight: 900;
+        }
+
+        .result-sep {
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--muted);
+        }
+
+        .winner {
+            color: var(--yellow);
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .summary-card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .summary-title {
+            font-size: 14px;
+            font-weight: 900;
+            margin-bottom: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .summary-stat {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .summary-stat strong {
+            display: block;
+            margin-top: 3px;
+            color: var(--text);
+            font-size: 16px;
+        }
+
+        .innings-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .inning-chip {
+            min-width: 30px;
+            min-height: 30px;
+            padding: 7px 8px;
+            border-radius: 8px;
+            background: var(--panel-2);
+            color: var(--text);
+            text-align: center;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .end-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .confirm-btn {
+            min-height: 60px;
+            border: 0;
+            border-radius: 12px;
+            background: var(--green);
+            color: #061a0e;
+            font-size: 18px;
+            font-weight: 900;
+        }
+
         @media (max-width: 380px) {
             body {
                 padding-left: 8px;
@@ -306,6 +426,10 @@
 
             .score {
                 font-size: 64px;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -425,6 +549,26 @@
                 <button class="control-btn danger" type="button" onclick="finishMatch()">Ende</button>
             </div>
         </section>
+
+        <section id="endView" class="grid hidden">
+            <div class="result-hero">
+                <div id="endPlayer1" class="result-player">
+                    <div id="endName1" class="result-name">Spieler 1</div>
+                    <div id="endScore1" class="result-score">0</div>
+                </div>
+                <div class="result-sep">:</div>
+                <div id="endPlayer2" class="result-player right">
+                    <div id="endName2" class="result-name">Spieler 2</div>
+                    <div id="endScore2" class="result-score">0</div>
+                </div>
+            </div>
+
+            <div id="endSummary" class="summary-grid"></div>
+
+            <div class="end-actions">
+                <button class="confirm-btn" type="button" onclick="confirmCloseMatch()">Bestätigen und schließen</button>
+            </div>
+        </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -529,13 +673,23 @@
         function showSetup() {
             document.getElementById("setupView").classList.remove("hidden");
             document.getElementById("controlView").classList.add("hidden");
+            document.getElementById("endView").classList.add("hidden");
             document.getElementById("newMatchBtn").classList.add("hidden");
         }
 
         function showControl() {
             document.getElementById("setupView").classList.add("hidden");
             document.getElementById("controlView").classList.remove("hidden");
+            document.getElementById("endView").classList.add("hidden");
             document.getElementById("newMatchBtn").classList.remove("hidden");
+        }
+
+        function showEnd() {
+            document.getElementById("setupView").classList.add("hidden");
+            document.getElementById("controlView").classList.add("hidden");
+            document.getElementById("endView").classList.remove("hidden");
+            document.getElementById("newMatchBtn").classList.add("hidden");
+            renderEndScreen();
         }
 
         async function startMatch() {
@@ -637,8 +791,12 @@
             }
             matchData = data;
             history = [];
-            showControl();
-            updateDisplay();
+            if (isFinished()) {
+                showEnd();
+            } else {
+                showControl();
+                updateDisplay();
+            }
             subscribe();
         }
 
@@ -692,6 +850,10 @@
 
         function updateDisplay() {
             if (!matchData) return;
+            if (isFinished()) {
+                showEnd();
+                return;
+            }
             document.getElementById("name1").innerText = matchData.player1 || "Spieler 1";
             document.getElementById("name2").innerText = matchData.player2 || "Spieler 2";
             document.getElementById("disc1").innerText = (matchData.discipline1 || "-") + " · " + (matchData.target1 || "-");
@@ -738,7 +900,11 @@
                 return;
             }
             matchData = { ...matchData, ...update };
-            updateDisplay();
+            if (isFinished()) {
+                showEnd();
+            } else {
+                updateDisplay();
+            }
         }
 
         function saveHistory() {
@@ -864,7 +1030,130 @@
 
         async function finishMatch() {
             if (!matchData || isFinished()) return;
-            await updateMatch(shotClockReset({ finished: true }));
+            saveHistory();
+            await updateMatch(buildFinalState());
+        }
+
+        function buildFinalState() {
+            let score1 = Number(matchData.score1 || 0);
+            let score2 = Number(matchData.score2 || 0);
+            let series1 = Number(matchData.series1 || 0);
+            let series2 = Number(matchData.series2 || 0);
+            let high1 = Number(matchData.high1 || 0);
+            let high2 = Number(matchData.high2 || 0);
+            let inn1 = Number(matchData.inn1 || 0);
+            let inn2 = Number(matchData.inn2 || 0);
+            let totalInnings = Number(matchData.totalInnings || 1);
+            const active = Number(matchData.activePlayer || 1);
+            const log1 = toArray(matchData.series_log1);
+            const log2 = toArray(matchData.series_log2);
+
+            if (active === 1 || series1 > 0) {
+                score1 += series1;
+                high1 = Math.max(high1, series1);
+                log1.push(series1);
+                series1 = 0;
+                inn1++;
+            }
+            if (active === 2 || series2 > 0) {
+                score2 += series2;
+                high2 = Math.max(high2, series2);
+                log2.push(series2);
+                series2 = 0;
+                inn2++;
+            }
+            totalInnings = Math.max(totalInnings, inn1, inn2, 1);
+
+            return {
+                score1,
+                score2,
+                series1,
+                series2,
+                high1,
+                high2,
+                inn1,
+                inn2,
+                totalInnings,
+                series_log1: log1,
+                series_log2: log2,
+                finished: true,
+                status: 1,
+                shot_clock_running: false,
+                shot_clock_started_at: null,
+                shot_clock_remaining_seconds: 40
+            };
+        }
+
+        function getWinnerText() {
+            const score1 = Number(matchData.score1 || 0);
+            const score2 = Number(matchData.score2 || 0);
+            if (score1 > score2) return "player1";
+            if (score2 > score1) return "player2";
+            return "draw";
+        }
+
+        function renderEndScreen() {
+            if (!matchData) return;
+            const log1 = toArray(matchData.series_log1);
+            const log2 = toArray(matchData.series_log2);
+            const winner = getWinnerText();
+            document.getElementById("endName1").innerText = matchData.player1 || "Spieler 1";
+            document.getElementById("endName2").innerText = matchData.player2 || "Spieler 2";
+            document.getElementById("endScore1").innerText = matchData.score1 || 0;
+            document.getElementById("endScore2").innerText = matchData.score2 || 0;
+            document.getElementById("endPlayer1").classList.toggle("winner", winner === "player1");
+            document.getElementById("endPlayer2").classList.toggle("winner", winner === "player2");
+            document.getElementById("endSummary").innerHTML =
+                renderPlayerSummary(1, log1) + renderPlayerSummary(2, log2);
+        }
+
+        function renderPlayerSummary(playerNumber, innings) {
+            const name = playerNumber === 1 ? matchData.player1 : matchData.player2;
+            const score = Number(playerNumber === 1 ? matchData.score1 : matchData.score2);
+            const inn = Number(playerNumber === 1 ? matchData.inn1 : matchData.inn2);
+            const high = Number(playerNumber === 1 ? matchData.high1 : matchData.high2);
+            const chips = innings.length
+                ? innings.map((value) => `<span class="inning-chip">${Number(value || 0)}</span>`).join("")
+                : `<span class="inning-chip">0</span>`;
+            return `
+                <div class="summary-card">
+                    <div class="summary-title">${escapeHtml(name || ("Spieler " + playerNumber))}</div>
+                    <div class="summary-stats">
+                        <div class="summary-stat">Punkte<strong>${score}</strong></div>
+                        <div class="summary-stat">Aufn.<strong>${inn}</strong></div>
+                        <div class="summary-stat">DS<strong>${avg(score, inn)}</strong></div>
+                    </div>
+                    <div class="summary-stats">
+                        <div class="summary-stat">HS<strong>${high}</strong></div>
+                        <div class="summary-stat">Ziel<strong>${Number(playerNumber === 1 ? matchData.target1 : matchData.target2) || "-"}</strong></div>
+                        <div class="summary-stat">Serie<strong>${innings.length}</strong></div>
+                    </div>
+                    <div class="innings-list">${chips}</div>
+                </div>
+            `;
+        }
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        async function confirmCloseMatch() {
+            if (matchId) {
+                await supabaseClient
+                    .from("matches")
+                    .update({
+                        display_table: "",
+                        shot_clock_running: false,
+                        shot_clock_started_at: null
+                    })
+                    .eq("id", matchId);
+            }
+            resetToSetup();
         }
 
         async function toggleShotClock() {
@@ -912,7 +1201,11 @@
                     filter: "id=eq." + matchId
                 }, (payload) => {
                     matchData = payload.new;
-                    updateDisplay();
+                    if (isFinished()) {
+                        showEnd();
+                    } else {
+                        updateDisplay();
+                    }
                 })
                 .subscribe();
         }
@@ -926,7 +1219,11 @@
                 .single();
             if (!error && data) {
                 matchData = data;
-                updateDisplay();
+                if (isFinished()) {
+                    showEnd();
+                } else {
+                    updateDisplay();
+                }
             }
         }
 
