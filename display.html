@@ -88,7 +88,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
-    <script src="js/auth.js"></script>
 
     <script>
         const params = new URLSearchParams(window.location.search);
@@ -103,7 +102,6 @@
         let currentMatchId = "";
         let channel = null;
         let pollTimer = null;
-        let currentUserId = "";
 
         document.getElementById("tableLabel").innerText = tableLabel;
 
@@ -127,7 +125,7 @@
             }
             const frame = document.getElementById("displayFrame");
             const idle = document.getElementById("idleScreen");
-            const nextSrc = "/scoreboard.html?match=" + encodeURIComponent(id);
+            const nextSrc = "/scoreboard.html?match=" + encodeURIComponent(id) + "&display=1";
             if (currentMatchId !== id || !frame.src.endsWith(nextSrc)) {
                 frame.src = nextSrc;
             }
@@ -190,10 +188,7 @@
                 .subscribe();
         }
 
-        async function initDisplay() {
-            const user = await requireAuth();
-            if (!user) return;
-            currentUserId = user.id;
+        function initDisplay() {
             loadActiveMatch();
             subscribeToTable();
             pollTimer = setInterval(loadActiveMatch, 10000);

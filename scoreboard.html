@@ -995,6 +995,7 @@
 
 
         const matchId = new URLSearchParams(window.location.search).get("match");
+        const displayMode = new URLSearchParams(window.location.search).get("display") === "1";
 
         let viewerMode = false;
         let score1 = 0, score2 = 0;
@@ -1374,11 +1375,14 @@
         /* ================= LOAD MATCH ================= */
 
         async function loadMatch() {
-            const user = await requireAuth();
-            if (!user) return;
-            currentUserId = user.id;
-            const isAdmin = await hasAdminAccess(user);
-            ownedPlayerNames = await getOwnedPlayerNames(currentUserId);
+            let isAdmin = false;
+            if (!displayMode) {
+                const user = await requireAuth();
+                if (!user) return;
+                currentUserId = user.id;
+                isAdmin = await hasAdminAccess(user);
+                ownedPlayerNames = await getOwnedPlayerNames(currentUserId);
+            }
 
             const { data: d, error } = await supabaseClient
                 .from("matches")
@@ -1391,12 +1395,17 @@
                 return;
             }
 
-            if (!isAdmin && !isOwnedMatch(d, currentUserId, ownedPlayerNames)) {
+            if (displayMode && !String(d.display_table || "").trim()) {
+                document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Dieses Match ist nicht fuer ein Display freigegeben.</div>";
+                return;
+            }
+
+            if (!displayMode && !isAdmin && !isOwnedMatch(d, currentUserId, ownedPlayerNames)) {
                 document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf diese Partie.</div>";
                 return;
             }
 
-            if (d.controlMode === "remote") {
+            if (displayMode || d.controlMode === "remote") {
                 viewerMode = true;
             } else {
                 viewerMode = false;
