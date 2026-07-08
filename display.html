@@ -85,6 +85,135 @@
         .error {
             color: #ffb3b3;
         }
+
+        .result-screen {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            grid-template-rows: auto auto minmax(0, 1fr);
+            gap: clamp(18px, 2vw, 32px);
+            padding: clamp(36px, 4.2vw, 72px);
+            box-sizing: border-box;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 260ms ease, visibility 0s linear 260ms;
+        }
+
+        .result-screen.visible {
+            opacity: 1;
+            visibility: visible;
+            transition-delay: 0s;
+        }
+
+        .result-title {
+            text-align: center;
+            color: #ffd84a;
+            font-size: clamp(38px, 5vw, 88px);
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .result-scoreline {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+            gap: clamp(18px, 3vw, 56px);
+            align-items: center;
+        }
+
+        .result-player {
+            min-width: 0;
+            padding: clamp(20px, 2.5vw, 42px);
+            border-radius: 26px;
+            background: rgba(22, 34, 78, 0.82);
+            box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+        }
+
+        .result-player.right {
+            background: #ffd84a;
+            color: #0b0b0b;
+            text-align: right;
+        }
+
+        .result-player.winner {
+            outline: 5px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .result-name {
+            font-size: clamp(24px, 3.2vw, 58px);
+            font-weight: 900;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .result-score {
+            margin-top: clamp(10px, 1vw, 18px);
+            font-size: clamp(82px, 12vw, 210px);
+            font-weight: 900;
+            line-height: 0.9;
+        }
+
+        .result-separator {
+            font-size: clamp(48px, 6vw, 110px);
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.42);
+        }
+
+        .result-details {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: clamp(18px, 2vw, 34px);
+            min-height: 0;
+        }
+
+        .result-card {
+            min-height: 0;
+            overflow: hidden;
+            padding: clamp(18px, 1.8vw, 30px);
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .result-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .result-stat {
+            color: rgba(255, 255, 255, 0.58);
+            font-size: clamp(12px, 1vw, 18px);
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .result-stat strong {
+            display: block;
+            margin-top: 4px;
+            color: #ffffff;
+            font-size: clamp(22px, 2.2vw, 42px);
+        }
+
+        .result-series {
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            gap: 8px;
+            max-height: 34vh;
+            overflow: hidden;
+        }
+
+        .series-chip {
+            min-width: 34px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.12);
+            text-align: center;
+            font-size: clamp(13px, 1vw, 18px);
+            font-weight: 900;
+        }
     </style>
 </head>
 
@@ -95,6 +224,25 @@
         <div id="tableLabel" class="table-label">Tisch</div>
         <div id="idleStatus" class="idle-status">Bereit für neues Match</div>
         <div id="idleSub" class="idle-sub">Dieses Display aktualisiert sich automatisch.</div>
+    </div>
+
+    <div id="resultScreen" class="result-screen" aria-hidden="true">
+        <div id="resultTitle" class="result-title">Partie beendet</div>
+        <div class="result-scoreline">
+            <div id="resultPlayer1" class="result-player">
+                <div id="resultName1" class="result-name">Spieler 1</div>
+                <div id="resultScore1" class="result-score">0</div>
+            </div>
+            <div class="result-separator">:</div>
+            <div id="resultPlayer2" class="result-player right">
+                <div id="resultName2" class="result-name">Spieler 2</div>
+                <div id="resultScore2" class="result-score">0</div>
+            </div>
+        </div>
+        <div class="result-details">
+            <div id="resultDetails1" class="result-card"></div>
+            <div id="resultDetails2" class="result-card"></div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -132,7 +280,10 @@
             const frame = document.getElementById("displayFrame");
             const idle = document.getElementById("idleScreen");
             const status = document.getElementById("idleStatus");
+            const result = document.getElementById("resultScreen");
             frame.classList.remove("visible");
+            result.classList.remove("visible");
+            result.setAttribute("aria-hidden", "true");
             idle.classList.remove("hidden");
             status.innerText = message || "Bereit für neues Match";
             status.classList.toggle("error", Boolean(isError));
@@ -151,12 +302,15 @@
             }
             const frame = document.getElementById("displayFrame");
             const idle = document.getElementById("idleScreen");
+            const result = document.getElementById("resultScreen");
             const nextSrc = "/scoreboard.html?match=" + encodeURIComponent(id) + "&display=1";
             const revealFrame = () => {
                 if (pendingFrameSrc && pendingFrameSrc !== nextSrc) return;
                 currentMatchId = id;
                 pendingFrameSrc = "";
                 idle.classList.add("hidden");
+                result.classList.remove("visible");
+                result.setAttribute("aria-hidden", "true");
                 frame.classList.add("visible");
             };
 
@@ -169,6 +323,113 @@
             }
 
             revealFrame();
+        }
+
+        function toSeriesArray(value) {
+            if (Array.isArray(value)) return value.map((item) => Number(item || 0));
+            if (typeof value === "string") {
+                try {
+                    const parsed = JSON.parse(value);
+                    return Array.isArray(parsed) ? parsed.map((item) => Number(item || 0)) : [];
+                } catch (_) {
+                    return [];
+                }
+            }
+            return [];
+        }
+
+        function formatAverage(score, innings) {
+            const inn = Number(innings || 0);
+            return inn > 0 ? (Number(score || 0) / inn).toFixed(3) : "0.000";
+        }
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        async function showResult(matchId, knownMatch = null) {
+            const id = String(matchId || "");
+            if (!id) return;
+
+            let match = knownMatch;
+            if (!match || !Object.prototype.hasOwnProperty.call(match, "series_log1")) {
+                const { data, error } = await supabaseClient
+                    .from("matches")
+                    .select("*")
+                    .eq("id", id)
+                    .maybeSingle();
+
+                if (error || !data) {
+                    console.error("Display Ergebnis laden fehlgeschlagen:", error);
+                    return;
+                }
+                match = data;
+            }
+
+            currentMatchId = id;
+            pendingFrameSrc = "";
+            renderResult(match);
+            document.getElementById("displayFrame").classList.remove("visible");
+            document.getElementById("idleScreen").classList.add("hidden");
+            const result = document.getElementById("resultScreen");
+            result.classList.add("visible");
+            result.setAttribute("aria-hidden", "false");
+        }
+
+        function renderResult(match) {
+            const score1 = Number(match.score1 || 0);
+            const score2 = Number(match.score2 || 0);
+            const inn1 = Number(match.inn1 || 0);
+            const inn2 = Number(match.inn2 || 0);
+            const high1 = Number(match.high1 || 0);
+            const high2 = Number(match.high2 || 0);
+            const target1 = Number(match.target1 || 0);
+            const target2 = Number(match.target2 || 0);
+            const series1 = toSeriesArray(match.series_log1);
+            const series2 = toSeriesArray(match.series_log2);
+            const winner = score1 > score2 ? 1 : score2 > score1 ? 2 : 0;
+
+            document.getElementById("resultTitle").innerText =
+                winner === 1 ? (match.player1 || "Spieler 1") + " gewinnt" :
+                    winner === 2 ? (match.player2 || "Spieler 2") + " gewinnt" :
+                        "Unentschieden";
+            document.getElementById("resultName1").innerText = match.player1 || "Spieler 1";
+            document.getElementById("resultName2").innerText = match.player2 || "Spieler 2";
+            document.getElementById("resultScore1").innerText = score1;
+            document.getElementById("resultScore2").innerText = score2;
+            document.getElementById("resultPlayer1").classList.toggle("winner", winner === 1);
+            document.getElementById("resultPlayer2").classList.toggle("winner", winner === 2);
+            document.getElementById("resultDetails1").innerHTML = renderPlayerResult(match.player1, match.discipline1, score1, inn1, high1, target1, series1);
+            document.getElementById("resultDetails2").innerHTML = renderPlayerResult(match.player2, match.discipline2, score2, inn2, high2, target2, series2);
+        }
+
+        function renderPlayerResult(name, discipline, score, innings, high, target, series) {
+            const percent = Number(target || 0) > 0 ? ((Number(score || 0) / Number(target || 0)) * 100).toFixed(1) + " %" : "-";
+            const chips = series.length
+                ? series.map((value) => `<span class="series-chip">${Number(value || 0)}</span>`).join("")
+                : `<span class="series-chip">0</span>`;
+            return `
+                <div class="result-name">${escapeHtml(name || "Spieler")}</div>
+                <div class="idle-sub" style="text-align:left;margin-top:6px;">${escapeHtml(discipline || "")}</div>
+                <div class="result-stats">
+                    <div class="result-stat">Punkte<strong>${Number(score || 0)}</strong></div>
+                    <div class="result-stat">Aufn.<strong>${Number(innings || 0)}</strong></div>
+                    <div class="result-stat">DS<strong>${formatAverage(score, innings)}</strong></div>
+                    <div class="result-stat">HR<strong>${Number(high || 0)}</strong></div>
+                </div>
+                <div class="result-stats">
+                    <div class="result-stat">Ziel<strong>${Number(target || 0) || "-"}</strong></div>
+                    <div class="result-stat">Prozent<strong>${percent}</strong></div>
+                    <div class="result-stat">Serien<strong>${series.length}</strong></div>
+                    <div class="result-stat">&nbsp;<strong>&nbsp;</strong></div>
+                </div>
+                <div class="result-series">${chips}</div>
+            `;
         }
 
         async function loadActiveMatch(options = {}) {
@@ -202,6 +463,11 @@
                 return;
             }
 
+            if (match.finished) {
+                await showResult(match.id, match);
+                return;
+            }
+
             showMatch(match.id);
         }
 
@@ -213,17 +479,23 @@
 
             const { data, error } = await supabaseClient
                 .from("matches")
-                .select("id,display_table,status")
+                .select("id,display_table,status,finished")
                 .eq("id", currentMatchId)
                 .maybeSingle();
 
             if (error || !data) {
+                showIdle("Bereit für neues Match");
                 return;
             }
 
             const table = String(data.display_table || "").toLowerCase();
             if (table !== displayTableId || Number(data.status || 0) !== 1) {
                 showIdle("Bereit für neues Match");
+                return;
+            }
+
+            if (data.finished) {
+                await showResult(currentMatchId, data);
             }
         }
 
@@ -248,6 +520,10 @@
                         const oldTable = String(oldRow.display_table || "").toLowerCase();
                         const rowTable = newTable || oldTable;
                         const isCurrentMatch = currentMatchId && currentMatchId === rowId;
+                        if ((isCurrentMatch || rowTable === displayTableId) && newRow.finished) {
+                            showResult(rowId, newRow);
+                            return;
+                        }
                         if (isCurrentMatch) {
                             showMatch(rowId);
                             return;
