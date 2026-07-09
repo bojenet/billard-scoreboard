@@ -7,49 +7,49 @@
     body {
       margin: 0;
       font-family: 'Segoe UI', Arial, sans-serif;
-      background: linear-gradient(180deg, #0f1c3f, #0a122b);
+      background: #0a122b;
       color: white;
     }
 
     .page {
-      width: min(1380px, 96vw);
-      margin: 34px auto 30px;
+      width: min(1280px, calc(100vw - 28px));
+      margin: 24px auto 24px;
     }
 
     h1 {
-      margin: 0 0 16px;
-      font-size: 44px;
-      text-align: center;
+      margin: 0 0 14px;
+      font-size: 34px;
+      text-align: left;
     }
 
     .card {
-      background: linear-gradient(180deg, #162b66, #0f1c3f);
-      border: 1px solid #2d488f;
-      border-radius: 20px;
-      box-shadow: 0 22px 50px rgba(0, 0, 0, 0.45);
-      overflow-x: auto;
-      overflow-y: hidden;
-      margin-bottom: 18px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 16px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
+      table-layout: auto;
     }
 
     th, td {
-      border-bottom: 1px solid #27417f;
-      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+      padding: 9px 10px;
       text-align: left;
-      font-size: 16px;
+      font-size: 14px;
       vertical-align: middle;
     }
 
     th {
-      background: #12255a;
-      font-size: 14px;
-      letter-spacing: 0.4px;
-      opacity: 0.9;
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 12px;
+      letter-spacing: 0.2px;
+      color: rgba(255, 255, 255, 0.74);
+      white-space: nowrap;
     }
 
     tr:last-child td {
@@ -57,63 +57,75 @@
     }
 
     #usersTable {
-      min-width: 1100px;
+      min-width: 0;
       table-layout: fixed;
     }
 
     #usersTable th:nth-child(1),
     #usersTable td:nth-child(1) {
-      width: 280px;
+      width: 22%;
     }
 
     #usersTable th:nth-child(2),
     #usersTable td:nth-child(2) {
-      width: 170px;
+      width: 14%;
     }
 
     #usersTable th:nth-child(3),
     #usersTable td:nth-child(3) {
-      width: 105px;
+      width: 7%;
     }
 
     #usersTable th:nth-child(4),
     #usersTable td:nth-child(4) {
-      width: 76px;
+      width: 5%;
     }
 
     #usersTable th:nth-child(5),
     #usersTable td:nth-child(5) {
-      width: 76px;
+      width: 5%;
     }
 
     #usersTable th:nth-child(6),
     #usersTable td:nth-child(6) {
-      width: 76px;
+      width: 5%;
     }
 
     #usersTable th:nth-child(7),
     #usersTable td:nth-child(7) {
-      width: 76px;
+      width: 5%;
     }
 
     #usersTable th:nth-child(8),
     #usersTable td:nth-child(8) {
-      width: 76px;
+      width: 5%;
     }
 
     #usersTable th:nth-child(9),
     #usersTable td:nth-child(9) {
-      width: 76px;
+      width: 5%;
     }
 
     #usersTable th:nth-child(10),
     #usersTable td:nth-child(10) {
-      width: 170px;
+      width: 5%;
     }
 
     #usersTable th:nth-child(11),
     #usersTable td:nth-child(11) {
-      width: 110px;
+      width: 12%;
+    }
+
+    #usersTable th:nth-child(12),
+    #usersTable td:nth-child(12) {
+      width: 10%;
+    }
+
+    #usersTable td:nth-child(1),
+    #usersTable td:nth-child(2) {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .muted {
@@ -124,7 +136,7 @@
     .toolbar {
       display: flex;
       justify-content: flex-end;
-      margin: 0 0 14px;
+      margin: 0 0 10px;
     }
 
     .pill {
@@ -135,7 +147,7 @@
       border: 1px solid #3659bb;
       border-radius: 9px;
       background: #1c3380;
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 700;
       color: #eef3ff;
     }
@@ -148,10 +160,10 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
       color: #ffffff;
-      font-size: 21px;
+      font-size: 18px;
       font-weight: 900;
       line-height: 1;
     }
@@ -162,8 +174,8 @@
     }
 
     .section-title {
-      margin: 22px 0 10px;
-      font-size: 24px;
+      margin: 20px 0 10px;
+      font-size: 20px;
       font-weight: 800;
     }
 
@@ -182,7 +194,7 @@
       border-radius: 9px;
       background: #2f4fe0;
       color: white;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       padding: 8px 12px;
       cursor: pointer;
@@ -209,11 +221,11 @@
 
     .btn {
       border: none;
-      border-radius: 10px;
-      padding: 10px 16px;
+      border-radius: 8px;
+      padding: 9px 14px;
       background: #1c3380;
       color: white;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 700;
       cursor: pointer;
     }
@@ -371,6 +383,7 @@
           <th>Training</th>
           <th>Turnier</th>
           <th>Kalender</th>
+          <th>Club</th>
           <th>OBS</th>
           <th>Letzter Login</th>
           <th>Aktion</th>
