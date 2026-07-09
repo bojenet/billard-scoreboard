@@ -183,7 +183,10 @@
 
         body.remote-viewer .center-wrapper {
             width: clamp(110px, 15vw, 260px);
-            height: clamp(230px, 24vw, 390px);
+            height: auto;
+            min-height: clamp(230px, 24vw, 390px);
+            flex-direction: column;
+            gap: clamp(12px, 1.5vw, 28px);
         }
 
         body.remote-viewer .center-box {
@@ -196,7 +199,12 @@
         }
 
         body.remote-viewer .series-display {
-            top: clamp(132px, 16.5vw, 285px);
+            position: static;
+            width: 100%;
+            min-height: clamp(56px, 7vw, 120px);
+            font-size: clamp(48px, 7vw, 120px);
+            line-height: 1;
+            transform: none;
         }
 
         body.remote-viewer .shot-clock {
