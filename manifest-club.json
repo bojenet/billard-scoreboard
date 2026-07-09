@@ -1,0 +1,19 @@
+{
+  "name": "Billard Club Match",
+  "short_name": "Billard Club",
+  "description": "Mobile Match-Erstellung und Bedienung fuer Clubtische.",
+  "start_url": "/club_mobile.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080d1c",
+  "theme_color": "#0b1024",
+  "icons": [
+    {
+      "src": "/assets/club-mobile-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
