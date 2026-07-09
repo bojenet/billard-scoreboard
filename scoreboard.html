@@ -1300,6 +1300,40 @@
             updateShotClock();
         }
 
+        function getShotClockRemainingSeconds() {
+            const storedRemaining = Math.max(0, Math.min(
+                SHOT_CLOCK_SECONDS,
+                Number(shotClockRemainingSeconds ?? SHOT_CLOCK_SECONDS)
+            ));
+            if (!shotClockRunning || !shotClockStartedAtMs) return storedRemaining;
+
+            const elapsed = Math.max(0, Math.floor((Date.now() - shotClockStartedAtMs) / 1000));
+            return Math.max(0, storedRemaining - elapsed);
+        }
+
+        async function toggleShotClock() {
+            if (finished) return;
+            if (!shotClockStorageAvailable) {
+                console.warn("Timer-Spalten fehlen in der matches-Tabelle.");
+                return;
+            }
+            if (!isThreeCushionDiscipline(getActiveDiscipline())) return;
+
+            if (shotClockRunning) {
+                shotClockRemainingSeconds = getShotClockRemainingSeconds();
+                shotClockRunning = false;
+                shotClockStartedAtMs = 0;
+            } else {
+                const remaining = getShotClockRemainingSeconds();
+                shotClockRunning = true;
+                shotClockStartedAtMs = Date.now();
+                shotClockRemainingSeconds = remaining > 0 ? remaining : SHOT_CLOCK_SECONDS;
+            }
+
+            updateShotClock();
+            await updateMatchInDB();
+        }
+
         function setShotClockFromMatch(row) {
             shotClockStorageAvailable =
                 Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_running") &&
@@ -1815,6 +1849,36 @@
                 switchTo(p);
             }
         }
+
+        function isRemoteKeyIgnoredTarget(target) {
+            const tagName = String(target?.tagName || "").toLowerCase();
+            return tagName === "input" || tagName === "textarea" || tagName === "select";
+        }
+
+        function handleRemoteKeydown(event) {
+            const key = event.key;
+            if (!["1", "2", "3", "4"].includes(key)) return;
+            if (isRemoteKeyIgnoredTarget(event.target)) return;
+
+            event.preventDefault();
+            console.log("ESP32-Fernbedienung Taste empfangen:", key);
+
+            if (key === "1") {
+                addPoints(1);
+            } else if (key === "2") {
+                addPoints(-1);
+            } else if (key === "3") {
+                switchTo(activePlayer === 1 ? 2 : 1);
+            } else if (key === "4") {
+                toggleShotClock();
+            }
+        }
+
+        if (window.__billardRemoteKeydownHandler) {
+            document.removeEventListener("keydown", window.__billardRemoteKeydownHandler);
+        }
+        window.__billardRemoteKeydownHandler = handleRemoteKeydown;
+        document.addEventListener("keydown", window.__billardRemoteKeydownHandler);
 
         async function updateMatchInDB() {
             const updateData = {
