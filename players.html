@@ -214,6 +214,9 @@ td {
 <button class="nav-btn" onclick="window.location.href='index.html'">
 Zurück
 </button>
+<button id="importNavBtn" class="nav-btn" style="display:none;" onclick="window.location.href='players_import.html'">
+CSV Import
+</button>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
@@ -263,6 +266,9 @@ async function loadScopedPlayers() {
 async function loadPlayers(){
     const user = await requireAuth();
     if (!user) return;
+    const isAdmin = await hasAdminAccess(user);
+    const importBtn = document.getElementById("importNavBtn");
+    if (importBtn) importBtn.style.display = isAdmin ? "inline-block" : "none";
     const accessMode = await getMatchAccess(user);
     if (!isMatchVisible(accessMode)) {
         document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf Match.</div>";

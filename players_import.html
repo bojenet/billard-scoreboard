@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Spieler CSV Import</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #0a122b;
+      color: white;
+    }
+
+    .page {
+      width: min(980px, calc(100vw - 28px));
+      margin: 24px auto;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 34px;
+    }
+
+    .panel {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    select,
+    input[type="file"] {
+      width: 100%;
+      min-height: 42px;
+      box-sizing: border-box;
+      border: 1px solid #3659bb;
+      border-radius: 8px;
+      background: #0f2153;
+      color: white;
+      padding: 8px 10px;
+      font-size: 15px;
+    }
+
+    .hint {
+      margin-top: 10px;
+      color: rgba(255, 255, 255, 0.68);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: #2f4fe0;
+      color: white;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .btn.secondary {
+      background: #1c3380;
+      border: 1px solid #3659bb;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .msg {
+      min-height: 22px;
+      color: rgba(255, 255, 255, 0.76);
+      font-size: 14px;
+    }
+
+    .msg.ok {
+      color: #b6f5c4;
+    }
+
+    .msg.err {
+      color: #ffb6b6;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th,
+    td {
+      padding: 9px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+      text-align: left;
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 12px;
+    }
+
+    .status-skip {
+      color: #ffd84a;
+    }
+
+    .status-new {
+      color: #b6f5c4;
+    }
+
+    @media (max-width: 720px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <h1>Spieler CSV Import</h1>
+
+    <section class="panel">
+      <div class="grid">
+        <div>
+          <label for="targetUser">Ziel-User</label>
+          <select id="targetUser"></select>
+        </div>
+        <div>
+          <label for="csvFile">CSV-Datei</label>
+          <input id="csvFile" type="file" accept=".csv,text/csv" />
+        </div>
+      </div>
+      <div class="hint">
+        Erwartete Spalten: <strong>name</strong>. Optional: <strong>email</strong>, <strong>send_match_result_email</strong>.
+        Trennzeichen Komma oder Semikolon. Duplikate beim Ziel-User werden uebersprungen.
+      </div>
+      <div class="actions">
+        <button class="btn secondary" type="button" onclick="window.location.href='players.html'">Zurück</button>
+        <button id="importBtn" class="btn" type="button" onclick="importRows()" disabled>Importieren</button>
+      </div>
+      <div id="msg" class="msg"></div>
+    </section>
+
+    <section class="panel">
+      <table id="previewTable">
+        <tr>
+          <th>Name</th>
+          <th>E-Mail</th>
+          <th>Mail</th>
+          <th>Status</th>
+        </tr>
+      </table>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    let parsedRows = [];
+    let existingNames = new Set();
+
+    function setMsg(text, type) {
+      const el = document.getElementById("msg");
+      el.className = "msg " + (type || "");
+      el.innerText = text || "";
+    }
+
+    function splitCsvLine(line, delimiter) {
+      const cells = [];
+      let current = "";
+      let inQuotes = false;
+      for (let index = 0; index < line.length; index++) {
+        const char = line[index];
+        const next = line[index + 1];
+        if (char === '"' && inQuotes && next === '"') {
+          current += '"';
+          index++;
+          continue;
+        }
+        if (char === '"') {
+          inQuotes = !inQuotes;
+          continue;
+        }
+        if (char === delimiter && !inQuotes) {
+          cells.push(current.trim());
+          current = "";
+          continue;
+        }
+        current += char;
+      }
+      cells.push(current.trim());
+      return cells;
+    }
+
+    function detectDelimiter(line) {
+      return (line.match(/;/g) || []).length > (line.match(/,/g) || []).length ? ";" : ",";
+    }
+
+    function normalizeHeader(value) {
+      return String(value || "").trim().toLowerCase().replace(/\s+/g, "_");
+    }
+
+    function parseBoolean(value) {
+      const text = String(value || "").trim().toLowerCase();
+      return ["1", "true", "ja", "yes", "x"].includes(text);
+    }
+
+    function parseCsv(text) {
+      const lines = String(text || "")
+        .replace(/^\uFEFF/, "")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      if (lines.length < 2) return [];
+
+      const delimiter = detectDelimiter(lines[0]);
+      const headers = splitCsvLine(lines[0], delimiter).map(normalizeHeader);
+      const nameIndex = headers.indexOf("name");
+      const emailIndex = headers.indexOf("email");
+      const sendIndex = headers.indexOf("send_match_result_email");
+      if (nameIndex < 0) throw new Error("CSV braucht eine Spalte 'name'.");
+
+      return lines.slice(1)
+        .map((line) => splitCsvLine(line, delimiter))
+        .map((cells) => ({
+          name: String(cells[nameIndex] || "").trim(),
+          email: emailIndex >= 0 ? String(cells[emailIndex] || "").trim().toLowerCase() : "",
+          send_match_result_email: sendIndex >= 0 ? parseBoolean(cells[sendIndex]) : false
+        }))
+        .filter((row) => row.name);
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    async function loadUsers() {
+      const user = await requireAdmin();
+      if (!user) return;
+
+      const { data, error } = await supabaseClient
+        .from("profiles")
+        .select("id,email,first_name,last_name,full_name")
+        .order("email", { ascending: true });
+
+      if (error) {
+        setMsg("User konnten nicht geladen werden: " + error.message, "err");
+        return;
+      }
+
+      const select = document.getElementById("targetUser");
+      select.innerHTML = "";
+      (data || []).forEach((profile) => {
+        const name = profile.full_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.email || profile.id;
+        select.add(new Option(name + " · " + (profile.email || ""), profile.id));
+      });
+      await loadExistingNames();
+    }
+
+    async function loadExistingNames() {
+      const userId = document.getElementById("targetUser").value;
+      existingNames = new Set();
+      if (!userId) return;
+
+      const { data, error } = await supabaseClient
+        .from("players")
+        .select("name")
+        .eq("user_id", userId);
+
+      if (error) {
+        setMsg("Bestehende Spieler konnten nicht geladen werden: " + error.message, "err");
+        return;
+      }
+      existingNames = new Set((data || []).map((row) => String(row.name || "").trim().toLowerCase()).filter(Boolean));
+      renderPreview();
+    }
+
+    function renderPreview() {
+      const table = document.getElementById("previewTable");
+      table.innerHTML = `
+        <tr>
+          <th>Name</th>
+          <th>E-Mail</th>
+          <th>Mail</th>
+          <th>Status</th>
+        </tr>
+      `;
+      parsedRows.forEach((row) => {
+        const exists = existingNames.has(row.name.toLowerCase());
+        table.innerHTML += `
+          <tr>
+            <td>${escapeHtml(row.name)}</td>
+            <td>${escapeHtml(row.email || "-")}</td>
+            <td>${row.send_match_result_email ? "ja" : "nein"}</td>
+            <td class="${exists ? "status-skip" : "status-new"}">${exists ? "vorhanden" : "neu"}</td>
+          </tr>
+        `;
+      });
+      document.getElementById("importBtn").disabled = parsedRows.length === 0;
+    }
+
+    async function handleFileChange() {
+      const file = document.getElementById("csvFile").files[0];
+      parsedRows = [];
+      if (!file) {
+        renderPreview();
+        return;
+      }
+      try {
+        parsedRows = parseCsv(await file.text());
+        setMsg(parsedRows.length + " Zeilen gelesen.", "ok");
+      } catch (error) {
+        setMsg(error.message || "CSV konnte nicht gelesen werden.", "err");
+      }
+      renderPreview();
+    }
+
+    async function importRows() {
+      const user = await requireAdmin();
+      if (!user) return;
+      const userId = document.getElementById("targetUser").value;
+      if (!userId) return setMsg("Bitte Ziel-User wählen.", "err");
+
+      const rows = parsedRows
+        .filter((row) => !existingNames.has(row.name.toLowerCase()))
+        .map((row) => ({
+          name: row.name,
+          email: row.email || null,
+          send_match_result_email: row.send_match_result_email,
+          user_id: userId
+        }));
+
+      if (!rows.length) {
+        setMsg("Keine neuen Spieler zu importieren.", "ok");
+        return;
+      }
+
+      document.getElementById("importBtn").disabled = true;
+      const { error } = await supabaseClient
+        .from("players")
+        .insert(rows);
+      document.getElementById("importBtn").disabled = false;
+
+      if (error) {
+        setMsg("Import fehlgeschlagen: " + error.message, "err");
+        return;
+      }
+
+      setMsg(rows.length + " Spieler importiert.", "ok");
+      await loadExistingNames();
+    }
+
+    document.getElementById("csvFile").addEventListener("change", handleFileChange);
+    document.getElementById("targetUser").addEventListener("change", loadExistingNames);
+    loadUsers();
+  </script>
+</body>
+
+</html>
