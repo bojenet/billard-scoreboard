@@ -26,12 +26,23 @@
         .topbar {
             min-height: 96px;
             background: linear-gradient(180deg, #162b66, #0f1c3f);
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 10px clamp(14px, 4vw, 80px);
             gap: clamp(8px, 2vw, 20px);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .topbar > div {
+            min-width: 0;
+        }
+
+        .topbar > div:first-child,
+        .topbar > div:last-child {
+            width: calc(50% - clamp(90px, 12vw, 180px));
+            flex: 0 1 auto;
         }
 
         .fullscreen-btn {
@@ -60,6 +71,9 @@
             font-weight: 600;
             letter-spacing: 1px;
             line-height: 1.05;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .player-name.yellow {
@@ -91,7 +105,12 @@
         }
 
         .top-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
             text-align: center;
+            min-width: clamp(120px, 16vw, 260px);
+            pointer-events: none;
         }
 
         .game-label {
@@ -135,26 +154,26 @@
 
         body.remote-viewer .score-area {
             flex: 1;
-            display: grid;
-            grid-template-rows: minmax(0, 1fr) auto;
-            justify-items: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
             align-items: center;
-            gap: clamp(14px, 2vh, 28px);
-            padding: clamp(12px, 2vh, 28px) 0 clamp(24px, 3vh, 48px);
+            gap: clamp(14px, 1.8vh, 24px);
+            padding: clamp(14px, 2vh, 28px) 0 clamp(24px, 3vh, 44px);
             box-sizing: border-box;
         }
 
         body.remote-viewer .main {
             width: min(94vw, 1760px);
             flex: none;
-            align-self: center;
+            height: auto;
             gap: clamp(24px, 4vw, 92px);
             padding: 0;
         }
 
         body.remote-viewer .player {
             width: min(38vw, 690px);
-            min-height: min(58vh, 640px);
+            min-height: clamp(360px, 52vh, 620px);
             justify-content: space-between;
         }
 
@@ -164,7 +183,7 @@
 
         body.remote-viewer .center-wrapper {
             width: clamp(110px, 15vw, 260px);
-            height: clamp(150px, 20vh, 290px);
+            height: clamp(230px, 24vw, 390px);
         }
 
         body.remote-viewer .center-box {
@@ -177,7 +196,7 @@
         }
 
         body.remote-viewer .series-display {
-            top: clamp(110px, 16vh, 250px);
+            top: clamp(132px, 16.5vw, 285px);
         }
 
         body.remote-viewer .shot-clock {
