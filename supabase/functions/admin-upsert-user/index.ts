@@ -20,6 +20,7 @@ type UserPayload = {
   training_access?: string;
   tournament_access?: string;
   calendar_access?: string;
+  club_mobile_access?: string;
   stream_overlay_access?: boolean;
 };
 
@@ -41,6 +42,11 @@ function normalizeRole(value: unknown) {
 function normalizeAccess(value: unknown) {
   const text = cleanText(value);
   return ["hidden", "read", "edit"].includes(text) ? text : "edit";
+}
+
+function normalizeClubMobileAccess(value: unknown) {
+  const text = cleanText(value);
+  return ["hidden", "edit"].includes(text) ? text : "hidden";
 }
 
 function normalizeBooleanAccess(value: unknown) {
@@ -122,6 +128,7 @@ serve(async (request) => {
     const trainingAccess = normalizeAccess(payload.training_access);
     const tournamentAccess = normalizeAccess(payload.tournament_access);
     const calendarAccess = normalizeAccess(payload.calendar_access);
+    const clubMobileAccess = normalizeClubMobileAccess(payload.club_mobile_access);
     const streamOverlayAccess = normalizeBooleanAccess(payload.stream_overlay_access);
 
     if (!email) {
@@ -215,11 +222,12 @@ serve(async (request) => {
         training_access: trainingAccess,
         tournament_access: tournamentAccess,
         calendar_access: calendarAccess,
+        club_mobile_access: clubMobileAccess,
         stream_overlay_access: streamOverlayAccess,
       }], { onConflict: "user_id" });
 
     const roleErrorText = String(roleError?.message || "").toLowerCase();
-    if (roleError && (roleErrorText.includes("stream_overlay_access") || roleErrorText.includes("match_access"))) {
+    if (roleError && (roleErrorText.includes("club_mobile_access") || roleErrorText.includes("stream_overlay_access") || roleErrorText.includes("match_access"))) {
       const fallback = await adminClient
         .from("user_roles")
         .upsert([{

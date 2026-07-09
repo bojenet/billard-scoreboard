@@ -183,6 +183,7 @@
     <script src="js/training_access.js"></script>
     <script src="js/tournament_access.js"></script>
     <script src="js/calendar_access.js"></script>
+    <script src="js/club_mobile_access.js"></script>
     <script src="js/user_menu.js"></script>
 
     <script>
@@ -317,6 +318,22 @@
             const user = await requireAuth();
             if (!user) return;
             const isAdmin = await hasAdminAccess(user);
+            const [clubAccess, matchAccess, trainingAccess, tournamentAccess, calendarAccess] = await Promise.all([
+                getClubMobileAccess(user),
+                getMatchAccess(user),
+                getTrainingAccess(user),
+                getTournamentAccess(user),
+                getCalendarAccess(user)
+            ]);
+            if (!isAdmin &&
+                isClubMobileVisible(clubAccess) &&
+                !isMatchVisible(matchAccess) &&
+                !isTrainingVisible(trainingAccess) &&
+                !isTournamentVisible(tournamentAccess) &&
+                !isCalendarVisibleForUser(calendarAccess)) {
+                window.location.replace("/club_mobile.html");
+                return;
+            }
             const usersTile = document.getElementById("usersTile");
             if (usersTile) {
                 usersTile.style.display = isAdmin ? "flex" : "none";

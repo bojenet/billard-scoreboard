@@ -160,6 +160,12 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/match_access.js"></script>
+    <script src="js/training_access.js"></script>
+    <script src="js/tournament_access.js"></script>
+    <script src="js/calendar_access.js"></script>
+    <script src="js/club_mobile_access.js"></script>
     <script>
         let currentMode = "login";
         let busy = false;
@@ -167,6 +173,31 @@
         function resolveNextPath() {
             const next = new URLSearchParams(window.location.search).get("next");
             return next || "/index.html";
+        }
+
+        async function resolvePostLoginPath(user, preferredPath = "") {
+            if (!user) return preferredPath || "/index.html";
+            const target = preferredPath || resolveNextPath();
+            if (target && target !== "/index.html" && target !== "index.html" && !target.endsWith("/")) {
+                return target;
+            }
+            const [admin, clubAccess, matchAccess, trainingAccess, tournamentAccess, calendarAccess] = await Promise.all([
+                hasAdminAccess(user),
+                getClubMobileAccess(user),
+                getMatchAccess(user),
+                getTrainingAccess(user),
+                getTournamentAccess(user),
+                getCalendarAccess(user)
+            ]);
+            if (!admin &&
+                isClubMobileVisible(clubAccess) &&
+                !isMatchVisible(matchAccess) &&
+                !isTrainingVisible(trainingAccess) &&
+                !isTournamentVisible(tournamentAccess) &&
+                !isCalendarVisibleForUser(calendarAccess)) {
+                return "/club_mobile.html";
+            }
+            return target || "/index.html";
         }
 
         function setBusy(nextBusy) {
@@ -263,7 +294,7 @@
             if (data?.session) {
                 const pendingNext = localStorage.getItem("login_next");
                 localStorage.removeItem("login_next");
-                window.location.href = pendingNext || resolveNextPath();
+                window.location.href = await resolvePostLoginPath(data.session.user, pendingNext || resolveNextPath());
             }
         }
 
@@ -285,7 +316,7 @@
             }
 
             await recordLoginEvent(data?.user);
-            window.location.href = resolveNextPath();
+            window.location.href = await resolvePostLoginPath(data?.user, resolveNextPath());
         }
 
         async function recordLoginEvent(user) {

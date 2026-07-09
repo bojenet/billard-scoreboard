@@ -23,6 +23,7 @@ create table if not exists public.user_roles (
   training_access text not null default 'edit' check (training_access in ('hidden', 'read', 'edit')),
   tournament_access text not null default 'edit' check (tournament_access in ('hidden', 'read', 'edit')),
   calendar_access text not null default 'edit' check (calendar_access in ('hidden', 'read', 'edit')),
+  club_mobile_access text not null default 'hidden' check (club_mobile_access in ('hidden', 'edit')),
   stream_overlay_access boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -49,6 +50,9 @@ alter table public.user_roles
 
 alter table public.user_roles
   add column if not exists calendar_access text not null default 'edit';
+
+alter table public.user_roles
+  add column if not exists club_mobile_access text not null default 'hidden';
 
 alter table public.user_roles
   add column if not exists stream_overlay_access boolean not null default true;
@@ -88,6 +92,13 @@ alter table public.user_roles
   add constraint user_roles_calendar_access_check
   check (calendar_access in ('hidden', 'read', 'edit'));
 
+alter table public.user_roles
+  drop constraint if exists user_roles_club_mobile_access_check;
+
+alter table public.user_roles
+  add constraint user_roles_club_mobile_access_check
+  check (club_mobile_access in ('hidden', 'edit'));
+
 create index if not exists idx_profiles_email on public.profiles(email);
 create index if not exists idx_user_roles_role on public.user_roles(role);
 create index if not exists idx_login_events_user_created on public.login_events(user_id, created_at desc);
@@ -100,8 +111,8 @@ from auth.users
 on conflict (id) do update
 set email = excluded.email;
 
-insert into public.user_roles (user_id, role, match_access, position_library_access, training_access, tournament_access, calendar_access, stream_overlay_access)
-select id, 'member', 'edit', 'edit', 'edit', 'edit', 'edit', true
+insert into public.user_roles (user_id, role, match_access, position_library_access, training_access, tournament_access, calendar_access, club_mobile_access, stream_overlay_access)
+select id, 'member', 'edit', 'edit', 'edit', 'edit', 'edit', 'hidden', true
 from auth.users
 on conflict (user_id) do nothing;
 
@@ -187,8 +198,8 @@ begin
     last_name = coalesce(public.profiles.last_name, excluded.last_name),
     full_name = coalesce(public.profiles.full_name, excluded.full_name);
 
-  insert into public.user_roles (user_id, role, match_access, position_library_access, training_access, tournament_access, calendar_access, stream_overlay_access)
-  values (new.id, 'member', 'edit', 'edit', 'edit', 'edit', 'edit', true)
+  insert into public.user_roles (user_id, role, match_access, position_library_access, training_access, tournament_access, calendar_access, club_mobile_access, stream_overlay_access)
+  values (new.id, 'member', 'edit', 'edit', 'edit', 'edit', 'edit', 'hidden', true)
   on conflict (user_id) do nothing;
 
   return new;
