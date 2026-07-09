@@ -325,6 +325,43 @@
             revealFrame();
         }
 
+        function isRemoteKeyIgnoredTarget(target) {
+            const tagName = String(target?.tagName || "").toLowerCase();
+            return tagName === "input" || tagName === "textarea" || tagName === "select";
+        }
+
+        function forwardRemoteKeyToScoreboard(key) {
+            const frame = document.getElementById("displayFrame");
+            const frameWindow = frame?.contentWindow;
+            const frameDocument = frame?.contentDocument;
+            if (!frameWindow || !frameDocument || !frame.classList.contains("visible")) {
+                console.log("ESP32-Fernbedienung Taste ohne aktives Scoreboard:", key);
+                return;
+            }
+
+            frameDocument.dispatchEvent(new KeyboardEvent("keydown", {
+                key,
+                bubbles: true,
+                cancelable: true
+            }));
+        }
+
+        function handleRemoteKeydown(event) {
+            const key = event.key;
+            if (!["1", "2", "3", "4"].includes(key)) return;
+            if (isRemoteKeyIgnoredTarget(event.target)) return;
+
+            event.preventDefault();
+            console.log("ESP32-Fernbedienung Taste im Display empfangen:", key);
+            forwardRemoteKeyToScoreboard(key);
+        }
+
+        if (window.__billardDisplayRemoteKeydownHandler) {
+            document.removeEventListener("keydown", window.__billardDisplayRemoteKeydownHandler);
+        }
+        window.__billardDisplayRemoteKeydownHandler = handleRemoteKeydown;
+        document.addEventListener("keydown", window.__billardDisplayRemoteKeydownHandler);
+
         function toSeriesArray(value) {
             if (Array.isArray(value)) return value.map((item) => Number(item || 0));
             if (typeof value === "string") {
