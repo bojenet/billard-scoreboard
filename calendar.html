@@ -1189,6 +1189,7 @@
         const CALENDAR_TYPE_FILTER_STORAGE_KEY = "standalone_calendar_type_filter_v1";
         const CALENDAR_VENUE_FILTER_STORAGE_KEY = "standalone_calendar_venue_filter_v1";
         const CALENDAR_CREATOR_FILTER_STORAGE_KEY = "standalone_calendar_creator_filter_v1";
+        const CALENDAR_TITLE_FILTER_STORAGE_KEY = "standalone_calendar_title_filter_v1";
         const CALENDAR_SETTINGS_KEY = "nbv_public_calendar";
         const DEFAULT_NBV_CALENDAR_SEASON = "2025/2026";
         const DEFAULT_CALENDAR_HEADER_PREFIX = "Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison ";
@@ -1226,6 +1227,7 @@
         let activeTournamentTypeFilter = "all";
         let activeVenueFilter = "all";
         let activeCreatorFilter = "all";
+        let activeTitleFilter = "";
         let isCalendarAdmin = false;
         let isSystemAdmin = false;
         let calendarAccessMode = "hidden";
@@ -1970,10 +1972,29 @@
                 ? tournamentTypeFiltered
                 : tournamentTypeFiltered.filter((event) => getEventVenueLabel(event) === activeVenueFilter);
 
+            const titleFiltered = activeTitleFilter
+                ? venueFiltered.filter(matchesTitleFilter)
+                : venueFiltered;
+
             if (activeCreatorFilter === "all") {
-                return venueFiltered;
+                return titleFiltered;
             }
-            return venueFiltered.filter((event) => String(event?.createdByName || "").trim() === activeCreatorFilter);
+            return titleFiltered.filter((event) => String(event?.createdByName || "").trim() === activeCreatorFilter);
+        }
+
+        function normalizeFilterText(value) {
+            return String(value || "")
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/ß/g, "ss")
+                .trim();
+        }
+
+        function matchesTitleFilter(event) {
+            const needle = normalizeFilterText(activeTitleFilter);
+            if (!needle) return true;
+            return normalizeFilterText(event?.title).includes(needle);
         }
 
         function matchesTournamentType(event) {
@@ -2929,6 +2950,8 @@
                 <select id="calendarVenueFilterSelect" class="filter-select" onchange="setVenueFilter(this.value)">
                     ${venueOptions.map((item) => `<option value="${escapeHtml(item.id)}" ${activeVenueFilter === item.id ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
                 </select>
+                <label for="calendarTitleFilterInput">Titel enthält</label>
+                <input id="calendarTitleFilterInput" class="filter-select" type="search" value="${escapeHtml(activeTitleFilter)}" placeholder="z. B. Dreiband, NDM, Pokal" oninput="setTitleFilter(this.value)">
                 ${isCalendarAdmin ? `
                     <label for="calendarCreatorFilterSelect">Ersteller</label>
                     <select id="calendarCreatorFilterSelect" class="filter-select" onchange="setCreatorFilter(this.value)">
@@ -3064,7 +3087,7 @@
             if (!grid) return;
             const events = expandEventsForCalendar(getFilteredEvents());
             const seasonMonthKeys = getSeasonMonthKeys(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON);
-            const hideEmptyMonths = activeDisciplineFilter !== "all" || activeTournamentTypeFilter !== "all" || activeVenueFilter !== "all" || activeCreatorFilter !== "all";
+            const hideEmptyMonths = activeDisciplineFilter !== "all" || activeTournamentTypeFilter !== "all" || activeVenueFilter !== "all" || activeCreatorFilter !== "all" || Boolean(activeTitleFilter);
 
             const monthMap = new Map();
             seasonMonthKeys.forEach((monthKey) => {
@@ -3185,15 +3208,23 @@
             renderCalendar();
         }
 
+        function setTitleFilter(value) {
+            activeTitleFilter = String(value || "").trim();
+            localStorage.setItem(CALENDAR_TITLE_FILTER_STORAGE_KEY, activeTitleFilter);
+            renderCalendar();
+        }
+
         function loadSavedFilter() {
             activeDisciplineFilter = "all";
             activeTournamentTypeFilter = "all";
             activeVenueFilter = "all";
             activeCreatorFilter = "all";
+            activeTitleFilter = "";
             localStorage.setItem(CALENDAR_FILTER_STORAGE_KEY, "all");
             localStorage.setItem(CALENDAR_TYPE_FILTER_STORAGE_KEY, "all");
             localStorage.setItem(CALENDAR_VENUE_FILTER_STORAGE_KEY, "all");
             localStorage.setItem(CALENDAR_CREATOR_FILTER_STORAGE_KEY, "all");
+            localStorage.setItem(CALENDAR_TITLE_FILTER_STORAGE_KEY, "");
         }
 
         async function loadCalendarSettings() {
