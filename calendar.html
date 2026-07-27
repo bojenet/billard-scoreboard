@@ -949,6 +949,7 @@
                 <button id="calendarRefreshBtn" class="btn btn-primary" type="button" onclick="refreshCalendar()" style="display:none;">NBV Termine laden</button>
                 <button id="calendarFeedCopyBtn" class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()" style="display:none;">ICS URL kopieren</button>
                 <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer" style="display:none;">ICS abonnieren</a>
+                <button id="calendarExcelExportBtn" class="btn btn-secondary" type="button" onclick="exportFilteredCalendarToExcel()" style="display:none;">Excel Export</button>
                 <button id="calendarBackBtn" class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
             </div>
             <div id="calendarFilters" class="filters"></div>
@@ -2027,6 +2028,123 @@
             const match = String(season || "").trim().match(/^(20\d{2})\/(20\d{2})$/);
             if (!match) return "";
             return `${Number(match[1]) - 1}/${Number(match[2]) - 1}`;
+        }
+
+        function escapeExcelXml(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function getExportSourceLabel(event) {
+            if (event?.source === "manual") return "Manuell";
+            if (event?.source === "planning") return "Planung";
+            return "NBV";
+        }
+
+        function getTournamentTypeLabelForEvent(event) {
+            const title = String(event?.title || "");
+            if (/\bndm\b/i.test(title)) return "NDM";
+            if (/grand\s?prix/i.test(title)) return "Grand Prix";
+            if (/nord\s?cup/i.test(title)) return "NordCup";
+            return "";
+        }
+
+        function getActiveFilterSummary() {
+            const filters = [];
+            if (activeDisciplineFilter !== "all") {
+                filters.push(`Disziplin: ${activeDisciplineFilter === MANUAL_CATEGORY_ID ? MANUAL_CATEGORY_LABEL : (NBV_DISCIPLINES[activeDisciplineFilter] || activeDisciplineFilter)}`);
+            }
+            if (activeTournamentTypeFilter !== "all") {
+                const option = TOURNAMENT_TYPE_OPTIONS.find((item) => item.id === activeTournamentTypeFilter);
+                filters.push(`Turnierart: ${option?.label || activeTournamentTypeFilter}`);
+            }
+            if (activeVenueFilter !== "all") filters.push(`Austragungsort: ${activeVenueFilter}`);
+            if (activeTitleFilter) filters.push(`Titel enthält: ${activeTitleFilter}`);
+            if (activeCreatorFilter !== "all") filters.push(`Ersteller: ${activeCreatorFilter}`);
+            return filters.length ? filters.join(" | ") : "Keine Filter";
+        }
+
+        function buildExcelCell(value, styleId = "") {
+            const style = styleId ? ` ss:StyleID="${styleId}"` : "";
+            return `<Cell${style}><Data ss:Type="String">${escapeExcelXml(value)}</Data></Cell>`;
+        }
+
+        function buildExcelRow(values, styleId = "") {
+            return `<Row>${values.map((value) => buildExcelCell(value, styleId)).join("")}</Row>`;
+        }
+
+        function getCalendarExcelFilename() {
+            const seasonPart = String(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON).replace(/[^\d]+/g, "-").replace(/-$/g, "");
+            const titlePart = activeTitleFilter
+                ? `-${activeTitleFilter.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`
+                : "";
+            return `NBV-Kalender-${seasonPart}${titlePart || ""}.xls`;
+        }
+
+        function exportFilteredCalendarToExcel() {
+            const events = getFilteredEvents();
+            if (!events.length) {
+                showCalendarMessage("Für den aktuellen Filter gibt es keine Termine zum Exportieren.", "error");
+                return;
+            }
+
+            const headers = ["Datum", "Bis", "Uhrzeit", "Titel", "Disziplin", "Turnierart", "Austragungsort", "Quelle", "Notiz", "Link"];
+            const rows = events.map((event) => ([
+                formatInvitationDate(event.date) || event.date || "",
+                isMultiDayEvent(event) ? (formatInvitationDate(event.endDate) || event.endDate || "") : "",
+                event.time || "",
+                event.title || "",
+                event.disciplineLabel || NBV_DISCIPLINES[event.disciplineId] || "",
+                getTournamentTypeLabelForEvent(event),
+                getEventVenueLabel(event),
+                getExportSourceLabel(event),
+                event.note || "",
+                event.link || ""
+            ]));
+
+            const worksheetRows = [
+                buildExcelRow(["NBV Kalender Export"], "Title"),
+                buildExcelRow([`Saison: ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON}`]),
+                buildExcelRow([`Filter: ${getActiveFilterSummary()}`]),
+                buildExcelRow([`Exportiert am: ${new Date().toLocaleString("de-DE")}`]),
+                "<Row></Row>",
+                buildExcelRow(headers, "Header"),
+                ...rows.map((row) => buildExcelRow(row))
+            ].join("");
+
+            const workbookXml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="Title"><Font ss:Bold="1" ss:Size="14"/><Alignment ss:Vertical="Center"/></Style>
+  <Style ss:ID="Header"><Font ss:Bold="1"/><Interior ss:Color="#D5DADF" ss:Pattern="Solid"/></Style>
+ </Styles>
+ <Worksheet ss:Name="Kalender">
+  <Table>
+   <Column ss:Width="90"/><Column ss:Width="90"/><Column ss:Width="70"/><Column ss:Width="260"/><Column ss:Width="170"/>
+   <Column ss:Width="95"/><Column ss:Width="170"/><Column ss:Width="80"/><Column ss:Width="240"/><Column ss:Width="320"/>
+   ${worksheetRows}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+            const blob = new Blob([workbookXml], { type: "application/vnd.ms-excel;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = getCalendarExcelFilename();
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+            showCalendarMessage(`${events.length} Termine wurden als Excel-Datei exportiert.`, "ok");
         }
 
         function updateCalendarFeedUi() {
@@ -3681,9 +3799,11 @@
         function applyPublicViewState() {
             const filters = document.getElementById("calendarFilters");
             const footer = document.getElementById("calendarFooterPanel");
+            const actionsRow = document.getElementById("calendarActions");
             if (!isCalendarAdmin && !isPublicViewEnabled) {
                 if (filters) filters.style.display = "none";
                 if (footer) footer.style.display = "none";
+                if (actionsRow) actionsRow.style.display = "none";
                 const grid = document.getElementById("calendarGrid");
                 if (grid) {
                     grid.innerHTML = '<div class="empty-state">Der Kalender ist noch nicht freigegeben.</div>';
@@ -3691,6 +3811,12 @@
                 return;
             }
             if (filters) filters.style.display = "";
+            if (actionsRow) {
+                const hasVisibleAction = Array.from(actionsRow.children).some((element) => {
+                    return window.getComputedStyle(element).display !== "none";
+                });
+                actionsRow.style.display = hasVisibleAction ? "" : "none";
+            }
             if (footer) footer.style.display = isSystemAdmin ? "" : "none";
         }
 
@@ -3701,6 +3827,7 @@
             const refreshBtn = document.getElementById("calendarRefreshBtn");
             const feedCopyBtn = document.getElementById("calendarFeedCopyBtn");
             const feedLink = document.getElementById("calendarFeedLink");
+            const excelExportBtn = document.getElementById("calendarExcelExportBtn");
             const backBtn = document.getElementById("calendarBackBtn");
             const actionsRow = document.getElementById("calendarActions");
             const settingsBlock = document.getElementById("calendarAdminSettings");
@@ -3718,6 +3845,9 @@
             }
             if (feedLink) {
                 feedLink.style.display = isCalendarAdmin ? "" : "none";
+            }
+            if (excelExportBtn) {
+                excelExportBtn.style.display = "";
             }
             if (backBtn) {
                 backBtn.style.display = isCalendarAdmin ? "" : "none";
