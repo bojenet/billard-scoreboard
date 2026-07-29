@@ -2372,6 +2372,36 @@
             nordcup: ["T0", "T0", "T0", "T3", "T4", "T6", "T9", "T13", "T16", "T18", "T21", "T23"]
         };
 
+        const SPORTORDNUNG_TARGETS = {
+            "small|freie partie|1": { points: 250, innings: 15 },
+            "small|freie partie|2": { points: 200, innings: 15 },
+            "small|freie partie|3": { points: 150, innings: 15 },
+            "small|freie partie|4": { points: 150, innings: 20 },
+            "small|freie partie|5": { points: 100, innings: 20 },
+            "small|freie partie|6": { points: 80, innings: 20 },
+            "small|freie partie|7": { points: 40, innings: 20 },
+            "small|cadre 35/2|1": { points: 200, innings: 15 },
+            "small|cadre 35/2|2": { points: 100, innings: 20 },
+            "small|cadre 52/2|1": { points: 150, innings: 15 },
+            "small|cadre 52/2|2": { points: 80, innings: 20 },
+            "small|einband|1": { points: 100, innings: 20 },
+            "small|einband|2": { points: 50, innings: 25 },
+            "small|dreiband|1": { points: 30, innings: 25 },
+            "small|dreiband|2": { points: 20, innings: 25 },
+            "large|freie partie|1": { points: 300, innings: 15 },
+            "large|freie partie|2": { points: 200, innings: 20 },
+            "large|freie partie|3": { points: 100, innings: 20 },
+            "large|cadre 47/2|1": { points: 200, innings: 15 },
+            "large|cadre 47/2|2": { points: 150, innings: 20 },
+            "large|cadre 71/2|1": { points: 150, innings: 15 },
+            "large|cadre 71/2|2": { points: 40, innings: 20 },
+            "large|einband|1": { points: 100, innings: 20 },
+            "large|einband|2": { points: 75, innings: 25 },
+            "large|dreiband|1": { points: 40, innings: 50 },
+            "large|dreiband|2": { points: 25, innings: 40 },
+            "large|dreiband|3": { points: 20, innings: 40 }
+        };
+
         const SPORTORDNUNG_MODES = {
             T0: {
                 title: "Turnier findet nicht statt",
@@ -2608,6 +2638,57 @@
             return "";
         }
 
+        function normalizeSportordnungText(value) {
+            return String(value || "")
+                .toLowerCase()
+                .replace(/ä/g, "ae")
+                .replace(/ö/g, "oe")
+                .replace(/ü/g, "ue")
+                .replace(/ß/g, "ss");
+        }
+
+        function getSportordnungBoardSize(invitation, disciplineName) {
+            const text = normalizeSportordnungText(getInvitationTextBlob(invitation));
+            if (/grosses billard|grosses|gross|\bmb\b|\(gr\)|\bgr\b/.test(text)) return "large";
+            if (/kleines billard|\(kl\)|\bkb\b/.test(text)) return "small";
+            if (/cadre\s*(47\/2|71\/2)/i.test(disciplineName)) return "large";
+            if (/cadre\s*(35\/2|52\/2)/i.test(disciplineName)) return "small";
+            if (/\bkl\.?\s*(iii|ii|i)\b/.test(text)) return "large";
+            if (/\bkl\.?\s*\d+\b/.test(text)) return "small";
+            return "";
+        }
+
+        function getSportordnungDisciplineName(invitation) {
+            const text = normalizeSportordnungText(getInvitationTextBlob(invitation));
+            if (/freie partie/.test(text)) return "freie partie";
+            if (/cadre\s*35\/2/.test(text)) return "cadre 35/2";
+            if (/cadre\s*47\/2/.test(text)) return "cadre 47/2";
+            if (/cadre\s*52\/2/.test(text)) return "cadre 52/2";
+            if (/cadre\s*71\/2/.test(text)) return "cadre 71/2";
+            if (/einband/.test(text)) return "einband";
+            if (/dreiband/.test(text)) return "dreiband";
+            return "";
+        }
+
+        function getSportordnungTarget(invitation) {
+            const disciplineName = getSportordnungDisciplineName(invitation);
+            const classKey = getInvitationClassKey(invitation);
+            if (!disciplineName || !classKey) return null;
+            let boardSize = getSportordnungBoardSize(invitation, disciplineName);
+            if (!boardSize && /cadre\s*(47\/2|71\/2)/.test(disciplineName)) boardSize = "large";
+            if (!boardSize && /cadre\s*(35\/2|52\/2)/.test(disciplineName)) boardSize = "small";
+            if (!boardSize) return null;
+            const target = SPORTORDNUNG_TARGETS[`${boardSize}|${disciplineName}|${classKey}`];
+            if (!target) return null;
+            return { ...target, disciplineName, classKey, boardSize };
+        }
+
+        function getSportordnungTargetText(invitation) {
+            const target = getSportordnungTarget(invitation);
+            if (!target) return "";
+            return `${target.points} Punkte / ${target.innings} Aufnahmen`;
+        }
+
         function getSportordnungSequence(invitation) {
             const text = getInvitationTextBlob(invitation);
             const classKey = getInvitationClassKey(invitation);
@@ -2721,6 +2802,7 @@
             state.y = drawFieldRows(doc, [
                 ["Modus", [mode.code, mode.title].filter(Boolean).join(" - ")],
                 ["Beschreibung", mode.summary],
+                ["Ausspielziel", getSportordnungTargetText(invitation)],
                 ["Rahmen", mode.details],
                 ["Gruppen", mode.groups],
                 ["Anpassung", mode.adjustment],
@@ -2757,8 +2839,7 @@
                 ["Verantwortlicher", "Landessportwart Karambolage/Kegel"],
                 ["Turnierleitung", "stellt der Ausrichter"],
                 ["Disziplin", invitation?.discipline],
-                ["Startberechtigt", "Alle gemeldeten NBV-Sportler/innen, die in der Billard-Area als aktiv gemeldet sind."],
-                ["Altersklassen", invitation?.category || "offen NBV"]
+                ["Startberechtigt", "Alle gemeldeten NBV-Sportler/innen, die in der Billard-Area als aktiv gemeldet sind."]
             ], state.y);
 
             ensureInvitationPage(doc, invitation, state, 46);
