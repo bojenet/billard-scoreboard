@@ -1155,6 +1155,10 @@
                             <label class="field-title" for="invitationEditorOverrideReason">Begründung bei Abweichung</label>
                             <input id="invitationEditorOverrideReason" type="text" placeholder="z. B. Entscheidung Turnierleitung" oninput="updateInvitationDraftField('overrideReason', this.value)">
                         </div>
+                        <div>
+                            <label class="field-title" for="invitationEditorPlayingTarget">Ausspielziel</label>
+                            <input id="invitationEditorPlayingTarget" type="text" placeholder="z. B. 20 Punkte / 25 Aufnahmen" oninput="updateInvitationDraftField('playingTarget', this.value)">
+                        </div>
                     </div>
                     <div id="invitationEditorModeInfo" class="modal-message"></div>
                 </div>
@@ -2670,20 +2674,64 @@
             return "";
         }
 
+        function getSelectedSportordnungModeCode(invitation) {
+            return invitation?.selectedModeCode || invitation?.modeCode || getSportordnungModeCode(invitation);
+        }
+
+        function getSportordnungTargetSequenceName(boardSize, disciplineName, classKey) {
+            if (boardSize === "large" && disciplineName === "dreiband") {
+                if (classKey === "1") return "dreibandMbKl1";
+                if (classKey === "2") return "dreibandMbKl2";
+                if (classKey === "3") return "dreibandMbKl3";
+            }
+            if (
+                (boardSize === "small" && disciplineName === "freie partie" && /^(6|7)$/.test(classKey))
+                || (boardSize === "small" && /^(cadre 35\/2|cadre 52\/2|einband|dreiband)$/.test(disciplineName) && classKey === "2")
+            ) {
+                return "reduced";
+            }
+            return "standard";
+        }
+
+        function getSportordnungTargetCandidates(invitation, disciplineName, boardSize, classKey) {
+            const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
+            const count = participants.length;
+            const selectedModeCode = getSelectedSportordnungModeCode(invitation);
+            return Object.entries(SPORTORDNUNG_TARGETS)
+                .map(([key, target]) => {
+                    const [candidateBoard, candidateDiscipline, candidateClass] = key.split("|");
+                    const sequenceName = getSportordnungTargetSequenceName(candidateBoard, candidateDiscipline, candidateClass);
+                    const sequence = SPORTORDNUNG_MODE_SEQUENCES[sequenceName] || [];
+                    return {
+                        ...target,
+                        boardSize: candidateBoard,
+                        disciplineName: candidateDiscipline,
+                        classKey: candidateClass,
+                        modeCode: count ? sequence[count - 1] : ""
+                    };
+                })
+                .filter((candidate) => candidate.disciplineName === disciplineName)
+                .filter((candidate) => !boardSize || candidate.boardSize === boardSize)
+                .filter((candidate) => !classKey || candidate.classKey === classKey)
+                .filter((candidate) => classKey || !selectedModeCode || candidate.modeCode === selectedModeCode);
+        }
+
         function getSportordnungTarget(invitation) {
+            if (/grand\s?prix|petit\s?prix|nord\s?cup/i.test(getInvitationTextBlob(invitation))) return null;
             const disciplineName = getSportordnungDisciplineName(invitation);
             const classKey = getInvitationClassKey(invitation);
-            if (!disciplineName || !classKey) return null;
+            if (!disciplineName) return null;
             let boardSize = getSportordnungBoardSize(invitation, disciplineName);
             if (!boardSize && /cadre\s*(47\/2|71\/2)/.test(disciplineName)) boardSize = "large";
             if (!boardSize && /cadre\s*(35\/2|52\/2)/.test(disciplineName)) boardSize = "small";
-            if (!boardSize) return null;
-            const target = SPORTORDNUNG_TARGETS[`${boardSize}|${disciplineName}|${classKey}`];
-            if (!target) return null;
-            return { ...target, disciplineName, classKey, boardSize };
+            const candidates = getSportordnungTargetCandidates(invitation, disciplineName, boardSize, classKey);
+            if (candidates.length !== 1) return null;
+            return candidates[0];
         }
 
         function getSportordnungTargetText(invitation) {
+            const manualTarget = getPdfText(invitation?.playingTarget || "");
+            if (manualTarget) return manualTarget;
             const target = getSportordnungTarget(invitation);
             if (!target) return "";
             return `${target.points} Punkte / ${target.innings} Aufnahmen`;
@@ -2889,6 +2937,10 @@
             if (!currentInvitationDraft.selectedModeCode) {
                 currentInvitationDraft.selectedModeCode = getSportordnungModeCode(currentInvitationDraft);
             }
+            if (!currentInvitationDraft.playingTarget) {
+                currentInvitationDraft.playingTarget = getSportordnungTargetText(currentInvitationDraft);
+                currentInvitationDraft.playingTargetAuto = currentInvitationDraft.playingTarget || "";
+            }
             renderInvitationEditor();
             const modal = document.getElementById("invitationEditorModal");
             if (modal) modal.classList.add("open");
@@ -2908,6 +2960,9 @@
         function updateInvitationDraftField(field, value) {
             if (!currentInvitationDraft) return;
             currentInvitationDraft[field] = value;
+            if (field === "playingTarget") {
+                currentInvitationDraft.playingTargetAuto = "";
+            }
         }
 
         function getSortedModeCodes() {
@@ -2988,6 +3043,7 @@
                 invitationEditorStartTime: currentInvitationDraft.startTime || "",
                 invitationEditorLocationName: currentInvitationDraft.locationName || "",
                 invitationEditorRegistrationDeadline: currentInvitationDraft.registrationDeadline || "",
+                invitationEditorPlayingTarget: currentInvitationDraft.playingTarget || getSportordnungTargetText(currentInvitationDraft),
                 invitationEditorOverrideReason: currentInvitationDraft.overrideReason || "",
                 invitationEditorExtraNotes: currentInvitationDraft.extraNotes || ""
             };
@@ -3003,6 +3059,13 @@
         function handleInvitationModeChange(modeCode) {
             if (!currentInvitationDraft) return;
             currentInvitationDraft.selectedModeCode = modeCode;
+            const nextAutoTarget = getSportordnungTargetText({ ...currentInvitationDraft, playingTarget: "" });
+            if (!currentInvitationDraft.playingTarget || currentInvitationDraft.playingTarget === currentInvitationDraft.playingTargetAuto) {
+                currentInvitationDraft.playingTarget = nextAutoTarget;
+                currentInvitationDraft.playingTargetAuto = nextAutoTarget;
+                const targetInput = document.getElementById("invitationEditorPlayingTarget");
+                if (targetInput) targetInput.value = nextAutoTarget;
+            }
             renderInvitationModeInfo();
         }
 
