@@ -2257,16 +2257,11 @@
         }
 
         function drawInvitationFooter(doc, invitation) {
-            const source = getPdfText(invitation?.sourceUrl || "");
             doc.setFont("helvetica", "normal");
             doc.setFontSize(8);
             doc.setTextColor(83, 97, 112);
             doc.text("-Verbandsinternes Dokument-", 18, 284);
             doc.text("Norddeutscher Billard-Verband e.V.", 192, 284, { align: "right" });
-            if (source) {
-                const shortSource = source.length > 110 ? `${source.slice(0, 107)}...` : source;
-                doc.text(`Quelle: ${shortSource}`, 18, 290);
-            }
         }
 
         function drawSectionTitle(doc, title, y) {
