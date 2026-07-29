@@ -2851,11 +2851,8 @@
                 ["Modus", [mode.code, mode.title].filter(Boolean).join(" - ")],
                 ["Beschreibung", mode.summary],
                 ["Ausspielziel", getSportordnungTargetText(invitation)],
-                ["Rahmen", mode.details],
-                ["Gruppen", mode.groups],
                 ["Anpassung", mode.adjustment],
-                ["Abweichung", invitation?.overrideReason],
-                ["Wertung", mode.scoring]
+                ["Abweichung", invitation?.overrideReason]
             ], state.y);
             drawModeTable(doc, invitation, state, mode);
         }
