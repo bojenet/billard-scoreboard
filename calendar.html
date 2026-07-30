@@ -2295,12 +2295,12 @@
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(202, 209, 217);
             doc.setLineWidth(0.25);
-            doc.rect(18, y, 174, 11, "FD");
+            doc.rect(18, y, 174, 9, "FD");
             doc.setTextColor(0, 96, 32);
             doc.setFont("helvetica", "normal");
-            doc.setFontSize(13);
-            doc.text(title, 24, y + 7.2);
-            return y + 17;
+            doc.setFontSize(12);
+            doc.text(title, 24, y + 6.2);
+            return y + 13;
         }
 
         function drawWrappedText(doc, text, x, y, width, lineHeight = 5, style = "normal", size = 11) {
@@ -2320,16 +2320,16 @@
             const valueX = 78;
             const labelDividerX = 74;
             const valueWidth = 108;
-            const topY = y - 5;
-            let currentY = y - 5;
+            const topY = y - 3;
+            let currentY = y - 3;
             const drawnRows = [];
             rows.forEach(([label, value]) => {
                 const text = Array.isArray(value) ? value.filter(Boolean).join("\n") : getPdfText(value);
                 if (!text) return;
                 doc.setFont("helvetica", "normal");
-                doc.setFontSize(10.5);
+                doc.setFontSize(9.8);
                 const lines = String(text).split("\n").flatMap((line) => doc.splitTextToSize(getPdfText(line), valueWidth));
-                const height = Math.max(14, lines.length * 5.2 + 8);
+                const height = Math.max(10.8, lines.length * 4.5 + 5.4);
                 drawnRows.push({ label, lines, y: currentY, height });
                 currentY += height;
             });
@@ -2345,12 +2345,12 @@
                 }
                 doc.setTextColor(20, 29, 38);
                 doc.setFont("helvetica", "bold");
-                doc.setFontSize(10.5);
-                doc.text(`${row.label}:`, labelX, row.y + 8);
+                doc.setFontSize(9.8);
+                doc.text(`${row.label}:`, labelX, row.y + 6.5);
                 doc.setFont("helvetica", "normal");
-                doc.text(row.lines, valueX, row.y + 8);
+                doc.text(row.lines, valueX, row.y + 6.5);
             });
-            return currentY + 6;
+            return currentY + 3.5;
         }
 
         function ensureInvitationPage(doc, invitation, state, neededHeight) {
@@ -3110,15 +3110,15 @@
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(202, 209, 217);
             doc.setLineWidth(0.25);
-            doc.rect(18, 52, 174, 24, "FD");
+            doc.rect(18, 50, 174, 21, "FD");
             doc.setTextColor(0, 96, 32);
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(15);
-            doc.text("Einladung", 105, 62, { align: "center" });
+            doc.setFontSize(14);
+            doc.text("Einladung", 105, 59, { align: "center" });
             const titleLines = doc.splitTextToSize(getPdfText(invitation?.title || "NBV Turnier"), 152);
-            doc.setFontSize(titleLines.length > 1 ? 11.5 : 13);
-            doc.text(titleLines, 105, 70, { align: "center" });
-            state.y = 88;
+            doc.setFontSize(titleLines.length > 1 ? 10.8 : 12.2);
+            doc.text(titleLines, 105, 66.5, { align: "center" });
+            state.y = 81;
 
             state.y = drawSectionTitle(doc, "Turnierinformationen", state.y);
             state.y = drawFieldRows(doc, [
@@ -3130,7 +3130,7 @@
             ], state.y);
 
             ensureInvitationPage(doc, invitation, state, 46);
-            state.y += 4;
+            state.y += 1.5;
             state.y = drawSectionTitle(doc, "Termine / Uhrzeit", state.y);
             state.y = drawFieldRows(doc, [
                 ["Termin", formatInvitationDate(invitation?.date)],
@@ -3140,7 +3140,7 @@
             ], state.y);
 
             ensureInvitationPage(doc, invitation, state, 42);
-            state.y += 4;
+            state.y += 1.5;
             state.y = drawSectionTitle(doc, "Spielort / Dresscode", state.y);
             state.y = drawFieldRows(doc, [
                 ["Spielort", [invitation?.locationName, ...(Array.isArray(invitation?.locationAddress) ? invitation.locationAddress : [])]],
