@@ -2250,36 +2250,57 @@
             return String(value || "").replace(/\s+/g, " ").trim();
         }
 
+        function formatPdfStandDate() {
+            return new Intl.DateTimeFormat("de-DE", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric"
+            }).format(new Date());
+        }
+
         function drawInvitationHeader(doc, pageNumber) {
-            doc.setTextColor(32, 43, 54);
+            doc.setTextColor(0, 96, 32);
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(9);
-            doc.text("NBV", 18, 17.8);
+            doc.setFontSize(22);
+            doc.text("NBV", 18, 25);
+
+            doc.setDrawColor(148, 157, 166);
+            doc.setLineWidth(0.4);
+            doc.line(45, 16.5, 45, 27.5);
+
+            doc.setTextColor(20, 29, 38);
             doc.setFont("helvetica", "normal");
-            doc.text("Turniereinladung Karambolage/Kegel", 18, 22.2);
-            doc.setFontSize(8);
-            doc.text(`Seite ${pageNumber}`, 18, 36);
-            doc.setDrawColor(162, 170, 180);
-            doc.setLineWidth(1.2);
+            doc.setFontSize(10.5);
+            doc.text("Turniereinladung", 51, 20.4);
+            doc.text("Karambolage/Kegel", 51, 27);
+
+            doc.setDrawColor(0, 96, 32);
+            doc.setLineWidth(0.45);
             doc.line(18, 38, 192, 38);
         }
 
         function drawInvitationFooter(doc, invitation) {
+            doc.setDrawColor(148, 157, 166);
+            doc.setLineWidth(0.35);
+            doc.line(18, 270, 192, 270);
             doc.setFont("helvetica", "normal");
-            doc.setFontSize(8);
-            doc.setTextColor(83, 97, 112);
-            doc.text("-Verbandsinternes Dokument-", 18, 284);
-            doc.text("Norddeutscher Billard-Verband e.V.", 192, 284, { align: "right" });
+            doc.setFontSize(7.5);
+            doc.setTextColor(32, 43, 54);
+            doc.text("Norddeutscher Billard-Verband e.V. (NBV)", 18, 278);
+            doc.text("www.nbv-billard.de", 105, 278, { align: "center" });
+            doc.text(`Stand: ${formatPdfStandDate()}`, 192, 278, { align: "right" });
         }
 
         function drawSectionTitle(doc, title, y) {
-            doc.setFillColor(213, 218, 223);
-            doc.rect(18, y, 174, 8, "F");
-            doc.setTextColor(43, 132, 55);
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(14);
-            doc.text(title, 22, y + 5.8);
-            return y + 14;
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(202, 209, 217);
+            doc.setLineWidth(0.25);
+            doc.rect(18, y, 174, 11, "FD");
+            doc.setTextColor(0, 96, 32);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(13);
+            doc.text(title, 24, y + 7.2);
+            return y + 17;
         }
 
         function drawWrappedText(doc, text, x, y, width, lineHeight = 5, style = "normal", size = 11) {
@@ -2293,25 +2314,47 @@
         }
 
         function drawFieldRows(doc, rows, y) {
+            const tableX = 18;
+            const tableWidth = 174;
             const labelX = 24;
-            const valueX = 66;
-            const valueWidth = 126;
+            const valueX = 78;
+            const labelDividerX = 74;
+            const valueWidth = 108;
+            const topY = y - 5;
+            let currentY = y - 5;
+            const drawnRows = [];
             rows.forEach(([label, value]) => {
                 const text = Array.isArray(value) ? value.filter(Boolean).join("\n") : getPdfText(value);
                 if (!text) return;
-                doc.setTextColor(20, 29, 38);
                 doc.setFont("helvetica", "normal");
-                doc.setFontSize(11);
-                doc.text(`${label}:`, labelX, y);
+                doc.setFontSize(10.5);
                 const lines = String(text).split("\n").flatMap((line) => doc.splitTextToSize(getPdfText(line), valueWidth));
-                doc.text(lines, valueX, y);
-                y += Math.max(7, lines.length * 5.2 + 2);
+                const height = Math.max(14, lines.length * 5.2 + 8);
+                drawnRows.push({ label, lines, y: currentY, height });
+                currentY += height;
             });
-            return y;
+            if (!drawnRows.length) return y;
+
+            doc.setDrawColor(216, 222, 229);
+            doc.setLineWidth(0.25);
+            doc.line(labelDividerX, topY, labelDividerX, currentY);
+
+            drawnRows.forEach((row, index) => {
+                if (index > 0) {
+                    doc.line(tableX, row.y, tableX + tableWidth, row.y);
+                }
+                doc.setTextColor(20, 29, 38);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(10.5);
+                doc.text(`${row.label}:`, labelX, row.y + 8);
+                doc.setFont("helvetica", "normal");
+                doc.text(row.lines, valueX, row.y + 8);
+            });
+            return currentY + 6;
         }
 
         function ensureInvitationPage(doc, invitation, state, neededHeight) {
-            if (state.y + neededHeight <= 274) return;
+            if (state.y + neededHeight <= 264) return;
             drawInvitationFooter(doc, invitation);
             doc.addPage();
             state.pageNumber += 1;
@@ -3064,16 +3107,18 @@
             const state = { pageNumber: 1, y: 48 };
             drawInvitationHeader(doc, state.pageNumber);
 
-            doc.setFillColor(224, 227, 229);
-            doc.rect(24, 46, 168, 36, "F");
-            doc.setTextColor(43, 132, 55);
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(202, 209, 217);
+            doc.setLineWidth(0.25);
+            doc.rect(18, 52, 174, 24, "FD");
+            doc.setTextColor(0, 96, 32);
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(26);
-            doc.text("Einladung", 117, 58, { align: "center" });
+            doc.setFontSize(15);
+            doc.text("Einladung", 105, 62, { align: "center" });
             const titleLines = doc.splitTextToSize(getPdfText(invitation?.title || "NBV Turnier"), 152);
-            doc.setFontSize(titleLines.length > 1 ? 20 : 23);
-            doc.text(titleLines, 117, 69, { align: "center" });
-            state.y = 92;
+            doc.setFontSize(titleLines.length > 1 ? 11.5 : 13);
+            doc.text(titleLines, 105, 70, { align: "center" });
+            state.y = 88;
 
             state.y = drawSectionTitle(doc, "Turnierinformationen", state.y);
             state.y = drawFieldRows(doc, [
