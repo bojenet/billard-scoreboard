@@ -1156,8 +1156,12 @@
                             <input id="invitationEditorOverrideReason" type="text" placeholder="z. B. Entscheidung Turnierleitung" oninput="updateInvitationDraftField('overrideReason', this.value)">
                         </div>
                         <div>
-                            <label class="field-title" for="invitationEditorPlayingTarget">Ausspielziel</label>
-                            <input id="invitationEditorPlayingTarget" type="text" placeholder="z. B. 20 Punkte / 25 Aufnahmen" required oninput="updateInvitationDraftField('playingTarget', this.value)">
+                            <label class="field-title" for="invitationEditorPlayingTargetPoints">Punkte</label>
+                            <input id="invitationEditorPlayingTargetPoints" type="number" inputmode="numeric" min="1" placeholder="z. B. 20" required oninput="updateInvitationDraftField('playingTargetPoints', this.value)">
+                        </div>
+                        <div>
+                            <label class="field-title" for="invitationEditorPlayingTargetInnings">Aufnahmen</label>
+                            <input id="invitationEditorPlayingTargetInnings" type="number" inputmode="numeric" min="1" placeholder="z. B. 25" required oninput="updateInvitationDraftField('playingTargetInnings', this.value)">
                         </div>
                     </div>
                     <div id="invitationEditorModeInfo" class="modal-message"></div>
@@ -2730,11 +2734,28 @@
         }
 
         function getSportordnungTargetText(invitation) {
-            const manualTarget = getPdfText(invitation?.playingTarget || "");
-            if (manualTarget) return manualTarget;
-            const target = getSportordnungTarget(invitation);
+            const target = getInvitationPlayingTarget(invitation);
             if (!target) return "";
             return `${target.points} Punkte / ${target.innings} Aufnahmen`;
+        }
+
+        function getInvitationPlayingTarget(invitation) {
+            const points = String(invitation?.playingTargetPoints || "").trim();
+            const innings = String(invitation?.playingTargetInnings || "").trim();
+            if (points && innings) return { points, innings };
+
+            const legacyTarget = getPdfText(invitation?.playingTarget || "");
+            const legacyMatch = legacyTarget.match(/(\d+)\D+(\d+)/);
+            if (legacyMatch) {
+                return { points: legacyMatch[1], innings: legacyMatch[2] };
+            }
+
+            const sportordnungTarget = getSportordnungTarget(invitation);
+            if (!sportordnungTarget) return null;
+            return {
+                points: String(sportordnungTarget.points),
+                innings: String(sportordnungTarget.innings)
+            };
         }
 
         function getSportordnungSequence(invitation) {
@@ -2929,14 +2950,27 @@
             return JSON.parse(JSON.stringify(invitation || {}));
         }
 
+        function applyInvitationPlayingTarget(target) {
+            if (!currentInvitationDraft) return;
+            currentInvitationDraft.playingTargetPoints = target?.points || "";
+            currentInvitationDraft.playingTargetInnings = target?.innings || "";
+            currentInvitationDraft.playingTargetAuto = target ? `${target.points}/${target.innings}` : "";
+        }
+
+        function getCurrentInvitationPlayingTargetKey() {
+            if (!currentInvitationDraft) return "";
+            const points = String(currentInvitationDraft.playingTargetPoints || "").trim();
+            const innings = String(currentInvitationDraft.playingTargetInnings || "").trim();
+            return points || innings ? `${points}/${innings}` : "";
+        }
+
         function openInvitationEditorModal(invitation) {
             currentInvitationDraft = cloneInvitationDraft(invitation);
             if (!currentInvitationDraft.selectedModeCode) {
                 currentInvitationDraft.selectedModeCode = getSportordnungModeCode(currentInvitationDraft);
             }
-            if (!currentInvitationDraft.playingTarget) {
-                currentInvitationDraft.playingTarget = getSportordnungTargetText(currentInvitationDraft);
-                currentInvitationDraft.playingTargetAuto = currentInvitationDraft.playingTarget || "";
+            if (!currentInvitationDraft.playingTargetPoints || !currentInvitationDraft.playingTargetInnings) {
+                applyInvitationPlayingTarget(getInvitationPlayingTarget(currentInvitationDraft));
             }
             renderInvitationEditor();
             const modal = document.getElementById("invitationEditorModal");
@@ -2957,7 +2991,7 @@
         function updateInvitationDraftField(field, value) {
             if (!currentInvitationDraft) return;
             currentInvitationDraft[field] = value;
-            if (field === "playingTarget") {
+            if (field === "playingTargetPoints" || field === "playingTargetInnings") {
                 currentInvitationDraft.playingTargetAuto = "";
             }
         }
@@ -3040,7 +3074,8 @@
                 invitationEditorStartTime: currentInvitationDraft.startTime || "",
                 invitationEditorLocationName: currentInvitationDraft.locationName || "",
                 invitationEditorRegistrationDeadline: currentInvitationDraft.registrationDeadline || "",
-                invitationEditorPlayingTarget: currentInvitationDraft.playingTarget || getSportordnungTargetText(currentInvitationDraft),
+                invitationEditorPlayingTargetPoints: currentInvitationDraft.playingTargetPoints || "",
+                invitationEditorPlayingTargetInnings: currentInvitationDraft.playingTargetInnings || "",
                 invitationEditorOverrideReason: currentInvitationDraft.overrideReason || "",
                 invitationEditorExtraNotes: currentInvitationDraft.extraNotes || ""
             };
@@ -3056,12 +3091,18 @@
         function handleInvitationModeChange(modeCode) {
             if (!currentInvitationDraft) return;
             currentInvitationDraft.selectedModeCode = modeCode;
-            const nextAutoTarget = getSportordnungTargetText({ ...currentInvitationDraft, playingTarget: "" });
-            if (!currentInvitationDraft.playingTarget || currentInvitationDraft.playingTarget === currentInvitationDraft.playingTargetAuto) {
-                currentInvitationDraft.playingTarget = nextAutoTarget;
-                currentInvitationDraft.playingTargetAuto = nextAutoTarget;
-                const targetInput = document.getElementById("invitationEditorPlayingTarget");
-                if (targetInput) targetInput.value = nextAutoTarget;
+            const nextAutoTarget = getInvitationPlayingTarget({
+                ...currentInvitationDraft,
+                playingTarget: "",
+                playingTargetPoints: "",
+                playingTargetInnings: ""
+            });
+            if (!getCurrentInvitationPlayingTargetKey() || getCurrentInvitationPlayingTargetKey() === currentInvitationDraft.playingTargetAuto) {
+                applyInvitationPlayingTarget(nextAutoTarget);
+                const pointsInput = document.getElementById("invitationEditorPlayingTargetPoints");
+                const inningsInput = document.getElementById("invitationEditorPlayingTargetInnings");
+                if (pointsInput) pointsInput.value = currentInvitationDraft.playingTargetPoints || "";
+                if (inningsInput) inningsInput.value = currentInvitationDraft.playingTargetInnings || "";
             }
             renderInvitationModeInfo();
         }
@@ -3120,10 +3161,11 @@
             if (!currentInvitationDraft) return;
             const selected = currentInvitationDraft.selectedModeCode || getSportordnungModeCode(currentInvitationDraft);
             const suggested = getSportordnungModeCode(currentInvitationDraft);
-            const playingTarget = String(currentInvitationDraft.playingTarget || "").trim();
-            if (!playingTarget) {
-                setModalMessage("invitationEditorMessage", "Bitte ein Ausspielziel eintragen, bevor die PDF erstellt wird.", "error");
-                const targetInput = document.getElementById("invitationEditorPlayingTarget");
+            const targetPoints = String(currentInvitationDraft.playingTargetPoints || "").trim();
+            const targetInnings = String(currentInvitationDraft.playingTargetInnings || "").trim();
+            if (!targetPoints || !targetInnings) {
+                setModalMessage("invitationEditorMessage", "Bitte Punkte und Aufnahmen eintragen, bevor die PDF erstellt wird.", "error");
+                const targetInput = document.getElementById(!targetPoints ? "invitationEditorPlayingTargetPoints" : "invitationEditorPlayingTargetInnings");
                 if (targetInput) targetInput.focus();
                 return;
             }
