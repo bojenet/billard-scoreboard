@@ -1157,7 +1157,7 @@
                         </div>
                         <div>
                             <label class="field-title" for="invitationEditorPlayingTarget">Ausspielziel</label>
-                            <input id="invitationEditorPlayingTarget" type="text" placeholder="z. B. 20 Punkte / 25 Aufnahmen" oninput="updateInvitationDraftField('playingTarget', this.value)">
+                            <input id="invitationEditorPlayingTarget" type="text" placeholder="z. B. 20 Punkte / 25 Aufnahmen" required oninput="updateInvitationDraftField('playingTarget', this.value)">
                         </div>
                     </div>
                     <div id="invitationEditorModeInfo" class="modal-message"></div>
@@ -3120,6 +3120,13 @@
             if (!currentInvitationDraft) return;
             const selected = currentInvitationDraft.selectedModeCode || getSportordnungModeCode(currentInvitationDraft);
             const suggested = getSportordnungModeCode(currentInvitationDraft);
+            const playingTarget = String(currentInvitationDraft.playingTarget || "").trim();
+            if (!playingTarget) {
+                setModalMessage("invitationEditorMessage", "Bitte ein Ausspielziel eintragen, bevor die PDF erstellt wird.", "error");
+                const targetInput = document.getElementById("invitationEditorPlayingTarget");
+                if (targetInput) targetInput.focus();
+                return;
+            }
             if (selected !== suggested && !String(currentInvitationDraft.overrideReason || "").trim()) {
                 setModalMessage("invitationEditorMessage", "Bitte eine Begründung für die Modusabweichung eintragen.", "error");
                 return;
