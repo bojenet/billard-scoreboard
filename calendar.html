@@ -2872,7 +2872,7 @@
                 ["Modus", [mode.code, mode.title].filter(Boolean).join(" - ")],
                 ["Beschreibung", mode.summary],
                 ["Ausspielziel", getSportordnungTargetText(invitation)],
-                ["Anpassung", mode.adjustment],
+                ["Zusatzhinweise", invitation?.extraNotes],
                 ["Abweichung", invitation?.overrideReason]
             ], state.y);
             drawModeTable(doc, invitation, state, mode);
@@ -2935,7 +2935,6 @@
             state.y = drawFieldRows(doc, [
                 ["Regeln", "Es gelten die Spielregeln und Spielregularien der DBU und die Bestimmungen der STO-BTK des NBV."],
                 ["Doping", "Die Teilnehmer dieses Turniers erkennen mit ihrer Meldung die Richtlinien der NADA inklusive der Durchführungsbestimmungen für Dopingkontrollen in der aktuellen Fassung an."],
-                ["Hinweis", invitation?.extraNotes],
                 ["Haftung", "Der Veranstalter übernimmt keine Haftung für Sach- und Personenschäden sowie Entwendung von Wertsachen im Zusammenhang mit der Meisterschaft."],
                 ["Vorbehalte", "Die Einladung steht unter dem Vorbehalt von kurzfristigen Änderungen durch den Landessportwart bzw. die Turnierleitung gemäß STO-BTK."]
             ], state.y);
