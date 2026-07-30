@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</title>
+    <title>Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel</title>
     <style>
         :root {
             --bg: #f3f1ea;
@@ -939,7 +939,7 @@
     </style>
 </head>
 <body class="calendar-loading">
-    <div id="calendarHeader" class="header">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison 2025/2026</div>
+    <div id="calendarHeader" class="header">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel</div>
 
     <div class="page">
         <div class="panel">
@@ -999,7 +999,7 @@
                     <div class="admin-settings-row">
                         <div>
                             <label class="field-title" for="calendarImportSeasonInput">NBV Saison übernehmen</label>
-                            <input id="calendarImportSeasonInput" type="text" inputmode="numeric" placeholder="2025/2026">
+                            <input id="calendarImportSeasonInput" type="text" inputmode="numeric" placeholder="2026/2027">
                         </div>
                         <button class="btn btn-secondary" type="button" onclick="importNbvSeasonToPlanning()">Als Planung übernehmen</button>
                     </div>
@@ -1202,7 +1202,7 @@
         const CALENDAR_CREATOR_FILTER_STORAGE_KEY = "standalone_calendar_creator_filter_v1";
         const CALENDAR_TITLE_FILTER_STORAGE_KEY = "standalone_calendar_title_filter_v1";
         const CALENDAR_SETTINGS_KEY = "nbv_public_calendar";
-        const DEFAULT_NBV_CALENDAR_SEASON = "2025/2026";
+        const DEFAULT_NBV_CALENDAR_SEASON = getDefaultNbvCalendarSeason();
         const DEFAULT_CALENDAR_HEADER_PREFIX = "Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison ";
         const PUBLIC_SUPABASE_URL = "https://kstqhcaazuuxchqtnyfc.supabase.co";
         const MANUAL_CATEGORY_ID = "other";
@@ -1277,6 +1277,13 @@
 
         function normalizeSeasonText(value) {
             return String(value || "").trim();
+        }
+
+        function getDefaultNbvCalendarSeason(referenceDate = new Date()) {
+            const year = referenceDate.getFullYear();
+            const month = referenceDate.getMonth() + 1;
+            const startYear = month >= 7 ? year : year - 1;
+            return `${startYear}/${startYear + 1}`;
         }
 
         function isValidSeasonText(value) {
@@ -4304,6 +4311,7 @@
 
         async function initPage() {
             try {
+                updateCalendarSeasonUi();
                 currentUser = await getCurrentUser();
                 isSystemAdmin = currentUser ? await hasAdminAccess(currentUser) : false;
                 calendarAccessMode = currentUser ? await getCalendarAccess(currentUser) : "hidden";
