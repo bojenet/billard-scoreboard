@@ -71,6 +71,18 @@ function formatGermanDate(value: string) {
   }).format(date);
 }
 
+function formatShortGermanDate(value: string) {
+  if (!value) return "-";
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("de-DE", {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
 function bytesToBase64(bytes: Uint8Array) {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -108,7 +120,7 @@ async function buildInvitationPdf(reminder: ReminderRow) {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const page = pdf.addPage([595, 842]);
+  let page = pdf.addPage([595, 842]);
   const green = rgb(0, 0.38, 0.13);
   const text = rgb(0.08, 0.1, 0.14);
   const muted = rgb(0.35, 0.4, 0.46);
@@ -123,6 +135,22 @@ async function buildInvitationPdf(reminder: ReminderRow) {
       font: options.isBold ? bold : font,
       color: options.color || text,
     });
+  };
+
+  const drawFooter = () => {
+    page.drawLine({ start: { x: 48, y: 62 }, end: { x: 547, y: 62 }, thickness: 0.8, color: muted });
+    drawText("Norddeutscher Billard-Verband e.V. (NBV)", 48, 42, 8, { color: muted });
+    drawText("www.nbv-billard.de", 254, 42, 8, { color: muted });
+    drawText(`Stand: ${formatGermanDate(todayIso()).replace(/^\S+,\s*/, "")}`, 465, 42, 8, { color: muted });
+  };
+
+  const drawDocumentHeader = (pageNumber: number) => {
+    drawText("NBV", 48, 770, 28, { isBold: true, color: green });
+    page.drawLine({ start: { x: 112, y: 762 }, end: { x: 112, y: 792 }, thickness: 1, color: muted });
+    drawText("Turnierausschreibung", 130, 786, 13);
+    drawText("Karambolage/Kegel", 130, 767, 13);
+    drawText(`Seite ${pageNumber}`, 500, 786, 10, { color: muted });
+    page.drawLine({ start: { x: 48, y: 738 }, end: { x: 547, y: 738 }, thickness: 1.2, color: green });
   };
 
   const wrap = (value: string, maxChars: number) => {
@@ -142,47 +170,91 @@ async function buildInvitationPdf(reminder: ReminderRow) {
     return lines.length ? lines : [""];
   };
 
-  drawText("NBV", 48, 770, 28, { isBold: true, color: green });
-  page.drawLine({ start: { x: 112, y: 762 }, end: { x: 112, y: 792 }, thickness: 1, color: muted });
-  drawText("Turniereinladung", 130, 786, 13);
-  drawText("Karambolage/Kegel", 130, 767, 13);
-  page.drawLine({ start: { x: 48, y: 738 }, end: { x: 547, y: 738 }, thickness: 1.2, color: green });
+  const drawSection = (heading: string, startY: number) => {
+    page.drawRectangle({ x: 48, y: startY - 4, width: 499, height: 28, color: soft, borderColor: line, borderWidth: 0.7 });
+    drawText(heading, 64, startY + 5, 14, { isBold: true, color: green });
+    return startY - 38;
+  };
+
+  const drawRows = (rows: string[][], startY: number) => {
+    let currentY = startY;
+    rows.forEach(([label, value]) => {
+      const lines = wrap(value, label === "Details" ? 62 : 58).slice(0, 4);
+      const rowHeight = Math.max(27, lines.length * 13 + 9);
+      page.drawLine({ start: { x: 48, y: currentY + 11 }, end: { x: 547, y: currentY + 11 }, thickness: 0.5, color: line });
+      page.drawLine({ start: { x: 178, y: currentY + 11 }, end: { x: 178, y: currentY - rowHeight + 16 }, thickness: 0.5, color: line });
+      drawText(`${label}:`, 64, currentY, 10.5, { isBold: true });
+      lines.forEach((lineText, index) => drawText(lineText, 194, currentY - index * 13, 10.5));
+      currentY -= rowHeight;
+    });
+    return currentY;
+  };
+
+  drawDocumentHeader(1);
 
   page.drawRectangle({ x: 48, y: 660, width: 499, height: 54, color: soft, borderColor: line, borderWidth: 1 });
-  drawText("Ausschreibung / Erinnerung", 190, 690, 18, { isBold: true, color: green });
+  drawText("Ausschreibung", 238, 690, 18, { isBold: true, color: green });
   const titleLines = wrap(cleanText(reminder.title), 50);
   titleLines.slice(0, 2).forEach((lineText, index) => drawText(lineText, 72, 666 - index * 15, 14, { isBold: true, color: green }));
 
-  const rows = [
-    ["Turnier", reminder.title],
-    ["Termin", formatGermanDate(reminder.event_date)],
-    ["Erinnerung", `${reminder.days_before} Tage vor Turniertermin`],
-    ["Ort", reminder.location || "-"],
-    ["Details", reminder.link || "-"],
-  ];
+  let y = drawSection("Turnierinformationen", 606);
+  y = drawRows([
+    ["Veranstalter", "Norddeutscher Billard Verband e.V. (NBV)"],
+    ["Verantwortlicher", "Landessportwart Karambolage/Kegel"],
+    ["Turnierleitung", "Ausrichtender Verein"],
+    ["Startberechtigt", "Alle NBV-Sportler/innen, die in der NBV-ClubCloud als aktiv gemeldet sind."],
+  ], y);
 
-  let y = 610;
-  rows.forEach(([label, value]) => {
-    page.drawLine({ start: { x: 48, y: y + 11 }, end: { x: 547, y: y + 11 }, thickness: 0.5, color: line });
-    drawText(`${label}:`, 64, y, 11, { isBold: true });
-    const lines = wrap(value, label === "Details" ? 62 : 58);
-    lines.slice(0, 3).forEach((lineText, index) => drawText(lineText, 170, y - index * 14, 11));
-    y -= Math.max(28, lines.slice(0, 3).length * 14 + 8);
-  });
-
-  y -= 10;
-  drawText("Hinweis", 48, y, 14, { isBold: true, color: green });
   y -= 22;
-  const note = "Die Turnierdaten stehen in der Club Cloud bzw. im NBV-Kalender. Bitte rechtzeitig pruefen und Rueckmeldungen intern abstimmen.";
-  wrap(note, 78).forEach((lineText) => {
-    drawText(lineText, 48, y, 10.5, { color: muted });
-    y -= 14;
+  y = drawSection("Termine / Uhrzeit", y);
+  y = drawRows([
+    ["Termin", formatShortGermanDate(reminder.event_date)],
+    ["Turnierbeginn", "siehe Turnierdetails"],
+    ["Meldeschluss", "siehe Turnierdetails"],
+    ["Akkreditierung", "jeweils bis 15 Minuten vor Turnierbeginn"],
+  ], y);
+
+  y -= 22;
+  y = drawSection("Spielort / Dresscode", y);
+  y = drawRows([
+    ["Spielort", reminder.location || "-"],
+    ["Kleidung", "gem. Pkt. 1.3 Spielkleidung der STO-BT Karambolage des NBV"],
+  ], y);
+
+  drawFooter();
+  page = pdf.addPage([595, 842]);
+  drawDocumentHeader(2);
+
+  y = 688;
+  y = drawSection("Modus / Turnierbesonderheit", y);
+  y = drawRows([
+    ["Modus", "Der Turniermodus wird entsprechend der STO-BTK, je nach Anmeldezahl festgelegt."],
+    ["Details", reminder.link || "-"],
+  ], y);
+
+  y -= 22;
+  y = drawSection("Wichtiges", y);
+  const importantRows = [
+    ["Regeln", "Es gelten die Spielregeln und Spielregularien der DBU und die Bestimmungen der STO-BTK des NBV."],
+    ["Doping", "Die Teilnehmer dieses Turniers erkennen mit ihrer Meldung die Richtlinien der NADA an."],
+    ["Haftung", "Der Veranstalter uebernimmt keine Haftung fuer Sach- und Personenschaeden sowie Entwendung von Wertsachen."],
+    ["Vorbehalte", "Kurzfristige Aenderungen durch den Landessportwart bzw. die Turnierleitung bleiben vorbehalten."],
+  ];
+  importantRows.forEach(([label, value]) => {
+    if (y < 102) return;
+    page.drawLine({ start: { x: 48, y: y + 11 }, end: { x: 547, y: y + 11 }, thickness: 0.5, color: line });
+    drawText(`${label}:`, 64, y, 9.5, { isBold: true });
+    const lines = wrap(value, 68).slice(0, 2);
+    lines.forEach((lineText, index) => drawText(lineText, 148, y - index * 12, 9.5));
+    y -= Math.max(24, lines.length * 12 + 8);
   });
 
-  page.drawLine({ start: { x: 48, y: 62 }, end: { x: 547, y: 62 }, thickness: 0.8, color: muted });
-  drawText("Norddeutscher Billard-Verband e.V. (NBV)", 48, 42, 8, { color: muted });
-  drawText("www.nbv-billard.de", 254, 42, 8, { color: muted });
-  drawText(`Stand: ${formatGermanDate(todayIso()).replace(/^\S+,\s*/, "")}`, 465, 42, 8, { color: muted });
+  if (y >= 84) {
+    y -= 10;
+    drawText("Mit sportlichem Gruss", 48, y, 10.5);
+  }
+
+  drawFooter();
 
   return await pdf.save();
 }
@@ -197,8 +269,8 @@ function buildHtml(reminder: ReminderRow) {
     : "";
   return `
     <div style="font-family:Arial,sans-serif;color:#17202a;line-height:1.5">
-      <h2 style="margin:0 0 12px;color:#006020">NBV Turniererinnerung</h2>
-      <p>Im Anhang befindet sich die Ausschreibung/Erinnerung zum folgenden Turnier:</p>
+      <h2 style="margin:0 0 12px;color:#006020">NBV Ausschreibung</h2>
+      <p>Im Anhang befindet sich die Ausschreibung zum folgenden Turnier:</p>
       <p>
         <strong>${cleanText(reminder.title)}</strong><br>
         Termin: ${formatGermanDate(reminder.event_date)}<br>
