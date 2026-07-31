@@ -103,6 +103,28 @@ function formatShortGermanDate(value: string) {
   }).format(date);
 }
 
+function getSeasonFromDate(value: string) {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1;
+  const startYear = month >= 8 ? year : year - 1;
+  return `${startYear}-${startYear + 1}`;
+}
+
+function cleanFilenamePart(value: string) {
+  return cleanText(value)
+    .replace(/[\\/:*?"<>|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildPdfFilename(reminder: ReminderRow) {
+  const title = cleanFilenamePart(reminder.title) || "Turnier";
+  const season = getSeasonFromDate(reminder.event_date);
+  return ["Ausschreibung", title, season].filter(Boolean).join(" - ") + ".pdf";
+}
+
 function bytesToBase64(bytes: Uint8Array) {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -255,10 +277,49 @@ async function buildInvitationPdf(reminder: ReminderRow) {
     });
   };
 
+  const getTextFont = (isBold = false) => isBold ? bold : font;
+
+  const drawCenteredText = (value: string, centerX: number, y: number, size: number, options: { isBold?: boolean; color?: ReturnType<typeof rgb> } = {}) => {
+    const activeFont = getTextFont(Boolean(options.isBold));
+    const width = activeFont.widthOfTextAtSize(value, size);
+    drawText(value, centerX - width / 2, y, size, options);
+  };
+
+  const wrapByWidth = (value: string, maxWidth: number, size: number, isBold = false) => {
+    const activeFont = getTextFont(isBold);
+    const words = cleanText(value).split(/\s+/).filter(Boolean);
+    const lines: string[] = [];
+    let current = "";
+    const fits = (line: string) => activeFont.widthOfTextAtSize(line, size) <= maxWidth;
+    const pushLongWord = (word: string) => {
+      let chunk = "";
+      for (const char of word) {
+        const next = `${chunk}${char}`;
+        if (chunk && !fits(next)) {
+          lines.push(chunk);
+          chunk = char;
+        } else {
+          chunk = next;
+        }
+      }
+      return chunk;
+    };
+    for (const word of words) {
+      const next = current ? `${current} ${word}` : word;
+      if (fits(next)) {
+        current = next;
+        continue;
+      }
+      if (current) lines.push(current);
+      current = fits(word) ? word : pushLongWord(word);
+    }
+    if (current) lines.push(current);
+    return lines.length ? lines : [""];
+  };
+
   const drawFooter = () => {
     page.drawLine({ start: { x: 48, y: 62 }, end: { x: 547, y: 62 }, thickness: 0.8, color: muted });
     drawText("Norddeutscher Billard-Verband e.V. (NBV)", 48, 42, 8, { color: muted });
-    drawText("www.nbv-billard.de", 254, 42, 8, { color: muted });
     drawText(`Stand: ${formatGermanDate(todayIso()).replace(/^\S+,\s*/, "")}`, 465, 42, 8, { color: muted });
   };
 
@@ -310,10 +371,13 @@ async function buildInvitationPdf(reminder: ReminderRow) {
 
   drawDocumentHeader(1);
 
-  page.drawRectangle({ x: 48, y: 660, width: 499, height: 54, color: soft, borderColor: line, borderWidth: 1 });
-  drawText("Ausschreibung", 238, 690, 18, { isBold: true, color: green });
-  const titleLines = wrap(title, 50);
-  titleLines.slice(0, 2).forEach((lineText, index) => drawText(lineText, 72, 666 - index * 15, 14, { isBold: true, color: green }));
+  page.drawRectangle({ x: 48, y: 642, width: 499, height: 72, color: soft, borderColor: line, borderWidth: 1 });
+  drawCenteredText("Ausschreibung", 297.5, 690, 18, { isBold: true, color: green });
+  const titleLines = wrapByWidth(title, 430, 14, true);
+  titleLines.slice(0, 2).forEach((lineText, index) => drawCenteredText(lineText, 297.5, 668 - index * 14, 14, { isBold: true, color: green }));
+  if (reminder.link) {
+    drawCenteredText(reminder.link, 297.5, 645, 6.2, { color: muted });
+  }
 
   let y = drawSection("Turnierinformationen", 606);
   y = drawRows([
@@ -349,7 +413,6 @@ async function buildInvitationPdf(reminder: ReminderRow) {
   y = drawSection("Modus / Turnierbesonderheit", y);
   y = drawRows([
     ["Modus", "Der Turniermodus wird entsprechend der STO-BTK, je nach Anmeldezahl festgelegt."],
-    ["Details", reminder.link || "-"],
   ], y);
 
   y -= 22;
@@ -480,7 +543,7 @@ Deno.serve(async (request) => {
           subject,
           html: buildHtml(reminder),
           attachments: [{
-            filename: `NBV-Ausschreibung-${reminder.event_date}-${reminder.id}.pdf`,
+            filename: buildPdfFilename(reminder),
             content: bytesToBase64(pdfBytes),
             encoding: "base64",
             contentType: "application/pdf",
