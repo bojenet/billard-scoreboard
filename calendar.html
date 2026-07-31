@@ -2264,6 +2264,7 @@
                         </div>
                         <div class="club-reminder-actions">
                             <button class="mini-btn" type="button" onclick="copyClubReminderMessage('${escapeHtml(reminder.id)}')">Text kopieren</button>
+                            <button class="mini-btn" type="button" onclick="openClubReminderWhatsApp('${escapeHtml(reminder.id)}')">WhatsApp öffnen</button>
                             <button class="mini-btn" type="button" onclick="markClubReminderSent('${escapeHtml(reminder.id)}')">Gesendet</button>
                             <button class="mini-btn danger" type="button" onclick="skipClubReminder('${escapeHtml(reminder.id)}')">Überspringen</button>
                         </div>
@@ -2293,6 +2294,15 @@
                 console.warn("Club-Erinnerung konnte nicht kopiert werden:", error);
                 showCalendarMessage("Text konnte nicht automatisch kopiert werden.", "error");
             }
+        }
+
+        function openClubReminderWhatsApp(reminderId) {
+            const reminder = getClubReminderById(reminderId);
+            if (!reminder) return;
+            const message = reminder.messageText || buildClubReminderMessage(reminder);
+            const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+            window.open(url, "_blank", "noopener,noreferrer");
+            showCalendarMessage("WhatsApp wurde mit vorbereitetem Erinnerungstext geöffnet.", "ok");
         }
 
         async function updateClubReminderStatus(reminderId, status) {
