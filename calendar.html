@@ -1071,6 +1071,20 @@
                         <button class="btn btn-secondary" type="button" onclick="importNbvSeasonToPlanning()">Als Planung übernehmen</button>
                     </div>
                     <div class="admin-settings-meta">Lädt die NBV-Termine der gewählten alten Saison und legt sie als Planungstermine in der aktiven Saison an. Monat und Kalendertag bleiben erhalten, das Saisonjahr wird auf die aktive Saison umgestellt.</div>
+                    <div class="admin-settings-row">
+                        <div>
+                            <label class="field-title" for="invitationRecipientNameInput">Ausschreibungs-Empfänger</label>
+                            <input id="invitationRecipientNameInput" type="text" placeholder="Name / Club">
+                        </div>
+                        <div>
+                            <label class="field-title" for="invitationRecipientEmailInput">E-Mail</label>
+                            <input id="invitationRecipientEmailInput" type="email" placeholder="club@example.de">
+                        </div>
+                    </div>
+                    <div class="admin-settings-row">
+                        <div id="invitationRecipientList" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
+                        <button class="btn btn-secondary" type="button" onclick="saveInvitationRecipient()">Empfänger hinzufügen</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1321,6 +1335,8 @@
         let planningEvents = [];
         let clubReminders = [];
         let supportsClubReminders = true;
+        let invitationRecipients = [];
+        let supportsInvitationRecipients = true;
 
         function escapeHtml(value) {
             return String(value || "")
@@ -1845,6 +1861,112 @@
             return importedEvents
                 .filter((event) => event?.source === "nbv" && event?.id && event?.date && event?.title)
                 .filter((event) => isDateWithinSeason(event.date, currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON));
+        }
+
+        function normalizeInvitationRecipientRecord(recipient) {
+            return {
+                id: String(recipient?.id || "").trim(),
+                name: String(recipient?.name || "").trim(),
+                email: String(recipient?.email || "").trim().toLowerCase(),
+                active: Boolean(recipient?.active ?? true)
+            };
+        }
+
+        async function loadInvitationRecipients() {
+            if (!isCalendarAdmin || !supportsInvitationRecipients) {
+                invitationRecipients = [];
+                return;
+            }
+            try {
+                const { data, error } = await supabaseClient
+                    .from("calendar_invitation_recipients")
+                    .select("id, name, email, active")
+                    .eq("active", true)
+                    .order("name", { ascending: true })
+                    .order("email", { ascending: true });
+                if (error) throw error;
+                invitationRecipients = Array.isArray(data) ? data.map(normalizeInvitationRecipientRecord) : [];
+                supportsInvitationRecipients = true;
+            } catch (error) {
+                const message = getErrorMessage(error, "");
+                if (/calendar_invitation_recipients|relation|schema cache|does not exist/i.test(message)) {
+                    supportsInvitationRecipients = false;
+                }
+                console.warn("Ausschreibungs-Empfänger konnten nicht geladen werden:", error);
+                invitationRecipients = [];
+            }
+        }
+
+        function renderInvitationRecipients() {
+            const list = document.getElementById("invitationRecipientList");
+            if (!list) return;
+            if (!isCalendarAdmin) {
+                list.textContent = "";
+                return;
+            }
+            if (!supportsInvitationRecipients) {
+                list.textContent = "Empfänger-Tabelle ist noch nicht aktiv. Bitte SQL/Migration anwenden.";
+                return;
+            }
+            if (!invitationRecipients.length) {
+                list.textContent = "Noch keine aktiven Empfänger.";
+                return;
+            }
+            list.innerHTML = invitationRecipients.map((recipient) => `
+                <div class="feed-actions" style="margin:0 0 6px;padding:0;">
+                    <span class="badge">${escapeHtml(recipient.name || recipient.email)} · ${escapeHtml(recipient.email)}</span>
+                    <button class="mini-btn danger" type="button" onclick="deactivateInvitationRecipient('${escapeHtml(recipient.id)}')">Entfernen</button>
+                </div>
+            `).join("");
+        }
+
+        async function saveInvitationRecipient() {
+            if (!isCalendarAdmin || !supportsInvitationRecipients) return;
+            const nameInput = document.getElementById("invitationRecipientNameInput");
+            const emailInput = document.getElementById("invitationRecipientEmailInput");
+            const name = String(nameInput?.value || "").trim();
+            const email = String(emailInput?.value || "").trim().toLowerCase();
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showCalendarMessage("Bitte eine gültige Empfänger-E-Mail eintragen.", "error");
+                return;
+            }
+            try {
+                const { error } = await supabaseClient
+                    .from("calendar_invitation_recipients")
+                    .upsert({
+                        name,
+                        email,
+                        recipient_group: "clubs",
+                        active: true,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: "email,recipient_group" });
+                if (error) throw error;
+                if (nameInput) nameInput.value = "";
+                if (emailInput) emailInput.value = "";
+                await loadInvitationRecipients();
+                renderInvitationRecipients();
+                showCalendarMessage("Empfänger wurde gespeichert.", "ok");
+            } catch (error) {
+                console.warn("Empfänger konnte nicht gespeichert werden:", error);
+                showCalendarMessage(`Empfänger konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
+        }
+
+        async function deactivateInvitationRecipient(recipientId) {
+            if (!isCalendarAdmin || !supportsInvitationRecipients || !recipientId) return;
+            try {
+                const { error } = await supabaseClient
+                    .from("calendar_invitation_recipients")
+                    .update({ active: false, updated_at: new Date().toISOString() })
+                    .eq("id", recipientId);
+                if (error) throw error;
+                await loadInvitationRecipients();
+                renderInvitationRecipients();
+                showCalendarMessage("Empfänger wurde entfernt.", "ok");
+            } catch (error) {
+                console.warn("Empfänger konnte nicht entfernt werden:", error);
+                showCalendarMessage(`Empfänger konnte nicht entfernt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
         }
 
         async function loadManualEvents() {
@@ -4636,6 +4758,7 @@
                 await loadManualEvents();
                 await loadPlanningEvents();
                 await loadClubReminders();
+                await loadInvitationRecipients();
                 await migrateLegacyLocalManualEvents();
                 loadSavedFilter();
                 renderFilters();
@@ -4645,6 +4768,7 @@
                 resetManualEventForm();
                 resetPlanningEventForm();
                 renderCalendar();
+                renderInvitationRecipients();
                 applyAccessUi();
                 applyPublicViewState();
                 if (!isCalendarAdmin && !isPublicViewEnabled) {

@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.get-nbv-tournament-results]
 verify_jwt = false
+
+[functions.send-nbv-invitation-reminders]
+verify_jwt = false
