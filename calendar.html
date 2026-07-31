@@ -237,72 +237,6 @@
             text-overflow: ellipsis;
         }
 
-        .club-reminder-panel {
-            display: grid;
-            gap: 10px;
-            margin: 10px 0 14px;
-            padding: 12px;
-            border: 1px solid #d8c79a;
-            background: #fff8e5;
-        }
-
-        .club-reminder-head {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .club-reminder-title {
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--head);
-        }
-
-        .club-reminder-meta {
-            font-size: 12px;
-            color: var(--muted);
-        }
-
-        .club-reminder-list {
-            display: grid;
-            gap: 8px;
-        }
-
-        .club-reminder-item {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 10px;
-            align-items: center;
-            padding: 10px;
-            border: 1px solid #ead9aa;
-            background: #fffdf7;
-        }
-
-        .club-reminder-main {
-            min-width: 0;
-        }
-
-        .club-reminder-event {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--head);
-        }
-
-        .club-reminder-sub {
-            margin-top: 3px;
-            font-size: 12px;
-            color: var(--muted);
-            line-height: 1.4;
-        }
-
-        .club-reminder-actions {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-        }
-
         .plan-title {
             font-size: 20px;
             font-weight: 700;
@@ -1024,7 +958,6 @@
                 <div class="loading-bar"></div>
             </div>
             <div id="calendarMessage" class="message"></div>
-            <div id="clubReminderPanel" class="club-reminder-panel" style="display:none;"></div>
             <div id="calendarGrid" class="calendar-grid">
                 <div class="empty-state">Noch keine Kalenderdaten vorhanden.</div>
             </div>
@@ -1285,7 +1218,6 @@
         const CALENDAR_SETTINGS_KEY = "nbv_public_calendar";
         const DEFAULT_NBV_CALENDAR_SEASON = getDefaultNbvCalendarSeason();
         const DEFAULT_CALENDAR_HEADER_PREFIX = "Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison ";
-        const CLUB_REMINDER_DAYS_BEFORE = [32];
         const PUBLIC_SUPABASE_URL = "https://kstqhcaazuuxchqtnyfc.supabase.co";
         const MANUAL_CATEGORY_ID = "other";
         const MANUAL_CATEGORY_LABEL = "Sonstige";
@@ -1333,8 +1265,7 @@
         let isPublicViewEnabled = true;
         let manualEvents = [];
         let planningEvents = [];
-        let clubReminders = [];
-        let supportsClubReminders = true;
+        let supportsInvitationSending = true;
         let invitationRecipients = [];
         let supportsInvitationRecipients = true;
 
@@ -1796,38 +1727,18 @@
             return isCalendarAdmin && Array.isArray(planningEvents) ? planningEvents : [];
         }
 
-        function normalizeClubReminderRecord(reminder) {
-            return {
-                id: String(reminder?.id || "").trim(),
-                eventId: String(reminder?.event_id || reminder?.eventId || "").trim(),
-                eventDate: String(reminder?.event_date || reminder?.eventDate || "").trim(),
-                reminderDate: String(reminder?.reminder_date || reminder?.reminderDate || "").trim(),
-                daysBefore: Number(reminder?.days_before ?? reminder?.daysBefore ?? 0),
-                title: String(reminder?.title || "").trim(),
-                location: String(reminder?.location || "").trim(),
-                link: String(reminder?.link || "").trim(),
-                messageText: String(reminder?.message_text || reminder?.messageText || "").trim(),
-                status: String(reminder?.status || "open").trim() || "open",
-                sentAt: String(reminder?.sent_at || reminder?.sentAt || "").trim(),
-                sentByName: String(reminder?.sent_by_name || reminder?.sentByName || "").trim()
-            };
-        }
-
-        function getClubReminders() {
-            return isCalendarAdmin && Array.isArray(clubReminders) ? clubReminders : [];
-        }
-
         function getTodayIsoDate() {
             return formatIsoDate(new Date());
         }
 
-        function getReminderId(event, daysBefore) {
-            return `club-reminder-${String(event?.id || event?.date || "").replace(/[^a-zA-Z0-9_-]+/g, "-")}-${daysBefore}`;
+        function getInvitationSendId(event) {
+            const source = String(event?.id || event?.date || Date.now()).replace(/[^a-zA-Z0-9_-]+/g, "-");
+            return `manual-invitation-${source}-${Date.now()}`;
         }
 
-        function buildClubReminderMessage(event) {
+        function buildInvitationSendMessage(event) {
             const lines = [
-                "Erinnerung NBV-Turnier",
+                "NBV Ausschreibung",
                 "",
                 getPdfText(event?.title || ""),
                 `Termin: ${formatInvitationDate(event?.date) || event?.date || "-"}`,
@@ -1840,27 +1751,20 @@
             return lines.filter((line, index) => line || index === 1 || index === 6).join("\n").trim();
         }
 
-        function buildClubReminderPayload(event, daysBefore) {
-            const reminderDate = addDays(event?.date, -daysBefore);
+        function buildInvitationSendPayload(event) {
             return {
-                id: getReminderId(event, daysBefore),
+                id: getInvitationSendId(event),
                 event_id: String(event?.id || "").trim(),
                 event_date: event?.date,
-                reminder_date: reminderDate,
-                days_before: daysBefore,
+                reminder_date: getTodayIsoDate(),
+                days_before: 0,
                 title: String(event?.title || "").trim(),
                 location: simplifyVenueName(event?.location || ""),
                 link: String(event?.link || "").trim(),
-                message_text: buildClubReminderMessage(event),
+                message_text: buildInvitationSendMessage(event),
                 status: "open",
                 updated_at: new Date().toISOString()
             };
-        }
-
-        function getReminderSourceEvents() {
-            return importedEvents
-                .filter((event) => event?.source === "nbv" && event?.id && event?.date && event?.title)
-                .filter((event) => isDateWithinSeason(event.date, currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON));
         }
 
         function normalizeInvitationRecipientRecord(recipient) {
@@ -2000,55 +1904,6 @@
             } catch (error) {
                 console.warn("Interne Planungstermine konnten nicht geladen werden:", error);
                 planningEvents = [];
-            }
-        }
-
-        async function loadClubReminders() {
-            if (!isCalendarAdmin || !supportsClubReminders) {
-                clubReminders = [];
-                return;
-            }
-            try {
-                const range = getSeasonDateRange(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON);
-                let query = supabaseClient
-                    .from("calendar_club_reminders")
-                    .select("id, event_id, event_date, reminder_date, days_before, title, location, link, message_text, status, sent_at, sent_by_name")
-                    .order("reminder_date", { ascending: true })
-                    .order("event_date", { ascending: true });
-                if (range) {
-                    query = query.gte("event_date", range.start).lte("event_date", range.end);
-                }
-                const { data, error } = await query;
-                if (error) throw error;
-                clubReminders = Array.isArray(data) ? data.map(normalizeClubReminderRecord) : [];
-                supportsClubReminders = true;
-            } catch (error) {
-                const message = getErrorMessage(error, "");
-                if (/calendar_club_reminders|relation|schema cache|does not exist/i.test(message)) {
-                    supportsClubReminders = false;
-                }
-                console.warn("Club-Erinnerungen konnten nicht geladen werden:", error);
-                clubReminders = [];
-            }
-        }
-
-        async function syncClubRemindersForImportedEvents() {
-            if (!isCalendarAdmin || !supportsClubReminders) return;
-            const events = getReminderSourceEvents();
-            if (!events.length) return;
-            const existingIds = new Set(getClubReminders().map((reminder) => reminder.id));
-            const payload = events
-                .flatMap((event) => CLUB_REMINDER_DAYS_BEFORE.map((days) => buildClubReminderPayload(event, days)))
-                .filter((reminder) => reminder.reminder_date && !existingIds.has(reminder.id));
-            if (!payload.length) return;
-            try {
-                const { error } = await supabaseClient
-                    .from("calendar_club_reminders")
-                    .upsert(payload, { onConflict: "id", ignoreDuplicates: true });
-                if (error) throw error;
-                await loadClubReminders();
-            } catch (error) {
-                console.warn("Club-Erinnerungen konnten nicht erzeugt werden:", error);
             }
         }
 
@@ -2335,131 +2190,6 @@
                 return /nord\s?cup/i.test(title);
             }
             return true;
-        }
-
-        function getDueClubReminders() {
-            const today = getTodayIsoDate();
-            return getClubReminders()
-                .filter((reminder) => reminder.status === "open" && reminder.reminderDate && reminder.reminderDate <= today)
-                .sort((left, right) => `${left.reminderDate} ${left.eventDate}`.localeCompare(`${right.reminderDate} ${right.eventDate}`, "de"));
-        }
-
-        function getUpcomingClubReminders(limit = 6) {
-            const today = getTodayIsoDate();
-            return getClubReminders()
-                .filter((reminder) => reminder.status === "open" && reminder.reminderDate && reminder.reminderDate > today)
-                .sort((left, right) => `${left.reminderDate} ${left.eventDate}`.localeCompare(`${right.reminderDate} ${right.eventDate}`, "de"))
-                .slice(0, limit);
-        }
-
-        function getClubReminderById(reminderId) {
-            return getClubReminders().find((reminder) => reminder.id === reminderId);
-        }
-
-        function renderClubReminderPanel() {
-            const panel = document.getElementById("clubReminderPanel");
-            if (!panel) return;
-            if (!isCalendarAdmin || !supportsClubReminders) {
-                panel.style.display = "none";
-                panel.innerHTML = "";
-                return;
-            }
-            const due = getDueClubReminders();
-            const upcoming = getUpcomingClubReminders(due.length ? 3 : 6);
-            if (!due.length && !upcoming.length) {
-                panel.style.display = "none";
-                panel.innerHTML = "";
-                return;
-            }
-            const today = getTodayIsoDate();
-            const rows = [...due, ...upcoming].map((reminder) => {
-                const isDue = reminder.status === "open" && reminder.reminderDate <= today;
-                return `
-                    <div class="club-reminder-item">
-                        <div class="club-reminder-main">
-                            <div class="club-reminder-event">${escapeHtml(reminder.title)}</div>
-                            <div class="club-reminder-sub">
-                                ${escapeHtml(isDue ? "Fällig" : "Geplant")} am ${escapeHtml(formatInvitationDate(reminder.reminderDate) || reminder.reminderDate)}
-                                · ${escapeHtml(reminder.daysBefore)} Tage vor Termin ${escapeHtml(formatInvitationDate(reminder.eventDate) || reminder.eventDate)}
-                                ${reminder.location ? ` · ${escapeHtml(reminder.location)}` : ""}
-                            </div>
-                        </div>
-                        <div class="club-reminder-actions">
-                            <button class="mini-btn" type="button" onclick="copyClubReminderMessage('${escapeHtml(reminder.id)}')">Text kopieren</button>
-                            <button class="mini-btn" type="button" onclick="openClubReminderWhatsApp('${escapeHtml(reminder.id)}')">WhatsApp öffnen</button>
-                            <button class="mini-btn" type="button" onclick="markClubReminderSent('${escapeHtml(reminder.id)}')">Gesendet</button>
-                            <button class="mini-btn danger" type="button" onclick="skipClubReminder('${escapeHtml(reminder.id)}')">Überspringen</button>
-                        </div>
-                    </div>
-                `;
-            }).join("");
-            panel.style.display = "grid";
-            panel.innerHTML = `
-                <div class="club-reminder-head">
-                    <div>
-                        <div class="club-reminder-title">Club-Erinnerungen</div>
-                        <div class="club-reminder-meta">${due.length ? `${due.length} Erinnerung${due.length === 1 ? "" : "en"} fällig.` : "Keine fälligen Erinnerungen."} Reminder werden automatisch aus NBV-Terminen vorbereitet.</div>
-                    </div>
-                    <span class="badge">${escapeHtml(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON)}</span>
-                </div>
-                <div class="club-reminder-list">${rows}</div>
-            `;
-        }
-
-        async function copyClubReminderMessage(reminderId) {
-            const reminder = getClubReminderById(reminderId);
-            if (!reminder) return;
-            try {
-                await navigator.clipboard.writeText(reminder.messageText || buildClubReminderMessage(reminder));
-                showCalendarMessage("WhatsApp-Erinnerung wurde in die Zwischenablage kopiert.", "ok");
-            } catch (error) {
-                console.warn("Club-Erinnerung konnte nicht kopiert werden:", error);
-                showCalendarMessage("Text konnte nicht automatisch kopiert werden.", "error");
-            }
-        }
-
-        function openClubReminderWhatsApp(reminderId) {
-            const reminder = getClubReminderById(reminderId);
-            if (!reminder) return;
-            const message = reminder.messageText || buildClubReminderMessage(reminder);
-            const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-            window.open(url, "_blank", "noopener,noreferrer");
-            showCalendarMessage("WhatsApp wurde mit vorbereitetem Erinnerungstext geöffnet.", "ok");
-        }
-
-        async function updateClubReminderStatus(reminderId, status) {
-            if (!isCalendarAdmin || !supportsClubReminders) return;
-            const reminder = getClubReminderById(reminderId);
-            if (!reminder) return;
-            const isSent = status === "sent";
-            const payload = {
-                status,
-                updated_at: new Date().toISOString(),
-                sent_at: isSent ? new Date().toISOString() : null,
-                sent_by: isSent ? currentUser?.id || null : null,
-                sent_by_name: isSent ? getCurrentUserDisplayName() || "" : ""
-            };
-            try {
-                const { error } = await supabaseClient
-                    .from("calendar_club_reminders")
-                    .update(payload)
-                    .eq("id", reminderId);
-                if (error) throw error;
-                await loadClubReminders();
-                renderClubReminderPanel();
-                showCalendarMessage(isSent ? "Erinnerung wurde als gesendet markiert." : "Erinnerung wurde übersprungen.", "ok");
-            } catch (error) {
-                console.warn("Club-Erinnerung konnte nicht aktualisiert werden:", error);
-                showCalendarMessage(`Erinnerung konnte nicht aktualisiert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
-            }
-        }
-
-        function markClubReminderSent(reminderId) {
-            updateClubReminderStatus(reminderId, "sent");
-        }
-
-        function skipClubReminder(reminderId) {
-            updateClubReminderStatus(reminderId, "skipped");
         }
 
         function getCalendarFeedUrl() {
@@ -3869,6 +3599,41 @@
             }
         }
 
+        async function sendNbvInvitationEmail(eventId) {
+            if (!isCalendarAdmin || !supportsInvitationSending) return;
+            const event = getCalendarEventById(eventId);
+            if (!event?.link) {
+                showCalendarMessage("Für diesen Termin ist keine NBV-Detailseite hinterlegt.", "error");
+                return;
+            }
+            if (!invitationRecipients.length) {
+                showCalendarMessage("Bitte zuerst mindestens einen Ausschreibungs-Empfänger hinterlegen.", "error");
+                return;
+            }
+
+            const payload = buildInvitationSendPayload(event);
+            showCalendarMessage("Ausschreibung wird erstellt und per E-Mail versendet...", "ok");
+            try {
+                const { error: queueError } = await supabaseClient
+                    .from("calendar_club_reminders")
+                    .insert(payload);
+                if (queueError) throw queueError;
+
+                const { data, error } = await supabaseClient.functions.invoke("send-nbv-invitation-reminders", {
+                    body: { reminderId: payload.id }
+                });
+                if (error) throw error;
+                const result = Array.isArray(data?.results) ? data.results[0] : null;
+                if (!data?.ok || result?.status !== "sent") {
+                    throw new Error(result?.error || "Die Ausschreibung konnte nicht versendet werden.");
+                }
+                showCalendarMessage(`Ausschreibung wurde an ${data.recipientCount || invitationRecipients.length} Empfänger versendet.`, "ok");
+            } catch (error) {
+                console.warn("Ausschreibung konnte nicht versendet werden:", error);
+                showCalendarMessage(`Ausschreibung konnte nicht versendet werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
+        }
+
         function renderFilters() {
             const wrap = document.getElementById("calendarFilters");
             if (!wrap) return;
@@ -4045,7 +3810,6 @@
         }
 
         function renderCalendar() {
-            renderClubReminderPanel();
             const grid = document.getElementById("calendarGrid");
             if (!grid) return;
             const events = expandEventsForCalendar(getFilteredEvents());
@@ -4121,6 +3885,7 @@
                                                             ` : isCalendarAdmin && event.link && event.source !== "manual" && event.source !== "planning" ? `
                                                                 <div class="event-actions">
                                                                     <button class="mini-btn pdf" type="button" onclick="createNbvInvitationPdf('${escapeHtml(event.id)}')">Einladung vorbereiten</button>
+                                                                    <button class="mini-btn" type="button" onclick="sendNbvInvitationEmail('${escapeHtml(event.id)}')">Ausschreibung versenden</button>
                                                                 </div>
                                                             ` : ""}
                                                         </div>
@@ -4441,8 +4206,6 @@
 
             await loadManualEvents();
             await loadPlanningEvents();
-            await loadClubReminders();
-            await syncClubRemindersForImportedEvents();
             if (activeVenueFilter !== "all") {
                 const venueStillExists = getAllEvents().some((event) => getEventVenueLabel(event) === activeVenueFilter);
                 if (!venueStillExists) {
@@ -4757,7 +4520,6 @@
                 await loadCalendarSettings();
                 await loadManualEvents();
                 await loadPlanningEvents();
-                await loadClubReminders();
                 await loadInvitationRecipients();
                 await migrateLegacyLocalManualEvents();
                 loadSavedFilter();
