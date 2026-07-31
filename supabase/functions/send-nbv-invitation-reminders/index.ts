@@ -443,15 +443,7 @@ async function buildInvitationPdf(reminder: ReminderRow) {
 }
 
 function buildSubject(reminder: ReminderRow) {
-  const sentAt = new Intl.DateTimeFormat("de-DE", {
-    timeZone: "Europe/Berlin",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date());
-  return `NBV Ausschreibung: ${cleanText(reminder.title)} (${formatGermanDate(reminder.event_date)}) - Versand ${sentAt}`;
+  return buildPdfFilename(reminder).replace(/\.pdf$/i, "");
 }
 
 function buildHtml(reminder: ReminderRow) {
@@ -460,8 +452,8 @@ function buildHtml(reminder: ReminderRow) {
     : "";
   return `
     <div style="font-family:Arial,sans-serif;color:#17202a;line-height:1.5">
-      <h2 style="margin:0 0 12px;color:#006020">NBV Ausschreibung</h2>
-      <p>Im Anhang befindet sich die Ausschreibung zum folgenden Turnier:</p>
+      <p>Liebe Billardfreunde,</p>
+      <p>im Anhang befindet sich die Ausschreibung zum folgenden Turnier:</p>
       <p>
         <strong>${cleanText(reminder.title)}</strong><br>
         Termin: ${formatGermanDate(reminder.event_date)}<br>
