@@ -1013,6 +1013,13 @@
                             <label class="field-title" for="invitationRecipientEmailInput">E-Mail</label>
                             <input id="invitationRecipientEmailInput" type="email" placeholder="club@example.de">
                         </div>
+                        <div>
+                            <label class="field-title" for="invitationRecipientDeliveryTypeInput">Versandart</label>
+                            <select id="invitationRecipientDeliveryTypeInput">
+                                <option value="bcc" selected>BCC</option>
+                                <option value="to">An</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="admin-settings-row">
                         <div id="invitationRecipientList" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
@@ -1772,6 +1779,7 @@
                 id: String(recipient?.id || "").trim(),
                 name: String(recipient?.name || "").trim(),
                 email: String(recipient?.email || "").trim().toLowerCase(),
+                deliveryType: String(recipient?.delivery_type || recipient?.deliveryType || "bcc").trim().toLowerCase() === "to" ? "to" : "bcc",
                 active: Boolean(recipient?.active ?? true)
             };
         }
@@ -1784,7 +1792,7 @@
             try {
                 const { data, error } = await supabaseClient
                     .from("calendar_invitation_recipients")
-                    .select("id, name, email, active")
+                    .select("id, name, email, delivery_type, active")
                     .eq("active", true)
                     .order("name", { ascending: true })
                     .order("email", { ascending: true });
@@ -1818,7 +1826,7 @@
             }
             list.innerHTML = invitationRecipients.map((recipient) => `
                 <div class="feed-actions" style="margin:0 0 6px;padding:0;">
-                    <span class="badge">${escapeHtml(recipient.name || recipient.email)} · ${escapeHtml(recipient.email)}</span>
+                    <span class="badge">${escapeHtml(recipient.deliveryType === "to" ? "An" : "BCC")} · ${escapeHtml(recipient.name || recipient.email)} · ${escapeHtml(recipient.email)}</span>
                     <button class="mini-btn danger" type="button" onclick="deactivateInvitationRecipient('${escapeHtml(recipient.id)}')">Entfernen</button>
                 </div>
             `).join("");
@@ -1828,8 +1836,10 @@
             if (!isCalendarAdmin || !supportsInvitationRecipients) return;
             const nameInput = document.getElementById("invitationRecipientNameInput");
             const emailInput = document.getElementById("invitationRecipientEmailInput");
+            const deliveryTypeInput = document.getElementById("invitationRecipientDeliveryTypeInput");
             const name = String(nameInput?.value || "").trim();
             const email = String(emailInput?.value || "").trim().toLowerCase();
+            const deliveryType = String(deliveryTypeInput?.value || "bcc").trim().toLowerCase() === "to" ? "to" : "bcc";
             if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 showCalendarMessage("Bitte eine gültige Empfänger-E-Mail eintragen.", "error");
                 return;
@@ -1841,6 +1851,7 @@
                         name,
                         email,
                         recipient_group: "clubs",
+                        delivery_type: deliveryType,
                         active: true,
                         updated_at: new Date().toISOString()
                     }, { onConflict: "email,recipient_group" });

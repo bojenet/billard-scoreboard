@@ -25,6 +25,7 @@ type RecipientRow = {
   name: string;
   email: string;
   recipient_group: string;
+  delivery_type?: string;
 };
 
 type InvitationDetails = {
@@ -231,13 +232,13 @@ function assertInvocationAllowed(request: Request) {
 }
 
 function buildTransport() {
-  const host = Deno.env.get("SMTP_HOST") || "mail.gmx.net";
-  const port = Number(Deno.env.get("SMTP_PORT") || "465");
-  const user = Deno.env.get("SMTP_USER");
-  const pass = Deno.env.get("SMTP_PASS");
+  const host = (Deno.env.get("INVITATION_SMTP_HOST") || Deno.env.get("SMTP_HOST") || "mail.gmx.net").replace(/^smtp:\/\//i, "");
+  const port = Number(Deno.env.get("INVITATION_SMTP_PORT") || Deno.env.get("SMTP_PORT") || "465");
+  const user = Deno.env.get("INVITATION_SMTP_USER") || Deno.env.get("SMTP_USER");
+  const pass = Deno.env.get("INVITATION_SMTP_PASS") || Deno.env.get("SMTP_PASS");
 
   if (!user || !pass) {
-    throw new Error("Fehlende Secrets: SMTP_USER oder SMTP_PASS.");
+    throw new Error("Fehlende Secrets: INVITATION_SMTP_USER/INVITATION_SMTP_PASS oder SMTP_USER/SMTP_PASS.");
   }
 
   return nodemailer.createTransport({
@@ -488,15 +489,21 @@ Deno.serve(async (request) => {
 
     const { data: recipientsData, error: recipientsError } = await adminClient
       .from("calendar_invitation_recipients")
-      .select("name, email, recipient_group")
+      .select("name, email, recipient_group, delivery_type")
       .eq("active", true)
       .order("name", { ascending: true });
     if (recipientsError) throw recipientsError;
 
     const recipients = (recipientsData || [])
-      .map((row: RecipientRow) => ({ ...row, email: normalizeEmail(row.email) }))
+      .map((row: RecipientRow) => ({
+        ...row,
+        email: normalizeEmail(row.email),
+        delivery_type: String(row.delivery_type || "bcc").trim().toLowerCase() === "to" ? "to" : "bcc",
+      }))
       .filter((row: RecipientRow) => row.email);
-    const uniqueEmails = Array.from(new Set(recipients.map((row: RecipientRow) => row.email)));
+    const toEmails = Array.from(new Set(recipients.filter((row: RecipientRow) => row.delivery_type === "to").map((row: RecipientRow) => row.email)));
+    const bccEmails = Array.from(new Set(recipients.filter((row: RecipientRow) => row.delivery_type !== "to").map((row: RecipientRow) => row.email)));
+    const uniqueEmails = Array.from(new Set([...toEmails, ...bccEmails]));
     if (!uniqueEmails.length) {
       return jsonResponse({ ok: true, skipped: true, reason: "no-recipients" });
     }
@@ -520,8 +527,8 @@ Deno.serve(async (request) => {
       return jsonResponse({ ok: true, dryRun, reminderCount: reminders.length, recipientCount: uniqueEmails.length, reminders });
     }
 
-    const mailFrom = Deno.env.get("INVITATION_EMAIL_FROM") || Deno.env.get("RESULT_EMAIL_FROM") || Deno.env.get("SMTP_USER");
-    if (!mailFrom) throw new Error("Fehlendes Secret: INVITATION_EMAIL_FROM, RESULT_EMAIL_FROM oder SMTP_USER.");
+    const mailFrom = Deno.env.get("INVITATION_EMAIL_FROM") || Deno.env.get("INVITATION_SMTP_USER") || Deno.env.get("RESULT_EMAIL_FROM") || Deno.env.get("SMTP_USER");
+    if (!mailFrom) throw new Error("Fehlendes Secret: INVITATION_EMAIL_FROM, INVITATION_SMTP_USER, RESULT_EMAIL_FROM oder SMTP_USER.");
     const transporter = buildTransport();
     const results: Array<Record<string, unknown>> = [];
 
@@ -531,7 +538,8 @@ Deno.serve(async (request) => {
         const pdfBytes = await buildInvitationPdf(reminder);
         const info = await transporter.sendMail({
           from: mailFrom,
-          to: uniqueEmails,
+          to: toEmails.length ? toEmails : mailFrom,
+          bcc: bccEmails.length ? bccEmails : undefined,
           subject,
           html: buildHtml(reminder),
           attachments: [{

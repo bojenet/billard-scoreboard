@@ -21,6 +21,7 @@ create table if not exists public.calendar_invitation_recipients (
   name text not null default '',
   email text not null,
   recipient_group text not null default 'clubs',
+  delivery_type text not null default 'bcc',
   active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -98,6 +99,16 @@ create unique index if not exists idx_calendar_invitation_recipients_email_group
 
 create index if not exists idx_calendar_invitation_recipients_active
   on public.calendar_invitation_recipients (active, recipient_group);
+
+alter table public.calendar_invitation_recipients
+  add column if not exists delivery_type text not null default 'bcc';
+
+alter table public.calendar_invitation_recipients
+  drop constraint if exists calendar_invitation_recipients_delivery_type_check;
+
+alter table public.calendar_invitation_recipients
+  add constraint calendar_invitation_recipients_delivery_type_check
+  check (delivery_type in ('to', 'bcc'));
 
 create index if not exists idx_calendar_invitation_email_logs_reminder
   on public.calendar_invitation_email_logs (reminder_id, status);
