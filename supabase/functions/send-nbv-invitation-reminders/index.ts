@@ -380,7 +380,15 @@ async function buildInvitationPdf(reminder: ReminderRow) {
 }
 
 function buildSubject(reminder: ReminderRow) {
-  return `NBV Ausschreibung: ${cleanText(reminder.title)} (${formatGermanDate(reminder.event_date)})`;
+  const sentAt = new Intl.DateTimeFormat("de-DE", {
+    timeZone: "Europe/Berlin",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date());
+  return `NBV Ausschreibung: ${cleanText(reminder.title)} (${formatGermanDate(reminder.event_date)}) - Versand ${sentAt}`;
 }
 
 function buildHtml(reminder: ReminderRow) {
@@ -417,7 +425,8 @@ Deno.serve(async (request) => {
 
     const payload = await request.json().catch(() => ({})) as RequestPayload;
     const dryRun = Boolean(payload.dryRun);
-    const limit = Math.max(1, Math.min(25, Number(payload.limit || 10)));
+    const requestedReminderId = cleanText(payload.reminderId);
+    const limit = requestedReminderId ? 1 : Math.max(1, Math.min(25, Number(payload.limit || 10)));
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
@@ -444,11 +453,14 @@ Deno.serve(async (request) => {
       .lte("reminder_date", todayIso())
       .order("reminder_date", { ascending: true })
       .limit(limit);
-    if (payload.reminderId) reminderQuery = reminderQuery.eq("id", cleanText(payload.reminderId));
+    if (requestedReminderId) reminderQuery = reminderQuery.eq("id", requestedReminderId);
 
     const { data: remindersData, error: remindersError } = await reminderQuery;
     if (remindersError) throw remindersError;
     const reminders = (remindersData || []) as ReminderRow[];
+    if (requestedReminderId && reminders.length !== 1) {
+      return jsonResponse({ ok: false, error: "reminder-not-found-or-not-open", reminderId: requestedReminderId }, 404);
+    }
     if (dryRun) {
       return jsonResponse({ ok: true, dryRun, reminderCount: reminders.length, recipientCount: uniqueEmails.length, reminders });
     }
