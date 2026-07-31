@@ -27,6 +27,18 @@ type RecipientRow = {
   recipient_group: string;
 };
 
+type InvitationDetails = {
+  tournament?: string;
+  date?: string;
+  startTime?: string;
+  deadline?: string;
+  locationName?: string;
+  locationAddress?: string[];
+  discipline?: string;
+  category?: string;
+  tournamentType?: string;
+};
+
 type RequestPayload = {
   dryRun?: boolean;
   limit?: number;
@@ -46,6 +58,14 @@ function cleanText(value: unknown) {
 
 function normalizeEmail(value: unknown) {
   return String(value || "").trim().toLowerCase();
+}
+
+function normalizeWhitespace(value: string) {
+  return String(value || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n[ \t]+/g, "\n")
+    .trim();
 }
 
 function todayIso() {
@@ -89,6 +109,96 @@ function bytesToBase64(bytes: Uint8Array) {
   return btoa(binary);
 }
 
+function decodeHtmlEntities(value: string) {
+  const named: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    quot: "\"",
+    lt: "<",
+    gt: ">",
+    nbsp: " ",
+    auml: "ä",
+    Auml: "Ä",
+    ouml: "ö",
+    Ouml: "Ö",
+    uuml: "ü",
+    Uuml: "Ü",
+    szlig: "ß",
+    eacute: "é",
+    Eacute: "É",
+  };
+  return String(value || "").replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, entity) => {
+    const key = String(entity);
+    if (key[0] === "#") {
+      const code = key.toLowerCase().startsWith("#x") ? Number.parseInt(key.slice(2), 16) : Number.parseInt(key.slice(1), 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : match;
+    }
+    return named[key] || match;
+  });
+}
+
+function textFromHtml(value: string) {
+  return normalizeWhitespace(decodeHtmlEntities(
+    String(value || "")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|tr|li|h\d)>/gi, "\n")
+      .replace(/<[^>]+>/g, "")
+  ));
+}
+
+function extractDetailCell(html: string, label: string) {
+  const pattern = new RegExp(`<tr[^>]*>\\s*<td[^>]*>\\s*${label}\\s*<\\/td>\\s*<td[^>]*>([\\s\\S]*?)<\\/td>`, "i");
+  const match = html.match(pattern);
+  return match ? textFromHtml(match[1]) : "";
+}
+
+function getStartTimeFromText(value: string) {
+  const match = String(value || "").match(/\bum\s*(\d{1,2}:\d{2})\s*Uhr/i);
+  return match ? match[1].padStart(5, "0") : "";
+}
+
+function getDateFromText(value: string) {
+  const match = String(value || "").match(/\b(\d{2}\.\d{2}\.\d{4})\b/);
+  return match ? match[1] : "";
+}
+
+function getStartTimeFromMessage(value: string) {
+  const match = String(value || "").match(/Beginn:\s*(\d{1,2}:\d{2})\s*Uhr/i);
+  return match ? match[1].padStart(5, "0") : "";
+}
+
+async function fetchInvitationDetails(link: string): Promise<InvitationDetails> {
+  if (!link) return {};
+  const url = link.startsWith("http") ? link : `https://www.ndbv.de/${link.replace(/^\/+/, "")}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": "billard-studio-calendar/1.0 (+https://www.billard-studio.de)" },
+      signal: controller.signal,
+    });
+    if (!response.ok) return {};
+    const html = await response.text();
+    const dateText = extractDetailCell(html, "Datum");
+    const locationLines = extractDetailCell(html, "Location").split("\n").map((line) => line.trim()).filter(Boolean);
+    return {
+      tournament: extractDetailCell(html, "Turnier"),
+      date: getDateFromText(dateText),
+      startTime: getStartTimeFromText(dateText),
+      deadline: getDateFromText(extractDetailCell(html, "Meldeschluss")),
+      locationName: locationLines[0] || "",
+      locationAddress: locationLines.slice(1),
+      discipline: extractDetailCell(html, "Disziplin"),
+      category: extractDetailCell(html, "Kategorie"),
+      tournamentType: extractDetailCell(html, "Meisterschaftstyp"),
+    };
+  } catch (_error) {
+    return {};
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function assertInvocationAllowed(request: Request) {
   const cronSecret = Deno.env.get("CRON_SECRET") || "";
   if (!cronSecret) return;
@@ -117,6 +227,14 @@ function buildTransport() {
 }
 
 async function buildInvitationPdf(reminder: ReminderRow) {
+  const details = await fetchInvitationDetails(reminder.link);
+  const title = cleanText(details.tournament || reminder.title);
+  const discipline = cleanText(details.discipline || "");
+  const typeParts = [details.tournamentType, details.category].map(cleanText).filter(Boolean);
+  const locationName = cleanText(details.locationName || reminder.location || "");
+  const locationLines = [locationName, ...(details.locationAddress || [])].filter(Boolean);
+  const startTime = cleanText(details.startTime || getStartTimeFromMessage(reminder.message_text));
+  const deadline = cleanText(details.deadline || "");
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -194,7 +312,7 @@ async function buildInvitationPdf(reminder: ReminderRow) {
 
   page.drawRectangle({ x: 48, y: 660, width: 499, height: 54, color: soft, borderColor: line, borderWidth: 1 });
   drawText("Ausschreibung", 238, 690, 18, { isBold: true, color: green });
-  const titleLines = wrap(cleanText(reminder.title), 50);
+  const titleLines = wrap(title, 50);
   titleLines.slice(0, 2).forEach((lineText, index) => drawText(lineText, 72, 666 - index * 15, 14, { isBold: true, color: green }));
 
   let y = drawSection("Turnierinformationen", 606);
@@ -202,22 +320,24 @@ async function buildInvitationPdf(reminder: ReminderRow) {
     ["Veranstalter", "Norddeutscher Billard Verband e.V. (NBV)"],
     ["Verantwortlicher", "Landessportwart Karambolage/Kegel"],
     ["Turnierleitung", "Ausrichtender Verein"],
+    ["Disziplin", discipline || "-"],
+    ["Wettbewerb", typeParts.join(" / ") || "-"],
     ["Startberechtigt", "Alle NBV-Sportler/innen, die in der NBV-ClubCloud als aktiv gemeldet sind."],
   ], y);
 
   y -= 22;
   y = drawSection("Termine / Uhrzeit", y);
   y = drawRows([
-    ["Termin", formatShortGermanDate(reminder.event_date)],
-    ["Turnierbeginn", "siehe Turnierdetails"],
-    ["Meldeschluss", "siehe Turnierdetails"],
+    ["Termin", details.date || formatShortGermanDate(reminder.event_date)],
+    ["Turnierbeginn", startTime ? `${startTime} Uhr` : "-"],
+    ["Meldeschluss", deadline || "-"],
     ["Akkreditierung", "jeweils bis 15 Minuten vor Turnierbeginn"],
   ], y);
 
   y -= 22;
   y = drawSection("Spielort / Dresscode", y);
   y = drawRows([
-    ["Spielort", reminder.location || "-"],
+    ["Spielort", locationLines.join("\n") || "-"],
     ["Kleidung", "gem. Pkt. 1.3 Spielkleidung der STO-BT Karambolage des NBV"],
   ], y);
 
