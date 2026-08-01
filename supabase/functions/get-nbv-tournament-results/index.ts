@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const CACHE_SCHEMA_VERSION = 2;
+const CACHE_SCHEMA_VERSION = 3;
 
 type TournamentRequest = {
   sourceUrl?: string;
