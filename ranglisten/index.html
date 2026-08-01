@@ -59,7 +59,7 @@
 
         .season-toolbar {
             display: grid;
-            grid-template-columns: 180px minmax(0, 1fr) auto;
+            grid-template-columns: 180px minmax(0, 1fr) auto auto;
             gap: 10px;
             align-items: end;
             margin-bottom: 14px;
@@ -109,6 +109,11 @@
             background: var(--blue);
             border-color: var(--blue-deep);
             color: #fff;
+        }
+
+        .btn-secondary {
+            background: #667085;
+            border-color: #566173;
         }
 
         .matches-list {
@@ -481,6 +486,7 @@
                     </select>
                 </div>
                 <button id="refreshRankingBtn" class="btn" type="button" onclick="refreshSeasonRanking()">Aktualisieren</button>
+                <button id="exportRankingBtn" class="btn btn-secondary" type="button" onclick="exportRankingWorkbook()">Excel Export</button>
             </div>
             <div id="statusLine" class="status-line"></div>
             <div id="resultsWrap">
@@ -511,6 +517,7 @@
             "7": "Freie Partie (großes Billard)",
             "8": "Freie Partie (kleines Billard)",
         };
+        const RANKING_EXPORT_DISCIPLINE_IDS = ["9", "10", "11", "12", "7", "8", "14", "13", "5", "6"];
         let currentUser = null;
         let canRefreshRankings = false;
 
@@ -1471,6 +1478,144 @@
             setStatus(failedCount
                 ? `${loadedCount} Turniere aus gespeicherter Rangliste, ${failedCount} übersprungen.${suffix}`
                 : `${loadedCount} Turniere aus gespeicherter Rangliste geladen.${suffix}`);
+        }
+
+        function escapeExcelXml(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function buildExcelCell(value, styleId = "") {
+            const style = styleId ? ` ss:StyleID="${styleId}"` : "";
+            return `<Cell${style}><Data ss:Type="String">${escapeExcelXml(value)}</Data></Cell>`;
+        }
+
+        function buildExcelRow(values, styleId = "") {
+            return `<Row>${values.map((value) => buildExcelCell(value, styleId)).join("")}</Row>`;
+        }
+
+        function sanitizeExcelSheetName(value, fallback = "Rangliste") {
+            const cleaned = String(value || fallback)
+                .replace(/[\[\]:*?/\\]/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+            return (cleaned || fallback).slice(0, 31);
+        }
+
+        function getRankingWorkbookFilename(season) {
+            const seasonPart = String(season || getLastCompletedSeason())
+                .replace(/[^\d]+/g, "-")
+                .replace(/^-|-$/g, "");
+            return `NBV-Ranglisten-${seasonPart}.xls`;
+        }
+
+        function extractSnapshotRankingRows(snapshot) {
+            const html = String(snapshot?.payload?.html || "");
+            if (!html) return [];
+            const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
+            const table = doc.querySelector(".season-block .ranking-table");
+            if (!table) return [];
+
+            return Array.from(table.rows).map((row) => (
+                Array.from(row.cells).map((cell) => String(cell.textContent || "").replace(/\s+/g, " ").trim())
+            ));
+        }
+
+        function buildRankingWorksheet(snapshot) {
+            const rows = extractSnapshotRankingRows(snapshot);
+            const disciplineLabel = snapshot?.discipline_label || NBV_DISCIPLINES[String(snapshot?.discipline_id || "")] || "Rangliste";
+            const exportedAt = new Date().toLocaleString("de-DE");
+            const updatedAt = formatDateTime(snapshot?.updated_at);
+
+            const tableRows = [
+                buildExcelRow([`NBV Rangliste - ${disciplineLabel}`], "Title"),
+                buildExcelRow([`Saison: ${snapshot?.season || ""}`]),
+                buildExcelRow([`Stand: ${updatedAt || "-"}`]),
+                buildExcelRow([`Exportiert am: ${exportedAt}`]),
+                "<Row></Row>",
+                ...rows.map((row, index) => buildExcelRow(row, index === 0 ? "Header" : "")),
+            ].join("");
+
+            const columnCount = rows.reduce((max, row) => Math.max(max, row.length), 1);
+            const columns = Array.from({ length: columnCount }, (_entry, index) => {
+                const width = index === 1 ? 180 : index === 2 ? 90 : 76;
+                return `<Column ss:Width="${width}"/>`;
+            }).join("");
+
+            return `
+ <Worksheet ss:Name="${escapeExcelXml(sanitizeExcelSheetName(disciplineLabel))}">
+  <Table>
+   ${columns}
+   ${tableRows}
+  </Table>
+ </Worksheet>`;
+        }
+
+        function downloadTextFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        async function exportRankingWorkbook() {
+            const season = getSelectedSeason() || getLastCompletedSeason();
+            setStatus("Excel-Export wird vorbereitet...");
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from(RANKING_SNAPSHOT_TABLE)
+                    .select("season,discipline_id,discipline_label,payload,loaded_tournament_count,failed_count,updated_at,updated_by_name")
+                    .eq("season", season)
+                    .in("discipline_id", RANKING_EXPORT_DISCIPLINE_IDS);
+
+                if (error) throw error;
+
+                const snapshotByDiscipline = new Map((data || []).map((snapshot) => [String(snapshot.discipline_id), snapshot]));
+                const snapshots = RANKING_EXPORT_DISCIPLINE_IDS
+                    .map((disciplineId) => snapshotByDiscipline.get(disciplineId))
+                    .filter((snapshot) => snapshot && extractSnapshotRankingRows(snapshot).length > 1);
+
+                if (!snapshots.length) {
+                    setStatus(`Für ${season} sind noch keine exportierbaren Ranglisten gespeichert.`);
+                    return;
+                }
+
+                const workbookXml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="Title"><Font ss:Bold="1" ss:Size="14"/><Alignment ss:Vertical="Center"/></Style>
+  <Style ss:ID="Header"><Font ss:Bold="1"/><Interior ss:Color="#D5DADF" ss:Pattern="Solid"/></Style>
+ </Styles>
+ ${snapshots.map((snapshot) => buildRankingWorksheet(snapshot)).join("")}
+</Workbook>`;
+
+                downloadTextFile(workbookXml, getRankingWorkbookFilename(season), "application/vnd.ms-excel;charset=utf-8");
+
+                const missingLabels = RANKING_EXPORT_DISCIPLINE_IDS
+                    .filter((disciplineId) => !snapshotByDiscipline.has(disciplineId))
+                    .map((disciplineId) => NBV_DISCIPLINES[disciplineId])
+                    .filter(Boolean);
+                setStatus(missingLabels.length
+                    ? `${snapshots.length} Ranglisten exportiert. Noch nicht gespeichert: ${missingLabels.join(", ")}.`
+                    : `${snapshots.length} Ranglisten exportiert.`);
+            } catch (error) {
+                const message = await getFunctionErrorMessage(error);
+                setStatus(`Excel-Export fehlgeschlagen: ${message}`);
+            }
         }
 
         async function saveRankingSnapshot(season, disciplineId, disciplineLabel, seasonBundles, failed, html) {
