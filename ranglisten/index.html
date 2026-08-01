@@ -910,10 +910,12 @@
                         if (!name) return;
                         const current = tournamentPlayerMap.get(name) || {
                             name,
+                            club: String(player?.club || "").trim(),
                             balls: 0,
                             innings: 0,
                             hs: 0,
                         };
+                        if (!current.club && player?.club) current.club = String(player.club || "").trim();
                         current.balls += toNumber(player.balls);
                         current.innings += toNumber(player.innings);
                         current.hs = Math.max(current.hs, toNumber(player.hs));
@@ -924,7 +926,7 @@
                 Array.from(tournamentPlayerMap.values()).forEach((entry) => {
                     const playerSummary = playerMap.get(entry.name) || {
                         name: entry.name,
-                        club: inferClubFromPlayerName(entry.name),
+                        club: entry.club || inferClubFromPlayerName(entry.name),
                         totalBalls: 0,
                         totalInnings: 0,
                         bestTournamentAverage: 0,
@@ -933,6 +935,7 @@
                         earnedClass: "",
                     };
                     const tournamentAverage = entry.innings > 0 ? entry.balls / entry.innings : 0;
+                    if (!playerSummary.club && entry.club) playerSummary.club = entry.club;
                     playerSummary.totalBalls += entry.balls;
                     playerSummary.totalInnings += entry.innings;
                     playerSummary.bestTournamentAverage = Math.max(playerSummary.bestTournamentAverage, tournamentAverage);

@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_SCHEMA_VERSION = 2;
 
 type TournamentRequest = {
   sourceUrl?: string;
@@ -15,6 +16,7 @@ type TournamentRequest = {
 
 type MatchPlayer = {
   name: string;
+  club: string;
   balls: string;
   innings: string;
   hs: string;
@@ -47,6 +49,7 @@ type TournamentMeta = {
 };
 
 type TournamentResponse = {
+  schemaVersion: number;
   sourceUrl: string;
   resultsUrl: string;
   fetchedAt: string;
@@ -306,6 +309,99 @@ function extractAnchorTexts(html: string) {
   return values;
 }
 
+function normalizePersonNameKey(value: string) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function getPersonNameKeys(value: string) {
+  const name = cleanText(value);
+  const keys = new Set<string>();
+  const direct = normalizePersonNameKey(name);
+  if (direct) keys.add(direct);
+  const commaMatch = name.match(/^([^,]+),\s*(.+)$/);
+  if (commaMatch) {
+    const swapped = normalizePersonNameKey(`${commaMatch[2]} ${commaMatch[1]}`);
+    if (swapped) keys.add(swapped);
+  }
+  return Array.from(keys);
+}
+
+function simplifyClubName(value: string) {
+  const club = cleanText(value);
+  const normalized = normalizeToken(club);
+  const clubs: Record<string, string> = {
+    bghamburg: "BGH",
+    bcwedel: "BCW",
+    bcwedel61: "BCW",
+    tsvnordhastedt: "TSVNB",
+    tsvnordhastedtberlin: "TSVNB",
+    bvkiel: "BVK",
+    vereinslos: "Vereinslos",
+  };
+  return clubs[normalized] || club;
+}
+
+function setParticipantClub(clubMap: Map<string, string>, playerName: string, clubName: string) {
+  const club = simplifyClubName(clubName);
+  if (!playerName || !club) return;
+  getPersonNameKeys(playerName).forEach((key) => {
+    if (key && !clubMap.has(key)) clubMap.set(key, club);
+  });
+}
+
+function extractParticipantClubMap(html: string) {
+  const clubMap = new Map<string, string>();
+  const cellRegex = /<(?:td|th)\b[^>]*>([\s\S]*?)<\/(?:td|th)>/gi;
+  let cellMatch: RegExpExecArray | null;
+  while ((cellMatch = cellRegex.exec(html)) !== null) {
+    const cellHtml = cellMatch[1] || "";
+    const strongRegex = /<strong\b[^>]*>([\s\S]*?)<\/strong>\s*<br\s*\/?>\s*([^<]+)/gi;
+    let strongMatch: RegExpExecArray | null;
+    while ((strongMatch = strongRegex.exec(cellHtml)) !== null) {
+      const playerName = stripTags(strongMatch[1] || "");
+      const clubName = stripTags(strongMatch[2] || "");
+      if (!playerName.includes(",") || !clubName) continue;
+      setParticipantClub(clubMap, playerName, clubName);
+    }
+  }
+  return clubMap;
+}
+
+function mergeClubMaps(target: Map<string, string>, source: Map<string, string>) {
+  source.forEach((club, key) => {
+    if (key && club && !target.has(key)) target.set(key, club);
+  });
+}
+
+function extractTabUrl(html: string, baseUrl: string, labelMatcher: (label: string) => boolean) {
+  const linkRegex = /<a\b([^>]*)href=(['"])([^'"]+)\2([^>]*)>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = linkRegex.exec(html)) !== null) {
+    const label = stripTags(match[5]);
+    if (!labelMatcher(label)) continue;
+    const href = resolveHref(match[3], baseUrl);
+    if (href) return href;
+  }
+
+  return "";
+}
+
+function getPlayerClub(playerName: string, clubMap: Map<string, string>) {
+  for (const key of getPersonNameKeys(playerName)) {
+    const club = clubMap.get(key);
+    if (club) return club;
+  }
+  return "";
+}
+
 function parseStatValue(text: string, labelPattern: RegExp) {
   const match = cleanText(text).match(labelPattern);
   return cleanText(match?.[1] || "");
@@ -435,15 +531,8 @@ function isLikelyResultLinkLabel(label: string) {
 }
 
 function extractResultsTabUrl(html: string, baseUrl: string) {
-  const linkRegex = /<a\b([^>]*)href=(['"])([^'"]+)\2([^>]*)>([\s\S]*?)<\/a>/gi;
-  let match: RegExpExecArray | null;
-
-  while ((match = linkRegex.exec(html)) !== null) {
-    const label = stripTags(match[5]);
-    if (!isLikelyResultLinkLabel(label)) continue;
-    const href = resolveHref(match[3], baseUrl);
-    if (href) return href;
-  }
+  const directHref = extractTabUrl(html, baseUrl, isLikelyResultLinkLabel);
+  if (directHref) return directHref;
 
   const onclickRegex = /<([a-z0-9]+)\b([^>]*)onclick=(['"])([\s\S]*?)\3([^>]*)>([\s\S]*?)<\/\1>/gi;
   let onclickMatch: RegExpExecArray | null;
@@ -457,6 +546,10 @@ function extractResultsTabUrl(html: string, baseUrl: string) {
   }
 
   return "";
+}
+
+function extractRegistrationListTabUrl(html: string, baseUrl: string) {
+  return extractTabUrl(html, baseUrl, (label) => normalizeToken(label).includes("meldeliste"));
 }
 
 function extractMetaValue(pageText: string, label: string) {
@@ -494,7 +587,7 @@ function extractMeta(html: string, sourceUrl: string): TournamentMeta {
   };
 }
 
-function parsePlayerCell(html: string, text: string, balls: string): MatchPlayer {
+function parsePlayerCell(html: string, text: string, balls: string, clubMap: Map<string, string>): MatchPlayer {
   const anchors = extractAnchorTexts(html);
   const lines = stripTagsWithBreaks(html)
     .split("\n")
@@ -509,6 +602,7 @@ function parsePlayerCell(html: string, text: string, balls: string): MatchPlayer
     .join(" ");
   return {
     name,
+    club: getPlayerClub(name, clubMap),
     balls,
     innings: parseStatValue(statsText, /Aufn\.?\s*:\s*([0-9.,]+)/i),
     hs: parseStatValue(statsText, /HS\s*:\s*([0-9.,]+)/i),
@@ -586,7 +680,7 @@ function detectPhaseType(label: string) {
   return "results";
 }
 
-function parseMatchTables(html: string) {
+function parseMatchTables(html: string, clubMap = new Map<string, string>()) {
   const tables = extractTableHtmlBlocks(html);
   const matches: TournamentMatchRow[] = [];
   let bestHeaders: string[] = [];
@@ -627,8 +721,8 @@ function parseMatchTables(html: string) {
 
       const score = values[scoreIndex];
       const scoreParts = score.split(":").map((part) => cleanText(part));
-      const player1 = parsePlayerCell(row.cellsHtml[leftIndex] || "", values[leftIndex] || "", scoreParts[0] || "");
-      const player2 = parsePlayerCell(row.cellsHtml[rightIndex] || "", values[rightIndex] || "", scoreParts[1] || "");
+      const player1 = parsePlayerCell(row.cellsHtml[leftIndex] || "", values[leftIndex] || "", scoreParts[0] || "", clubMap);
+      const player2 = parsePlayerCell(row.cellsHtml[rightIndex] || "", values[rightIndex] || "", scoreParts[1] || "", clubMap);
       if (!player1.name || !player2.name) continue;
       const matchPoints = calculateMatchPoints(player1.balls, player2.balls);
       player1.points = matchPoints.leftPoints;
@@ -670,7 +764,20 @@ async function loadTournamentResults(sourceUrl: string) {
     ? await fetchHtmlWithRetry(resultsTabUrl)
     : mainPage;
 
-  const parsed = parseMatchTables(resultsPage.html);
+  const clubMap = extractParticipantClubMap(mainPage.html);
+  if (!clubMap.size) {
+    const registrationListUrl = extractRegistrationListTabUrl(mainPage.html, mainPage.url);
+    if (registrationListUrl && registrationListUrl !== mainPage.url) {
+      try {
+        const registrationPage = await fetchHtmlWithRetry(registrationListUrl, 2);
+        mergeClubMaps(clubMap, extractParticipantClubMap(registrationPage.html));
+      } catch (error) {
+        console.warn("Meldeliste konnte nicht für Vereinszuordnung geladen werden", error);
+      }
+    }
+  }
+
+  const parsed = parseMatchTables(resultsPage.html, clubMap);
   return {
     sourceUrl: mainPage.url,
     resultsUrl: resultsPage.url,
@@ -718,18 +825,22 @@ Deno.serve(async (request) => {
     const memoryCached = responseCache.get(cacheKey);
 
     if (!forceRefresh && memoryCached && now - memoryCached.createdAt < CACHE_TTL_MS) {
-      return new Response(JSON.stringify({
-        ...memoryCached.payload,
-        cacheAgeSeconds: Math.max(0, Math.floor((now - memoryCached.createdAt) / 1000)),
-        cacheSource: "memory",
-      }), {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-          "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=120",
-        },
-      });
+      if (memoryCached.payload.schemaVersion !== CACHE_SCHEMA_VERSION) {
+        responseCache.delete(cacheKey);
+      } else {
+        return new Response(JSON.stringify({
+          ...memoryCached.payload,
+          cacheAgeSeconds: Math.max(0, Math.floor((now - memoryCached.createdAt) / 1000)),
+          cacheSource: "memory",
+        }), {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=120",
+          },
+        });
+      }
     }
 
     let persistentCache: TournamentCacheRow | null = null;
@@ -739,7 +850,7 @@ Deno.serve(async (request) => {
       console.warn("Persistent tournament cache read failed", error);
     }
 
-    if (!forceRefresh && persistentCache) {
+    if (!forceRefresh && persistentCache && persistentCache.payload?.schemaVersion === CACHE_SCHEMA_VERSION) {
       const lastCheckedAt = parseIsoDate(persistentCache.last_checked_at)?.getTime() || 0;
       const refreshIntervalMs = getRefreshIntervalMs(persistentCache.event_date || persistentCache.payload?.meta?.date);
       if (now - lastCheckedAt < refreshIntervalMs) {
@@ -766,6 +877,7 @@ Deno.serve(async (request) => {
     try {
       const result = await loadTournamentResults(sourceUrl);
       const payload: TournamentResponse = {
+        schemaVersion: CACHE_SCHEMA_VERSION,
         sourceUrl: result.sourceUrl,
         resultsUrl: result.resultsUrl,
         fetchedAt: nowIso,
@@ -776,7 +888,7 @@ Deno.serve(async (request) => {
       };
       const contentHash = await hashTournamentPayload(payload);
 
-      if (persistentCache && persistentCache.content_hash === contentHash) {
+      if (persistentCache && persistentCache.payload?.schemaVersion === CACHE_SCHEMA_VERSION && persistentCache.content_hash === contentHash) {
         try {
           await touchPersistentCache(sourceUrl, nowIso);
         } catch (error) {
