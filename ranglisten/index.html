@@ -955,6 +955,14 @@
             return clubByPlayer[normalized] || "";
         }
 
+        function pickPlayerClub(name, ...summaries) {
+            for (const summary of summaries) {
+                const club = String(summary?.club || "").trim();
+                if (club) return club;
+            }
+            return inferClubFromPlayerName(name);
+        }
+
         function createSeasonPlayerSummary(tournaments, disciplineId, includeLinks = false) {
             const playerMap = new Map();
 
@@ -1243,12 +1251,14 @@
                         earnedClass: "",
                     };
                     const prev1 = previousMap1.get(name) || {
+                        club: "",
                         totalBalls: 0,
                         totalInnings: 0,
                         bestTournamentAverage: 0,
                         earnedClass: "",
                     };
                     const prev2 = previousMap2.get(name) || {
+                        club: "",
                         totalBalls: 0,
                         totalInnings: 0,
                         bestTournamentAverage: 0,
@@ -1265,7 +1275,7 @@
 
                     return {
                         name,
-                        club: current.club || inferClubFromPlayerName(name),
+                        club: pickPlayerClub(name, current, prev1, prev2),
                         totalBalls: current.totalBalls || 0,
                         totalInnings: current.totalInnings || 0,
                         totalAverage: current.totalInnings > 0 ? current.totalBalls / current.totalInnings : 0,

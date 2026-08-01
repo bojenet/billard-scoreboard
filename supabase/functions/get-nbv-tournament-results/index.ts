@@ -356,6 +356,37 @@ function setParticipantClub(clubMap: Map<string, string>, playerName: string, cl
   });
 }
 
+function isLikelyPersonName(value: string) {
+  const text = cleanText(value);
+  if (!text || text.length < 5) return false;
+  if (text.includes(",")) return true;
+  const words = text.split(/\s+/).filter(Boolean);
+  return words.length >= 2 && words.length <= 5 && !/[0-9]/.test(text);
+}
+
+function isLikelyClubName(value: string) {
+  const text = cleanText(value);
+  if (!text || text.length < 2 || text.length > 60) return false;
+  if (/[0-9]{2,}/.test(text)) return false;
+  const normalized = normalizeToken(text);
+  if (!normalized) return false;
+  if (/^(rang|platz|sportler|spieler|name|verein|gd|hs|balls?|baelle|aufn|klasse|status|datum)$/.test(normalized)) {
+    return false;
+  }
+  return /^(bc|bg|tsv|bsv|bfr|bf|bvk|dbc|sc|sv|vfl|vfb|sg|billard|vereinslos)/i.test(text)
+    || /(hamburg|wedel|nordhastedt|kiel|berlin|billard|club|verein)/i.test(text);
+}
+
+function extractCellsFromRow(rowHtml: string) {
+  const cells: string[] = [];
+  const cellRegex = /<(?:td|th)\b[^>]*>([\s\S]*?)<\/(?:td|th)>/gi;
+  let cellMatch: RegExpExecArray | null;
+  while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
+    cells.push(stripTags(cellMatch[1] || ""));
+  }
+  return cells;
+}
+
 function extractParticipantClubMap(html: string) {
   const clubMap = new Map<string, string>();
   const cellRegex = /<(?:td|th)\b[^>]*>([\s\S]*?)<\/(?:td|th)>/gi;
@@ -371,6 +402,20 @@ function extractParticipantClubMap(html: string) {
       setParticipantClub(clubMap, playerName, clubName);
     }
   }
+
+  const rowRegex = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+  let rowMatch: RegExpExecArray | null;
+  while ((rowMatch = rowRegex.exec(html)) !== null) {
+    const cells = extractCellsFromRow(rowMatch[1] || "");
+    cells.forEach((cell, index) => {
+      if (!isLikelyPersonName(cell)) return;
+      const clubName = cells
+        .slice(index + 1, index + 4)
+        .find((candidate) => isLikelyClubName(candidate));
+      if (clubName) setParticipantClub(clubMap, cell, clubName);
+    });
+  }
+
   return clubMap;
 }
 
@@ -765,15 +810,13 @@ async function loadTournamentResults(sourceUrl: string) {
     : mainPage;
 
   const clubMap = extractParticipantClubMap(mainPage.html);
-  if (!clubMap.size) {
-    const registrationListUrl = extractRegistrationListTabUrl(mainPage.html, mainPage.url);
-    if (registrationListUrl && registrationListUrl !== mainPage.url) {
-      try {
-        const registrationPage = await fetchHtmlWithRetry(registrationListUrl, 2);
-        mergeClubMaps(clubMap, extractParticipantClubMap(registrationPage.html));
-      } catch (error) {
-        console.warn("Meldeliste konnte nicht für Vereinszuordnung geladen werden", error);
-      }
+  const registrationListUrl = extractRegistrationListTabUrl(mainPage.html, mainPage.url);
+  if (registrationListUrl && registrationListUrl !== mainPage.url) {
+    try {
+      const registrationPage = await fetchHtmlWithRetry(registrationListUrl, 2);
+      mergeClubMaps(clubMap, extractParticipantClubMap(registrationPage.html));
+    } catch (error) {
+      console.warn("Meldeliste konnte nicht für Vereinszuordnung geladen werden", error);
     }
   }
 
