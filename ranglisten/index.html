@@ -442,7 +442,7 @@
             <div class="season-toolbar">
                 <div class="field">
                     <label for="seasonInput">Saison</label>
-                    <select id="seasonInput">
+                    <select id="seasonInput" onchange="loadSelectedRankingSnapshot().catch(handleSnapshotLoadError)">
                         <option value="2025/2026" selected>2025/2026</option>
                         <option value="2024/2025">2024/2025</option>
                         <option value="2023/2024">2023/2024</option>
@@ -464,7 +464,7 @@
                 </div>
                 <div class="field">
                     <label for="disciplineSelect">Disziplin</label>
-                    <select id="disciplineSelect">
+                    <select id="disciplineSelect" onchange="loadSelectedRankingSnapshot().catch(handleSnapshotLoadError)">
                         <option value="36">Billard Kegeln</option>
                         <option value="56">Biathlon</option>
                         <option value="9">Cadre 35/2</option>
@@ -480,7 +480,7 @@
                         <option value="8">Freie Partie (kleines Billard)</option>
                     </select>
                 </div>
-                <button class="btn" type="button" onclick="loadSeasonRanking()">Saison laden</button>
+                <button id="refreshRankingBtn" class="btn" type="button" onclick="refreshSeasonRanking()">Aktualisieren</button>
             </div>
             <div id="statusLine" class="status-line"></div>
             <div id="resultsWrap">
@@ -490,10 +490,12 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/user_menu.js"></script>
+    <script src="/js/supabase.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/calendar_access.js"></script>
+    <script src="/js/user_menu.js"></script>
     <script>
+        const RANKING_SNAPSHOT_TABLE = "nbv_ranking_snapshots";
         const NBV_DISCIPLINES = {
             "36": "Billard Kegeln",
             "56": "Biathlon",
@@ -509,6 +511,8 @@
             "7": "Freie Partie (großes Billard)",
             "8": "Freie Partie (kleines Billard)",
         };
+        let currentUser = null;
+        let canRefreshRankings = false;
 
         function escapeHtml(value) {
             return String(value || "")
@@ -558,6 +562,56 @@
             const el = document.getElementById("statusLine");
             if (!el) return;
             el.textContent = text || "";
+        }
+
+        function getLastCompletedSeason(today = new Date()) {
+            const year = today.getFullYear();
+            const month = today.getMonth() + 1;
+            const activeSeasonStart = month >= 8 ? year : year - 1;
+            const lastSeasonStart = activeSeasonStart - 1;
+            return `${lastSeasonStart}/${lastSeasonStart + 1}`;
+        }
+
+        function setSelectValue(selectId, value) {
+            const select = document.getElementById(selectId);
+            if (!select || !value) return;
+            const normalizedValue = String(value);
+            const hasOption = Array.from(select.options).some((option) => option.value === normalizedValue);
+            if (!hasOption) {
+                select.add(new Option(normalizedValue, normalizedValue));
+            }
+            select.value = normalizedValue;
+        }
+
+        function getSelectedSeason() {
+            return normalizeSeasonInput(String(document.getElementById("seasonInput")?.value || "").trim());
+        }
+
+        function getSelectedDisciplineId() {
+            return String(document.getElementById("disciplineSelect")?.value || "").trim();
+        }
+
+        function getSelectedDisciplineLabel() {
+            return NBV_DISCIPLINES[getSelectedDisciplineId()] || "Disziplin";
+        }
+
+        function formatDateTime(value) {
+            if (!value) return "";
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return "";
+            return date.toLocaleString("de-DE", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+        }
+
+        function applyRankingAccessUi() {
+            const button = document.getElementById("refreshRankingBtn");
+            if (!button) return;
+            button.style.display = canRefreshRankings ? "" : "none";
         }
 
         function buildDetails(details) {
@@ -1322,24 +1376,130 @@
             `;
         }
 
-        function renderSeasonResults(seasonBundles, failed = []) {
-            const wrap = document.getElementById("resultsWrap");
-            if (!wrap) return;
-            const disciplineId = String(document.getElementById("disciplineSelect")?.value || "").trim();
+        function buildSeasonResultsHtml(seasonBundles, failed = [], disciplineId = "") {
+            const selectedDisciplineId = String(disciplineId || getSelectedDisciplineId()).trim();
 
             const validSeasonBundles = Array.isArray(seasonBundles)
                 ? seasonBundles.filter((entry) => Array.isArray(entry?.tournaments) && entry.tournaments.length)
                 : [];
 
             if (!validSeasonBundles.length) {
-                wrap.innerHTML = '<div class="empty-state">Keine Begegnungen gefunden.</div>';
-                return;
+                return '<div class="empty-state">Keine Begegnungen gefunden.</div>';
             }
 
-            wrap.innerHTML = `
-                ${buildSeasonRanking(validSeasonBundles, disciplineId)}
+            return `
+                ${buildSeasonRanking(validSeasonBundles, selectedDisciplineId)}
                 ${buildFailedBlock(failed)}
             `;
+        }
+
+        function renderSeasonResults(seasonBundles, failed = []) {
+            const wrap = document.getElementById("resultsWrap");
+            if (!wrap) return "";
+            const html = buildSeasonResultsHtml(seasonBundles, failed);
+            wrap.innerHTML = html;
+            return html;
+        }
+
+        function getLoadedTournamentCount(seasonBundles) {
+            return Array.isArray(seasonBundles)
+                ? seasonBundles.reduce((sum, bundle) => sum + (bundle.tournaments?.length || 0), 0)
+                : 0;
+        }
+
+        async function loadSelectedRankingSnapshot() {
+            const season = getSelectedSeason();
+            const disciplineId = getSelectedDisciplineId();
+            if (!season || !disciplineId) return null;
+
+            setStatus("Gespeicherte Rangliste wird geladen...");
+            const { data, error } = await supabaseClient
+                .from(RANKING_SNAPSHOT_TABLE)
+                .select("season,discipline_id,discipline_label,payload,loaded_tournament_count,failed_count,updated_at,updated_by_name")
+                .eq("season", season)
+                .eq("discipline_id", disciplineId)
+                .maybeSingle();
+
+            if (error) throw error;
+            if (!data) {
+                document.getElementById("resultsWrap").innerHTML = '<div class="empty-state">Für diese Saison und Disziplin ist noch keine gespeicherte Rangliste vorhanden.</div>';
+                setStatus(canRefreshRankings ? "Mit Aktualisieren einmal laden und zentral speichern." : "Noch nicht zentral geladen.");
+                return null;
+            }
+
+            renderRankingSnapshot(data);
+            return data;
+        }
+
+        async function loadLatestSeasonSnapshot() {
+            const lastSeason = getLastCompletedSeason();
+            setSelectValue("seasonInput", lastSeason);
+            setStatus("Gespeicherte Rangliste wird geladen...");
+
+            const { data, error } = await supabaseClient
+                .from(RANKING_SNAPSHOT_TABLE)
+                .select("season,discipline_id,discipline_label,payload,loaded_tournament_count,failed_count,updated_at,updated_by_name")
+                .eq("season", lastSeason)
+                .order("updated_at", { ascending: false })
+                .limit(1);
+
+            if (error) throw error;
+            const snapshot = Array.isArray(data) ? data[0] : null;
+            if (!snapshot) {
+                document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Für die letzte abgeschlossene Saison ${escapeHtml(lastSeason)} ist noch keine gespeicherte Rangliste vorhanden.</div>`;
+                setStatus(canRefreshRankings ? "Disziplin auswählen und mit Aktualisieren einmal zentral laden." : "Noch nicht zentral geladen.");
+                return null;
+            }
+
+            setSelectValue("disciplineSelect", snapshot.discipline_id);
+            renderRankingSnapshot(snapshot);
+            return snapshot;
+        }
+
+        function renderRankingSnapshot(snapshot) {
+            const wrap = document.getElementById("resultsWrap");
+            if (!wrap) return;
+            setSelectValue("seasonInput", snapshot?.season || "");
+            setSelectValue("disciplineSelect", snapshot?.discipline_id || "");
+            wrap.innerHTML = snapshot?.payload?.html || '<div class="empty-state">Gespeicherte Rangliste enthält keine Ausgabe.</div>';
+
+            const loadedCount = Number(snapshot?.loaded_tournament_count || 0);
+            const failedCount = Number(snapshot?.failed_count || 0);
+            const updatedAt = formatDateTime(snapshot?.updated_at);
+            const updatedBy = snapshot?.updated_by_name ? ` von ${snapshot.updated_by_name}` : "";
+            const suffix = updatedAt ? ` Stand: ${updatedAt}${updatedBy}.` : "";
+            setStatus(failedCount
+                ? `${loadedCount} Turniere aus gespeicherter Rangliste, ${failedCount} übersprungen.${suffix}`
+                : `${loadedCount} Turniere aus gespeicherter Rangliste geladen.${suffix}`);
+        }
+
+        async function saveRankingSnapshot(season, disciplineId, disciplineLabel, seasonBundles, failed, html) {
+            const loadedTournamentCount = getLoadedTournamentCount(seasonBundles);
+            const payload = {
+                html,
+                season,
+                disciplineId,
+                disciplineLabel,
+                generatedAt: new Date().toISOString(),
+            };
+            const row = {
+                id: `${season}-${disciplineId}`,
+                season,
+                discipline_id: disciplineId,
+                discipline_label: disciplineLabel,
+                payload,
+                loaded_tournament_count: loadedTournamentCount,
+                failed_count: Array.isArray(failed) ? failed.length : 0,
+                failed_messages: Array.isArray(failed) ? failed.slice(0, 100) : [],
+                updated_by: currentUser?.id || null,
+                updated_by_name: getDisplayName(currentUser),
+                updated_at: new Date().toISOString(),
+            };
+
+            const { error } = await supabaseClient
+                .from(RANKING_SNAPSHOT_TABLE)
+                .upsert(row, { onConflict: "id" });
+            if (error) throw error;
         }
 
         async function loadTournamentBatch(events, season, disciplineLabel, concurrency = 6) {
@@ -1406,10 +1566,21 @@
             }
         }
 
-        async function loadSeasonRanking() {
-            const season = normalizeSeasonInput(String(document.getElementById("seasonInput")?.value || "").trim());
-            const disciplineId = String(document.getElementById("disciplineSelect")?.value || "").trim();
-            const disciplineLabel = NBV_DISCIPLINES[disciplineId] || "Disziplin";
+        function handleSnapshotLoadError(error) {
+            console.warn("Gespeicherte Rangliste konnte nicht geladen werden:", error);
+            document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Gespeicherte Rangliste konnte nicht geladen werden.<br>${escapeHtml(error?.message || error)}</div>`;
+            setStatus("");
+        }
+
+        async function refreshSeasonRanking() {
+            if (!canRefreshRankings) {
+                setStatus("Keine Berechtigung zum Aktualisieren.");
+                return;
+            }
+
+            const season = getSelectedSeason();
+            const disciplineId = getSelectedDisciplineId();
+            const disciplineLabel = getSelectedDisciplineLabel();
             if (!season || !disciplineId) return;
 
             try {
@@ -1433,7 +1604,7 @@
                     }
                 }
 
-                const loadedTournamentCount = seasonBundles.reduce((sum, bundle) => sum + (bundle.tournaments?.length || 0), 0);
+                const loadedTournamentCount = getLoadedTournamentCount(seasonBundles);
 
                 if (!loadedTournamentCount) {
                     document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Keine Turniere konnten geladen werden.<br>${escapeHtml(failed[0] || "Unbekannter Fehler")}</div>`;
@@ -1441,21 +1612,26 @@
                     return;
                 }
 
-                renderSeasonResults(seasonBundles, failed);
+                const html = renderSeasonResults(seasonBundles, failed);
+                await saveRankingSnapshot(season, disciplineId, disciplineLabel, seasonBundles, failed, html);
                 setStatus(failed.length
-                    ? `${loadedTournamentCount} Turniere aus ${seasonBundles.length} Saisons geladen, ${failed.length} übersprungen.`
-                    : `${loadedTournamentCount} Turniere aus ${seasonBundles.length} Saisons geladen.`);
+                    ? `${loadedTournamentCount} Turniere aus ${seasonBundles.length} Saisons geladen und gespeichert, ${failed.length} übersprungen.`
+                    : `${loadedTournamentCount} Turniere aus ${seasonBundles.length} Saisons geladen und gespeichert.`);
             } catch (error) {
                 const message = await getFunctionErrorMessage(error);
-                document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Die Saison konnte nicht geladen werden.<br>${escapeHtml(message)}</div>`;
+                document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Die Saison konnte nicht aktualisiert werden.<br>${escapeHtml(message)}</div>`;
                 setStatus("");
             }
         }
 
         async function initPage() {
             try {
-                const user = await requireAuth();
-                if (!user) return;
+                currentUser = await requireAuth();
+                if (!currentUser) return;
+                const calendarAccess = await getCalendarAccess(currentUser);
+                canRefreshRankings = isCalendarEditable(calendarAccess);
+                applyRankingAccessUi();
+                await loadLatestSeasonSnapshot();
             } finally {
                 document.body.classList.add("page-ready");
             }
