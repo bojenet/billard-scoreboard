@@ -323,6 +323,24 @@
             font-size: 12px;
         }
 
+        .ranking-table th.sortable-header {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .sort-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+
+        .sort-arrow {
+            color: #7a8699;
+            font-size: 10px;
+            line-height: 1;
+        }
+
         .ranking-table tbody tr:last-child td {
             border-bottom: none;
         }
@@ -1417,6 +1435,7 @@
                 }], disciplineId)}
                 ${buildFailedBlock(failed)}
             `;
+            enhanceRankingTables(wrap);
         }
 
         function buildSeasonResultsHtml(seasonBundles, failed = [], disciplineId = "") {
@@ -1441,7 +1460,80 @@
             if (!wrap) return "";
             const html = buildSeasonResultsHtml(seasonBundles, failed);
             wrap.innerHTML = html;
+            enhanceRankingTables(wrap);
             return html;
+        }
+
+        function parseSortableValue(cell) {
+            const text = String(cell?.textContent || "").replace(/\s+/g, " ").trim();
+            if (!text) return { type: "empty", value: "" };
+            const numericCandidate = text
+                .replace(/\./g, "")
+                .replace(",", ".")
+                .replace(/[^0-9.+-]/g, "");
+            if (/^[+-]?\d+(?:\.\d+)?$/.test(numericCandidate)) {
+                return { type: "number", value: Number(numericCandidate) };
+            }
+            return { type: "text", value: text.toLocaleLowerCase("de-DE") };
+        }
+
+        function compareSortableCells(leftCell, rightCell, direction) {
+            const left = parseSortableValue(leftCell);
+            const right = parseSortableValue(rightCell);
+            if (left.type === "empty" && right.type !== "empty") return 1;
+            if (right.type === "empty" && left.type !== "empty") return -1;
+            if (left.type === "number" && right.type === "number") {
+                return direction * (left.value - right.value);
+            }
+            return direction * String(left.value).localeCompare(String(right.value), "de", {
+                numeric: true,
+                sensitivity: "base",
+            });
+        }
+
+        function sortRankingTable(table, columnIndex, direction) {
+            const tbody = table.querySelector("tbody");
+            if (!tbody) return;
+            const rows = Array.from(tbody.querySelectorAll("tr"));
+            rows.sort((leftRow, rightRow) => {
+                const compared = compareSortableCells(leftRow.cells[columnIndex], rightRow.cells[columnIndex], direction);
+                if (compared !== 0) return compared;
+                return compareSortableCells(leftRow.cells[1], rightRow.cells[1], 1);
+            });
+            rows.forEach((row) => tbody.appendChild(row));
+        }
+
+        function updateSortArrows(table, activeHeader, direction) {
+            table.querySelectorAll("th.sortable-header").forEach((header) => {
+                const arrow = header.querySelector(".sort-arrow");
+                if (!arrow) return;
+                arrow.textContent = header === activeHeader
+                    ? (direction === 1 ? "▲" : "▼")
+                    : "↕";
+            });
+        }
+
+        function enhanceRankingTables(root = document) {
+            root.querySelectorAll(".ranking-table").forEach((table) => {
+                const headers = Array.from(table.querySelectorAll("thead th"));
+                headers.forEach((header, index) => {
+                    if (header.dataset.sortReady === "1") return;
+                    const label = String(header.textContent || "").replace(/\s+/g, " ").trim();
+                    header.dataset.sortReady = "1";
+                    header.dataset.sortDirection = "";
+                    header.classList.add("sortable-header");
+                    header.innerHTML = `<span class="sort-label">${escapeHtml(label)} <span class="sort-arrow">↕</span></span>`;
+                    header.addEventListener("click", () => {
+                        const nextDirection = header.dataset.sortDirection === "asc" ? -1 : 1;
+                        headers.forEach((entry) => {
+                            entry.dataset.sortDirection = "";
+                        });
+                        header.dataset.sortDirection = nextDirection === 1 ? "asc" : "desc";
+                        sortRankingTable(table, index, nextDirection);
+                        updateSortArrows(table, header, nextDirection);
+                    });
+                });
+            });
         }
 
         function getLoadedTournamentCount(seasonBundles) {
@@ -1505,6 +1597,7 @@
             setSelectValue("seasonInput", snapshot?.season || "");
             setSelectValue("disciplineSelect", snapshot?.discipline_id || "");
             wrap.innerHTML = snapshot?.payload?.html || '<div class="empty-state">Gespeicherte Rangliste enthält keine Ausgabe.</div>';
+            enhanceRankingTables(wrap);
 
             const loadedCount = Number(snapshot?.loaded_tournament_count || 0);
             const failedCount = Number(snapshot?.failed_count || 0);
