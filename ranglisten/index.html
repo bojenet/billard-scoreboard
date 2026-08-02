@@ -520,6 +520,7 @@
         const RANKING_EXPORT_DISCIPLINE_IDS = ["9", "10", "11", "12", "7", "8", "14", "13", "5", "6"];
         let currentUser = null;
         let canRefreshRankings = false;
+        let activeBtdReference = null;
 
         function escapeHtml(value) {
             return String(value || "")
@@ -718,6 +719,18 @@
             return Number.isFinite(parsed) ? parsed : 0;
         }
 
+        function normalizePlayerLookupKey(value) {
+            return String(value || "")
+                .trim()
+                .toLowerCase()
+                .replace(/ä/g, "ae")
+                .replace(/ö/g, "oe")
+                .replace(/ü/g, "ue")
+                .replace(/ß/g, "ss")
+                .replace(/[^a-z0-9]+/g, " ")
+                .trim();
+        }
+
         function getMatchWinner(match) {
             const left = toNumber(match?.player1?.balls);
             const right = toNumber(match?.player2?.balls);
@@ -791,6 +804,9 @@
         function buildBestTournamentAverageLink(row) {
             const value = formatAverageOrBlank(row.bestTournamentAverage);
             if (!value) return "";
+            if (row.btdReferenceUrl) {
+                return `<a class="btg-link" href="${escapeHtml(row.btdReferenceUrl)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(`NDBV-BTD ${value}`)}">${escapeHtml(value)}</a>`;
+            }
             const bestLink = Array.isArray(row.links)
                 ? row.links.find((link) => link.isBestAverage && link.url)
                 : null;
@@ -1229,6 +1245,11 @@
             const currentShort = formatSeasonShortLabel(currentSeason);
             const previousShort1 = formatSeasonShortLabel(previousSeason1);
             const previousShort2 = formatSeasonShortLabel(previousSeason2);
+            const btdByPlayer = activeBtdReference
+                && activeBtdReference.season === currentSeason
+                && String(activeBtdReference.disciplineId) === String(disciplineId)
+                ? activeBtdReference.byPlayer
+                : new Map();
 
             const currentMap = createSeasonPlayerSummary(currentBundle?.tournaments || [], disciplineId, true);
             const previousMap1 = createSeasonPlayerSummary(previousBundle1?.tournaments || [], disciplineId, false);
@@ -1267,8 +1288,12 @@
                     const currentBestTournamentAverage = current.bestTournamentAverage || 0;
                     const previousBestTournamentAverage1 = prev1.bestTournamentAverage || 0;
                     const previousBestTournamentAverage2 = prev2.bestTournamentAverage || 0;
+                    const btdReference = btdByPlayer.get(normalizePlayerLookupKey(name));
+                    const displayBestTournamentAverage = Number.isFinite(btdReference?.valueNumber)
+                        ? btdReference.valueNumber
+                        : currentBestTournamentAverage;
                     const effectiveBestTournamentAverage = Math.max(
-                        currentBestTournamentAverage,
+                        displayBestTournamentAverage,
                         previousBestTournamentAverage1,
                         previousBestTournamentAverage2,
                     );
@@ -1279,9 +1304,10 @@
                         totalBalls: current.totalBalls || 0,
                         totalInnings: current.totalInnings || 0,
                         totalAverage: current.totalInnings > 0 ? current.totalBalls / current.totalInnings : 0,
-                        bestTournamentAverage: currentBestTournamentAverage,
+                        bestTournamentAverage: displayBestTournamentAverage,
+                        btdReferenceUrl: btdReference?.url || "",
                         bestHs: current.bestHs || 0,
-                        currentClass: current.earnedClass || "",
+                        currentClass: determineEarnedClass(disciplineId, displayBestTournamentAverage),
                         effectiveClass: determineEarnedClass(disciplineId, effectiveBestTournamentAverage),
                         previousAverage1: prev1.totalInnings > 0 ? prev1.totalBalls / prev1.totalInnings : 0,
                         previousClass1: prev1.earnedClass || "",
@@ -1657,6 +1683,35 @@
             if (error) throw error;
         }
 
+        async function loadBtdReference(season, disciplineId) {
+            const { data, error } = await supabaseClient.functions.invoke("get-nbv-ranking-list", {
+                body: {
+                    season,
+                    disciplineId,
+                    type: "btd",
+                },
+            });
+            if (error) throw error;
+
+            const byPlayer = new Map();
+            (Array.isArray(data?.entries) ? data.entries : []).forEach((entry) => {
+                const key = normalizePlayerLookupKey(entry?.name);
+                const valueNumber = Number(entry?.valueNumber);
+                if (!key || !Number.isFinite(valueNumber)) return;
+                byPlayer.set(key, {
+                    ...entry,
+                    valueNumber,
+                });
+            });
+
+            return {
+                season: data?.season || season,
+                disciplineId: String(data?.disciplineId || disciplineId),
+                sourceUrl: data?.sourceUrl || "",
+                byPlayer,
+            };
+        }
+
         async function loadTournamentBatch(events, season, disciplineLabel, concurrency = 6) {
             const tournaments = new Array(events.length);
             const failed = [];
@@ -1765,6 +1820,14 @@
                     document.getElementById("resultsWrap").innerHTML = `<div class="empty-state">Keine Turniere konnten geladen werden.<br>${escapeHtml(failed[0] || "Unbekannter Fehler")}</div>`;
                     setStatus("");
                     return;
+                }
+
+                try {
+                    setStatus(`Lade NDBV-BTD-Referenz: ${disciplineLabel} ${season}`);
+                    activeBtdReference = await loadBtdReference(season, disciplineId);
+                } catch (error) {
+                    activeBtdReference = null;
+                    failed.push(`NDBV-BTD-Referenz ${season}: ${error instanceof Error ? error.message : String(error)}`);
                 }
 
                 const html = renderSeasonResults(seasonBundles, failed);
