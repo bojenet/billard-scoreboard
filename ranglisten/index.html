@@ -1277,11 +1277,15 @@
                 ...previousMap1.keys(),
                 ...previousMap2.keys(),
             ]);
+            btdByPlayer.forEach((entry) => {
+                const name = String(entry?.name || "").trim();
+                if (name) playerNames.add(name);
+            });
 
             const ranking = Array.from(playerNames.values())
                 .map((name) => {
                     const current = currentMap.get(name) || {
-                        club: inferClubFromPlayerName(name),
+                        club: btdByPlayer.get(normalizePlayerLookupKey(name))?.club || inferClubFromPlayerName(name),
                         totalBalls: 0,
                         totalInnings: 0,
                         bestTournamentAverage: 0,
