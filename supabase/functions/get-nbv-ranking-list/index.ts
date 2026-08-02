@@ -100,6 +100,9 @@ function extractRankingEntries(html: string, baseUrl: string) {
     rank: number;
     value: string;
     valueNumber: number;
+    totalBalls: number;
+    totalInnings: number;
+    totalAverage: number;
     name: string;
     club: string;
     playerId: string;
@@ -124,10 +127,43 @@ function extractRankingEntries(html: string, baseUrl: string) {
     const url = href ? resolveHref(href, baseUrl) : "";
 
     if (!rank || valueNumber === null || !name) continue;
-    entries.push({ rank, value, valueNumber, name, club, playerId, url });
+    entries.push({
+      rank,
+      value,
+      valueNumber,
+      totalBalls: 0,
+      totalInnings: 0,
+      totalAverage: 0,
+      name,
+      club,
+      playerId,
+      url,
+    });
   }
 
   return entries;
+}
+
+function extractRatingTotals(html: string) {
+  const text = decodeHtmlEntities(String(html || ""));
+  let totalBalls = 0;
+  let totalInnings = 0;
+  const summaryRegex = /\(\s*([0-9.]+)\s*(?:&divide;|÷|\/)\s*([0-9.]+)\s*Aufn\.\s*\)/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = summaryRegex.exec(text)) !== null) {
+    const balls = Number(String(match[1] || "").replace(/\./g, ""));
+    const innings = Number(String(match[2] || "").replace(/\./g, ""));
+    if (!Number.isFinite(balls) || !Number.isFinite(innings) || innings <= 0) continue;
+    totalBalls += balls;
+    totalInnings += innings;
+  }
+
+  return {
+    totalBalls,
+    totalInnings,
+    totalAverage: totalInnings > 0 ? totalBalls / totalInnings : 0,
+  };
 }
 
 function normalizeNameKey(value: string) {
@@ -158,6 +194,34 @@ function dedupeRankingEntries(entries: ReturnType<typeof extractRankingEntries>)
   });
 }
 
+async function enrichRankingEntriesWithDetails(entries: ReturnType<typeof extractRankingEntries>) {
+  const enriched = entries.map((entry) => ({ ...entry }));
+  let nextIndex = 0;
+  const workerCount = Math.min(4, enriched.length);
+
+  async function worker() {
+    while (nextIndex < enriched.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      const entry = enriched[index];
+      if (!entry.url) continue;
+
+      try {
+        const detailPage = await fetchHtml(entry.url);
+        const totals = extractRatingTotals(detailPage.html);
+        entry.totalBalls = totals.totalBalls;
+        entry.totalInnings = totals.totalInnings;
+        entry.totalAverage = totals.totalAverage;
+      } catch (error) {
+        console.warn("NDBV-BTD-Detail konnte nicht geladen werden", entry.name, error);
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return enriched;
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -184,7 +248,7 @@ Deno.serve(async (request) => {
 
     const url = `https://ndbv.de/btd.php?p=20--${season}---${encodeURIComponent(disciplineId)}-2---${typeFlag}`;
     const page = await fetchHtml(url);
-    const entries = dedupeRankingEntries(extractRankingEntries(page.html, page.url));
+    const entries = await enrichRankingEntriesWithDetails(dedupeRankingEntries(extractRankingEntries(page.html, page.url)));
 
     return new Response(JSON.stringify({
       season,

@@ -989,9 +989,29 @@
             return clubByPlayer[normalized] || "";
         }
 
+        function simplifyClubLabel(value) {
+            const normalized = String(value || "")
+                .trim()
+                .toLowerCase()
+                .replace(/ä/g, "ae")
+                .replace(/ö/g, "oe")
+                .replace(/ü/g, "ue")
+                .replace(/ß/g, "ss")
+                .replace(/[^a-z0-9]+/g, "");
+            const clubLabels = {
+                bghamburg: "BGH",
+                bcwedel: "BCW",
+                bcwedel61: "BCW",
+                bcqueuehamburg: "BC Queue",
+                tsvnordhastedt: "TSVNB",
+                bvkiel: "BVK",
+            };
+            return clubLabels[normalized] || String(value || "").trim();
+        }
+
         function pickPlayerClub(name, ...summaries) {
             for (const summary of summaries) {
-                const club = String(summary?.club || "").trim();
+                const club = simplifyClubLabel(summary?.club || "");
                 if (club) return club;
             }
             return inferClubFromPlayerName(name);
@@ -1311,6 +1331,10 @@
                     const previousBestTournamentAverage1 = prev1.bestTournamentAverage || 0;
                     const previousBestTournamentAverage2 = prev2.bestTournamentAverage || 0;
                     const btdReference = btdByPlayer.get(normalizePlayerLookupKey(name));
+                    const referenceTotalBalls = Number(btdReference?.totalBalls || 0);
+                    const referenceTotalInnings = Number(btdReference?.totalInnings || 0);
+                    const displayTotalBalls = referenceTotalBalls > 0 ? referenceTotalBalls : (current.totalBalls || 0);
+                    const displayTotalInnings = referenceTotalInnings > 0 ? referenceTotalInnings : (current.totalInnings || 0);
                     const displayBestTournamentAverage = Number.isFinite(btdReference?.valueNumber)
                         ? btdReference.valueNumber
                         : currentBestTournamentAverage;
@@ -1322,10 +1346,10 @@
 
                     return {
                         name,
-                        club: pickPlayerClub(name, current, prev1, prev2),
-                        totalBalls: current.totalBalls || 0,
-                        totalInnings: current.totalInnings || 0,
-                        totalAverage: current.totalInnings > 0 ? current.totalBalls / current.totalInnings : 0,
+                        club: pickPlayerClub(name, current, btdReference, prev1, prev2),
+                        totalBalls: displayTotalBalls,
+                        totalInnings: displayTotalInnings,
+                        totalAverage: displayTotalInnings > 0 ? displayTotalBalls / displayTotalInnings : 0,
                         bestTournamentAverage: displayBestTournamentAverage,
                         btdReferenceUrl: btdReference?.url || "",
                         bestHs: current.bestHs || 0,
