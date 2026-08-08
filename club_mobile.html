@@ -180,6 +180,73 @@
             color: #ffb3b3;
         }
 
+        .active-tables {
+            display: grid;
+            gap: 8px;
+        }
+
+        .active-tables-title {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 900;
+            color: var(--text);
+        }
+
+        .table-match-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .table-match-card {
+            width: 100%;
+            min-height: 78px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--panel-2);
+            color: var(--text);
+            padding: 10px;
+            text-align: left;
+        }
+
+        .table-match-card.active {
+            border-color: rgba(255, 216, 74, 0.74);
+            box-shadow: inset 0 0 0 1px rgba(255, 216, 74, 0.16);
+        }
+
+        .table-match-card.empty {
+            color: var(--muted);
+            cursor: default;
+        }
+
+        .table-match-label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--yellow);
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .table-match-title {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 14px;
+            font-weight: 900;
+        }
+
+        .table-match-meta {
+            display: block;
+            margin-top: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
         .score-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -351,6 +418,10 @@
                 font-size: 64px;
             }
 
+            .table-match-list {
+                grid-template-columns: 1fr;
+            }
+
         }
     </style>
 </head>
@@ -363,6 +434,11 @@
         </div>
 
         <section id="setupView" class="panel grid">
+            <div class="active-tables">
+                <h2 class="active-tables-title">Laufende Partien</h2>
+                <div id="activeTableMatches" class="table-match-list"></div>
+            </div>
+
             <div class="field">
                 <label for="displayTable">Anzeige</label>
                 <div class="segmented" id="displayButtons">
@@ -538,10 +614,93 @@
             document.getElementById("target2").value = value;
         }
 
+        function tableLabel(table) {
+            return table === "tisch2" ? "Tisch 2" : "Tisch 1";
+        }
+
+        function activeMatchTitle(match) {
+            return `${match?.player1 || "Spieler 1"} vs ${match?.player2 || "Spieler 2"}`;
+        }
+
+        function activeMatchMeta(match) {
+            return `${match?.discipline1 || "-"} · ${Number(match?.score1 || 0)} : ${Number(match?.score2 || 0)} · Aufnahme ${Number(match?.totalInnings || 0)}`;
+        }
+
         function fillSelect(select, values, placeholder) {
             select.innerHTML = "";
             select.add(new Option(placeholder, ""));
             values.forEach((value) => select.add(new Option(value.name || value, value.id || value)));
+        }
+
+        async function fetchActiveTableMatches() {
+            const { data, error } = await supabaseClient
+                .from("matches")
+                .select("id,player1,player2,discipline1,score1,score2,totalInnings,display_table,started_at")
+                .eq("status", 1)
+                .eq("finished", 0)
+                .in("display_table", ["tisch1", "tisch2"])
+                .order("started_at", { ascending: false });
+
+            if (error) {
+                console.error(error);
+                setMessage("Laufende Partien konnten nicht geladen werden.", "error");
+                return [];
+            }
+            return data || [];
+        }
+
+        async function findActiveMatchForTable(table) {
+            const matches = await fetchActiveTableMatches();
+            return matches.find((item) => item.display_table === table) || null;
+        }
+
+        async function openExistingMatch(id) {
+            if (!id) return;
+            matchId = id;
+            history = [];
+            window.history.replaceState(null, "", "/club_mobile.html?match=" + encodeURIComponent(matchId));
+            await loadMatch();
+        }
+
+        async function loadActiveTableMatches() {
+            const container = document.getElementById("activeTableMatches");
+            if (!container) return;
+            container.innerHTML = "";
+
+            const matches = await fetchActiveTableMatches();
+            const byTable = new Map();
+            matches.forEach((item) => {
+                if (!byTable.has(item.display_table)) byTable.set(item.display_table, item);
+            });
+
+            ["tisch1", "tisch2"].forEach((table) => {
+                const item = byTable.get(table);
+                const card = document.createElement("button");
+                card.type = "button";
+                card.className = "table-match-card " + (item ? "active" : "empty");
+                card.disabled = !item;
+
+                const label = document.createElement("span");
+                label.className = "table-match-label";
+                label.innerText = tableLabel(table);
+                card.appendChild(label);
+
+                const title = document.createElement("span");
+                title.className = "table-match-title";
+                title.innerText = item ? activeMatchTitle(item) : "frei";
+                card.appendChild(title);
+
+                const meta = document.createElement("span");
+                meta.className = "table-match-meta";
+                meta.innerText = item ? activeMatchMeta(item) : "Keine laufende Partie";
+                card.appendChild(meta);
+
+                if (item) {
+                    card.onclick = () => openExistingMatch(item.id);
+                }
+
+                container.appendChild(card);
+            });
         }
 
         async function loadPlayers() {
@@ -593,6 +752,7 @@
             document.getElementById("controlView").classList.add("hidden");
             document.getElementById("endView").classList.add("hidden");
             document.getElementById("newMatchBtn").classList.add("hidden");
+            loadActiveTableMatches();
         }
 
         function showControl() {
@@ -630,6 +790,13 @@
             }
             if (!Number.isInteger(maxInnings) || maxInnings < 1) {
                 return showSetupError("Bitte gültige Aufnahmen eingeben.");
+            }
+
+            const activeTableMatch = await findActiveMatchForTable(displayTable);
+            if (activeTableMatch) {
+                const openMatch = window.confirm(`${tableLabel(displayTable)} ist bereits belegt:\n${activeMatchTitle(activeTableMatch)}\n\nLaufende Partie öffnen?`);
+                if (openMatch) await openExistingMatch(activeTableMatch.id);
+                return;
             }
 
             document.getElementById("startBtn").disabled = true;
