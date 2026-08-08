@@ -17,9 +17,17 @@
     }
 
     h1 {
-      margin: 0 0 14px;
+      margin: 0;
       font-size: 34px;
       text-align: left;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 14px;
     }
 
     .card {
@@ -360,6 +368,11 @@
     }
 
     @media (max-width: 720px) {
+      .page-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
       .form-grid {
         grid-template-columns: 1fr;
       }
@@ -368,7 +381,10 @@
 </head>
 <body>
   <div class="page">
-    <h1>Userverwaltung</h1>
+    <div class="page-header">
+      <h1>Userverwaltung</h1>
+      <button class="btn" onclick="window.location.href='index.html'">Zurück</button>
+    </div>
     <div class="toolbar">
       <button class="btn" type="button" onclick="openUserModal()">User erstellen</button>
     </div>
@@ -403,7 +419,6 @@
     </div>
 
     <div class="actions">
-      <button class="btn" onclick="window.location.href='index.html'">Zurück</button>
       <div id="msg" class="msg"></div>
     </div>
   </div>
