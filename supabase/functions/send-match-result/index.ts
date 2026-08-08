@@ -228,23 +228,24 @@ async function buildPdf(match: MatchPayload) {
     ["Höchstserie", String(match.hs2 ?? 0)],
   ];
 
+  const statRowH = 31;
+  const statBlockHeight = statRowsLeft.length * statRowH;
   const drawStatColumn = (targetPage: typeof page, x: number, top: number, columnWidth: number, rows: string[][]) => {
-    let y = top - 24;
     rows.forEach(([label, value], index) => {
+      const yTop = top - index * statRowH;
+      const yBottom = yTop - statRowH;
       if (index > 0) {
-        targetPage.drawLine({ start: { x: x + 14, y }, end: { x: x + columnWidth - 14, y }, thickness: 1, color: line });
-        y -= 22;
+        targetPage.drawLine({ start: { x, y: yTop }, end: { x: x + columnWidth, y: yTop }, thickness: 1, color: line });
       }
-      targetPage.drawText(label, { x: x + 14, y: y - 8, size: 11, font, color: muted });
-      const textWidth = bold.widthOfTextAtSize(value, 12);
-      targetPage.drawText(value, { x: x + columnWidth - 14 - textWidth, y: y - 9, size: 12, font: bold, color: text });
-      y -= 38;
+      targetPage.drawText(label, { x: x + 14, y: yBottom + 10, size: 10.5, font, color: muted });
+      const textWidth = bold.widthOfTextAtSize(value, 11.5);
+      targetPage.drawText(value, { x: x + columnWidth - 14 - textWidth, y: yBottom + 10, size: 11.5, font: bold, color: text });
     });
   };
 
   if (summaryTop >= 188) {
-    page.drawRectangle({ x: 24, y: 24, width: 273, height: summaryTop - 24, borderColor: line, borderWidth: 1, color: panel });
-    page.drawRectangle({ x: 297, y: 24, width: 274, height: summaryTop - 24, borderColor: line, borderWidth: 1, color: panel });
+    page.drawRectangle({ x: 24, y: summaryTop - statBlockHeight, width: 273, height: statBlockHeight, borderColor: line, borderWidth: 1, color: panel });
+    page.drawRectangle({ x: 297, y: summaryTop - statBlockHeight, width: 274, height: statBlockHeight, borderColor: line, borderWidth: 1, color: panel });
     drawStatColumn(page, 24, summaryTop, 273, statRowsLeft);
     drawStatColumn(page, 297, summaryTop, 274, statRowsRight);
   } else {
@@ -253,8 +254,8 @@ async function buildPdf(match: MatchPayload) {
     secondPage.drawRectangle({ x: 24, y: 24, width: 547, height: 794, color: panel, borderColor: line, borderWidth: 1 });
     secondPage.drawText("Partie-Ergebnis", { x: 42, y: 778, size: 24, font: bold, color: text });
     secondPage.drawText("Kennzahlen", { x: 42, y: 748, size: 14, font, color: muted });
-    secondPage.drawRectangle({ x: 24, y: 482, width: 273, height: 250, borderColor: line, borderWidth: 1, color: panel });
-    secondPage.drawRectangle({ x: 297, y: 482, width: 274, height: 250, borderColor: line, borderWidth: 1, color: panel });
+    secondPage.drawRectangle({ x: 24, y: 716 - statBlockHeight, width: 273, height: statBlockHeight, borderColor: line, borderWidth: 1, color: panel });
+    secondPage.drawRectangle({ x: 297, y: 716 - statBlockHeight, width: 274, height: statBlockHeight, borderColor: line, borderWidth: 1, color: panel });
     drawStatColumn(secondPage, 24, 716, 273, statRowsLeft);
     drawStatColumn(secondPage, 297, 716, 274, statRowsRight);
 
