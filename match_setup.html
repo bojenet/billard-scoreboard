@@ -969,7 +969,10 @@
                     }
                 });
                 availablePlayers = Array.from(byName.values())
-                    .sort((a, b) => a.name.localeCompare(b.name, "de"));
+                    .sort((a, b) => String(a.name || "").trim().localeCompare(String(b.name || "").trim(), "de", {
+                        sensitivity: "base",
+                        numeric: true
+                    }));
 
                 const p1 = document.getElementById('player1');
                 const p2 = document.getElementById('player2');

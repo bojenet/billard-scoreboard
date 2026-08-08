@@ -768,6 +768,13 @@
             values.forEach((value) => select.add(new Option(value.name || value, value.id || value)));
         }
 
+        function comparePlayerNames(a, b) {
+            return String(a?.name || "").trim().localeCompare(String(b?.name || "").trim(), "de", {
+                sensitivity: "base",
+                numeric: true
+            });
+        }
+
         async function fetchActiveTableMatches() {
             const { data, error } = await supabaseClient
                 .from("matches")
@@ -874,7 +881,7 @@
                     byName.set(key, { id: row.id, name, user_id: row.user_id || null });
                 }
             });
-            players = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name, "de"));
+            players = Array.from(byName.values()).sort(comparePlayerNames);
             fillSelect(document.getElementById("player1"), players, "Spieler wählen");
             fillSelect(document.getElementById("player2"), players, "Spieler wählen");
         }
