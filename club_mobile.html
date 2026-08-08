@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="Billard Club">
     <link rel="manifest" href="/manifest-club.json">
     <link rel="icon" href="/assets/club-mobile-icon.svg" type="image/svg+xml">
-    <title>Club Match</title>
+    <title>Scoreboard</title>
     <style>
         :root {
             color-scheme: dark;
@@ -429,12 +429,12 @@
 <body>
     <main class="app">
         <div class="topbar">
-            <h1>Club Match</h1>
+            <h1>Scoreboard</h1>
             <button id="newMatchBtn" class="ghost hidden" type="button" onclick="newMatch()">Neu</button>
         </div>
 
         <section id="setupView" class="panel grid">
-            <div class="active-tables">
+            <div id="activeTablesPanel" class="active-tables hidden">
                 <h2 class="active-tables-title">Laufende Partien</h2>
                 <div id="activeTableMatches" class="table-match-list"></div>
             </div>
@@ -663,11 +663,14 @@
         }
 
         async function loadActiveTableMatches() {
+            const panel = document.getElementById("activeTablesPanel");
             const container = document.getElementById("activeTableMatches");
             if (!container) return;
             container.innerHTML = "";
 
             const matches = await fetchActiveTableMatches();
+            if (panel) panel.classList.toggle("hidden", matches.length === 0);
+
             const byTable = new Map();
             matches.forEach((item) => {
                 if (!byTable.has(item.display_table)) byTable.set(item.display_table, item);
