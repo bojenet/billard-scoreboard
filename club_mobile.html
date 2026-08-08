@@ -1017,6 +1017,9 @@
                 return;
             }
 
+            const confirmed = window.confirm("Laufende Partie wirklich beenden und eine neue Partie vorbereiten?");
+            if (!confirmed) return;
+
             const currentMatchId = matchId;
             const newBtn = document.getElementById("newMatchBtn");
             if (newBtn) newBtn.disabled = true;
