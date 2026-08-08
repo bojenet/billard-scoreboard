@@ -521,6 +521,11 @@
             el.className = "message " + (type || "");
         }
 
+        function showSetupError(text) {
+            window.alert(text);
+            setMessage(text, "error");
+        }
+
         function selectDisplay(table) {
             document.getElementById("displayTable").value = table;
             document.querySelectorAll("#displayButtons button").forEach((btn) => {
@@ -617,14 +622,14 @@
             const maxInnings = parseInt(document.getElementById("maxInnings").value, 10);
             const displayTable = document.getElementById("displayTable").value;
 
-            if (!p1 || !p2 || p1.id === p2.id) return setMessage("Bitte zwei unterschiedliche Spieler wählen.", "error");
-            if (!d1 || !d2) return setMessage("Bitte Disziplinen wählen.", "error");
-            if (!displayTable) return setMessage("Bitte Tisch 1 oder Tisch 2 wählen.", "error");
+            if (!p1 || !p2 || p1.id === p2.id) return showSetupError("Bitte zwei unterschiedliche Spieler wählen.");
+            if (!d1 || !d2) return showSetupError("Bitte Disziplinen wählen.");
+            if (!displayTable) return showSetupError("Bitte Tisch 1 oder Tisch 2 wählen.");
             if (!Number.isInteger(target1) || target1 < 1 || !Number.isInteger(target2) || target2 < 1) {
-                return setMessage("Bitte gültige Punkte eingeben.", "error");
+                return showSetupError("Bitte gültige Punkte eingeben.");
             }
             if (!Number.isInteger(maxInnings) || maxInnings < 1) {
-                return setMessage("Bitte gültige Aufnahmen eingeben.", "error");
+                return showSetupError("Bitte gültige Aufnahmen eingeben.");
             }
 
             document.getElementById("startBtn").disabled = true;
@@ -672,7 +677,7 @@
             document.getElementById("startBtn").disabled = false;
             if (error) {
                 console.error(error);
-                setMessage("Match konnte nicht gestartet werden.", "error");
+                showSetupError("Match konnte nicht gestartet werden.");
                 return;
             }
 
