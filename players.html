@@ -228,7 +228,9 @@ CSV Import
 
 <script>
 let currentUserId = "";
+let currentIsAdmin = false;
 let supportsEmailSettings = true;
+let userLabelsById = new Map();
 
 function setNotice(text) {
     const box = document.getElementById("noticeBox");
@@ -238,11 +240,14 @@ function setNotice(text) {
 }
 
 async function loadScopedPlayers() {
-    let result = await supabaseClient
+    let query = supabaseClient
         .from("players")
         .select("id,name,email,send_match_result_email,user_id")
-        .eq("user_id", currentUserId)
         .order("name", { ascending: true });
+    if (!currentIsAdmin) {
+        query = query.eq("user_id", currentUserId);
+    }
+    let result = await query;
 
     if (!result.error) {
         supportsEmailSettings = true;
@@ -263,18 +268,54 @@ async function loadScopedPlayers() {
     return result;
 }
 
+function profileLabel(profile) {
+    if (!profile) return "";
+    return (
+        profile.full_name ||
+        [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
+        profile.email ||
+        profile.id ||
+        ""
+    );
+}
+
+async function loadUserLabels() {
+    userLabelsById = new Map();
+    if (!currentIsAdmin) return;
+
+    const { data, error } = await supabaseClient
+        .from("profiles")
+        .select("id,email,first_name,last_name,full_name")
+        .order("email", { ascending: true });
+
+    if (error) {
+        console.warn("User-Zuordnung konnte nicht geladen werden:", error);
+        return;
+    }
+
+    (data || []).forEach((profile) => {
+        userLabelsById.set(profile.id, profileLabel(profile));
+    });
+}
+
+function getOwnerLabel(userId) {
+    if (!userId) return "ohne Zuordnung";
+    return userLabelsById.get(userId) || userId;
+}
+
 async function loadPlayers(){
     const user = await requireAuth();
     if (!user) return;
-    const isAdmin = await hasAdminAccess(user);
+    currentIsAdmin = await hasAdminAccess(user);
     const importBtn = document.getElementById("importNavBtn");
-    if (importBtn) importBtn.style.display = isAdmin ? "inline-block" : "none";
+    if (importBtn) importBtn.style.display = currentIsAdmin ? "inline-block" : "none";
     const accessMode = await getMatchAccess(user);
     if (!isMatchVisible(accessMode)) {
         document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf Match.</div>";
         return;
     }
     currentUserId = user.id;
+    await loadUserLabels();
 
     const { data, error } = await loadScopedPlayers();
 
@@ -295,6 +336,7 @@ async function loadPlayers(){
             <th>Name</th>
             <th>E-Mail</th>
             <th>Ergebnis per Mail</th>
+            ${currentIsAdmin ? "<th>Zuordnung</th>" : ""}
             <th>Aktion</th>
         </tr>
     `;
@@ -315,6 +357,7 @@ async function loadPlayers(){
                 <td>
                     <input class="row-check" id="player-send-${p.id}" type="checkbox" ${sendMail ? "checked" : ""} ${supportsEmailSettings ? "" : "disabled"} />
                 </td>
+                ${currentIsAdmin ? `<td>${escapeHtml(getOwnerLabel(p.user_id))}</td>` : ""}
                 <td>
                     <button class="save-btn" onclick="updatePlayer(${p.id})">Speichern</button>
                     <button class="delete-btn" onclick="deletePlayer(${p.id})">
@@ -338,6 +381,7 @@ async function addPlayer(){
     const user = await requireAuth();
     if (!user) return;
     currentUserId = user.id;
+    currentIsAdmin = await hasAdminAccess(user);
 
     const name = document.getElementById("newPlayer").value.trim();
     const email = document.getElementById("newPlayerEmail").value.trim().toLowerCase();
@@ -372,6 +416,7 @@ async function updatePlayer(id) {
     const user = await requireAuth();
     if (!user) return;
     currentUserId = user.id;
+    currentIsAdmin = await hasAdminAccess(user);
 
     const name = document.getElementById(`player-name-${id}`)?.value.trim() || "";
     const email = document.getElementById(`player-email-${id}`)?.value.trim().toLowerCase() || "";
@@ -389,8 +434,10 @@ async function updatePlayer(id) {
             email: email || null,
             send_match_result_email: sendMail
         })
-        .eq("id", id)
-        .eq("user_id", currentUserId);
+        .eq("id", id);
+    if (!currentIsAdmin) {
+        updateQuery = updateQuery.eq("user_id", currentUserId);
+    }
 
     let { error } = await updateQuery;
     const message = String(error?.message || "").toLowerCase();
@@ -416,14 +463,18 @@ async function deletePlayer(id){
     const user = await requireAuth();
     if (!user) return;
     currentUserId = user.id;
+    currentIsAdmin = await hasAdminAccess(user);
 
     if(!confirm("Spieler wirklich löschen?")) return;
 
-    let { error } = await supabaseClient
+    let deleteQuery = supabaseClient
         .from("players")
         .delete()
-        .eq("id", id)
-        .eq("user_id", currentUserId);
+        .eq("id", id);
+    if (!currentIsAdmin) {
+        deleteQuery = deleteQuery.eq("user_id", currentUserId);
+    }
+    let { error } = await deleteQuery;
 
     // Fallback für altes Schema ohne user_id.
     if (error && String(error.message || "").toLowerCase().includes("user_id")) {
