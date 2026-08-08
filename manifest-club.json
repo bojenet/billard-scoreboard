@@ -1,6 +1,6 @@
 {
-  "name": "Billard Club Match",
-  "short_name": "Billard Club",
+  "name": "BGH Scoreboard",
+  "short_name": "BGH Scoreboard",
   "description": "Mobile Match-Erstellung und Bedienung fuer Clubtische.",
   "start_url": "/club_mobile.html",
   "scope": "/",
