@@ -40,6 +40,50 @@ h1 {
     margin-bottom:30px;
 }
 
+.filter-box {
+    display:none;
+    background:#222432;
+    padding:14px 16px;
+    border-radius:12px;
+    margin-bottom:18px;
+    text-align:left;
+}
+
+.filter-grid {
+    display:grid;
+    grid-template-columns:minmax(220px, 360px) 1fr;
+    gap:12px;
+    align-items:end;
+}
+
+.filter-field {
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+}
+
+.filter-field label {
+    font-size:14px;
+    color:rgba(255,255,255,0.72);
+}
+
+.filter-field select {
+    width:100%;
+    box-sizing:border-box;
+    border:none;
+    border-radius:8px;
+    padding:10px;
+    font-size:16px;
+    background:#eef2ff;
+    color:#14151c;
+}
+
+.filter-info {
+    color:rgba(255,255,255,0.72);
+    font-size:14px;
+    padding-bottom:10px;
+}
+
 .add-grid {
     display:grid;
     grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr) auto auto;
@@ -152,7 +196,8 @@ td {
 }
 
 @media (max-width: 840px) {
-    .add-grid {
+    .add-grid,
+    .filter-grid {
         grid-template-columns:1fr;
     }
 
@@ -200,6 +245,16 @@ td {
         </div>
     </div>
 
+    <div class="filter-box" id="adminFilterBox">
+        <div class="filter-grid">
+            <div class="filter-field">
+                <label for="ownerFilter">Zuordnung filtern</label>
+                <select id="ownerFilter" onchange="renderPlayers()"></select>
+            </div>
+            <div class="filter-info" id="filterInfo"></div>
+        </div>
+    </div>
+
     <table id="playerTable">
         <tr>
             <th>Name</th>
@@ -231,6 +286,7 @@ let currentUserId = "";
 let currentIsAdmin = false;
 let supportsEmailSettings = true;
 let userLabelsById = new Map();
+let allPlayers = [];
 
 function setNotice(text) {
     const box = document.getElementById("noticeBox");
@@ -303,33 +359,46 @@ function getOwnerLabel(userId) {
     return userLabelsById.get(userId) || userId;
 }
 
-async function loadPlayers(){
-    const user = await requireAuth();
-    if (!user) return;
-    currentIsAdmin = await hasAdminAccess(user);
-    const importBtn = document.getElementById("importNavBtn");
-    if (importBtn) importBtn.style.display = currentIsAdmin ? "inline-block" : "none";
-    const accessMode = await getMatchAccess(user);
-    if (!isMatchVisible(accessMode)) {
-        document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf Match.</div>";
-        return;
-    }
-    currentUserId = user.id;
-    await loadUserLabels();
+function populateOwnerFilter(players) {
+    const box = document.getElementById("adminFilterBox");
+    const select = document.getElementById("ownerFilter");
+    if (!box || !select) return;
+    box.style.display = currentIsAdmin ? "block" : "none";
+    if (!currentIsAdmin) return;
 
-    const { data, error } = await loadScopedPlayers();
+    const previous = select.value || "all";
+    select.innerHTML = "";
+    select.add(new Option("Alle Zuordnungen", "all"));
+    select.add(new Option("ohne Zuordnung", "none"));
 
-    if(error){
-        console.error(error);
-        return;
-    }
+    const owners = new Map();
+    userLabelsById.forEach((label, userId) => owners.set(userId, label));
+    (players || []).forEach((player) => {
+        if (player.user_id && !owners.has(player.user_id)) {
+            owners.set(player.user_id, player.user_id);
+        }
+    });
 
+    Array.from(owners.entries())
+        .sort((left, right) => left[1].localeCompare(right[1], "de"))
+        .forEach(([userId, label]) => {
+            select.add(new Option(label, userId));
+        });
+
+    select.value = Array.from(select.options).some((option) => option.value === previous) ? previous : "all";
+}
+
+function getFilteredPlayers() {
+    const value = document.getElementById("ownerFilter")?.value || "all";
+    if (!currentIsAdmin || value === "all") return allPlayers;
+    if (value === "none") return allPlayers.filter((player) => !player.user_id);
+    return allPlayers.filter((player) => player.user_id === value);
+}
+
+function renderPlayers() {
+    const data = getFilteredPlayers();
     const table = document.getElementById("playerTable");
-    if (!supportsEmailSettings) {
-        setNotice("Die Felder für E-Mail-Versand sind in Supabase noch nicht aktiv. Bitte zuerst sql/player_result_email.sql ausführen.");
-    } else {
-        setNotice("");
-    }
+    const info = document.getElementById("filterInfo");
 
     table.innerHTML = `
         <tr>
@@ -367,6 +436,42 @@ async function loadPlayers(){
             </tr>
         `;
     });
+
+    if (info && currentIsAdmin) {
+        info.innerText = `${data.length} von ${allPlayers.length} Spielern angezeigt`;
+    }
+}
+
+async function loadPlayers(){
+    const user = await requireAuth();
+    if (!user) return;
+    currentIsAdmin = await hasAdminAccess(user);
+    const importBtn = document.getElementById("importNavBtn");
+    if (importBtn) importBtn.style.display = currentIsAdmin ? "inline-block" : "none";
+    const accessMode = await getMatchAccess(user);
+    if (!isMatchVisible(accessMode)) {
+        document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf Match.</div>";
+        return;
+    }
+    currentUserId = user.id;
+    await loadUserLabels();
+
+    const { data, error } = await loadScopedPlayers();
+
+    if(error){
+        console.error(error);
+        return;
+    }
+
+    if (!supportsEmailSettings) {
+        setNotice("Die Felder für E-Mail-Versand sind in Supabase noch nicht aktiv. Bitte zuerst sql/player_result_email.sql ausführen.");
+    } else {
+        setNotice("");
+    }
+
+    allPlayers = data || [];
+    populateOwnerFilter(allPlayers);
+    renderPlayers();
 }
 
 function escapeHtml(value) {
