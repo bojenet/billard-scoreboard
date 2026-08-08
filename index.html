@@ -35,16 +35,83 @@
 
         .header {
             text-align: center;
-            padding: 60px 0 20px 0;
+            padding: 60px 0 18px 0;
             font-size: 48px;
             font-weight: 600;
             position: relative;
         }
 
+        .active-section {
+            width: 1000px;
+            max-width: 92%;
+            margin: 0 auto 34px;
+            display: none;
+        }
+
+        .active-section.open {
+            display: block;
+        }
+
+        .active-heading {
+            margin: 0 0 10px;
+            font-size: 17px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.82);
+        }
+
+        .active-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .active-match {
+            border: 1px solid rgba(255, 77, 77, 0.72);
+            border-radius: 14px;
+            background: rgba(42, 43, 53, 0.92);
+            color: white;
+            cursor: pointer;
+            padding: 14px 16px;
+            text-align: left;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+            transition: 0.2s;
+        }
+
+        .active-match:hover {
+            background: #343744;
+            transform: translateY(-2px);
+        }
+
+        .active-match-title {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-bottom: 6px;
+            font-size: 17px;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        .active-dot {
+            flex: 0 0 auto;
+            width: 11px;
+            height: 11px;
+            border-radius: 999px;
+            background: #ff3333;
+            box-shadow: 0 0 0 4px rgba(255, 51, 51, 0.12);
+        }
+
+        .active-match-meta {
+            margin-left: 20px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.66);
+            line-height: 1.45;
+        }
+
         .grid {
             width: 1000px;
             max-width: 92%;
-            margin: 60px auto;
+            margin: 42px auto 60px;
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 40px;
@@ -110,6 +177,16 @@
             font-size: 14px;
             opacity: 0.4;
         }
+
+        @media (max-width: 760px) {
+            .active-list {
+                grid-template-columns: 1fr;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 
@@ -120,6 +197,11 @@
     <div class="header">
         Billard Studio
     </div>
+
+    <section id="activeMatchesSection" class="active-section" aria-label="Aktive Partien">
+        <h2 class="active-heading">Aktive Partien</h2>
+        <div id="activeMatchesList" class="active-list"></div>
+    </section>
 
     <div class="grid" id="mainGrid">
 
@@ -187,6 +269,15 @@
     <script src="js/user_menu.js"></script>
 
     <script>
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
         async function loadCountdownInvites(user) {
             if (!user?.email) return;
             const guestEmail = String(user.email).trim().toLowerCase();
@@ -368,27 +459,28 @@
                     isOwnedMatch(match, user.id, ownedNames)
                 );
 
-            const grid = document.getElementById("mainGrid");
+            const activeSection = document.getElementById("activeMatchesSection");
+            const activeList = document.getElementById("activeMatchesList");
 
             filtered.forEach(match => {
-                const tile = document.createElement("div");
-                tile.className = "tile live";
-                tile.onclick = () => {
+                const activeMatch = document.createElement("button");
+                activeMatch.type = "button";
+                activeMatch.className = "active-match";
+                activeMatch.onclick = () => {
                     window.location.href = "scoreboard.html?match=" + match.id;
                 };
 
-                tile.innerHTML = `
-  <div class="tile-title">🔴 ${match.player1} vs ${match.player2}</div>
-  <div class="tile-sub">
-    ${match.discipline1}
-  </div>
-  <div class="tile-sub" style="margin-top:8px;font-size:16px;opacity:0.9;">
-    ${match.score1} : ${match.score2} · Aufnahme ${match.totalInnings}
-  </div>
+                activeMatch.innerHTML = `
+  <div class="active-match-title"><span class="active-dot"></span><span>${escapeHtml(match.player1 || "Spieler 1")} vs ${escapeHtml(match.player2 || "Spieler 2")}</span></div>
+  <div class="active-match-meta">${escapeHtml(match.discipline1 || "-")} · ${Number(match.score1 || 0)} : ${Number(match.score2 || 0)} · Aufnahme ${Number(match.totalInnings || 0)}</div>
 `;
 
-                grid.prepend(tile);
+                activeList.appendChild(activeMatch);
             });
+
+            if (filtered.length > 0) {
+                activeSection.classList.add("open");
+            }
 
             document.body.classList.add("auth-ready");
         }
