@@ -10,6 +10,19 @@ type RankingRequest = {
   type?: "gd" | "btd";
 };
 
+type RankingEntry = {
+  rank: number;
+  value: string;
+  valueNumber: number;
+  totalBalls: number;
+  totalInnings: number;
+  totalAverage: number;
+  name: string;
+  club: string;
+  playerId: string;
+  url: string;
+};
+
 function cleanText(value: string | null | undefined) {
   return String(value || "")
     .replace(/\u00a0/g, " ")
@@ -96,18 +109,7 @@ function extractCells(rowHtml: string) {
 }
 
 function extractRankingEntries(html: string, baseUrl: string) {
-  const entries: Array<{
-    rank: number;
-    value: string;
-    valueNumber: number;
-    totalBalls: number;
-    totalInnings: number;
-    totalAverage: number;
-    name: string;
-    club: string;
-    playerId: string;
-    url: string;
-  }> = [];
+  const entries: RankingEntry[] = [];
 
   const rowRegex = /<tr\b[^>]*class=['"][^'"]*(?:odd|even|red)[^'"]*['"][^>]*>([\s\S]*?)<\/tr>/gi;
   let rowMatch: RegExpExecArray | null;
@@ -222,6 +224,85 @@ async function enrichRankingEntriesWithDetails(entries: ReturnType<typeof extrac
   return enriched;
 }
 
+function parseDbuNumber(value: string) {
+  const parsed = Number(cleanText(value).replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isBgHamburgClub(value: string) {
+  const normalized = normalizeNameKey(value);
+  return normalized === "bgh" || normalized === "bg hamburg" || normalized.startsWith("bg hamburg ");
+}
+
+function extractDbuBgHamburgDreibandEntries(html: string) {
+  const entries: Array<{
+    name: string;
+    club: string;
+    totalBalls: number;
+    totalInnings: number;
+    totalAverage: number;
+  }> = [];
+
+  const rowRegex = /<tr\b[^>]*class=['"][^'"]*(?:odd|even)[^'"]*['"][^>]*>([\s\S]*?)<\/tr>/gi;
+  let rowMatch: RegExpExecArray | null;
+  while ((rowMatch = rowRegex.exec(html)) !== null) {
+    const cells = extractCells(rowMatch[1] || "");
+    if (cells.length < 9) continue;
+
+    const nameAndTeam = stripTags(cells[2] || "").replace(/\s*\|\s*/g, " | ");
+    if (!nameAndTeam.includes("|")) continue;
+
+    const [nameRaw, teamRaw] = nameAndTeam.split("|").map((part) => cleanText(part));
+    if (!nameRaw || cleanText(teamRaw) !== "BG Hamburg 1") continue;
+
+    const totalBalls = Number(stripTags(cells[4] || "").replace(/\D+/g, ""));
+    const totalInnings = Number(stripTags(cells[5] || "").replace(/\D+/g, ""));
+    const totalAverage = parseDbuNumber(stripTags(cells[6] || "")) || 0;
+    if (!Number.isFinite(totalBalls) || !Number.isFinite(totalInnings) || totalInnings <= 0) continue;
+
+    entries.push({
+      name: nameRaw,
+      club: "BG Hamburg",
+      totalBalls,
+      totalInnings,
+      totalAverage: totalAverage > 0 ? totalAverage : totalBalls / totalInnings,
+    });
+  }
+
+  return entries;
+}
+
+async function mergeDbuBgHamburgDreibandTotals(
+  entries: RankingEntry[],
+  season: string,
+  disciplineId: string,
+  type: "gd" | "btd",
+) {
+  if (type !== "btd" || disciplineId !== "5" || season !== "2025/2026") {
+    return { entries, sourceUrl: "", mergedCount: 0 };
+  }
+
+  const sourceUrl = `https://billard-union.net/sb_ligarangliste.php?p=10-10-${season}-180-0-14`;
+  const page = await fetchHtml(sourceUrl);
+  const dbuEntries = extractDbuBgHamburgDreibandEntries(page.html);
+  const byName = new Map(entries.map((entry) => [normalizeNameKey(entry.name), entry]));
+  let mergedCount = 0;
+
+  dbuEntries.forEach((dbuEntry) => {
+    const existing = byName.get(normalizeNameKey(dbuEntry.name));
+    if (!existing) return;
+    if (existing.club && !isBgHamburgClub(existing.club)) return;
+
+    existing.club = existing.club || dbuEntry.club;
+    existing.totalBalls = Number(existing.totalBalls || 0) + dbuEntry.totalBalls;
+    existing.totalInnings = Number(existing.totalInnings || 0) + dbuEntry.totalInnings;
+    existing.totalAverage = existing.totalInnings > 0 ? existing.totalBalls / existing.totalInnings : 0;
+    mergedCount += 1;
+  });
+
+  return { entries, sourceUrl: page.url || sourceUrl, mergedCount };
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -248,15 +329,18 @@ Deno.serve(async (request) => {
 
     const url = `https://ndbv.de/btd.php?p=20--${season}---${encodeURIComponent(disciplineId)}-2---${typeFlag}`;
     const page = await fetchHtml(url);
-    const entries = await enrichRankingEntriesWithDetails(dedupeRankingEntries(extractRankingEntries(page.html, page.url)));
+    const ndbvEntries = await enrichRankingEntriesWithDetails(dedupeRankingEntries(extractRankingEntries(page.html, page.url)));
+    const mergedResult = await mergeDbuBgHamburgDreibandTotals(ndbvEntries, season, disciplineId, type);
 
     return new Response(JSON.stringify({
       season,
       disciplineId,
       type,
       sourceUrl: page.url,
+      supplementalSourceUrl: mergedResult.sourceUrl,
+      supplementalMergedCount: mergedResult.mergedCount,
       fetchedAt: new Date().toISOString(),
-      entries,
+      entries: mergedResult.entries,
     }), {
       status: 200,
       headers: {
