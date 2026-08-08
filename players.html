@@ -86,12 +86,13 @@ h1 {
 
 .add-grid {
     display:grid;
-    grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr) auto auto;
+    grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr) minmax(180px, 260px) auto auto;
     gap:12px;
     align-items:center;
 }
 
-.add-box input {
+.add-box input,
+.add-box select {
     font-size:18px;
     padding:10px;
     border-radius:8px;
@@ -122,6 +123,10 @@ h1 {
 .checkbox-wrap input {
     width:18px;
     height:18px;
+}
+
+.admin-owner-field {
+    display:none;
 }
 
 table {
@@ -237,6 +242,7 @@ td {
         <div class="add-grid">
             <input type="text" id="newPlayer" placeholder="Neuer Spieler">
             <input type="email" id="newPlayerEmail" placeholder="E-Mail für Ergebnisversand">
+            <select id="newPlayerOwner" class="admin-owner-field" title="Zuordnung"></select>
             <label class="checkbox-wrap" for="newPlayerSendEmail">
                 <input type="checkbox" id="newPlayerSendEmail">
                 <span>Partie-Ergebnis per Mail</span>
@@ -388,6 +394,26 @@ function populateOwnerFilter(players) {
     select.value = Array.from(select.options).some((option) => option.value === previous) ? previous : "all";
 }
 
+function populateNewPlayerOwnerSelect() {
+    const select = document.getElementById("newPlayerOwner");
+    if (!select) return;
+    select.style.display = currentIsAdmin ? "block" : "none";
+    if (!currentIsAdmin) return;
+
+    const previous = select.value || currentUserId;
+    select.innerHTML = "";
+    Array.from(userLabelsById.entries())
+        .sort((left, right) => left[1].localeCompare(right[1], "de"))
+        .forEach(([userId, label]) => {
+            select.add(new Option(label, userId));
+        });
+
+    if (!Array.from(select.options).some((option) => option.value === currentUserId)) {
+        select.add(new Option("Aktueller User", currentUserId));
+    }
+    select.value = Array.from(select.options).some((option) => option.value === previous) ? previous : currentUserId;
+}
+
 function getFilteredPlayers() {
     const value = document.getElementById("ownerFilter")?.value || "all";
     if (!currentIsAdmin || value === "all") return allPlayers;
@@ -470,6 +496,7 @@ async function loadPlayers(){
     }
 
     allPlayers = data || [];
+    populateNewPlayerOwnerSelect();
     populateOwnerFilter(allPlayers);
     renderPlayers();
 }
@@ -491,11 +518,14 @@ async function addPlayer(){
     const name = document.getElementById("newPlayer").value.trim();
     const email = document.getElementById("newPlayerEmail").value.trim().toLowerCase();
     const sendMail = document.getElementById("newPlayerSendEmail").checked;
+    const ownerId = currentIsAdmin
+        ? (document.getElementById("newPlayerOwner")?.value || currentUserId)
+        : currentUserId;
     if(!name) return;
 
     let { error } = await supabaseClient
         .from("players")
-        .insert([{ name, email: email || null, send_match_result_email: sendMail, user_id: currentUserId }]);
+        .insert([{ name, email: email || null, send_match_result_email: sendMail, user_id: ownerId }]);
 
     // Fallback für altes Schema ohne neue Felder oder user_id.
     const message = String(error?.message || "").toLowerCase();
