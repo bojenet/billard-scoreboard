@@ -359,7 +359,7 @@
     <main class="app">
         <div class="topbar">
             <h1>Club Match</h1>
-            <button id="newMatchBtn" class="ghost hidden" type="button" onclick="resetToSetup()">Neu</button>
+            <button id="newMatchBtn" class="ghost hidden" type="button" onclick="newMatch()">Neu</button>
         </div>
 
         <section id="setupView" class="panel grid">
@@ -1008,6 +1008,37 @@
                     })
                     .eq("id", matchId);
             }
+            resetToSetup();
+        }
+
+        async function newMatch() {
+            if (!matchId) {
+                resetToSetup();
+                return;
+            }
+
+            const currentMatchId = matchId;
+            const newBtn = document.getElementById("newMatchBtn");
+            if (newBtn) newBtn.disabled = true;
+
+            const { error } = await supabaseClient
+                .from("matches")
+                .update({
+                    display_table: "",
+                    status: 0,
+                    shot_clock_running: false,
+                    shot_clock_started_at: null
+                })
+                .eq("id", currentMatchId);
+
+            if (newBtn) newBtn.disabled = false;
+
+            if (error) {
+                console.error(error);
+                setMessage("Alte Partie konnte nicht geschlossen werden.", "error");
+                return;
+            }
+
             resetToSetup();
         }
 
