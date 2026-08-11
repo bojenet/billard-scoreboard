@@ -1202,6 +1202,7 @@
             </div>
             <div class="button-row">
                 <button class="btn btn-save" type="button" onclick="generateInvitationPdfFromEditor()">PDF erstellen</button>
+                <button class="btn btn-secondary" type="button" onclick="generateResultWorkbookFromEditor()">Excel Ergebnisformular</button>
                 <button class="btn btn-secondary" type="button" onclick="closeInvitationEditorModal()">Schließen</button>
             </div>
             <div id="invitationEditorMessage" class="modal-message"></div>
@@ -2263,6 +2264,50 @@
 
         function buildExcelRow(values, styleId = "") {
             return `<Row>${values.map((value) => buildExcelCell(value, styleId)).join("")}</Row>`;
+        }
+
+        function buildWorkbookCell(value = "", options = {}) {
+            const style = options.styleId ? ` ss:StyleID="${options.styleId}"` : "";
+            const formula = options.formula ? ` ss:Formula="${escapeExcelXml(options.formula)}"` : "";
+            const type = options.type || (typeof value === "number" ? "Number" : "String");
+            return `<Cell${style}${formula}><Data ss:Type="${type}">${escapeExcelXml(value)}</Data></Cell>`;
+        }
+
+        function buildWorkbookRow(cells, options = {}) {
+            const height = options.height ? ` ss:Height="${options.height}"` : "";
+            return `<Row${height}>${cells.map((cell) => (
+                cell && typeof cell === "object" && !Array.isArray(cell)
+                    ? buildWorkbookCell(cell.value ?? "", cell)
+                    : buildWorkbookCell(cell)
+            )).join("")}</Row>`;
+        }
+
+        function getInvitationExcelFilename(invitation) {
+            const datePart = String(invitation?.date || "")
+                .replace(/[^0-9]+/g, "-")
+                .replace(/^-|-$/g, "");
+            const titlePart = String(invitation?.title || "turnier")
+                .toLowerCase()
+                .replace(/ä/g, "ae")
+                .replace(/ö/g, "oe")
+                .replace(/ü/g, "ue")
+                .replace(/ß/g, "ss")
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/-+/g, "-")
+                .replace(/^-|-$/g, "");
+            return `NBV-Ergebnisformular-${datePart || "Termin"}-${titlePart || "Turnier"}.xls`;
+        }
+
+        function downloadExcelXml(workbookXml, filename) {
+            const blob = new Blob([workbookXml], { type: "application/vnd.ms-excel;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
         }
 
         function getCalendarExcelFilename() {
@@ -3556,6 +3601,204 @@
             }
             renderInvitationParticipantEditor();
             renderInvitationModeSelect();
+        }
+
+        function getResultWorkbookParticipants(invitation) {
+            return (Array.isArray(invitation?.participants) ? invitation.participants : [])
+                .slice(0, 4)
+                .map((participant, index) => ({
+                    seed: String(participant?.number || index + 1),
+                    name: getPdfText(participant?.name || `Spieler ${index + 1}`),
+                    club: getPdfText(participant?.club || ""),
+                    gd: getPdfText(participant?.seedGd || "")
+                }));
+        }
+
+        function getT3ResultMatches(participants) {
+            const player = (seed) => participants[seed - 1] || { seed: String(seed), name: `Spieler ${seed}`, club: "" };
+            return [
+                { no: 1, round: 1, table: 1, a: player(2), b: player(3) },
+                { no: 2, round: 1, table: 2, a: player(1), b: player(4) },
+                { no: 3, round: 2, table: 1, a: player(2), b: player(4) },
+                { no: 4, round: 2, table: 2, a: player(1), b: player(3) },
+                { no: 5, round: 3, table: 1, a: player(3), b: player(4) },
+                { no: 6, round: 3, table: 2, a: player(1), b: player(2) }
+            ];
+        }
+
+        function buildResultWorkbookXml(invitation) {
+            const participants = getResultWorkbookParticipants(invitation);
+            const matches = getT3ResultMatches(participants);
+            const target = getInvitationPlayingTarget(invitation) || {};
+            const mode = getInvitationMode(invitation);
+            const generatedAt = new Date().toLocaleString("de-DE");
+
+            const styles = `
+ <Styles>
+  <Style ss:ID="Title"><Font ss:Bold="1" ss:Size="16" ss:Color="#006020"/><Alignment ss:Vertical="Center"/></Style>
+  <Style ss:ID="SubTitle"><Font ss:Bold="1" ss:Size="12"/><Alignment ss:Vertical="Center"/></Style>
+  <Style ss:ID="Header"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1F2B3A" ss:Pattern="Solid"/><Alignment ss:Vertical="Center" ss:WrapText="1"/></Style>
+  <Style ss:ID="Section"><Font ss:Bold="1" ss:Color="#006020"/><Interior ss:Color="#F1F4F7" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="Input"><Interior ss:Color="#FFF2CC" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D6B656"/></Borders></Style>
+  <Style ss:ID="Formula"><Interior ss:Color="#EAF2F8" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="Muted"><Font ss:Color="#667085"/></Style>
+  <Style ss:ID="Number3"><NumberFormat ss:Format="0.000"/></Style>
+ </Styles>`;
+
+            const tournamentRows = [
+                buildWorkbookRow([{ value: "NBV Ergebnisformular", styleId: "Title" }, "", "", ""], { height: 24 }),
+                buildWorkbookRow(["Version", "T3 - 4 Spieler jeder gegen jeden", "Erzeugt am", generatedAt]),
+                buildWorkbookRow([]),
+                buildWorkbookRow(["Turnier", invitation?.title || ""], {}),
+                buildWorkbookRow(["Datum", formatInvitationDate(invitation?.date) || invitation?.date || "", "Beginn", invitation?.startTime ? `${invitation.startTime} Uhr` : ""]),
+                buildWorkbookRow(["Disziplin", invitation?.discipline || "", "Spielort", invitation?.locationName || ""]),
+                buildWorkbookRow(["Modus", [mode.code, mode.title].filter(Boolean).join(" - "), "Ausspielziel", `${target.points || ""} Punkte / ${target.innings || ""} Aufnahmen`]),
+                buildWorkbookRow(["Hinweis", "Gelbe Felder werden ausgefüllt. Blaue Felder berechnen sich automatisch."])
+            ].join("");
+
+            const participantRows = [
+                buildWorkbookRow(["Setz.", "Name", "Verein", "GD Setzliste"].map((value) => ({ value, styleId: "Header" })), { height: 18 }),
+                ...participants.map((participant) => buildWorkbookRow([
+                    { value: Number(participant.seed) || participant.seed, type: Number(participant.seed) ? "Number" : "String" },
+                    participant.name,
+                    participant.club,
+                    participant.gd
+                ]))
+            ].join("");
+
+            const matchHeader = ["Nr.", "Runde", "Tisch", "Setz A", "Spieler A", "Verein A", "Bälle A", "Aufn. A", "HS A", "Setz B", "Spieler B", "Verein B", "Bälle B", "Aufn. B", "HS B", "PP A", "PP B", "GD A", "GD B", "Status"];
+            const matchRows = [
+                buildWorkbookRow([{ value: "Spielplan / Ergebniseingabe", styleId: "Title" }], { height: 22 }),
+                buildWorkbookRow([`Ausspielziel: ${target.points || ""} Punkte / ${target.innings || ""} Aufnahmen`]),
+                buildWorkbookRow([]),
+                buildWorkbookRow(matchHeader.map((value) => ({ value, styleId: "Header" }))),
+                ...matches.map((match, index) => {
+                    const row = index + 5;
+                    return buildWorkbookRow([
+                        { value: match.no, type: "Number" },
+                        { value: match.round, type: "Number" },
+                        { value: match.table, type: "Number" },
+                        { value: Number(match.a.seed) || match.a.seed, type: Number(match.a.seed) ? "Number" : "String" },
+                        match.a.name,
+                        match.a.club,
+                        { value: "", styleId: "Input" },
+                        { value: "", styleId: "Input" },
+                        { value: "", styleId: "Input" },
+                        { value: Number(match.b.seed) || match.b.seed, type: Number(match.b.seed) ? "Number" : "String" },
+                        match.b.name,
+                        match.b.club,
+                        { value: "", styleId: "Input" },
+                        { value: "", styleId: "Input" },
+                        { value: "", styleId: "Input" },
+                        { value: "", styleId: "Formula", formula: `=IF(OR(RC[-9]="",RC[-3]=""),"",IF(RC[-9]>RC[-3],2,IF(RC[-9]<RC[-3],0,1)))` },
+                        { value: "", styleId: "Formula", formula: `=IF(OR(RC[-10]="",RC[-4]=""),"",IF(RC[-4]>RC[-10],2,IF(RC[-4]<RC[-10],0,1)))` },
+                        { value: "", styleId: "Formula", formula: `=IF(RC[-10]>0,TRUNC(RC[-11]/RC[-10],3),"")` },
+                        { value: "", styleId: "Formula", formula: `=IF(RC[-5]>0,TRUNC(RC[-6]/RC[-5],3),"")` },
+                        { value: "", styleId: "Formula", formula: `=IF(OR(RC[-13]="",RC[-12]="",RC[-7]="",RC[-6]=""),"offen","ok")` }
+                    ]);
+                })
+            ].join("");
+
+            const maxHsFormula = (seedRow) => {
+                const parts = [];
+                for (let row = 5; row <= 10; row += 1) {
+                    parts.push(`IF('Spielplan / Eingabe'!R${row}C4=RC2,'Spielplan / Eingabe'!R${row}C9,0)`);
+                    parts.push(`IF('Spielplan / Eingabe'!R${row}C10=RC2,'Spielplan / Eingabe'!R${row}C15,0)`);
+                }
+                return `=MAX(${parts.join(",")})`;
+            };
+            const tableRows = [
+                buildWorkbookRow(["Rang", "Setz.", "Name", "Partie-Punkte", "Bälle", "Aufn.", "GD", "HS", "Sortierwert"].map((value) => ({ value, styleId: "Header" })), { height: 18 }),
+                ...participants.map((participant, index) => {
+                    const row = index + 2;
+                    return buildWorkbookRow([
+                        { value: "", styleId: "Formula", formula: `=IF(RC4="","",RANK(RC9,R2C9:R5C9,0))` },
+                        { value: Number(participant.seed) || participant.seed, type: Number(participant.seed) ? "Number" : "String" },
+                        participant.name,
+                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan / Eingabe'!R5C4:R10C4,RC2,'Spielplan / Eingabe'!R5C16:R10C16)+SUMIF('Spielplan / Eingabe'!R5C10:R10C10,RC2,'Spielplan / Eingabe'!R5C17:R10C17)` },
+                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan / Eingabe'!R5C4:R10C4,RC2,'Spielplan / Eingabe'!R5C7:R10C7)+SUMIF('Spielplan / Eingabe'!R5C10:R10C10,RC2,'Spielplan / Eingabe'!R5C13:R10C13)` },
+                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan / Eingabe'!R5C4:R10C4,RC2,'Spielplan / Eingabe'!R5C8:R10C8)+SUMIF('Spielplan / Eingabe'!R5C10:R10C10,RC2,'Spielplan / Eingabe'!R5C14:R10C14)` },
+                        { value: "", styleId: "Formula", formula: `=IF(RC[-1]>0,TRUNC(RC[-2]/RC[-1],3),"")` },
+                        { value: "", styleId: "Formula", formula: maxHsFormula(row) },
+                        { value: "", styleId: "Formula", formula: `=IF(RC[-5]="","",RC[-5]+RC[-2]/1000+RC[-4]/100000000)` }
+                    ]);
+                })
+            ].join("");
+
+            const exportHeaders = ["match_no", "round", "table", "player_a", "club_a", "balls_a", "innings_a", "highrun_a", "player_b", "club_b", "balls_b", "innings_b", "highrun_b", "points_a", "points_b", "gd_a", "gd_b", "status"];
+            const exportRows = [
+                buildWorkbookRow(exportHeaders.map((value) => ({ value, styleId: "Header" }))),
+                ...matches.map((_, index) => {
+                    const sourceRow = index + 5;
+                    const cols = [1, 2, 3, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+                    return buildWorkbookRow(cols.map((col) => ({
+                        value: "",
+                        formula: `='Spielplan / Eingabe'!R${sourceRow}C${col}`
+                    })));
+                })
+            ].join("");
+
+            return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ ${styles}
+ <Worksheet ss:Name="Turnierdaten">
+  <Table>
+   <Column ss:Width="120"/><Column ss:Width="260"/><Column ss:Width="120"/><Column ss:Width="220"/>
+   ${tournamentRows}
+  </Table>
+ </Worksheet>
+ <Worksheet ss:Name="Teilnehmer">
+  <Table>
+   <Column ss:Width="60"/><Column ss:Width="220"/><Column ss:Width="150"/><Column ss:Width="90"/>
+   ${participantRows}
+  </Table>
+ </Worksheet>
+ <Worksheet ss:Name="Spielplan / Eingabe">
+  <Table>
+   <Column ss:Width="42"/><Column ss:Width="55"/><Column ss:Width="55"/><Column ss:Width="58"/><Column ss:Width="160"/><Column ss:Width="110"/>
+   <Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="55"/><Column ss:Width="58"/><Column ss:Width="160"/><Column ss:Width="110"/>
+   <Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="55"/><Column ss:Width="55"/><Column ss:Width="55"/><Column ss:Width="65"/><Column ss:Width="65"/><Column ss:Width="65"/>
+   ${matchRows}
+  </Table>
+ </Worksheet>
+ <Worksheet ss:Name="Auswertung">
+  <Table>
+   <Column ss:Width="55"/><Column ss:Width="55"/><Column ss:Width="220"/><Column ss:Width="90"/><Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="55"/><Column ss:Width="90"/>
+   ${tableRows}
+  </Table>
+ </Worksheet>
+ <Worksheet ss:Name="CSV Export">
+  <Table>
+   ${exportRows}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+        }
+
+        function generateResultWorkbookFromEditor() {
+            if (!currentInvitationDraft) return;
+            const selected = currentInvitationDraft.selectedModeCode || getSportordnungModeCode(currentInvitationDraft);
+            const participants = Array.isArray(currentInvitationDraft.participants) ? currentInvitationDraft.participants : [];
+            const targetPoints = String(currentInvitationDraft.playingTargetPoints || "").trim();
+            const targetInnings = String(currentInvitationDraft.playingTargetInnings || "").trim();
+            if (selected !== "T3" || participants.length !== 4) {
+                setModalMessage("invitationEditorMessage", "Excel Ergebnisformular ist in Version 1 nur für T3 mit 4 Teilnehmern verfügbar.", "error");
+                return;
+            }
+            if (!targetPoints || !targetInnings) {
+                setModalMessage("invitationEditorMessage", "Bitte Punkte und Aufnahmen eintragen, bevor das Excel-Formular erstellt wird.", "error");
+                const targetInput = document.getElementById(!targetPoints ? "invitationEditorPlayingTargetPoints" : "invitationEditorPlayingTargetInnings");
+                if (targetInput) targetInput.focus();
+                return;
+            }
+            const workbookXml = buildResultWorkbookXml(cloneInvitationDraft(currentInvitationDraft));
+            downloadExcelXml(workbookXml, getInvitationExcelFilename(currentInvitationDraft));
+            setModalMessage("invitationEditorMessage", "Excel Ergebnisformular wurde erstellt und als Download gestartet.", "ok");
         }
 
         function generateInvitationPdfFromEditor() {
