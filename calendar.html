@@ -3702,8 +3702,8 @@
             const maxHsFormula = (seedRow) => {
                 const parts = [];
                 for (let row = 5; row <= 10; row += 1) {
-                    parts.push(`IF('Spielplan / Eingabe'!R${row}C4=RC2,'Spielplan / Eingabe'!R${row}C9,0)`);
-                    parts.push(`IF('Spielplan / Eingabe'!R${row}C10=RC2,'Spielplan / Eingabe'!R${row}C15,0)`);
+                    parts.push(`IF('Spielplan Eingabe'!R${row}C4=RC2,'Spielplan Eingabe'!R${row}C9,0)`);
+                    parts.push(`IF('Spielplan Eingabe'!R${row}C10=RC2,'Spielplan Eingabe'!R${row}C15,0)`);
                 }
                 return `=MAX(${parts.join(",")})`;
             };
@@ -3715,9 +3715,9 @@
                         { value: "", styleId: "Formula", formula: `=IF(RC4="","",RANK(RC9,R2C9:R5C9,0))` },
                         { value: Number(participant.seed) || participant.seed, type: Number(participant.seed) ? "Number" : "String" },
                         participant.name,
-                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan / Eingabe'!R5C4:R10C4,RC2,'Spielplan / Eingabe'!R5C16:R10C16)+SUMIF('Spielplan / Eingabe'!R5C10:R10C10,RC2,'Spielplan / Eingabe'!R5C17:R10C17)` },
-                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan / Eingabe'!R5C4:R10C4,RC2,'Spielplan / Eingabe'!R5C7:R10C7)+SUMIF('Spielplan / Eingabe'!R5C10:R10C10,RC2,'Spielplan / Eingabe'!R5C13:R10C13)` },
-                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan / Eingabe'!R5C4:R10C4,RC2,'Spielplan / Eingabe'!R5C8:R10C8)+SUMIF('Spielplan / Eingabe'!R5C10:R10C10,RC2,'Spielplan / Eingabe'!R5C14:R10C14)` },
+                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan Eingabe'!R5C4:R10C4,RC2,'Spielplan Eingabe'!R5C16:R10C16)+SUMIF('Spielplan Eingabe'!R5C10:R10C10,RC2,'Spielplan Eingabe'!R5C17:R10C17)` },
+                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan Eingabe'!R5C4:R10C4,RC2,'Spielplan Eingabe'!R5C7:R10C7)+SUMIF('Spielplan Eingabe'!R5C10:R10C10,RC2,'Spielplan Eingabe'!R5C13:R10C13)` },
+                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan Eingabe'!R5C4:R10C4,RC2,'Spielplan Eingabe'!R5C8:R10C8)+SUMIF('Spielplan Eingabe'!R5C10:R10C10,RC2,'Spielplan Eingabe'!R5C14:R10C14)` },
                         { value: "", styleId: "Formula", formula: `=IF(RC[-1]>0,TRUNC(RC[-2]/RC[-1],3),"")` },
                         { value: "", styleId: "Formula", formula: maxHsFormula(row) },
                         { value: "", styleId: "Formula", formula: `=IF(RC[-5]="","",RC[-5]+RC[-2]/1000+RC[-4]/100000000)` }
@@ -3733,7 +3733,7 @@
                     const cols = [1, 2, 3, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
                     return buildWorkbookRow(cols.map((col) => ({
                         value: "",
-                        formula: `='Spielplan / Eingabe'!R${sourceRow}C${col}`
+                        formula: `='Spielplan Eingabe'!R${sourceRow}C${col}`
                     })));
                 })
             ].join("");
@@ -3758,7 +3758,7 @@
    ${participantRows}
   </Table>
  </Worksheet>
- <Worksheet ss:Name="Spielplan / Eingabe">
+ <Worksheet ss:Name="Spielplan Eingabe">
   <Table>
    <Column ss:Width="42"/><Column ss:Width="55"/><Column ss:Width="55"/><Column ss:Width="58"/><Column ss:Width="160"/><Column ss:Width="110"/>
    <Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="55"/><Column ss:Width="58"/><Column ss:Width="160"/><Column ss:Width="110"/>
