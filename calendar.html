@@ -2379,17 +2379,25 @@
         function extractClubCloudCsvRowsFromInputSheets(xml) {
             const participantSheet = getWorksheetByName(xml, "Teilnehmer");
             const scheduleSheet = getWorksheetByName(xml, "Spielplan Eingabe");
-            if (!participantSheet || !scheduleSheet) return [];
+            if (!participantSheet || !scheduleSheet) {
+                throw new Error("Die Tabellenblätter \"Teilnehmer\" und \"Spielplan Eingabe\" wurden nicht gefunden.");
+            }
             const participantRows = getWorksheetRows(participantSheet);
             const participantHeader = participantRows[0] || [];
             const ccIndex = participantHeader.indexOf("CC-Nr.");
             const passIndex = participantHeader.indexOf("Pass-Nr.");
             const seedIndex = participantHeader.indexOf("Setz.");
-            const participants = participantRows.slice(1).map((row, index) => ({
-                seed: String(row[seedIndex >= 0 ? seedIndex : 0] || "").trim(),
-                ccNo: String(row[ccIndex >= 0 ? ccIndex : seedIndex >= 0 ? seedIndex : 0] || index + 1).trim(),
-                passNo: String(row[passIndex >= 0 ? passIndex : 1] || "").trim()
+            if (ccIndex < 0 || passIndex < 0 || seedIndex < 0) {
+                throw new Error("Das Tabellenblatt \"Teilnehmer\" muss die Spalten \"Setz.\", \"CC-Nr.\" und \"Pass-Nr.\" enthalten.");
+            }
+            const participants = participantRows.slice(1).map((row) => ({
+                seed: String(row[seedIndex] || "").trim(),
+                ccNo: String(row[ccIndex] || "").trim(),
+                passNo: String(row[passIndex] || "").trim()
             })).filter((participant) => participant.seed && participant.passNo);
+            if (participants.length !== 4) {
+                throw new Error("Für Version 1 werden genau 4 Teilnehmer mit Setz., CC-Nr. und Pass-Nr. erwartet.");
+            }
             const orderedParticipants = getClubCloudOrderedParticipants(participants);
             const player = (position) => orderedParticipants[position - 1] || {};
             const passBySeed = new Map();
@@ -2439,17 +2447,6 @@
             });
         }
 
-        function extractClubCloudCsvRowsFromExportSheet(xml) {
-            const worksheet = getWorksheetByName(xml, "CSV Export");
-            if (!worksheet) {
-                throw new Error("Das Tabellenblatt \"CSV Export\" wurde nicht gefunden.");
-            }
-            return getWorksheetRows(worksheet).map((values) => {
-                while (values.length < 11) values.push("");
-                return values.slice(0, 11);
-            }).filter((values) => values.some(Boolean));
-        }
-
         function extractClubCloudCsvFromResultWorkbookXml(workbookText) {
             const text = String(workbookText || "").replace(/^\uFEFF/, "");
             if (text.slice(0, 2) === "PK") {
@@ -2460,10 +2457,9 @@
             if (xml.getElementsByTagName("parsererror").length) {
                 throw new Error("Die Excel-Datei konnte nicht gelesen werden. Erwartet wird das erzeugte NBV-Ergebnisformular im .xls-Format.");
             }
-            const inputRows = extractClubCloudCsvRowsFromInputSheets(xml);
-            const rows = inputRows.length ? inputRows : extractClubCloudCsvRowsFromExportSheet(xml);
+            const rows = extractClubCloudCsvRowsFromInputSheets(xml);
             if (!rows.length) {
-                throw new Error("Im Tabellenblatt \"CSV Export\" wurden keine Daten gefunden.");
+                throw new Error("In der Ergebnisdatei wurden keine CSV-Daten gefunden.");
             }
             return rows.map((values) => values.map(csvEscape).join(";")).join("\n") + "\n";
         }
