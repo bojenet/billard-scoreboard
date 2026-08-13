@@ -1197,6 +1197,7 @@
                     <div class="button-row">
                         <button class="btn btn-secondary" type="button" onclick="addInvitationParticipant()">Teilnehmer hinzufügen</button>
                         <button class="btn btn-secondary" type="button" onclick="renumberInvitationParticipants()">Neu nummerieren</button>
+                        <button class="btn btn-secondary" type="button" onclick="renumberClubCloudParticipants()">CC alphabetisch</button>
                     </div>
                 </div>
                 <div class="editor-section">
@@ -1282,6 +1283,7 @@
         let invitationRecipients = [];
         let supportsInvitationRecipients = true;
         let playerPassNumberIndex = null;
+        let playerPassNumberSortIndex = null;
         let playerPassNumberIndexPromise = null;
 
         function escapeHtml(value) {
@@ -3408,19 +3410,23 @@
                     .then((response) => response.ok ? response.json() : [])
                     .then((rows) => {
                         const index = new Map();
+                        const sortIndex = new Map();
                         (Array.isArray(rows) ? rows : []).forEach((row) => {
                             const passNo = String(row?.passNo || "").trim();
                             if (!passNo) return;
+                            if (!sortIndex.has(passNo)) sortIndex.set(passNo, normalizePassLookupName(row?.name));
                             getPassLookupNameVariants(row?.name).forEach((key) => {
                                 if (key && !index.has(key)) index.set(key, passNo);
                             });
                         });
                         playerPassNumberIndex = index;
+                        playerPassNumberSortIndex = sortIndex;
                         return index;
                     })
                     .catch((error) => {
                         console.warn("Spieler-Passnummern konnten nicht geladen werden:", error);
                         playerPassNumberIndex = new Map();
+                        playerPassNumberSortIndex = new Map();
                         return playerPassNumberIndex;
                     });
             }
@@ -3436,6 +3442,36 @@
                 const passNo = index.get(normalizePassLookupName(participant.name));
                 if (passNo) participant.passNo = passNo;
             });
+            return invitation;
+        }
+
+        function getClubCloudParticipantSortKey(participant, index) {
+            const passSortKey = playerPassNumberSortIndex?.get(String(participant?.passNo || "").trim());
+            if (passSortKey) return passSortKey;
+            const name = String(participant?.name || "").trim();
+            if (!name) return `zzzz ${index}`;
+            if (name.includes(",")) return normalizePassLookupName(name);
+            const cleaned = name.replace(/\bdr\.?\s*/gi, "").trim();
+            const parts = cleaned.split(/\s+/).filter(Boolean);
+            if (parts.length > 1) {
+                const lastName = parts.pop();
+                return normalizePassLookupName(`${lastName} ${parts.join(" ")}`);
+            }
+            return normalizePassLookupName(cleaned);
+        }
+
+        function assignDefaultClubCloudOrder(invitation, force = false) {
+            const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
+            if (!participants.length) return invitation;
+            if (!force && participants.some((participant) => String(participant?.ccNo || "").trim())) {
+                return invitation;
+            }
+            [...participants]
+                .map((participant, index) => ({ participant, index, key: getClubCloudParticipantSortKey(participant, index) }))
+                .sort((a, b) => a.key.localeCompare(b.key, "de") || a.index - b.index)
+                .forEach((item, index) => {
+                    item.participant.ccNo = String(index + 1);
+                });
             return invitation;
         }
 
@@ -3455,6 +3491,7 @@
 
         function openInvitationEditorModal(invitation) {
             currentInvitationDraft = cloneInvitationDraft(invitation);
+            assignDefaultClubCloudOrder(currentInvitationDraft);
             if (!currentInvitationDraft.selectedModeCode) {
                 currentInvitationDraft.selectedModeCode = getSportordnungModeCode(currentInvitationDraft);
             }
@@ -3650,6 +3687,12 @@
             }
             renderInvitationParticipantEditor();
             renderInvitationModeSelect();
+        }
+
+        function renumberClubCloudParticipants() {
+            if (!currentInvitationDraft || !Array.isArray(currentInvitationDraft.participants)) return;
+            assignDefaultClubCloudOrder(currentInvitationDraft, true);
+            renderInvitationParticipantEditor();
         }
 
         function getResultWorkbookParticipants(invitation) {
