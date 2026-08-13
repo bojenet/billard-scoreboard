@@ -1858,7 +1858,8 @@
         function getRemoteAction(event) {
             if (event.key === "1" || event.key === "PageDown") return "point-plus";
             if (event.key === "2" || event.key === "PageUp") return "point-minus";
-            if (event.key === "3" || (event.shiftKey && (["F5", "F13"].includes(event.key) || ["F5", "F13"].includes(event.code)))) return "switch-player";
+            if (event.key === "3" || event.key === "F13" || event.code === "F13" ||
+                (event.shiftKey && (event.key === "F5" || event.code === "F5"))) return "switch-player";
             if (event.key === "4" || (!event.ctrlKey && !event.altKey && !event.metaKey && String(event.key).toLowerCase() === "b")) return "toggle-timer";
             return null;
         }

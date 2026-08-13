@@ -332,7 +332,8 @@
 
         function isRemoteKey(event) {
             return ["1", "2", "3", "4", "PageUp", "PageDown"].includes(event.key) ||
-                (event.shiftKey && (["F5", "F13"].includes(event.key) || ["F5", "F13"].includes(event.code))) ||
+                event.key === "F13" || event.code === "F13" ||
+                (event.shiftKey && (event.key === "F5" || event.code === "F5")) ||
                 (!event.ctrlKey && !event.altKey && !event.metaKey && String(event.key).toLowerCase() === "b");
         }
 

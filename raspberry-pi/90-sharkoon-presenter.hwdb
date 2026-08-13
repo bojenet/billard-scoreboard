@@ -1,0 +1,8 @@
+# SHARKOON Wireless Presenter (USB 1ea7:1068)
+#
+# The presentation button alternates between Escape and Shift+F5. Both browser
+# shortcuts can leave/reload HTML fullscreen, so expose both HID usages as F13.
+# The scoreboard handles F13 as player/inning switch.
+evdev:input:b0003v1EA7p1068*
+ KEYBOARD_KEY_70029=f13
+ KEYBOARD_KEY_7003e=f13
