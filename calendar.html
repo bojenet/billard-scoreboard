@@ -1278,6 +1278,8 @@
         let supportsInvitationSending = true;
         let invitationRecipients = [];
         let supportsInvitationRecipients = true;
+        let playerPassNumberIndex = null;
+        let playerPassNumberIndexPromise = null;
 
         function escapeHtml(value) {
             return String(value || "")
@@ -3398,6 +3400,70 @@
             return JSON.parse(JSON.stringify(invitation || {}));
         }
 
+        function normalizePassLookupName(value) {
+            return String(value || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/ß/g, "ss")
+                .replace(/\bdr\.\s*/gi, "")
+                .replace(/[^a-z0-9]+/gi, " ")
+                .trim()
+                .toLowerCase();
+        }
+
+        function getPassLookupNameVariants(name) {
+            const rawName = String(name || "").trim();
+            const variants = [rawName];
+            if (rawName.includes(",")) {
+                const [lastName, ...firstNameParts] = rawName.split(",");
+                const firstNames = firstNameParts.join(",").trim();
+                if (firstNames && lastName.trim()) {
+                    variants.push(`${firstNames} ${lastName.trim()}`);
+                }
+            }
+            return variants
+                .map(normalizePassLookupName)
+                .filter(Boolean);
+        }
+
+        async function loadPlayerPassNumberIndex() {
+            if (playerPassNumberIndex) return playerPassNumberIndex;
+            if (!playerPassNumberIndexPromise) {
+                playerPassNumberIndexPromise = fetch("data/player-pass-numbers.json", { cache: "no-cache" })
+                    .then((response) => response.ok ? response.json() : [])
+                    .then((rows) => {
+                        const index = new Map();
+                        (Array.isArray(rows) ? rows : []).forEach((row) => {
+                            const passNo = String(row?.passNo || "").trim();
+                            if (!passNo) return;
+                            getPassLookupNameVariants(row?.name).forEach((key) => {
+                                if (key && !index.has(key)) index.set(key, passNo);
+                            });
+                        });
+                        playerPassNumberIndex = index;
+                        return index;
+                    })
+                    .catch((error) => {
+                        console.warn("Spieler-Passnummern konnten nicht geladen werden:", error);
+                        playerPassNumberIndex = new Map();
+                        return playerPassNumberIndex;
+                    });
+            }
+            return playerPassNumberIndexPromise;
+        }
+
+        async function applyPlayerPassNumbers(invitation) {
+            const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
+            if (!participants.length) return invitation;
+            const index = await loadPlayerPassNumberIndex();
+            participants.forEach((participant) => {
+                if (!participant || String(participant.passNo || "").trim()) return;
+                const passNo = index.get(normalizePassLookupName(participant.name));
+                if (passNo) participant.passNo = passNo;
+            });
+            return invitation;
+        }
+
         function applyInvitationPlayingTarget(target) {
             if (!currentInvitationDraft) return;
             currentInvitationDraft.playingTargetPoints = target?.points || "";
@@ -3858,6 +3924,7 @@
                 if (!invitation?.title) {
                     throw new Error("Die NBV-Seite konnte nicht als Turniereinladung gelesen werden.");
                 }
+                await applyPlayerPassNumbers(invitation);
                 openInvitationEditorModal(invitation);
                 showCalendarMessage("Einladung wurde vorbereitet und kann geprüft werden.", "ok");
             } catch (error) {
