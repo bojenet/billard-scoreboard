@@ -2350,9 +2350,90 @@
             return data ? data.textContent : "";
         }
 
+        function getWorksheetByName(xml, name) {
+            return Array.from(xml.getElementsByTagName("*")).find((node) => (
+                node.localName === "Worksheet" && getXmlAttribute(node, "Name") === name
+            ));
+        }
+
+        function getWorksheetRows(worksheet) {
+            const table = Array.from(worksheet?.getElementsByTagName("*") || []).find((node) => node.localName === "Table");
+            return getDirectChildrenByLocalName(table, "Row").map((row) => {
+                const values = [];
+                getDirectChildrenByLocalName(row, "Cell").forEach((cell) => {
+                    const index = Number(getXmlAttribute(cell, "Index"));
+                    while (index && values.length < index - 1) values.push("");
+                    values.push(getCellText(cell).trim());
+                });
+                return values;
+            });
+        }
+
         function csvEscape(value) {
             const text = String(value ?? "");
             return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+        }
+
+        function extractClubCloudCsvRowsFromInputSheets(xml) {
+            const participantSheet = getWorksheetByName(xml, "Teilnehmer");
+            const scheduleSheet = getWorksheetByName(xml, "Spielplan Eingabe");
+            if (!participantSheet || !scheduleSheet) return [];
+            const passBySeed = new Map();
+            getWorksheetRows(participantSheet).slice(1).forEach((row) => {
+                const seed = String(row[0] || "").trim();
+                const passNo = String(row[1] || "").trim();
+                if (seed && passNo) passBySeed.set(seed, passNo);
+            });
+            const scheduleRows = getWorksheetRows(scheduleSheet).slice(4).map((row) => ({
+                aSeed: String(row[3] || "").trim(),
+                bSeed: String(row[9] || "").trim(),
+                aBalls: String(row[6] || "").trim(),
+                aInnings: String(row[7] || "").trim(),
+                aHs: String(row[8] || "").trim(),
+                bBalls: String(row[12] || "").trim(),
+                bInnings: String(row[13] || "").trim(),
+                bHs: String(row[14] || "").trim()
+            })).filter((match) => match.aSeed && match.bSeed);
+            const sameSeed = (a, b) => String(a || "") === String(b || "");
+            const findMatch = (aSeed, bSeed) => scheduleRows.find((match) => (
+                (sameSeed(match.aSeed, aSeed) && sameSeed(match.bSeed, bSeed))
+                || (sameSeed(match.aSeed, bSeed) && sameSeed(match.bSeed, aSeed))
+            ));
+            return [
+                ["1", "2"],
+                ["1", "3"],
+                ["1", "4"],
+                ["2", "3"],
+                ["2", "4"],
+                ["3", "4"]
+            ].map(([aSeed, bSeed], index) => {
+                const match = findMatch(aSeed, bSeed) || {};
+                const isReversed = match.aSeed && !sameSeed(match.aSeed, aSeed);
+                return [
+                    "Gruppe A",
+                    String(index + 1),
+                    "",
+                    passBySeed.get(aSeed) || "",
+                    passBySeed.get(bSeed) || "",
+                    isReversed ? match.bBalls : match.aBalls,
+                    isReversed ? match.aBalls : match.bBalls,
+                    isReversed ? match.bInnings : match.aInnings,
+                    isReversed ? match.aInnings : match.bInnings,
+                    isReversed ? match.bHs : match.aHs,
+                    isReversed ? match.aHs : match.bHs
+                ];
+            });
+        }
+
+        function extractClubCloudCsvRowsFromExportSheet(xml) {
+            const worksheet = getWorksheetByName(xml, "CSV Export");
+            if (!worksheet) {
+                throw new Error("Das Tabellenblatt \"CSV Export\" wurde nicht gefunden.");
+            }
+            return getWorksheetRows(worksheet).map((values) => {
+                while (values.length < 11) values.push("");
+                return values.slice(0, 11);
+            }).filter((values) => values.some(Boolean));
         }
 
         function extractClubCloudCsvFromResultWorkbookXml(workbookText) {
@@ -2365,23 +2446,8 @@
             if (xml.getElementsByTagName("parsererror").length) {
                 throw new Error("Die Excel-Datei konnte nicht gelesen werden. Erwartet wird das erzeugte NBV-Ergebnisformular im .xls-Format.");
             }
-            const worksheet = Array.from(xml.getElementsByTagName("*")).find((node) => (
-                node.localName === "Worksheet" && getXmlAttribute(node, "Name") === "CSV Export"
-            ));
-            if (!worksheet) {
-                throw new Error("Das Tabellenblatt \"CSV Export\" wurde nicht gefunden.");
-            }
-            const table = Array.from(worksheet.getElementsByTagName("*")).find((node) => node.localName === "Table");
-            const rows = getDirectChildrenByLocalName(table, "Row").map((row) => {
-                const values = [];
-                getDirectChildrenByLocalName(row, "Cell").forEach((cell) => {
-                    const index = Number(getXmlAttribute(cell, "Index"));
-                    while (index && values.length < index - 1) values.push("");
-                    values.push(getCellText(cell).trim());
-                });
-                while (values.length < 11) values.push("");
-                return values.slice(0, 11);
-            }).filter((values) => values.some(Boolean));
+            const inputRows = extractClubCloudCsvRowsFromInputSheets(xml);
+            const rows = inputRows.length ? inputRows : extractClubCloudCsvRowsFromExportSheet(xml);
             if (!rows.length) {
                 throw new Error("Im Tabellenblatt \"CSV Export\" wurden keine Daten gefunden.");
             }
