@@ -1207,16 +1207,15 @@
             <div class="button-row">
                 <button class="btn btn-save" type="button" onclick="generateInvitationPdfFromEditor()">PDF erstellen</button>
                 <button class="btn btn-secondary" type="button" onclick="generateResultWorkbookFromEditor()">Excel Ergebnisformular</button>
-                <button class="btn btn-secondary" type="button" onclick="triggerResultCsvImportFromEditor()">ClubCloud CSV aus Excel</button>
                 <button class="btn btn-secondary" type="button" onclick="closeInvitationEditorModal()">Schließen</button>
             </div>
-            <input id="resultWorkbookCsvInput" type="file" accept=".xls,.xml,.xlsx" style="display:none" onchange="handleResultCsvExcelFile(this.files && this.files[0]); this.value = '';">
             <div id="invitationEditorMessage" class="modal-message"></div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/jspdf.umd.min.js"></script>
+    <script src="js/xlsx.full.min.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/calendar_access.js"></script>
@@ -2274,22 +2273,6 @@
             return `<Row>${values.map((value) => buildExcelCell(value, styleId)).join("")}</Row>`;
         }
 
-        function buildWorkbookCell(value = "", options = {}) {
-            const style = options.styleId ? ` ss:StyleID="${options.styleId}"` : "";
-            const formula = options.formula ? ` ss:Formula="${escapeExcelXml(options.formula)}"` : "";
-            const type = options.type || (typeof value === "number" ? "Number" : "String");
-            return `<Cell${style}${formula}><Data ss:Type="${type}">${escapeExcelXml(value)}</Data></Cell>`;
-        }
-
-        function buildWorkbookRow(cells, options = {}) {
-            const height = options.height ? ` ss:Height="${options.height}"` : "";
-            return `<Row${height}>${cells.map((cell) => (
-                cell && typeof cell === "object" && !Array.isArray(cell)
-                    ? buildWorkbookCell(cell.value ?? "", cell)
-                    : buildWorkbookCell(cell)
-            )).join("")}</Row>`;
-        }
-
         function getInvitationExcelFilename(invitation) {
             const datePart = String(invitation?.date || "")
                 .replace(/[^0-9]+/g, "-")
@@ -2303,165 +2286,7 @@
                 .replace(/[^a-z0-9]+/g, "-")
                 .replace(/-+/g, "-")
                 .replace(/^-|-$/g, "");
-            return `NBV-Ergebnisformular-${datePart || "Termin"}-${titlePart || "Turnier"}.xls`;
-        }
-
-        function getInvitationCsvFilename(invitation) {
-            return getInvitationExcelFilename(invitation)
-                .replace(/^NBV-Ergebnisformular-/, "ClubCloud-")
-                .replace(/\.xls$/i, ".csv");
-        }
-
-        function downloadExcelXml(workbookXml, filename) {
-            const blob = new Blob([workbookXml], { type: "application/vnd.ms-excel;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(url);
-        }
-
-        function downloadTextFile(text, filename, type = "text/plain;charset=utf-8") {
-            const blob = new Blob([text], { type });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(url);
-        }
-
-        function getXmlAttribute(node, name) {
-            return node?.getAttribute?.(`ss:${name}`)
-                || node?.getAttributeNS?.("urn:schemas-microsoft-com:office:spreadsheet", name)
-                || node?.getAttribute?.(name)
-                || "";
-        }
-
-        function getDirectChildrenByLocalName(node, localName) {
-            return Array.from(node?.children || []).filter((child) => child.localName === localName);
-        }
-
-        function getCellText(cell) {
-            const data = Array.from(cell.getElementsByTagName("*")).find((node) => node.localName === "Data");
-            return data ? data.textContent : "";
-        }
-
-        function getWorksheetByName(xml, name) {
-            return Array.from(xml.getElementsByTagName("*")).find((node) => (
-                node.localName === "Worksheet" && getXmlAttribute(node, "Name") === name
-            ));
-        }
-
-        function getWorksheetRows(worksheet) {
-            const table = Array.from(worksheet?.getElementsByTagName("*") || []).find((node) => node.localName === "Table");
-            return getDirectChildrenByLocalName(table, "Row").map((row) => {
-                const values = [];
-                getDirectChildrenByLocalName(row, "Cell").forEach((cell) => {
-                    const index = Number(getXmlAttribute(cell, "Index"));
-                    while (index && values.length < index - 1) values.push("");
-                    values.push(getCellText(cell).trim());
-                });
-                return values;
-            });
-        }
-
-        function csvEscape(value) {
-            const text = String(value ?? "");
-            return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-        }
-
-        function extractClubCloudCsvRowsFromInputSheets(xml) {
-            const participantSheet = getWorksheetByName(xml, "Teilnehmer");
-            const scheduleSheet = getWorksheetByName(xml, "Spielplan Eingabe");
-            if (!participantSheet || !scheduleSheet) {
-                throw new Error("Die Tabellenblätter \"Teilnehmer\" und \"Spielplan Eingabe\" wurden nicht gefunden.");
-            }
-            const participantRows = getWorksheetRows(participantSheet);
-            const participantHeader = participantRows[0] || [];
-            const ccIndex = participantHeader.indexOf("CC-Nr.");
-            const passIndex = participantHeader.indexOf("Pass-Nr.");
-            const seedIndex = participantHeader.indexOf("Setz.");
-            if (ccIndex < 0 || passIndex < 0 || seedIndex < 0) {
-                throw new Error("Das Tabellenblatt \"Teilnehmer\" muss die Spalten \"Setz.\", \"CC-Nr.\" und \"Pass-Nr.\" enthalten.");
-            }
-            const participants = participantRows.slice(1).map((row) => ({
-                seed: String(row[seedIndex] || "").trim(),
-                ccNo: String(row[ccIndex] || "").trim(),
-                passNo: String(row[passIndex] || "").trim()
-            })).filter((participant) => participant.seed && participant.passNo);
-            if (participants.length !== 4) {
-                throw new Error("Für Version 1 werden genau 4 Teilnehmer mit Setz., CC-Nr. und Pass-Nr. erwartet.");
-            }
-            const orderedParticipants = getClubCloudOrderedParticipants(participants);
-            const player = (position) => orderedParticipants[position - 1] || {};
-            const passBySeed = new Map();
-            orderedParticipants.forEach((participant) => {
-                if (participant.seed && participant.passNo) passBySeed.set(participant.seed, participant.passNo);
-            });
-            const scheduleRows = getWorksheetRows(scheduleSheet).slice(4).map((row) => ({
-                aSeed: String(row[3] || "").trim(),
-                bSeed: String(row[9] || "").trim(),
-                aBalls: String(row[6] || "").trim(),
-                aInnings: String(row[7] || "").trim(),
-                aHs: String(row[8] || "").trim(),
-                bBalls: String(row[12] || "").trim(),
-                bInnings: String(row[13] || "").trim(),
-                bHs: String(row[14] || "").trim()
-            })).filter((match) => match.aSeed && match.bSeed);
-            const sameSeed = (a, b) => String(a || "") === String(b || "");
-            const findMatch = (aSeed, bSeed) => scheduleRows.find((match) => (
-                (sameSeed(match.aSeed, aSeed) && sameSeed(match.bSeed, bSeed))
-                || (sameSeed(match.aSeed, bSeed) && sameSeed(match.bSeed, aSeed))
-            ));
-            return [
-                ["1", "2"],
-                ["1", "3"],
-                ["1", "4"],
-                ["2", "3"],
-                ["2", "4"],
-                ["3", "4"]
-            ].map(([aSeed, bSeed], index) => {
-                const aPlayer = player(Number(aSeed));
-                const bPlayer = player(Number(bSeed));
-                const match = findMatch(aPlayer.seed, bPlayer.seed) || {};
-                const isReversed = match.aSeed && !sameSeed(match.aSeed, aPlayer.seed);
-                return [
-                    "Gruppe A",
-                    String(index + 1),
-                    "",
-                    passBySeed.get(aPlayer.seed) || "",
-                    passBySeed.get(bPlayer.seed) || "",
-                    isReversed ? match.bBalls : match.aBalls,
-                    isReversed ? match.aBalls : match.bBalls,
-                    isReversed ? match.bInnings : match.aInnings,
-                    isReversed ? match.aInnings : match.bInnings,
-                    isReversed ? match.bHs : match.aHs,
-                    isReversed ? match.aHs : match.bHs
-                ];
-            });
-        }
-
-        function extractClubCloudCsvFromResultWorkbookXml(workbookText) {
-            const text = String(workbookText || "").replace(/^\uFEFF/, "");
-            if (text.slice(0, 2) === "PK") {
-                throw new Error("Bitte die erzeugte .xls-Datei verwenden. .xlsx kann in dieser Version noch nicht gelesen werden.");
-            }
-            const parser = new DOMParser();
-            const xml = parser.parseFromString(text, "application/xml");
-            if (xml.getElementsByTagName("parsererror").length) {
-                throw new Error("Die Excel-Datei konnte nicht gelesen werden. Erwartet wird das erzeugte NBV-Ergebnisformular im .xls-Format.");
-            }
-            const rows = extractClubCloudCsvRowsFromInputSheets(xml);
-            if (!rows.length) {
-                throw new Error("In der Ergebnisdatei wurden keine CSV-Daten gefunden.");
-            }
-            return rows.map((values) => values.map(csvEscape).join(";")).join("\n") + "\n";
+            return `NBV-Ergebnisformular-${datePart || "Termin"}-${titlePart || "Turnier"}.xlsx`;
         }
 
         function getCalendarExcelFilename() {
@@ -3892,172 +3717,126 @@
             });
         }
 
-        function getScheduleValueFormula(exportPlayer, scheduleMatch, scheduleRow, aColumn, bColumn) {
-            if (!scheduleMatch || scheduleRow < 5) return "";
+        function getScheduleValueA1Formula(exportPlayer, scheduleMatch, scheduleRow, aColumn, bColumn) {
+            if (!scheduleMatch || scheduleRow < 5 || !window.XLSX) return "";
             const column = String(scheduleMatch.a.seed) === String(exportPlayer.seed) ? aColumn : bColumn;
-            return `='Spielplan Eingabe'!R${scheduleRow}C${column}`;
+            return `'Spielplan Eingabe'!${XLSX.utils.encode_col(column - 1)}${scheduleRow}`;
         }
 
-        function buildResultWorkbookXml(invitation) {
+        function formulaCell(formula) {
+            return formula ? { f: formula } : "";
+        }
+
+        function appendWorkbookSheet(workbook, name, rows, columnWidths = []) {
+            const sheet = XLSX.utils.aoa_to_sheet(rows);
+            if (columnWidths.length) {
+                sheet["!cols"] = columnWidths.map((wch) => ({ wch }));
+            }
+            XLSX.utils.book_append_sheet(workbook, sheet, name);
+            return sheet;
+        }
+
+        function buildResultWorkbookXlsx(invitation) {
+            if (!window.XLSX) {
+                throw new Error("Die XLSX-Bibliothek konnte nicht geladen werden.");
+            }
             const participants = getResultWorkbookParticipants(invitation);
             const matches = getT3ResultMatches(participants);
             const clubCloudMatches = getT3ClubCloudExportMatches(participants, matches);
             const target = getInvitationPlayingTarget(invitation) || {};
             const mode = getInvitationMode(invitation);
             const generatedAt = new Date().toLocaleString("de-DE");
+            const workbook = XLSX.utils.book_new();
+            workbook.Workbook = { CalcPr: { fullCalcOnLoad: true, forceFullCalc: true } };
 
-            const styles = `
- <Styles>
-  <Style ss:ID="Title"><Font ss:Bold="1" ss:Size="16" ss:Color="#006020"/><Alignment ss:Vertical="Center"/></Style>
-  <Style ss:ID="SubTitle"><Font ss:Bold="1" ss:Size="12"/><Alignment ss:Vertical="Center"/></Style>
-  <Style ss:ID="Header"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1F2B3A" ss:Pattern="Solid"/><Alignment ss:Vertical="Center" ss:WrapText="1"/></Style>
-  <Style ss:ID="Section"><Font ss:Bold="1" ss:Color="#006020"/><Interior ss:Color="#F1F4F7" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="Input"><Interior ss:Color="#FFF2CC" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D6B656"/></Borders></Style>
-  <Style ss:ID="Formula"><Interior ss:Color="#EAF2F8" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="Muted"><Font ss:Color="#667085"/></Style>
-  <Style ss:ID="Number3"><NumberFormat ss:Format="0.000"/></Style>
- </Styles>`;
+            appendWorkbookSheet(workbook, "Turnierdaten", [
+                ["NBV Ergebnisformular"],
+                ["Version", "T3 - 4 Spieler jeder gegen jeden", "Erzeugt am", generatedAt],
+                [],
+                ["Turnier", invitation?.title || ""],
+                ["Datum", formatInvitationDate(invitation?.date) || invitation?.date || "", "Beginn", invitation?.startTime ? `${invitation.startTime} Uhr` : ""],
+                ["Disziplin", invitation?.discipline || "", "Spielort", invitation?.locationName || ""],
+                ["Modus", [mode.code, mode.title].filter(Boolean).join(" - "), "Ausspielziel", `${target.points || ""} Punkte / ${target.innings || ""} Aufnahmen`],
+                ["Hinweis", "Gelbe Felder werden ausgefüllt. Das Blatt CSV Export wird nach Eingabe der Ergebnisse in Excel als CSV gespeichert."]
+            ], [18, 38, 18, 32]);
 
-            const tournamentRows = [
-                buildWorkbookRow([{ value: "NBV Ergebnisformular", styleId: "Title" }, "", "", ""], { height: 24 }),
-                buildWorkbookRow(["Version", "T3 - 4 Spieler jeder gegen jeden", "Erzeugt am", generatedAt]),
-                buildWorkbookRow([]),
-                buildWorkbookRow(["Turnier", invitation?.title || ""], {}),
-                buildWorkbookRow(["Datum", formatInvitationDate(invitation?.date) || invitation?.date || "", "Beginn", invitation?.startTime ? `${invitation.startTime} Uhr` : ""]),
-                buildWorkbookRow(["Disziplin", invitation?.discipline || "", "Spielort", invitation?.locationName || ""]),
-                buildWorkbookRow(["Modus", [mode.code, mode.title].filter(Boolean).join(" - "), "Ausspielziel", `${target.points || ""} Punkte / ${target.innings || ""} Aufnahmen`]),
-                buildWorkbookRow(["Hinweis", "Gelbe Felder werden ausgefüllt. Blaue Felder berechnen sich automatisch."])
-            ].join("");
-
-            const participantRows = [
-                buildWorkbookRow(["Setz.", "CC-Nr.", "Pass-Nr.", "Name", "Verein", "GD Setzliste"].map((value) => ({ value, styleId: "Header" })), { height: 18 }),
-                ...participants.map((participant) => buildWorkbookRow([
-                    { value: Number(participant.seed) || participant.seed, type: Number(participant.seed) ? "Number" : "String" },
-                    { value: Number(participant.ccNo) || participant.ccNo, type: Number(participant.ccNo) ? "Number" : "String", styleId: "Input" },
-                    { value: Number(participant.passNo) || participant.passNo, type: Number(participant.passNo) ? "Number" : "String", styleId: "Input" },
+            appendWorkbookSheet(workbook, "Teilnehmer", [
+                ["Setz.", "CC-Nr.", "Pass-Nr.", "Name", "Verein", "GD Setzliste"],
+                ...participants.map((participant) => [
+                    Number(participant.seed) || participant.seed,
+                    Number(participant.ccNo) || participant.ccNo,
+                    Number(participant.passNo) || participant.passNo,
                     participant.name,
                     participant.club,
                     participant.gd
-                ]))
-            ].join("");
+                ])
+            ], [8, 8, 12, 28, 18, 14]);
 
-            const matchHeader = ["Nr.", "Runde", "Tisch", "Setz A", "Spieler A", "Verein A", "Bälle A", "Aufn. A", "HS A", "Setz B", "Spieler B", "Verein B", "Bälle B", "Aufn. B", "HS B", "PP A", "PP B", "GD A", "GD B", "Status"];
-            const matchRows = [
-                buildWorkbookRow([{ value: "Spielplan / Ergebniseingabe", styleId: "Title" }], { height: 22 }),
-                buildWorkbookRow([`Ausspielziel: ${target.points || ""} Punkte / ${target.innings || ""} Aufnahmen`]),
-                buildWorkbookRow([]),
-                buildWorkbookRow(matchHeader.map((value) => ({ value, styleId: "Header" }))),
+            appendWorkbookSheet(workbook, "Spielplan Eingabe", [
+                ["Spielplan / Ergebniseingabe"],
+                [`Ausspielziel: ${target.points || ""} Punkte / ${target.innings || ""} Aufnahmen`],
+                [],
+                ["Nr.", "Runde", "Tisch", "Setz A", "Spieler A", "Verein A", "Bälle A", "Aufn. A", "HS A", "Setz B", "Spieler B", "Verein B", "Bälle B", "Aufn. B", "HS B", "PP A", "PP B", "GD A", "GD B", "Status"],
                 ...matches.map((match, index) => {
                     const row = index + 5;
-                    return buildWorkbookRow([
-                        { value: match.no, type: "Number" },
-                        { value: match.round, type: "Number" },
-                        { value: match.table, type: "Number" },
-                        { value: Number(match.a.seed) || match.a.seed, type: Number(match.a.seed) ? "Number" : "String" },
+                    return [
+                        match.no,
+                        match.round,
+                        match.table,
+                        Number(match.a.seed) || match.a.seed,
                         match.a.name,
                         match.a.club,
-                        { value: "", styleId: "Input" },
-                        { value: "", styleId: "Input" },
-                        { value: "", styleId: "Input" },
-                        { value: Number(match.b.seed) || match.b.seed, type: Number(match.b.seed) ? "Number" : "String" },
+                        "",
+                        "",
+                        "",
+                        Number(match.b.seed) || match.b.seed,
                         match.b.name,
                         match.b.club,
-                        { value: "", styleId: "Input" },
-                        { value: "", styleId: "Input" },
-                        { value: "", styleId: "Input" },
-                        { value: "", styleId: "Formula", formula: `=IF(OR(RC[-9]="",RC[-3]=""),"",IF(RC[-9]>RC[-3],2,IF(RC[-9]<RC[-3],0,1)))` },
-                        { value: "", styleId: "Formula", formula: `=IF(OR(RC[-10]="",RC[-4]=""),"",IF(RC[-4]>RC[-10],2,IF(RC[-4]<RC[-10],0,1)))` },
-                        { value: "", styleId: "Formula", formula: `=IF(RC[-10]>0,TRUNC(RC[-11]/RC[-10],3),"")` },
-                        { value: "", styleId: "Formula", formula: `=IF(RC[-5]>0,TRUNC(RC[-6]/RC[-5],3),"")` },
-                        { value: "", styleId: "Formula", formula: `=IF(OR(RC[-13]="",RC[-12]="",RC[-7]="",RC[-6]=""),"offen","ok")` }
-                    ]);
+                        "",
+                        "",
+                        "",
+                        formulaCell(`IF(OR(G${row}="",M${row}=""),"",IF(G${row}>M${row},2,IF(G${row}<M${row},0,1)))`),
+                        formulaCell(`IF(OR(G${row}="",M${row}=""),"",IF(M${row}>G${row},2,IF(M${row}<G${row},0,1)))`),
+                        formulaCell(`IF(H${row}>0,TRUNC(G${row}/H${row},3),"")`),
+                        formulaCell(`IF(N${row}>0,TRUNC(M${row}/N${row},3),"")`),
+                        formulaCell(`IF(OR(G${row}="",H${row}="",M${row}="",N${row}=""),"offen","ok")`)
+                    ];
                 })
-            ].join("");
+            ], [6, 8, 8, 8, 24, 14, 10, 10, 8, 8, 24, 14, 10, 10, 8, 8, 8, 10, 10, 10]);
 
-            const maxHsFormula = (seedRow) => {
-                const parts = [];
-                for (let row = 5; row <= 10; row += 1) {
-                    parts.push(`IF('Spielplan Eingabe'!R${row}C4=RC2,'Spielplan Eingabe'!R${row}C9,0)`);
-                    parts.push(`IF('Spielplan Eingabe'!R${row}C10=RC2,'Spielplan Eingabe'!R${row}C15,0)`);
-                }
-                return `=MAX(${parts.join(",")})`;
-            };
-            const tableRows = [
-                buildWorkbookRow(["Rang", "Setz.", "Name", "Partie-Punkte", "Bälle", "Aufn.", "GD", "HS", "Sortierwert"].map((value) => ({ value, styleId: "Header" })), { height: 18 }),
+            appendWorkbookSheet(workbook, "Auswertung", [
+                ["Rang", "Setz.", "Name", "Partie-Punkte", "Bälle", "Aufn.", "GD", "HS", "Sortierwert"],
                 ...participants.map((participant, index) => {
                     const row = index + 2;
-                    return buildWorkbookRow([
-                        { value: "", styleId: "Formula", formula: `=IF(RC4="","",RANK(RC9,R2C9:R5C9,0))` },
-                        { value: Number(participant.seed) || participant.seed, type: Number(participant.seed) ? "Number" : "String" },
+                    return [
+                        formulaCell(`IF(D${row}="","",RANK(I${row},$I$2:$I$5,0))`),
+                        Number(participant.seed) || participant.seed,
                         participant.name,
-                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan Eingabe'!R5C4:R10C4,RC2,'Spielplan Eingabe'!R5C16:R10C16)+SUMIF('Spielplan Eingabe'!R5C10:R10C10,RC2,'Spielplan Eingabe'!R5C17:R10C17)` },
-                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan Eingabe'!R5C4:R10C4,RC2,'Spielplan Eingabe'!R5C7:R10C7)+SUMIF('Spielplan Eingabe'!R5C10:R10C10,RC2,'Spielplan Eingabe'!R5C13:R10C13)` },
-                        { value: "", styleId: "Formula", formula: `=SUMIF('Spielplan Eingabe'!R5C4:R10C4,RC2,'Spielplan Eingabe'!R5C8:R10C8)+SUMIF('Spielplan Eingabe'!R5C10:R10C10,RC2,'Spielplan Eingabe'!R5C14:R10C14)` },
-                        { value: "", styleId: "Formula", formula: `=IF(RC[-1]>0,TRUNC(RC[-2]/RC[-1],3),"")` },
-                        { value: "", styleId: "Formula", formula: maxHsFormula(row) },
-                        { value: "", styleId: "Formula", formula: `=IF(RC[-5]="","",RC[-5]+RC[-2]/1000+RC[-4]/100000000)` }
-                    ]);
+                        formulaCell(`SUMIF('Spielplan Eingabe'!$D$5:$D$10,B${row},'Spielplan Eingabe'!$P$5:$P$10)+SUMIF('Spielplan Eingabe'!$J$5:$J$10,B${row},'Spielplan Eingabe'!$Q$5:$Q$10)`),
+                        formulaCell(`SUMIF('Spielplan Eingabe'!$D$5:$D$10,B${row},'Spielplan Eingabe'!$G$5:$G$10)+SUMIF('Spielplan Eingabe'!$J$5:$J$10,B${row},'Spielplan Eingabe'!$M$5:$M$10)`),
+                        formulaCell(`SUMIF('Spielplan Eingabe'!$D$5:$D$10,B${row},'Spielplan Eingabe'!$H$5:$H$10)+SUMIF('Spielplan Eingabe'!$J$5:$J$10,B${row},'Spielplan Eingabe'!$N$5:$N$10)`),
+                        formulaCell(`IF(F${row}>0,TRUNC(E${row}/F${row},3),"")`),
+                        formulaCell(`MAX(MAXIFS('Spielplan Eingabe'!$I$5:$I$10,'Spielplan Eingabe'!$D$5:$D$10,B${row}),MAXIFS('Spielplan Eingabe'!$O$5:$O$10,'Spielplan Eingabe'!$J$5:$J$10,B${row}))`),
+                        formulaCell(`IF(D${row}="","",D${row}+G${row}/1000+E${row}/100000000)`)
+                    ];
                 })
-            ].join("");
+            ], [8, 8, 28, 14, 10, 10, 10, 8, 14]);
 
-            const exportRows = [
-                ...clubCloudMatches.map((match) => {
-                    return buildWorkbookRow([
-                        "Gruppe A",
-                        { value: match.no, type: "Number" },
-                        "",
-                        { value: Number(match.a.passNo) || match.a.passNo, type: Number(match.a.passNo) ? "Number" : "String" },
-                        { value: Number(match.b.passNo) || match.b.passNo, type: Number(match.b.passNo) ? "Number" : "String" },
-                        { value: "", formula: getScheduleValueFormula(match.a, match.scheduleMatch, match.scheduleRow, 7, 13) },
-                        { value: "", formula: getScheduleValueFormula(match.b, match.scheduleMatch, match.scheduleRow, 7, 13) },
-                        { value: "", formula: getScheduleValueFormula(match.a, match.scheduleMatch, match.scheduleRow, 8, 14) },
-                        { value: "", formula: getScheduleValueFormula(match.b, match.scheduleMatch, match.scheduleRow, 8, 14) },
-                        { value: "", formula: getScheduleValueFormula(match.a, match.scheduleMatch, match.scheduleRow, 9, 15) },
-                        { value: "", formula: getScheduleValueFormula(match.b, match.scheduleMatch, match.scheduleRow, 9, 15) }
-                    ]);
-                })
-            ].join("");
+            appendWorkbookSheet(workbook, "CSV Export", clubCloudMatches.map((match) => [
+                "Gruppe A",
+                match.no,
+                "",
+                Number(match.a.passNo) || match.a.passNo,
+                Number(match.b.passNo) || match.b.passNo,
+                formulaCell(getScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 7, 13)),
+                formulaCell(getScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 7, 13)),
+                formulaCell(getScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 8, 14)),
+                formulaCell(getScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 8, 14)),
+                formulaCell(getScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 9, 15)),
+                formulaCell(getScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 9, 15))
+            ]), [12, 6, 6, 12, 12, 10, 10, 10, 10, 10, 10]);
 
-            return `<?xml version="1.0"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- ${styles}
- <Worksheet ss:Name="Turnierdaten">
-  <Table>
-   <Column ss:Width="120"/><Column ss:Width="260"/><Column ss:Width="120"/><Column ss:Width="220"/>
-   ${tournamentRows}
-  </Table>
- </Worksheet>
- <Worksheet ss:Name="Teilnehmer">
-  <Table>
-   <Column ss:Width="60"/><Column ss:Width="70"/><Column ss:Width="90"/><Column ss:Width="220"/><Column ss:Width="150"/><Column ss:Width="90"/>
-   ${participantRows}
-  </Table>
- </Worksheet>
- <Worksheet ss:Name="Spielplan Eingabe">
-  <Table>
-   <Column ss:Width="42"/><Column ss:Width="55"/><Column ss:Width="55"/><Column ss:Width="58"/><Column ss:Width="160"/><Column ss:Width="110"/>
-   <Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="55"/><Column ss:Width="58"/><Column ss:Width="160"/><Column ss:Width="110"/>
-   <Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="55"/><Column ss:Width="55"/><Column ss:Width="55"/><Column ss:Width="65"/><Column ss:Width="65"/><Column ss:Width="65"/>
-   ${matchRows}
-  </Table>
- </Worksheet>
- <Worksheet ss:Name="Auswertung">
-  <Table>
-   <Column ss:Width="55"/><Column ss:Width="55"/><Column ss:Width="220"/><Column ss:Width="90"/><Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="55"/><Column ss:Width="90"/>
-   ${tableRows}
-  </Table>
- </Worksheet>
- <Worksheet ss:Name="CSV Export">
-  <Table>
-   ${exportRows}
-  </Table>
- </Worksheet>
-</Workbook>`;
+            return workbook;
         }
 
         function generateResultWorkbookFromEditor() {
@@ -4076,27 +3855,9 @@
                 if (targetInput) targetInput.focus();
                 return;
             }
-            const workbookXml = buildResultWorkbookXml(cloneInvitationDraft(currentInvitationDraft));
-            downloadExcelXml(workbookXml, getInvitationExcelFilename(currentInvitationDraft));
+            const workbook = buildResultWorkbookXlsx(cloneInvitationDraft(currentInvitationDraft));
+            XLSX.writeFile(workbook, getInvitationExcelFilename(currentInvitationDraft), { bookType: "xlsx" });
             setModalMessage("invitationEditorMessage", "Excel Ergebnisformular wurde erstellt und als Download gestartet.", "ok");
-        }
-
-        function triggerResultCsvImportFromEditor() {
-            const input = document.getElementById("resultWorkbookCsvInput");
-            if (input) input.click();
-        }
-
-        async function handleResultCsvExcelFile(file) {
-            if (!file) return;
-            try {
-                const workbookText = await file.text();
-                const csvText = extractClubCloudCsvFromResultWorkbookXml(workbookText);
-                downloadTextFile(csvText, getInvitationCsvFilename(currentInvitationDraft || { title: file.name }), "text/csv;charset=utf-8");
-                setModalMessage("invitationEditorMessage", "ClubCloud CSV wurde aus der ausgefüllten Excel-Datei erstellt.", "ok");
-            } catch (error) {
-                console.warn("ClubCloud CSV konnte nicht erstellt werden:", error);
-                setModalMessage("invitationEditorMessage", `ClubCloud CSV konnte nicht erstellt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
-            }
         }
 
         function generateInvitationPdfFromEditor() {
