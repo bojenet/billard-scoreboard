@@ -3766,6 +3766,11 @@
             return `'Spielplan Eingabe'!${XLSX.utils.encode_col(column - 1)}${scheduleRow}`;
         }
 
+        function getBlankSafeScheduleValueA1Formula(exportPlayer, scheduleMatch, scheduleRow, aColumn, bColumn) {
+            const ref = getScheduleValueA1Formula(exportPlayer, scheduleMatch, scheduleRow, aColumn, bColumn);
+            return ref ? `IF(${ref}="","",${ref})` : "";
+        }
+
         function formulaCell(formula) {
             return formula ? { f: formula } : "";
         }
@@ -3871,12 +3876,12 @@
                 "",
                 Number(match.a.passNo) || match.a.passNo,
                 Number(match.b.passNo) || match.b.passNo,
-                formulaCell(getScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 7, 13)),
-                formulaCell(getScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 7, 13)),
-                formulaCell(getScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 8, 14)),
-                formulaCell(getScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 8, 14)),
-                formulaCell(getScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 9, 15)),
-                formulaCell(getScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 9, 15))
+                formulaCell(getBlankSafeScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 7, 13)),
+                formulaCell(getBlankSafeScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 7, 13)),
+                formulaCell(getBlankSafeScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 8, 14)),
+                formulaCell(getBlankSafeScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 8, 14)),
+                formulaCell(getBlankSafeScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 9, 15)),
+                formulaCell(getBlankSafeScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 9, 15))
             ]), [12, 6, 6, 12, 12, 10, 10, 10, 10, 10, 10]);
 
             return workbook;
