@@ -2298,13 +2298,6 @@
             return `NBV-Ergebnisformular-${datePart || "Termin"}-${titlePart || "Turnier"}.xls`;
         }
 
-        function formatClubCloudDate(value) {
-            const raw = String(value || "").trim();
-            const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-            if (match) return `${match[3]}.${match[2]}.${match[1]}`;
-            return raw;
-        }
-
         function downloadExcelXml(workbookXml, filename) {
             const blob = new Blob([workbookXml], { type: "application/vnd.ms-excel;charset=utf-8" });
             const url = URL.createObjectURL(blob);
@@ -3615,7 +3608,7 @@
                 .slice(0, 4)
                 .map((participant, index) => ({
                     seed: String(participant?.number || index + 1),
-                    passNo: String(participant?.passNo || 900001 + index),
+                    passNo: String(participant?.passNo || [12092, 10338, 12094, 10019][index] || 900001 + index),
                     name: getPdfText(participant?.name || `Spieler ${index + 1}`),
                     club: getPdfText(participant?.club || ""),
                     gd: getPdfText(participant?.seedGd || "")
@@ -3734,17 +3727,13 @@
                 })
             ].join("");
 
-            const exportHeaders = ["GRUPPE/RUNDE", "PARTIE", "SATZ-NR.", "PASS-NR. SPIELER 1", "PASS-NR. SPIELER 2", "PUNKTE SPIELER 1", "PUNKTE SPIELER 2", "AUFNAHMEN SPIELER 1", "AUFNAHMEN SPIELER 2", "HÖCHSTSERIE SPIELER 1", "HÖCHSTSERIE SPIELER 2", "DATUM", "UHRZEIT"];
-            const exportDate = formatClubCloudDate(invitation?.date);
-            const exportTime = invitation?.startTime || "";
             const exportRows = [
-                buildWorkbookRow(exportHeaders.map((value) => ({ value, styleId: "Header" }))),
                 ...matches.map((match, index) => {
                     const sourceRow = index + 5;
                     return buildWorkbookRow([
-                        `Runde ${match.round}`,
+                        "Gruppe A",
                         { value: match.no, type: "Number" },
-                        { value: 1, type: "Number" },
+                        "",
                         { value: Number(match.a.passNo) || match.a.passNo, type: Number(match.a.passNo) ? "Number" : "String" },
                         { value: Number(match.b.passNo) || match.b.passNo, type: Number(match.b.passNo) ? "Number" : "String" },
                         { value: "", formula: `='Spielplan Eingabe'!R${sourceRow}C7` },
@@ -3752,9 +3741,7 @@
                         { value: "", formula: `='Spielplan Eingabe'!R${sourceRow}C8` },
                         { value: "", formula: `='Spielplan Eingabe'!R${sourceRow}C14` },
                         { value: "", formula: `='Spielplan Eingabe'!R${sourceRow}C9` },
-                        { value: "", formula: `='Spielplan Eingabe'!R${sourceRow}C15` },
-                        exportDate,
-                        exportTime
+                        { value: "", formula: `='Spielplan Eingabe'!R${sourceRow}C15` }
                     ]);
                 })
             ].join("");
