@@ -695,7 +695,7 @@
 
         .participant-editor-row {
             display: grid;
-            grid-template-columns: 64px 92px 70px 82px minmax(170px, 1fr) minmax(140px, 0.8fr) 82px;
+            grid-template-columns: 58px 62px 92px 70px 82px minmax(160px, 1fr) minmax(130px, 0.8fr) 82px;
             gap: 8px;
             align-items: center;
             padding: 8px;
@@ -912,13 +912,15 @@
                 grid-template-columns: 1fr;
             }
             .participant-editor-row {
-                grid-template-columns: 52px 84px 58px 70px;
+                grid-template-columns: 52px 58px 84px 58px;
             }
             .participant-editor-row.header span:nth-child(5),
             .participant-editor-row.header span:nth-child(6),
             .participant-editor-row.header span:nth-child(7),
+            .participant-editor-row.header span:nth-child(8),
             .participant-editor-row input:nth-child(5),
             .participant-editor-row input:nth-child(6),
+            .participant-editor-row input:nth-child(7),
             .participant-editor-row .row-tools {
                 grid-column: 1 / -1;
             }
@@ -2378,11 +2380,21 @@
             const participantSheet = getWorksheetByName(xml, "Teilnehmer");
             const scheduleSheet = getWorksheetByName(xml, "Spielplan Eingabe");
             if (!participantSheet || !scheduleSheet) return [];
+            const participantRows = getWorksheetRows(participantSheet);
+            const participantHeader = participantRows[0] || [];
+            const ccIndex = participantHeader.indexOf("CC-Nr.");
+            const passIndex = participantHeader.indexOf("Pass-Nr.");
+            const seedIndex = participantHeader.indexOf("Setz.");
+            const participants = participantRows.slice(1).map((row, index) => ({
+                seed: String(row[seedIndex >= 0 ? seedIndex : 0] || "").trim(),
+                ccNo: String(row[ccIndex >= 0 ? ccIndex : seedIndex >= 0 ? seedIndex : 0] || index + 1).trim(),
+                passNo: String(row[passIndex >= 0 ? passIndex : 1] || "").trim()
+            })).filter((participant) => participant.seed && participant.passNo);
+            const orderedParticipants = getClubCloudOrderedParticipants(participants);
+            const player = (position) => orderedParticipants[position - 1] || {};
             const passBySeed = new Map();
-            getWorksheetRows(participantSheet).slice(1).forEach((row) => {
-                const seed = String(row[0] || "").trim();
-                const passNo = String(row[1] || "").trim();
-                if (seed && passNo) passBySeed.set(seed, passNo);
+            orderedParticipants.forEach((participant) => {
+                if (participant.seed && participant.passNo) passBySeed.set(participant.seed, participant.passNo);
             });
             const scheduleRows = getWorksheetRows(scheduleSheet).slice(4).map((row) => ({
                 aSeed: String(row[3] || "").trim(),
@@ -2407,14 +2419,16 @@
                 ["2", "4"],
                 ["3", "4"]
             ].map(([aSeed, bSeed], index) => {
-                const match = findMatch(aSeed, bSeed) || {};
-                const isReversed = match.aSeed && !sameSeed(match.aSeed, aSeed);
+                const aPlayer = player(Number(aSeed));
+                const bPlayer = player(Number(bSeed));
+                const match = findMatch(aPlayer.seed, bPlayer.seed) || {};
+                const isReversed = match.aSeed && !sameSeed(match.aSeed, aPlayer.seed);
                 return [
                     "Gruppe A",
                     String(index + 1),
                     "",
-                    passBySeed.get(aSeed) || "",
-                    passBySeed.get(bSeed) || "",
+                    passBySeed.get(aPlayer.seed) || "",
+                    passBySeed.get(bPlayer.seed) || "",
                     isReversed ? match.bBalls : match.aBalls,
                     isReversed ? match.aBalls : match.bBalls,
                     isReversed ? match.bInnings : match.aInnings,
@@ -3694,6 +3708,7 @@
             const header = `
                 <div class="participant-editor-row header">
                     <span>Setz.</span>
+                    <span>CC-Nr.</span>
                     <span>Pass-Nr.</span>
                     <span>Rang</span>
                     <span>GD</span>
@@ -3704,6 +3719,7 @@
             const rows = participants.map((participant, index) => `
                 <div class="participant-editor-row">
                     <input type="text" value="${escapeHtml(participant.number || String(index + 1))}" onchange="updateInvitationParticipant(${index}, 'number', this.value)">
+                    <input type="text" value="${escapeHtml(participant.ccNo || participant.number || String(index + 1))}" onchange="updateInvitationParticipant(${index}, 'ccNo', this.value)">
                     <input type="text" value="${escapeHtml(participant.passNo || "")}" onchange="updateInvitationParticipant(${index}, 'passNo', this.value)">
                     <input type="text" value="${escapeHtml(participant.seedRank || "")}" onchange="updateInvitationParticipant(${index}, 'seedRank', this.value)">
                     <input type="text" value="${escapeHtml(participant.seedGd || "")}" onchange="updateInvitationParticipant(${index}, 'seedGd', this.value)">
@@ -3791,6 +3807,7 @@
             }
             currentInvitationDraft.participants.push({
                 number: String(currentInvitationDraft.participants.length + 1),
+                ccNo: String(currentInvitationDraft.participants.length + 1),
                 passNo: "",
                 seedRank: "",
                 seedGd: "",
@@ -3819,6 +3836,7 @@
                 .slice(0, 4)
                 .map((participant, index) => ({
                     seed: String(participant?.number || index + 1),
+                    ccNo: String(participant?.ccNo || participant?.number || index + 1),
                     passNo: String(participant?.passNo || [12092, 10338, 12094, 10019][index] || 900001 + index),
                     name: getPdfText(participant?.name || `Spieler ${index + 1}`),
                     club: getPdfText(participant?.club || ""),
@@ -3838,8 +3856,20 @@
             ];
         }
 
+        function getClubCloudOrderedParticipants(participants) {
+            return [...participants].sort((a, b) => {
+                const aOrder = Number(a.ccNo);
+                const bOrder = Number(b.ccNo);
+                if (Number.isFinite(aOrder) && Number.isFinite(bOrder) && aOrder !== bOrder) return aOrder - bOrder;
+                if (Number.isFinite(aOrder)) return -1;
+                if (Number.isFinite(bOrder)) return 1;
+                return String(a.ccNo || a.seed || "").localeCompare(String(b.ccNo || b.seed || ""), "de");
+            });
+        }
+
         function getT3ClubCloudExportMatches(participants, scheduleMatches) {
-            const player = (seed) => participants[seed - 1] || { seed: String(seed), name: `Spieler ${seed}`, club: "" };
+            const ordered = getClubCloudOrderedParticipants(participants);
+            const player = (position) => ordered[position - 1] || { seed: String(position), ccNo: String(position), name: `Spieler ${position}`, club: "" };
             const sameSeed = (a, b) => String(a || "") === String(b || "");
             const findScheduleMatch = (aSeed, bSeed) => scheduleMatches.find((match) => (
                 (sameSeed(match.a.seed, aSeed) && sameSeed(match.b.seed, bSeed))
@@ -3853,11 +3883,13 @@
                 [2, 4],
                 [3, 4]
             ].map(([aSeed, bSeed], index) => {
-                const scheduleMatch = findScheduleMatch(aSeed, bSeed);
+                const aPlayer = player(aSeed);
+                const bPlayer = player(bSeed);
+                const scheduleMatch = findScheduleMatch(aPlayer.seed, bPlayer.seed);
                 return {
                     no: index + 1,
-                    a: player(aSeed),
-                    b: player(bSeed),
+                    a: aPlayer,
+                    b: bPlayer,
                     scheduleMatch,
                     scheduleRow: scheduleMatches.indexOf(scheduleMatch) + 5
                 };
@@ -3902,9 +3934,10 @@
             ].join("");
 
             const participantRows = [
-                buildWorkbookRow(["Setz.", "Pass-Nr.", "Name", "Verein", "GD Setzliste"].map((value) => ({ value, styleId: "Header" })), { height: 18 }),
+                buildWorkbookRow(["Setz.", "CC-Nr.", "Pass-Nr.", "Name", "Verein", "GD Setzliste"].map((value) => ({ value, styleId: "Header" })), { height: 18 }),
                 ...participants.map((participant) => buildWorkbookRow([
                     { value: Number(participant.seed) || participant.seed, type: Number(participant.seed) ? "Number" : "String" },
+                    { value: Number(participant.ccNo) || participant.ccNo, type: Number(participant.ccNo) ? "Number" : "String", styleId: "Input" },
                     { value: Number(participant.passNo) || participant.passNo, type: Number(participant.passNo) ? "Number" : "String", styleId: "Input" },
                     participant.name,
                     participant.club,
@@ -4005,7 +4038,7 @@
  </Worksheet>
  <Worksheet ss:Name="Teilnehmer">
   <Table>
-   <Column ss:Width="60"/><Column ss:Width="90"/><Column ss:Width="220"/><Column ss:Width="150"/><Column ss:Width="90"/>
+   <Column ss:Width="60"/><Column ss:Width="70"/><Column ss:Width="90"/><Column ss:Width="220"/><Column ss:Width="150"/><Column ss:Width="90"/>
    ${participantRows}
   </Table>
  </Worksheet>
