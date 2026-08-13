@@ -326,41 +326,54 @@
         }
 
         function isRemoteKeyIgnoredTarget(target) {
-            const tagName = String(target?.tagName || "").toLowerCase();
-            return tagName === "input" || tagName === "textarea" || tagName === "select";
+            if (!(target instanceof Element)) return false;
+            return Boolean(target.closest("input, textarea, select, [contenteditable]:not([contenteditable='false'])"));
         }
 
-        function forwardRemoteKeyToScoreboard(key) {
+        function isRemoteKey(event) {
+            return ["1", "2", "3", "4", "PageUp", "PageDown"].includes(event.key) ||
+                (event.shiftKey && (["F5", "F13"].includes(event.key) || ["F5", "F13"].includes(event.code))) ||
+                (!event.ctrlKey && !event.altKey && !event.metaKey && String(event.key).toLowerCase() === "b");
+        }
+
+        function forwardRemoteKeyToScoreboard(event) {
             const frame = document.getElementById("displayFrame");
             const frameWindow = frame?.contentWindow;
             const frameDocument = frame?.contentDocument;
             if (!frameWindow || !frameDocument || !frame.classList.contains("visible")) {
-                console.log("ESP32-Fernbedienung Taste ohne aktives Scoreboard:", key);
+                console.log("Fernbedienung/Presenter Taste ohne aktives Scoreboard:", event.key);
                 return;
             }
 
             frameDocument.dispatchEvent(new KeyboardEvent("keydown", {
-                key,
+                key: event.key,
+                code: event.code,
+                shiftKey: event.shiftKey,
+                ctrlKey: event.ctrlKey,
+                altKey: event.altKey,
+                metaKey: event.metaKey,
+                repeat: false,
                 bubbles: true,
                 cancelable: true
             }));
         }
 
         function handleRemoteKeydown(event) {
-            const key = event.key;
-            if (!["1", "2", "3", "4"].includes(key)) return;
+            if (!isRemoteKey(event)) return;
             if (isRemoteKeyIgnoredTarget(event.target)) return;
 
             event.preventDefault();
-            console.log("ESP32-Fernbedienung Taste im Display empfangen:", key);
-            forwardRemoteKeyToScoreboard(key);
+            event.stopPropagation();
+            if (event.repeat) return;
+            console.log("Fernbedienung/Presenter Taste im Display empfangen:", event.key);
+            forwardRemoteKeyToScoreboard(event);
         }
 
         if (window.__billardDisplayRemoteKeydownHandler) {
-            document.removeEventListener("keydown", window.__billardDisplayRemoteKeydownHandler);
+            document.removeEventListener("keydown", window.__billardDisplayRemoteKeydownHandler, true);
         }
         window.__billardDisplayRemoteKeydownHandler = handleRemoteKeydown;
-        document.addEventListener("keydown", window.__billardDisplayRemoteKeydownHandler);
+        document.addEventListener("keydown", window.__billardDisplayRemoteKeydownHandler, true);
 
         function toSeriesArray(value) {
             if (Array.isArray(value)) return value.map((item) => Number(item || 0));
