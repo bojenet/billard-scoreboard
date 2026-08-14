@@ -21,6 +21,7 @@ create table if not exists public.calendar_club_reminders (
 create table if not exists public.calendar_invitation_recipients (
   id uuid primary key default gen_random_uuid(),
   name text not null default '',
+  position text not null default '',
   email text not null,
   recipient_group text not null default 'clubs',
   delivery_type text not null default 'bcc',
@@ -104,6 +105,9 @@ create index if not exists idx_calendar_invitation_recipients_active
 
 alter table public.calendar_invitation_recipients
   add column if not exists delivery_type text not null default 'bcc';
+
+alter table public.calendar_invitation_recipients
+  add column if not exists position text not null default '';
 
 alter table public.calendar_invitation_recipients
   drop constraint if exists calendar_invitation_recipients_delivery_type_check;

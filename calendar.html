@@ -1033,6 +1033,10 @@
                             <input id="invitationRecipientNameInput" type="text" placeholder="Name / Club">
                         </div>
                         <div>
+                            <label class="field-title" for="invitationRecipientPositionInput">Position</label>
+                            <input id="invitationRecipientPositionInput" type="text" placeholder="Position">
+                        </div>
+                        <div>
                             <label class="field-title" for="invitationRecipientEmailInput">E-Mail</label>
                             <input id="invitationRecipientEmailInput" type="email" placeholder="club@example.de">
                         </div>
@@ -1051,7 +1055,7 @@
                 </div>
                 <div class="editor-section">
                     <h3>Excel Import</h3>
-                    <div class="admin-settings-meta">Erwartete Spalten: Name, E-Mail, Versandart. Versandart kann An, Cc oder Bcc sein.</div>
+                    <div class="admin-settings-meta">Erwartete Spalten: Name, Position, E-Mail-Adresse. Optional: Versandart mit An, Cc oder Bcc.</div>
                     <div class="button-row">
                         <input id="invitationRecipientImportInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importInvitationRecipientsFromFile(this.files && this.files[0]); this.value = '';">
                         <button class="btn btn-secondary" type="button" onclick="triggerInvitationRecipientImport()">Excel Datei hochladen</button>
@@ -1825,6 +1829,7 @@
             return {
                 id: String(recipient?.id || "").trim(),
                 name: String(recipient?.name || "").trim(),
+                position: String(recipient?.position || "").trim(),
                 email: String(recipient?.email || "").trim().toLowerCase(),
                 deliveryType,
                 active: Boolean(recipient?.active ?? true)
@@ -1845,7 +1850,7 @@
             try {
                 const { data, error } = await supabaseClient
                     .from("calendar_invitation_recipients")
-                    .select("id, name, email, delivery_type, active")
+                    .select("id, name, position, email, delivery_type, active")
                     .eq("active", true)
                     .order("name", { ascending: true })
                     .order("email", { ascending: true });
@@ -1889,7 +1894,7 @@
             }
             list.innerHTML = invitationRecipients.map((recipient) => `
                 <div class="feed-actions" style="margin:0 0 6px;padding:0;">
-                    <span class="badge">${escapeHtml(getInvitationRecipientDeliveryLabel(recipient.deliveryType))} · ${escapeHtml(recipient.name || recipient.email)} · ${escapeHtml(recipient.email)}</span>
+                    <span class="badge">${escapeHtml(getInvitationRecipientDeliveryLabel(recipient.deliveryType))} · ${escapeHtml(recipient.name || recipient.email)}${recipient.position ? ` · ${escapeHtml(recipient.position)}` : ""} · ${escapeHtml(recipient.email)}</span>
                     <button class="mini-btn danger" type="button" onclick="deactivateInvitationRecipient('${escapeHtml(recipient.id)}')">Entfernen</button>
                 </div>
             `).join("");
@@ -1927,9 +1932,11 @@
         async function saveInvitationRecipient() {
             if (!isCalendarAdmin || !supportsInvitationRecipients) return;
             const nameInput = document.getElementById("invitationRecipientNameInput");
+            const positionInput = document.getElementById("invitationRecipientPositionInput");
             const emailInput = document.getElementById("invitationRecipientEmailInput");
             const deliveryTypeInput = document.getElementById("invitationRecipientDeliveryTypeInput");
             const name = String(nameInput?.value || "").trim();
+            const position = String(positionInput?.value || "").trim();
             const email = String(emailInput?.value || "").trim().toLowerCase();
             const deliveryType = normalizeInvitationDeliveryType(deliveryTypeInput?.value || "bcc");
             if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -1941,6 +1948,7 @@
                     .from("calendar_invitation_recipients")
                     .upsert({
                         name,
+                        position,
                         email,
                         recipient_group: "clubs",
                         delivery_type: deliveryType,
@@ -1949,6 +1957,7 @@
                     }, { onConflict: "email,recipient_group" });
                 if (error) throw error;
                 if (nameInput) nameInput.value = "";
+                if (positionInput) positionInput.value = "";
                 if (emailInput) emailInput.value = "";
                 await loadInvitationRecipients();
                 renderInvitationRecipients();
@@ -1997,9 +2006,10 @@
                 const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
                 const recipients = rows.map((row) => {
                     const name = String(getRecipientImportValue(row, ["Name", "Club", "Verein", "Empfänger", "Empfaenger"]) || "").trim();
-                    const email = String(getRecipientImportValue(row, ["E-Mail", "Email", "Mail", "Adresse"]) || "").trim().toLowerCase();
+                    const position = String(getRecipientImportValue(row, ["Position"]) || "").trim();
+                    const email = String(getRecipientImportValue(row, ["E-Mail-Adresse", "E-Mail", "Email", "Mail", "Adresse"]) || "").trim().toLowerCase();
                     const deliveryType = getRecipientImportDeliveryType(row);
-                    return { name, email, recipient_group: "clubs", delivery_type: deliveryType, active: true, updated_at: new Date().toISOString() };
+                    return { name, position, email, recipient_group: "clubs", delivery_type: deliveryType, active: true, updated_at: new Date().toISOString() };
                 }).filter((row) => row.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email));
                 if (!recipients.length) {
                     setInvitationRecipientMessage("Keine gültigen Empfänger in der Datei gefunden.", "error");
