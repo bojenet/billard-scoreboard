@@ -247,12 +247,12 @@ function buildPdfFilename(reminder: ReminderRow) {
   return ["Ausschreibung", title, season].filter(Boolean).join(" - ") + ".pdf";
 }
 
-function buildAutoReminderId(event: CalendarEvent, daysBefore: number) {
+function buildAutoReminderId(event: CalendarEvent) {
   const source = cleanText(event.id || event.link || `${event.date}-${event.title}`)
     .replace(/[^a-zA-Z0-9_-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-  return `auto-invitation-${source}-${daysBefore}`.slice(0, 220);
+  return `auto-invitation-${source}`.slice(0, 220);
 }
 
 function buildReminderMessage(event: CalendarEvent) {
@@ -275,7 +275,7 @@ function buildAutoReminderPayload(event: CalendarEvent, daysBefore: number) {
   const reminderDate = addDaysIso(eventDate, -daysBefore);
   if (!eventDate || !reminderDate || !cleanText(event.title) || !cleanText(event.link)) return null;
   return {
-    id: buildAutoReminderId(event, daysBefore),
+    id: buildAutoReminderId(event),
     event_id: cleanText(event.id || event.link || ""),
     event_date: eventDate,
     reminder_date: reminderDate,
@@ -328,15 +328,16 @@ async function syncAutoRemindersFromCalendar(
     };
   }
   const ids = payloads.map((row) => String(row.id || ""));
+  const eventIds = Array.from(new Set(payloads.map((row) => String(row.event_id || "")).filter(Boolean)));
   const { data: existingRows, error: existingError } = await adminClient
     .from("calendar_club_reminders")
-    .select("id, status")
-    .in("id", ids);
+    .select("id, event_id, status")
+    .in("event_id", eventIds);
   if (existingError) throw existingError;
-  const sentIds = new Set((existingRows || [])
+  const sentEventIds = new Set((existingRows || [])
     .filter((row: { id?: string; status?: string }) => String(row.status || "") === "sent")
-    .map((row: { id?: string }) => String(row.id || "")));
-  const writablePayloads = payloads.filter((row) => !sentIds.has(String(row.id || "")));
+    .map((row: { event_id?: string }) => String(row.event_id || "")));
+  const writablePayloads = payloads.filter((row) => !sentEventIds.has(String(row.event_id || "")));
   if (writablePayloads.length) {
     const { error: upsertError } = await adminClient
       .from("calendar_club_reminders")
@@ -345,7 +346,7 @@ async function syncAutoRemindersFromCalendar(
   }
   return {
     syncedCount: writablePayloads.length,
-    skippedSentCount: sentIds.size,
+    skippedSentCount: sentEventIds.size,
     calendarEventCount: events.length,
     failedDisciplines: Array.isArray(calendarData?.failedDisciplines) ? calendarData.failedDisciplines : [],
   };
