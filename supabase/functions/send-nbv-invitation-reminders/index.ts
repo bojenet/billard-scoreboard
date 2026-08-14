@@ -244,13 +244,32 @@ async function fetchInvitationDetails(link: string): Promise<InvitationDetails> 
   }
 }
 
-function assertInvocationAllowed(request: Request) {
+async function assertInvocationAllowed(request: Request, supabaseUrl: string, serviceRoleKey: string) {
   const cronSecret = Deno.env.get("CRON_SECRET") || "";
-  if (!cronSecret) return;
   const providedSecret = request.headers.get("x-cron-secret") || request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "";
-  if (providedSecret !== cronSecret) {
-    throw new Error("Nicht autorisiert.");
+  if (cronSecret && providedSecret === cronSecret) return;
+  if (!cronSecret) return;
+
+  const authHeader = request.headers.get("authorization") || "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (token && token !== cronSecret) {
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: userData } = await adminClient.auth.getUser(token);
+    const userId = userData?.user?.id || "";
+    if (userId) {
+      const { data: roleRow } = await adminClient
+        .from("user_roles")
+        .select("role, calendar_access")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const role = String(roleRow?.role || "").toLowerCase();
+      const calendarAccess = String(roleRow?.calendar_access || "").toLowerCase();
+      if (role === "admin" || calendarAccess === "edit") return;
+    }
   }
+  throw new Error("Nicht autorisiert.");
 }
 
 function buildTransport() {
@@ -500,12 +519,12 @@ Deno.serve(async (request) => {
   }
 
   try {
-    assertInvocationAllowed(request);
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     if (!supabaseUrl || !serviceRoleKey) {
       return jsonResponse({ error: "service-role-missing" }, 500);
     }
+    await assertInvocationAllowed(request, supabaseUrl, serviceRoleKey);
 
     const payload = await request.json().catch(() => ({})) as RequestPayload;
     const dryRun = Boolean(payload.dryRun);
@@ -526,7 +545,7 @@ Deno.serve(async (request) => {
     const autoSendDaysBefore = clampInteger(settings.invitation_auto_send_days_before, 14, 0, 365);
     const configuredLimit = clampInteger(settings.invitation_auto_send_limit, 10, 1, 25);
     const limit = requestedReminderId ? 1 : configuredLimit;
-    if (!requestedReminderId && !directInvitation?.pdfBase64 && !autoSendEnabled) {
+    if (!dryRun && !requestedReminderId && !directInvitation?.pdfBase64 && !autoSendEnabled) {
       return jsonResponse({
         ok: true,
         skipped: true,
@@ -557,15 +576,14 @@ Deno.serve(async (request) => {
     const ccEmails = Array.from(new Set(recipients.filter((row: RecipientRow) => row.delivery_type === "cc").map((row: RecipientRow) => row.email)));
     const bccEmails = Array.from(new Set(recipients.filter((row: RecipientRow) => row.delivery_type === "bcc").map((row: RecipientRow) => row.email)));
     const uniqueEmails = Array.from(new Set([...toEmails, ...ccEmails, ...bccEmails]));
-    if (!uniqueEmails.length) {
+    if (!uniqueEmails.length && !dryRun) {
       return jsonResponse({ ok: true, skipped: true, reason: "no-recipients" });
     }
 
-    const mailFrom = Deno.env.get("INVITATION_EMAIL_FROM") || Deno.env.get("INVITATION_SMTP_USER") || Deno.env.get("RESULT_EMAIL_FROM") || Deno.env.get("SMTP_USER");
-    if (!mailFrom) throw new Error("Fehlendes Secret: INVITATION_EMAIL_FROM, INVITATION_SMTP_USER, RESULT_EMAIL_FROM oder SMTP_USER.");
-    const transporter = buildTransport();
-
     if (directInvitation?.pdfBase64) {
+      const mailFrom = Deno.env.get("INVITATION_EMAIL_FROM") || Deno.env.get("INVITATION_SMTP_USER") || Deno.env.get("RESULT_EMAIL_FROM") || Deno.env.get("SMTP_USER");
+      if (!mailFrom) throw new Error("Fehlendes Secret: INVITATION_EMAIL_FROM, INVITATION_SMTP_USER, RESULT_EMAIL_FROM oder SMTP_USER.");
+      const transporter = buildTransport();
       const title = cleanText(directInvitation.title || "NBV Turnier");
       const reminder: ReminderRow = {
         id: cleanText(directInvitation.id || `direct-${Date.now()}`),
@@ -651,6 +669,10 @@ Deno.serve(async (request) => {
     if (dryRun) {
       return jsonResponse({ ok: true, dryRun, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, limit, reminders });
     }
+
+    const mailFrom = Deno.env.get("INVITATION_EMAIL_FROM") || Deno.env.get("INVITATION_SMTP_USER") || Deno.env.get("RESULT_EMAIL_FROM") || Deno.env.get("SMTP_USER");
+    if (!mailFrom) throw new Error("Fehlendes Secret: INVITATION_EMAIL_FROM, INVITATION_SMTP_USER, RESULT_EMAIL_FROM oder SMTP_USER.");
+    const transporter = buildTransport();
 
     const results: Array<Record<string, unknown>> = [];
 

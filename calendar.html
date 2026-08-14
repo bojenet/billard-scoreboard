@@ -1074,9 +1074,13 @@
                             <label class="field-title" for="invitationAutoSendLimitInput">Max. Mails pro Lauf</label>
                             <input id="invitationAutoSendLimitInput" type="number" inputmode="numeric" min="1" max="25" step="1" placeholder="10">
                         </div>
-                        <button class="btn btn-secondary" type="button" onclick="saveCalendarSettings()">Versand-Konfiguration speichern</button>
+                        <div class="button-row" style="margin-top:18px;">
+                            <button class="btn btn-secondary" type="button" onclick="saveCalendarSettings()">Versand-Konfiguration speichern</button>
+                            <button class="btn btn-secondary" type="button" onclick="runInvitationAutoSendDryRun()">Dry Run testen</button>
+                        </div>
                     </div>
                     <div id="invitationAutoSendInfo" class="admin-settings-meta">Automatischer Versand ist nicht geladen.</div>
+                    <div id="invitationAutoSendDryRunResult" class="admin-settings-meta"></div>
                 </div>
             </div>
         </div>
@@ -1971,6 +1975,54 @@
                 info.textContent = invitationAutoSendEnabled
                     ? `Automatik aktiv: Ausschreibungen werden ${invitationAutoSendDaysBefore} Tage vor dem Turnier versendet, maximal ${invitationAutoSendLimit} pro Lauf.`
                     : "Automatik aus: Cron-Laeufe versenden keine offenen Ausschreibungen.";
+            }
+        }
+
+        function renderInvitationAutoSendDryRunResult(data) {
+            const result = document.getElementById("invitationAutoSendDryRunResult");
+            if (!result) return;
+            if (!data?.ok) {
+                result.textContent = "Dry Run konnte nicht ausgewertet werden.";
+                return;
+            }
+            const reminders = Array.isArray(data.reminders) ? data.reminders : [];
+            const statusLine = [
+                `Automatik: ${data.autoSendEnabled ? "aktiv" : "aus"}`,
+                `${data.daysBefore ?? invitationAutoSendDaysBefore} Tage vorher`,
+                `Limit ${data.limit ?? invitationAutoSendLimit}`,
+                `${data.recipientCount || 0} aktive Empfänger`,
+                `${data.reminderCount || reminders.length} fällige Ausschreibungen`
+            ].join(" · ");
+            if (!reminders.length) {
+                result.innerHTML = `<strong>Dry Run:</strong> ${escapeHtml(statusLine)}<br>Keine fälligen offenen Ausschreibungen gefunden.`;
+                return;
+            }
+            const rows = reminders.slice(0, 10).map((reminder) => {
+                const eventDate = formatInvitationDate(reminder.event_date) || reminder.event_date || "-";
+                const reminderDate = formatInvitationDate(reminder.reminder_date) || reminder.reminder_date || "-";
+                return `<li>${escapeHtml(reminder.title || "Ohne Titel")} · Termin: ${escapeHtml(eventDate)} · Reminder: ${escapeHtml(reminderDate)} · Status: ${escapeHtml(reminder.status || "-")}</li>`;
+            }).join("");
+            const suffix = reminders.length > 10 ? `<br>Weitere ${reminders.length - 10} Einträge nicht angezeigt.` : "";
+            result.innerHTML = `<strong>Dry Run:</strong> ${escapeHtml(statusLine)}<ul style="margin:6px 0 0 18px;padding:0;">${rows}</ul>${suffix}`;
+        }
+
+        async function runInvitationAutoSendDryRun() {
+            if (!isSystemAdmin || !supportsInvitationSending) return;
+            const result = document.getElementById("invitationAutoSendDryRunResult");
+            if (result) {
+                result.textContent = "Dry Run wird ausgeführt. Hinweis: Es wird die gespeicherte Konfiguration verwendet.";
+            }
+            try {
+                const { data, error } = await supabaseClient.functions.invoke("send-nbv-invitation-reminders", {
+                    body: { dryRun: true }
+                });
+                if (error) throw error;
+                renderInvitationAutoSendDryRunResult(data);
+            } catch (error) {
+                console.warn("Dry Run konnte nicht ausgeführt werden:", error);
+                if (result) {
+                    result.textContent = `Dry Run konnte nicht ausgeführt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`;
+                }
             }
         }
 
