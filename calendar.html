@@ -688,6 +688,50 @@
             gap: 10px;
         }
 
+        .recipient-admin-table {
+            display: grid;
+            gap: 6px;
+        }
+
+        .recipient-admin-row {
+            display: grid;
+            grid-template-columns: 34px minmax(130px, 1fr) minmax(120px, 0.8fr) minmax(190px, 1.2fr) 104px 74px 172px;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            border: 1px solid #d9dee5;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        .recipient-admin-row.header {
+            background: #eef2f6;
+            font-size: 12px;
+            font-weight: 700;
+            color: #374151;
+            text-transform: uppercase;
+        }
+
+        .recipient-admin-row.inactive {
+            background: #f8fafc;
+            opacity: 0.74;
+        }
+
+        .recipient-admin-row input,
+        .recipient-admin-row select {
+            padding: 7px 8px;
+            font-size: 13px;
+        }
+
+        .recipient-admin-row .recipient-check {
+            width: auto;
+            justify-self: center;
+        }
+
+        .recipient-admin-row .mini-btn {
+            width: auto;
+        }
+
         .participant-editor-list {
             display: grid;
             gap: 8px;
@@ -1062,7 +1106,11 @@
                     </div>
                 </div>
                 <div class="editor-section">
-                    <h3>Aktive Empfänger</h3>
+                    <h3>Empfänger verwalten</h3>
+                    <div class="button-row">
+                        <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(true)">Ausgewählte aktivieren</button>
+                        <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(false)">Ausgewählte deaktivieren</button>
+                    </div>
                     <div id="invitationRecipientList" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
                 </div>
             </div>
@@ -1851,7 +1899,7 @@
                 const { data, error } = await supabaseClient
                     .from("calendar_invitation_recipients")
                     .select("id, name, position, email, delivery_type, active")
-                    .eq("active", true)
+                    .order("active", { ascending: false })
                     .order("name", { ascending: true })
                     .order("email", { ascending: true });
                 if (error) throw error;
@@ -1870,13 +1918,15 @@
         function renderInvitationRecipients() {
             const list = document.getElementById("invitationRecipientList");
             const summary = document.getElementById("invitationRecipientSummary");
-            const activeCount = invitationRecipients.length;
-            const toCount = invitationRecipients.filter((recipient) => recipient.deliveryType === "to").length;
-            const ccCount = invitationRecipients.filter((recipient) => recipient.deliveryType === "cc").length;
-            const bccCount = invitationRecipients.filter((recipient) => recipient.deliveryType === "bcc").length;
+            const activeRecipients = invitationRecipients.filter((recipient) => recipient.active);
+            const activeCount = activeRecipients.length;
+            const inactiveCount = invitationRecipients.length - activeCount;
+            const toCount = activeRecipients.filter((recipient) => recipient.deliveryType === "to").length;
+            const ccCount = activeRecipients.filter((recipient) => recipient.deliveryType === "cc").length;
+            const bccCount = activeRecipients.filter((recipient) => recipient.deliveryType === "bcc").length;
             if (summary) {
                 summary.textContent = activeCount
-                    ? `${activeCount} aktive Empfänger: ${toCount} An, ${ccCount} Cc, ${bccCount} Bcc.`
+                    ? `${activeCount} aktive Empfänger: ${toCount} An, ${ccCount} Cc, ${bccCount} Bcc.${inactiveCount ? ` ${inactiveCount} inaktiv.` : ""}`
                     : "Noch keine aktiven Empfänger.";
             }
             if (!list) return;
@@ -1889,15 +1939,40 @@
                 return;
             }
             if (!invitationRecipients.length) {
-                list.textContent = "Noch keine aktiven Empfänger.";
+                list.textContent = "Noch keine Empfänger.";
                 return;
             }
-            list.innerHTML = invitationRecipients.map((recipient) => `
-                <div class="feed-actions" style="margin:0 0 6px;padding:0;">
-                    <span class="badge">${escapeHtml(getInvitationRecipientDeliveryLabel(recipient.deliveryType))} · ${escapeHtml(recipient.name || recipient.email)}${recipient.position ? ` · ${escapeHtml(recipient.position)}` : ""} · ${escapeHtml(recipient.email)}</span>
-                    <button class="mini-btn danger" type="button" onclick="deactivateInvitationRecipient('${escapeHtml(recipient.id)}')">Entfernen</button>
+            list.innerHTML = `
+                <div class="recipient-admin-table">
+                    <div class="recipient-admin-row header">
+                        <input class="recipient-check" type="checkbox" aria-label="Alle Empfänger auswählen" onchange="setAllInvitationRecipientSelection(this.checked)">
+                        <div>Name</div>
+                        <div>Position</div>
+                        <div>E-Mail-Adresse</div>
+                        <div>Versand</div>
+                        <div>Aktiv</div>
+                        <div>Aktion</div>
+                    </div>
+                    ${invitationRecipients.map((recipient) => `
+                        <div class="recipient-admin-row${recipient.active ? "" : " inactive"}">
+                            <input class="recipient-check invitation-recipient-select" type="checkbox" value="${escapeHtml(recipient.id)}" aria-label="Empfänger auswählen">
+                            <input id="recipient-name-${escapeHtml(recipient.id)}" type="text" value="${escapeHtml(recipient.name)}" placeholder="Name">
+                            <input id="recipient-position-${escapeHtml(recipient.id)}" type="text" value="${escapeHtml(recipient.position)}" placeholder="Position">
+                            <input id="recipient-email-${escapeHtml(recipient.id)}" type="email" value="${escapeHtml(recipient.email)}" placeholder="club@example.de">
+                            <select id="recipient-delivery-${escapeHtml(recipient.id)}" aria-label="Versandart">
+                                <option value="to"${recipient.deliveryType === "to" ? " selected" : ""}>An</option>
+                                <option value="cc"${recipient.deliveryType === "cc" ? " selected" : ""}>Cc</option>
+                                <option value="bcc"${recipient.deliveryType === "bcc" ? " selected" : ""}>Bcc</option>
+                            </select>
+                            <input class="recipient-check" id="recipient-active-${escapeHtml(recipient.id)}" type="checkbox"${recipient.active ? " checked" : ""} aria-label="Empfänger aktiv">
+                            <div class="row-tools">
+                                <button class="mini-btn" type="button" onclick="updateInvitationRecipient('${escapeHtml(recipient.id)}')">Speichern</button>
+                                <button class="mini-btn${recipient.active ? " danger" : ""}" type="button" onclick="setInvitationRecipientActive('${escapeHtml(recipient.id)}', ${recipient.active ? "false" : "true"})">${recipient.active ? "Deaktivieren" : "Aktivieren"}</button>
+                            </div>
+                        </div>
+                    `).join("")}
                 </div>
-            `).join("");
+            `;
         }
 
         function openInvitationRecipientModal() {
@@ -1969,6 +2044,57 @@
             }
         }
 
+        function getInvitationRecipientRowValue(recipientId, field) {
+            const input = document.getElementById(`recipient-${field}-${recipientId}`);
+            return String(input?.value || "").trim();
+        }
+
+        function setAllInvitationRecipientSelection(checked) {
+            document.querySelectorAll(".invitation-recipient-select").forEach((input) => {
+                input.checked = Boolean(checked);
+            });
+        }
+
+        function getSelectedInvitationRecipientIds() {
+            return Array.from(document.querySelectorAll(".invitation-recipient-select:checked"))
+                .map((input) => String(input.value || "").trim())
+                .filter(Boolean);
+        }
+
+        async function updateInvitationRecipient(recipientId) {
+            if (!isCalendarAdmin || !supportsInvitationRecipients || !recipientId) return;
+            const name = getInvitationRecipientRowValue(recipientId, "name");
+            const position = getInvitationRecipientRowValue(recipientId, "position");
+            const email = getInvitationRecipientRowValue(recipientId, "email").toLowerCase();
+            const deliveryType = normalizeInvitationDeliveryType(getInvitationRecipientRowValue(recipientId, "delivery"));
+            const active = Boolean(document.getElementById(`recipient-active-${recipientId}`)?.checked);
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                setInvitationRecipientMessage("Bitte eine gültige Empfänger-E-Mail eintragen.", "error");
+                return;
+            }
+            try {
+                const { error } = await supabaseClient
+                    .from("calendar_invitation_recipients")
+                    .update({
+                        name,
+                        position,
+                        email,
+                        delivery_type: deliveryType,
+                        active,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq("id", recipientId);
+                if (error) throw error;
+                await loadInvitationRecipients();
+                renderInvitationRecipients();
+                setInvitationRecipientMessage("Empfänger wurde aktualisiert.", "ok");
+                showCalendarMessage("Empfänger wurde aktualisiert.", "ok");
+            } catch (error) {
+                console.warn("Empfänger konnte nicht aktualisiert werden:", error);
+                setInvitationRecipientMessage(`Empfänger konnte nicht aktualisiert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
+        }
+
         function triggerInvitationRecipientImport() {
             const input = document.getElementById("invitationRecipientImportInput");
             if (input) input.click();
@@ -2029,21 +2155,44 @@
             }
         }
 
-        async function deactivateInvitationRecipient(recipientId) {
+        async function setInvitationRecipientActive(recipientId, active) {
             if (!isCalendarAdmin || !supportsInvitationRecipients || !recipientId) return;
             try {
                 const { error } = await supabaseClient
                     .from("calendar_invitation_recipients")
-                    .update({ active: false, updated_at: new Date().toISOString() })
+                    .update({ active: Boolean(active), updated_at: new Date().toISOString() })
                     .eq("id", recipientId);
                 if (error) throw error;
                 await loadInvitationRecipients();
                 renderInvitationRecipients();
-                setInvitationRecipientMessage("Empfänger wurde entfernt.", "ok");
-                showCalendarMessage("Empfänger wurde entfernt.", "ok");
+                setInvitationRecipientMessage(active ? "Empfänger wurde aktiviert." : "Empfänger wurde deaktiviert.", "ok");
+                showCalendarMessage(active ? "Empfänger wurde aktiviert." : "Empfänger wurde deaktiviert.", "ok");
             } catch (error) {
-                console.warn("Empfänger konnte nicht entfernt werden:", error);
-                setInvitationRecipientMessage(`Empfänger konnte nicht entfernt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+                console.warn("Empfängerstatus konnte nicht geändert werden:", error);
+                setInvitationRecipientMessage(`Empfängerstatus konnte nicht geändert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
+        }
+
+        async function setSelectedInvitationRecipientsActive(active) {
+            if (!isCalendarAdmin || !supportsInvitationRecipients) return;
+            const selectedIds = getSelectedInvitationRecipientIds();
+            if (!selectedIds.length) {
+                setInvitationRecipientMessage("Bitte mindestens einen Empfänger auswählen.", "error");
+                return;
+            }
+            try {
+                const { error } = await supabaseClient
+                    .from("calendar_invitation_recipients")
+                    .update({ active: Boolean(active), updated_at: new Date().toISOString() })
+                    .in("id", selectedIds);
+                if (error) throw error;
+                await loadInvitationRecipients();
+                renderInvitationRecipients();
+                setInvitationRecipientMessage(`${selectedIds.length} Empfänger wurden ${active ? "aktiviert" : "deaktiviert"}.`, "ok");
+                showCalendarMessage(`${selectedIds.length} Empfänger wurden ${active ? "aktiviert" : "deaktiviert"}.`, "ok");
+            } catch (error) {
+                console.warn("Empfängerstatus konnte nicht geändert werden:", error);
+                setInvitationRecipientMessage(`Empfängerstatus konnte nicht geändert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
