@@ -9,6 +9,7 @@ create table if not exists public.calendar_settings (
   invitation_auto_send_days_before integer not null default 14,
   invitation_auto_send_time text not null default '08:00',
   invitation_auto_send_frequency text not null default 'daily',
+  invitation_auto_send_last_run_at timestamptz null,
   invitation_auto_send_limit integer not null default 10,
   updated_at timestamptz not null default now(),
   updated_by uuid null references auth.users(id) on delete set null
@@ -28,6 +29,9 @@ alter table public.calendar_settings
 
 alter table public.calendar_settings
   add column if not exists invitation_auto_send_frequency text not null default 'daily';
+
+alter table public.calendar_settings
+  add column if not exists invitation_auto_send_last_run_at timestamptz null;
 
 alter table public.calendar_settings
   add column if not exists invitation_auto_send_limit integer not null default 10;

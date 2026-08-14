@@ -35,6 +35,7 @@ type CalendarSettingsRow = {
   invitation_auto_send_days_before?: number;
   invitation_auto_send_time?: string;
   invitation_auto_send_frequency?: string;
+  invitation_auto_send_last_run_at?: string;
   invitation_auto_send_limit?: number;
 };
 
@@ -137,6 +138,24 @@ function berlinTimeHHmm() {
   }).format(new Date());
 }
 
+function berlinParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
+  return {
+    date: [get("year"), get("month"), get("day")].filter(Boolean).join("-"),
+    hour: get("hour"),
+    minute: get("minute"),
+  };
+}
+
 function normalizeTimeSetting(value: unknown, fallback = "08:00") {
   const text = cleanText(value);
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : fallback;
@@ -149,6 +168,23 @@ function normalizeFrequencySetting(value: unknown) {
 
 function isTimeReached(currentTime: string, configuredTime: string) {
   return currentTime >= configuredTime;
+}
+
+function isFrequencyRunDue(lastRunValue: unknown, frequency: string) {
+  const lastRunText = cleanText(lastRunValue);
+  if (!lastRunText) return true;
+  const lastRun = new Date(lastRunText);
+  if (Number.isNaN(lastRun.getTime())) return true;
+  const now = new Date();
+  if (frequency === "every_15_minutes") {
+    return now.getTime() - lastRun.getTime() >= 14 * 60 * 1000;
+  }
+  const nowParts = berlinParts(now);
+  const lastParts = berlinParts(lastRun);
+  if (frequency === "hourly") {
+    return nowParts.date !== lastParts.date || nowParts.hour !== lastParts.hour;
+  }
+  return nowParts.date !== lastParts.date;
 }
 
 function addDaysIso(value: string, days: number) {
@@ -703,7 +739,7 @@ Deno.serve(async (request) => {
 
     const { data: settingsData, error: settingsError } = await adminClient
       .from("calendar_settings")
-      .select("source_url, season, invitation_auto_send_enabled, invitation_auto_send_days_before, invitation_auto_send_time, invitation_auto_send_frequency, invitation_auto_send_limit")
+      .select("source_url, season, invitation_auto_send_enabled, invitation_auto_send_days_before, invitation_auto_send_time, invitation_auto_send_frequency, invitation_auto_send_last_run_at, invitation_auto_send_limit")
       .eq("key", "nbv_public_calendar")
       .maybeSingle();
     if (settingsError) throw settingsError;
@@ -715,6 +751,7 @@ Deno.serve(async (request) => {
     const currentBerlinTime = berlinTimeHHmm();
     const configuredLimit = clampInteger(settings.invitation_auto_send_limit, 10, 1, 25);
     const limit = requestedReminderId ? 1 : configuredLimit;
+    const isAutomaticRun = !dryRun && !requestedReminderId && !directInvitation?.pdfBase64;
     if (!dryRun && !requestedReminderId && !directInvitation?.pdfBase64 && !autoSendEnabled) {
       return jsonResponse({
         ok: true,
@@ -729,7 +766,7 @@ Deno.serve(async (request) => {
       });
     }
 
-    if (!dryRun && !requestedReminderId && !directInvitation?.pdfBase64 && !isTimeReached(currentBerlinTime, autoSendTime)) {
+    if (isAutomaticRun && !isTimeReached(currentBerlinTime, autoSendTime)) {
       return jsonResponse({
         ok: true,
         skipped: true,
@@ -739,6 +776,21 @@ Deno.serve(async (request) => {
         sendTime: autoSendTime,
         frequency: autoSendFrequency,
         currentTime: currentBerlinTime,
+        limit,
+      });
+    }
+
+    if (isAutomaticRun && !isFrequencyRunDue(settings.invitation_auto_send_last_run_at, autoSendFrequency)) {
+      return jsonResponse({
+        ok: true,
+        skipped: true,
+        reason: "auto-send-frequency-not-due",
+        autoSendEnabled,
+        daysBefore: autoSendDaysBefore,
+        sendTime: autoSendTime,
+        frequency: autoSendFrequency,
+        currentTime: currentBerlinTime,
+        lastRunAt: settings.invitation_auto_send_last_run_at || null,
         limit,
       });
     }
@@ -923,6 +975,16 @@ Deno.serve(async (request) => {
           });
         results.push({ reminderId: reminder.id, status: "failed", error: message });
       }
+    }
+
+    if (isAutomaticRun) {
+      await adminClient
+        .from("calendar_settings")
+        .update({
+          invitation_auto_send_last_run_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("key", "nbv_public_calendar");
     }
 
     return jsonResponse({ ok: true, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, sendTime: autoSendTime, frequency: autoSendFrequency, currentTime: currentBerlinTime, limit, sync: syncResult, results });
