@@ -1071,9 +1071,25 @@
                     </div>
                     <div class="admin-settings-row">
                         <div>
+                            <label class="field-title" for="invitationAutoSendTimeInput">Versand ab Uhrzeit</label>
+                            <input id="invitationAutoSendTimeInput" type="time" step="60" placeholder="08:00">
+                        </div>
+                        <div>
+                            <label class="field-title" for="invitationAutoSendFrequencyInput">Cron läuft</label>
+                            <select id="invitationAutoSendFrequencyInput">
+                                <option value="daily">Täglich</option>
+                                <option value="hourly">Stündlich</option>
+                                <option value="every_15_minutes">Alle 15 Minuten</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="admin-settings-row">
+                        <div>
                             <label class="field-title" for="invitationAutoSendLimitInput">Max. Mails pro Lauf</label>
                             <input id="invitationAutoSendLimitInput" type="number" inputmode="numeric" min="1" max="25" step="1" placeholder="10">
                         </div>
+                    </div>
+                    <div class="admin-settings-row">
                         <div class="button-row" style="margin-top:18px;">
                             <button class="btn btn-secondary" type="button" onclick="saveCalendarSettings()">Versand-Konfiguration speichern</button>
                             <button class="btn btn-secondary" type="button" onclick="runInvitationAutoSendDryRun()">Dry Run testen</button>
@@ -1397,6 +1413,8 @@
         let isPublicViewEnabled = true;
         let invitationAutoSendEnabled = false;
         let invitationAutoSendDaysBefore = 14;
+        let invitationAutoSendTime = "08:00";
+        let invitationAutoSendFrequency = "daily";
         let invitationAutoSendLimit = 10;
         let manualEvents = [];
         let planningEvents = [];
@@ -1963,18 +1981,50 @@
             return Math.max(min, Math.min(max, numeric));
         }
 
+        function normalizeTimeSetting(value, fallback = "08:00") {
+            const text = String(value || "").trim();
+            return /^([01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : fallback;
+        }
+
+        function normalizeFrequencySetting(value, fallback = "daily") {
+            const text = String(value || "").trim();
+            return ["daily", "hourly", "every_15_minutes"].includes(text) ? text : fallback;
+        }
+
+        function getFrequencyLabel(value) {
+            const frequency = normalizeFrequencySetting(value);
+            if (frequency === "hourly") return "stündlich";
+            if (frequency === "every_15_minutes") return "alle 15 Minuten";
+            return "täglich";
+        }
+
+        function getInvitationAutoSendCronExpression() {
+            const [hour, minute] = normalizeTimeSetting(invitationAutoSendTime, "08:00").split(":");
+            const cronMinute = String(Number.parseInt(minute, 10));
+            const cronHour = String(Number.parseInt(hour, 10));
+            if (invitationAutoSendFrequency === "hourly") return `${cronMinute} * * * *`;
+            if (invitationAutoSendFrequency === "every_15_minutes") return "*/15 * * * *";
+            return `${cronMinute} ${cronHour} * * *`;
+        }
+
         function updateInvitationAutoSendUi() {
             const enabledInput = document.getElementById("invitationAutoSendEnabledInput");
             const daysInput = document.getElementById("invitationAutoSendDaysInput");
+            const timeInput = document.getElementById("invitationAutoSendTimeInput");
+            const frequencyInput = document.getElementById("invitationAutoSendFrequencyInput");
             const limitInput = document.getElementById("invitationAutoSendLimitInput");
             const info = document.getElementById("invitationAutoSendInfo");
             if (enabledInput) enabledInput.value = invitationAutoSendEnabled ? "true" : "false";
             if (daysInput) daysInput.value = String(invitationAutoSendDaysBefore);
+            if (timeInput) timeInput.value = invitationAutoSendTime;
+            if (frequencyInput) frequencyInput.value = invitationAutoSendFrequency;
             if (limitInput) limitInput.value = String(invitationAutoSendLimit);
             if (info) {
+                const frequencyLabel = getFrequencyLabel(invitationAutoSendFrequency);
+                const cronExpression = getInvitationAutoSendCronExpression();
                 info.textContent = invitationAutoSendEnabled
-                    ? `Automatik aktiv: Ausschreibungen werden ${invitationAutoSendDaysBefore} Tage vor dem Turnier versendet, maximal ${invitationAutoSendLimit} pro Lauf.`
-                    : "Automatik aus: Cron-Laeufe versenden keine offenen Ausschreibungen.";
+                    ? `Automatik aktiv: Ausschreibungen werden ${invitationAutoSendDaysBefore} Tage vor dem Turnier ab ${invitationAutoSendTime} Uhr versendet, maximal ${invitationAutoSendLimit} pro Lauf. Cron: ${frequencyLabel}, Empfehlung ${cronExpression} (Europe/Berlin).`
+                    : `Automatik aus: Cron-Laeufe versenden keine offenen Ausschreibungen. Cron-Einstellung: ${frequencyLabel}, Empfehlung ${cronExpression} (Europe/Berlin).`;
             }
         }
 
@@ -1990,10 +2040,13 @@
             const statusLine = [
                 `Automatik: ${data.autoSendEnabled ? "aktiv" : "aus"}`,
                 `${data.daysBefore ?? invitationAutoSendDaysBefore} Tage vorher`,
+                `ab ${data.sendTime || invitationAutoSendTime} Uhr`,
+                `Cron ${getFrequencyLabel(data.frequency || invitationAutoSendFrequency)}`,
+                data.currentTime ? `Serverzeit ${data.currentTime} Uhr` : "",
                 `Limit ${data.limit ?? invitationAutoSendLimit}`,
                 `${data.recipientCount || 0} aktive Empfänger`,
                 `${data.reminderCount || reminders.length} fällige Ausschreibungen`
-            ].join(" · ");
+            ].filter(Boolean).join(" · ");
             const syncLine = data.sync
                 ? `<br>Kalender-Sync: ${escapeHtml(sync.calendarEventCount || 0)} NBV-Termine gelesen, ${escapeHtml(sync.syncedCount || 0)} Reminder aktualisiert, ${escapeHtml(sync.skippedSentCount || 0)} bereits versendet übersprungen.`
                 : "";
@@ -4802,11 +4855,13 @@
             isPublicViewEnabled = true;
             invitationAutoSendEnabled = false;
             invitationAutoSendDaysBefore = 14;
+            invitationAutoSendTime = "08:00";
+            invitationAutoSendFrequency = "daily";
             invitationAutoSendLimit = 10;
             try {
                 const { data, error } = await supabaseClient
                     .from("calendar_settings")
-                    .select("source_url, season, public_view_enabled, invitation_auto_send_enabled, invitation_auto_send_days_before, invitation_auto_send_limit")
+                    .select("source_url, season, public_view_enabled, invitation_auto_send_enabled, invitation_auto_send_days_before, invitation_auto_send_time, invitation_auto_send_frequency, invitation_auto_send_limit")
                     .eq("key", CALENDAR_SETTINGS_KEY)
                     .maybeSingle();
                 if (error) throw error;
@@ -4815,6 +4870,8 @@
                 isPublicViewEnabled = data?.public_view_enabled !== false;
                 invitationAutoSendEnabled = data?.invitation_auto_send_enabled === true;
                 invitationAutoSendDaysBefore = normalizeIntegerSetting(data?.invitation_auto_send_days_before, 14, 0, 365);
+                invitationAutoSendTime = normalizeTimeSetting(data?.invitation_auto_send_time, "08:00");
+                invitationAutoSendFrequency = normalizeFrequencySetting(data?.invitation_auto_send_frequency, "daily");
                 invitationAutoSendLimit = normalizeIntegerSetting(data?.invitation_auto_send_limit, 10, 1, 25);
                 const derivedSeason = extractSeasonFromSourceUrl(currentCalendarSourceUrl);
                 if (derivedSeason) {
@@ -4850,6 +4907,8 @@
             const publicViewToggle = document.getElementById("calendarPublicViewToggle");
             const invitationAutoEnabledInput = document.getElementById("invitationAutoSendEnabledInput");
             const invitationAutoDaysInput = document.getElementById("invitationAutoSendDaysInput");
+            const invitationAutoTimeInput = document.getElementById("invitationAutoSendTimeInput");
+            const invitationAutoFrequencyInput = document.getElementById("invitationAutoSendFrequencyInput");
             const invitationAutoLimitInput = document.getElementById("invitationAutoSendLimitInput");
             const sourceUrl = String(input?.value || "").trim();
             const manualSeason = normalizeSeasonText(seasonInput?.value || "");
@@ -4858,6 +4917,8 @@
             const nextPublicViewEnabled = String(publicViewToggle?.value || "true") === "true";
             const nextInvitationAutoSendEnabled = String(invitationAutoEnabledInput?.value || "false") === "true";
             const nextInvitationAutoSendDaysBefore = normalizeIntegerSetting(invitationAutoDaysInput?.value, 14, 0, 365);
+            const nextInvitationAutoSendTime = normalizeTimeSetting(invitationAutoTimeInput?.value, "08:00");
+            const nextInvitationAutoSendFrequency = normalizeFrequencySetting(invitationAutoFrequencyInput?.value, "daily");
             const nextInvitationAutoSendLimit = normalizeIntegerSetting(invitationAutoLimitInput?.value, 10, 1, 25);
 
             if (!isValidSeasonText(nextSeason)) {
@@ -4880,6 +4941,8 @@
                     public_view_enabled: nextPublicViewEnabled,
                     invitation_auto_send_enabled: nextInvitationAutoSendEnabled,
                     invitation_auto_send_days_before: nextInvitationAutoSendDaysBefore,
+                    invitation_auto_send_time: nextInvitationAutoSendTime,
+                    invitation_auto_send_frequency: nextInvitationAutoSendFrequency,
                     invitation_auto_send_limit: nextInvitationAutoSendLimit,
                     updated_at: new Date().toISOString(),
                     updated_by: currentUser?.id || null
@@ -4893,6 +4956,8 @@
                 isPublicViewEnabled = nextPublicViewEnabled;
                 invitationAutoSendEnabled = nextInvitationAutoSendEnabled;
                 invitationAutoSendDaysBefore = nextInvitationAutoSendDaysBefore;
+                invitationAutoSendTime = nextInvitationAutoSendTime;
+                invitationAutoSendFrequency = nextInvitationAutoSendFrequency;
                 invitationAutoSendLimit = nextInvitationAutoSendLimit;
                 if (seasonInput) {
                     seasonInput.value = currentCalendarSeason;

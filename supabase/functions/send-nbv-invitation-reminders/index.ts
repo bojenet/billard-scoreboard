@@ -33,6 +33,8 @@ type CalendarSettingsRow = {
   season?: string;
   invitation_auto_send_enabled?: boolean;
   invitation_auto_send_days_before?: number;
+  invitation_auto_send_time?: string;
+  invitation_auto_send_frequency?: string;
   invitation_auto_send_limit?: number;
 };
 
@@ -124,6 +126,29 @@ function todayIso() {
     month: "2-digit",
     day: "2-digit",
   }).format(now);
+}
+
+function berlinTimeHHmm() {
+  return new Intl.DateTimeFormat("de-DE", {
+    timeZone: "Europe/Berlin",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
+}
+
+function normalizeTimeSetting(value: unknown, fallback = "08:00") {
+  const text = cleanText(value);
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : fallback;
+}
+
+function normalizeFrequencySetting(value: unknown) {
+  const text = cleanText(value);
+  return ["daily", "hourly", "every_15_minutes"].includes(text) ? text : "daily";
+}
+
+function isTimeReached(currentTime: string, configuredTime: string) {
+  return currentTime >= configuredTime;
 }
 
 function addDaysIso(value: string, days: number) {
@@ -678,13 +703,16 @@ Deno.serve(async (request) => {
 
     const { data: settingsData, error: settingsError } = await adminClient
       .from("calendar_settings")
-      .select("source_url, season, invitation_auto_send_enabled, invitation_auto_send_days_before, invitation_auto_send_limit")
+      .select("source_url, season, invitation_auto_send_enabled, invitation_auto_send_days_before, invitation_auto_send_time, invitation_auto_send_frequency, invitation_auto_send_limit")
       .eq("key", "nbv_public_calendar")
       .maybeSingle();
     if (settingsError) throw settingsError;
     const settings = (settingsData || {}) as CalendarSettingsRow;
     const autoSendEnabled = settings.invitation_auto_send_enabled === true;
     const autoSendDaysBefore = clampInteger(settings.invitation_auto_send_days_before, 14, 0, 365);
+    const autoSendTime = normalizeTimeSetting(settings.invitation_auto_send_time, "08:00");
+    const autoSendFrequency = normalizeFrequencySetting(settings.invitation_auto_send_frequency);
+    const currentBerlinTime = berlinTimeHHmm();
     const configuredLimit = clampInteger(settings.invitation_auto_send_limit, 10, 1, 25);
     const limit = requestedReminderId ? 1 : configuredLimit;
     if (!dryRun && !requestedReminderId && !directInvitation?.pdfBase64 && !autoSendEnabled) {
@@ -694,6 +722,23 @@ Deno.serve(async (request) => {
         reason: "auto-send-disabled",
         autoSendEnabled,
         daysBefore: autoSendDaysBefore,
+        sendTime: autoSendTime,
+        frequency: autoSendFrequency,
+        currentTime: currentBerlinTime,
+        limit,
+      });
+    }
+
+    if (!dryRun && !requestedReminderId && !directInvitation?.pdfBase64 && !isTimeReached(currentBerlinTime, autoSendTime)) {
+      return jsonResponse({
+        ok: true,
+        skipped: true,
+        reason: "auto-send-time-not-reached",
+        autoSendEnabled,
+        daysBefore: autoSendDaysBefore,
+        sendTime: autoSendTime,
+        frequency: autoSendFrequency,
+        currentTime: currentBerlinTime,
         limit,
       });
     }
@@ -814,7 +859,7 @@ Deno.serve(async (request) => {
       return jsonResponse({ ok: false, error: "reminder-not-found-or-not-open", reminderId: requestedReminderId }, 404);
     }
     if (dryRun) {
-      return jsonResponse({ ok: true, dryRun, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, limit, sync: syncResult, reminders });
+      return jsonResponse({ ok: true, dryRun, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, sendTime: autoSendTime, frequency: autoSendFrequency, currentTime: currentBerlinTime, limit, sync: syncResult, reminders });
     }
 
     const mailFrom = Deno.env.get("INVITATION_EMAIL_FROM") || Deno.env.get("INVITATION_SMTP_USER") || Deno.env.get("RESULT_EMAIL_FROM") || Deno.env.get("SMTP_USER");
@@ -880,7 +925,7 @@ Deno.serve(async (request) => {
       }
     }
 
-    return jsonResponse({ ok: true, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, limit, sync: syncResult, results });
+    return jsonResponse({ ok: true, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, sendTime: autoSendTime, frequency: autoSendFrequency, currentTime: currentBerlinTime, limit, sync: syncResult, results });
   } catch (error) {
     return jsonResponse({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
