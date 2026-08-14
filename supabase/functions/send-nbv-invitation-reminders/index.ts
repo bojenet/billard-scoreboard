@@ -28,6 +28,12 @@ type RecipientRow = {
   delivery_type?: string;
 };
 
+type CalendarSettingsRow = {
+  invitation_auto_send_enabled?: boolean;
+  invitation_auto_send_days_before?: number;
+  invitation_auto_send_limit?: number;
+};
+
 type InvitationDetails = {
   tournament?: string;
   date?: string;
@@ -128,6 +134,12 @@ function cleanFilenamePart(value: string) {
     .replace(/[\\/:*?"<>|]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function clampInteger(value: unknown, fallback: number, min: number, max: number) {
+  const numeric = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(min, Math.min(max, numeric));
 }
 
 function buildPdfFilename(reminder: ReminderRow) {
@@ -499,10 +511,31 @@ Deno.serve(async (request) => {
     const dryRun = Boolean(payload.dryRun);
     const requestedReminderId = cleanText(payload.reminderId);
     const directInvitation = payload.directInvitation;
-    const limit = requestedReminderId ? 1 : Math.max(1, Math.min(25, Number(payload.limit || 10)));
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+
+    const { data: settingsData, error: settingsError } = await adminClient
+      .from("calendar_settings")
+      .select("invitation_auto_send_enabled, invitation_auto_send_days_before, invitation_auto_send_limit")
+      .eq("key", "nbv_public_calendar")
+      .maybeSingle();
+    if (settingsError) throw settingsError;
+    const settings = (settingsData || {}) as CalendarSettingsRow;
+    const autoSendEnabled = settings.invitation_auto_send_enabled === true;
+    const autoSendDaysBefore = clampInteger(settings.invitation_auto_send_days_before, 14, 0, 365);
+    const configuredLimit = clampInteger(settings.invitation_auto_send_limit, 10, 1, 25);
+    const limit = requestedReminderId ? 1 : configuredLimit;
+    if (!requestedReminderId && !directInvitation?.pdfBase64 && !autoSendEnabled) {
+      return jsonResponse({
+        ok: true,
+        skipped: true,
+        reason: "auto-send-disabled",
+        autoSendEnabled,
+        daysBefore: autoSendDaysBefore,
+        limit,
+      });
+    }
 
     const { data: recipientsData, error: recipientsError } = await adminClient
       .from("calendar_invitation_recipients")
@@ -607,6 +640,7 @@ Deno.serve(async (request) => {
       .order("reminder_date", { ascending: true })
       .limit(limit);
     if (requestedReminderId) reminderQuery = reminderQuery.eq("id", requestedReminderId);
+    if (!requestedReminderId) reminderQuery = reminderQuery.eq("days_before", autoSendDaysBefore);
 
     const { data: remindersData, error: remindersError } = await reminderQuery;
     if (remindersError) throw remindersError;
@@ -615,7 +649,7 @@ Deno.serve(async (request) => {
       return jsonResponse({ ok: false, error: "reminder-not-found-or-not-open", reminderId: requestedReminderId }, 404);
     }
     if (dryRun) {
-      return jsonResponse({ ok: true, dryRun, reminderCount: reminders.length, recipientCount: uniqueEmails.length, reminders });
+      return jsonResponse({ ok: true, dryRun, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, limit, reminders });
     }
 
     const results: Array<Record<string, unknown>> = [];
@@ -677,7 +711,7 @@ Deno.serve(async (request) => {
       }
     }
 
-    return jsonResponse({ ok: true, reminderCount: reminders.length, recipientCount: uniqueEmails.length, results });
+    return jsonResponse({ ok: true, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, limit, results });
   } catch (error) {
     return jsonResponse({ error: error instanceof Error ? error.message : String(error) }, 500);
   }

@@ -1054,6 +1054,29 @@
                         <div id="invitationRecipientSummary" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
                         <button class="btn btn-secondary" type="button" onclick="openInvitationRecipientModal()">Empfänger verwalten</button>
                     </div>
+                    <div class="feed-heading">Admin: Automatischer Ausschreibungsversand</div>
+                    <div class="feed-copy">Konfiguration fuer spaetere Cron-Laeufe. Manuelle Tests ueber die Buttons bleiben davon unabhaengig.</div>
+                    <div class="admin-settings-row">
+                        <div>
+                            <label class="field-title" for="invitationAutoSendEnabledInput">Automatischer Versand</label>
+                            <select id="invitationAutoSendEnabledInput">
+                                <option value="false">Aus</option>
+                                <option value="true">Aktiv</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-title" for="invitationAutoSendDaysInput">Tage vor Turnier</label>
+                            <input id="invitationAutoSendDaysInput" type="number" inputmode="numeric" min="0" max="365" step="1" placeholder="14">
+                        </div>
+                    </div>
+                    <div class="admin-settings-row">
+                        <div>
+                            <label class="field-title" for="invitationAutoSendLimitInput">Max. Mails pro Lauf</label>
+                            <input id="invitationAutoSendLimitInput" type="number" inputmode="numeric" min="1" max="25" step="1" placeholder="10">
+                        </div>
+                        <button class="btn btn-secondary" type="button" onclick="saveCalendarSettings()">Versand-Konfiguration speichern</button>
+                    </div>
+                    <div id="invitationAutoSendInfo" class="admin-settings-meta">Automatischer Versand ist nicht geladen.</div>
                 </div>
             </div>
         </div>
@@ -1368,6 +1391,9 @@
         let currentCalendarSeason = DEFAULT_NBV_CALENDAR_SEASON;
         let currentCalendarSourceUrl = "";
         let isPublicViewEnabled = true;
+        let invitationAutoSendEnabled = false;
+        let invitationAutoSendDaysBefore = 14;
+        let invitationAutoSendLimit = 10;
         let manualEvents = [];
         let planningEvents = [];
         let supportsInvitationSending = true;
@@ -1925,6 +1951,27 @@
             const stats = getInvitationRecipientStats();
             summary.textContent = getInvitationRecipientStatsText("Die E-Mail würde an ");
             summary.className = "modal-message" + (stats.activeCount ? " ok" : " error");
+        }
+
+        function normalizeIntegerSetting(value, fallback, min, max) {
+            const numeric = Number.parseInt(String(value ?? ""), 10);
+            if (!Number.isFinite(numeric)) return fallback;
+            return Math.max(min, Math.min(max, numeric));
+        }
+
+        function updateInvitationAutoSendUi() {
+            const enabledInput = document.getElementById("invitationAutoSendEnabledInput");
+            const daysInput = document.getElementById("invitationAutoSendDaysInput");
+            const limitInput = document.getElementById("invitationAutoSendLimitInput");
+            const info = document.getElementById("invitationAutoSendInfo");
+            if (enabledInput) enabledInput.value = invitationAutoSendEnabled ? "true" : "false";
+            if (daysInput) daysInput.value = String(invitationAutoSendDaysBefore);
+            if (limitInput) limitInput.value = String(invitationAutoSendLimit);
+            if (info) {
+                info.textContent = invitationAutoSendEnabled
+                    ? `Automatik aktiv: Ausschreibungen werden ${invitationAutoSendDaysBefore} Tage vor dem Turnier versendet, maximal ${invitationAutoSendLimit} pro Lauf.`
+                    : "Automatik aus: Cron-Laeufe versenden keine offenen Ausschreibungen.";
+            }
         }
 
         async function loadInvitationRecipients() {
@@ -4689,16 +4736,22 @@
             currentCalendarSeason = DEFAULT_NBV_CALENDAR_SEASON;
             currentCalendarSourceUrl = "";
             isPublicViewEnabled = true;
+            invitationAutoSendEnabled = false;
+            invitationAutoSendDaysBefore = 14;
+            invitationAutoSendLimit = 10;
             try {
                 const { data, error } = await supabaseClient
                     .from("calendar_settings")
-                    .select("source_url, season, public_view_enabled")
+                    .select("source_url, season, public_view_enabled, invitation_auto_send_enabled, invitation_auto_send_days_before, invitation_auto_send_limit")
                     .eq("key", CALENDAR_SETTINGS_KEY)
                     .maybeSingle();
                 if (error) throw error;
                 currentCalendarSourceUrl = String(data?.source_url || "").trim();
                 currentCalendarSeason = String(data?.season || "").trim() || DEFAULT_NBV_CALENDAR_SEASON;
                 isPublicViewEnabled = data?.public_view_enabled !== false;
+                invitationAutoSendEnabled = data?.invitation_auto_send_enabled === true;
+                invitationAutoSendDaysBefore = normalizeIntegerSetting(data?.invitation_auto_send_days_before, 14, 0, 365);
+                invitationAutoSendLimit = normalizeIntegerSetting(data?.invitation_auto_send_limit, 10, 1, 25);
                 const derivedSeason = extractSeasonFromSourceUrl(currentCalendarSourceUrl);
                 if (derivedSeason) {
                     currentCalendarSeason = derivedSeason;
@@ -4719,6 +4772,7 @@
             if (publicViewToggle) {
                 publicViewToggle.value = isPublicViewEnabled ? "true" : "false";
             }
+            updateInvitationAutoSendUi();
             updateCalendarSeasonUi();
             previewCalendarSeasonFromUrl();
         }
@@ -4728,11 +4782,17 @@
             const input = document.getElementById("calendarSourceUrlInput");
             const seasonInput = document.getElementById("calendarSeasonInput");
             const publicViewToggle = document.getElementById("calendarPublicViewToggle");
+            const invitationAutoEnabledInput = document.getElementById("invitationAutoSendEnabledInput");
+            const invitationAutoDaysInput = document.getElementById("invitationAutoSendDaysInput");
+            const invitationAutoLimitInput = document.getElementById("invitationAutoSendLimitInput");
             const sourceUrl = String(input?.value || "").trim();
             const manualSeason = normalizeSeasonText(seasonInput?.value || "");
             const derivedSeason = extractSeasonFromSourceUrl(sourceUrl);
             const nextSeason = derivedSeason || manualSeason || DEFAULT_NBV_CALENDAR_SEASON;
             const nextPublicViewEnabled = String(publicViewToggle?.value || "true") === "true";
+            const nextInvitationAutoSendEnabled = String(invitationAutoEnabledInput?.value || "false") === "true";
+            const nextInvitationAutoSendDaysBefore = normalizeIntegerSetting(invitationAutoDaysInput?.value, 14, 0, 365);
+            const nextInvitationAutoSendLimit = normalizeIntegerSetting(invitationAutoLimitInput?.value, 10, 1, 25);
 
             if (!isValidSeasonText(nextSeason)) {
                 showCalendarMessage("Bitte eine Saison im Format 2026/2027 eintragen.", "error");
@@ -4752,6 +4812,9 @@
                     source_url: sourceUrl,
                     season: nextSeason,
                     public_view_enabled: nextPublicViewEnabled,
+                    invitation_auto_send_enabled: nextInvitationAutoSendEnabled,
+                    invitation_auto_send_days_before: nextInvitationAutoSendDaysBefore,
+                    invitation_auto_send_limit: nextInvitationAutoSendLimit,
                     updated_at: new Date().toISOString(),
                     updated_by: currentUser?.id || null
                 };
@@ -4762,9 +4825,13 @@
                 currentCalendarSourceUrl = sourceUrl;
                 currentCalendarSeason = nextSeason;
                 isPublicViewEnabled = nextPublicViewEnabled;
+                invitationAutoSendEnabled = nextInvitationAutoSendEnabled;
+                invitationAutoSendDaysBefore = nextInvitationAutoSendDaysBefore;
+                invitationAutoSendLimit = nextInvitationAutoSendLimit;
                 if (seasonInput) {
                     seasonInput.value = currentCalendarSeason;
                 }
+                updateInvitationAutoSendUi();
                 updateCalendarSeasonUi();
                 previewCalendarSeasonFromUrl();
                 updateCalendarFeedUi();

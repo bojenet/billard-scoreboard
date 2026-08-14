@@ -5,12 +5,38 @@ create table if not exists public.calendar_settings (
   source_url text not null default '',
   season text not null default '2025/2026',
   public_view_enabled boolean not null default true,
+  invitation_auto_send_enabled boolean not null default false,
+  invitation_auto_send_days_before integer not null default 14,
+  invitation_auto_send_limit integer not null default 10,
   updated_at timestamptz not null default now(),
   updated_by uuid null references auth.users(id) on delete set null
 );
 
 alter table public.calendar_settings
   add column if not exists public_view_enabled boolean not null default true;
+
+alter table public.calendar_settings
+  add column if not exists invitation_auto_send_enabled boolean not null default false;
+
+alter table public.calendar_settings
+  add column if not exists invitation_auto_send_days_before integer not null default 14;
+
+alter table public.calendar_settings
+  add column if not exists invitation_auto_send_limit integer not null default 10;
+
+alter table public.calendar_settings
+  drop constraint if exists calendar_settings_invitation_auto_send_days_check;
+
+alter table public.calendar_settings
+  add constraint calendar_settings_invitation_auto_send_days_check
+  check (invitation_auto_send_days_before between 0 and 365);
+
+alter table public.calendar_settings
+  drop constraint if exists calendar_settings_invitation_auto_send_limit_check;
+
+alter table public.calendar_settings
+  add constraint calendar_settings_invitation_auto_send_limit_check
+  check (invitation_auto_send_limit between 1 and 25);
 
 alter table public.calendar_settings
   add column if not exists source_url text not null default '';
@@ -69,6 +95,14 @@ with check (
   )
 );
 
-insert into public.calendar_settings (key, source_url, season, public_view_enabled)
-values ('nbv_public_calendar', '', '2025/2026', true)
+insert into public.calendar_settings (
+  key,
+  source_url,
+  season,
+  public_view_enabled,
+  invitation_auto_send_enabled,
+  invitation_auto_send_days_before,
+  invitation_auto_send_limit
+)
+values ('nbv_public_calendar', '', '2025/2026', true, false, 14, 10)
 on conflict (key) do nothing;
