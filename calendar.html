@@ -1290,6 +1290,10 @@
                     <h3>Zusatzhinweise</h3>
                     <textarea id="invitationEditorExtraNotes" placeholder="Optionaler Hinweis für die Einladung" oninput="updateInvitationDraftField('extraNotes', this.value)"></textarea>
                 </div>
+                <div class="editor-section">
+                    <h3>E-Mail Versand</h3>
+                    <div id="invitationEditorRecipientSummary" class="modal-message">Empfänger werden geladen...</div>
+                </div>
             </div>
             <div class="button-row">
                 <button class="btn btn-save" type="button" onclick="generateInvitationPdfFromEditor()">PDF erstellen</button>
@@ -1890,6 +1894,39 @@
             return "Bcc";
         }
 
+        function getInvitationRecipientStats() {
+            const activeRecipients = invitationRecipients.filter((recipient) => recipient.active && recipient.email);
+            const inactiveCount = invitationRecipients.length - activeRecipients.length;
+            return {
+                activeRecipients,
+                activeCount: activeRecipients.length,
+                inactiveCount,
+                toCount: activeRecipients.filter((recipient) => recipient.deliveryType === "to").length,
+                ccCount: activeRecipients.filter((recipient) => recipient.deliveryType === "cc").length,
+                bccCount: activeRecipients.filter((recipient) => recipient.deliveryType === "bcc").length
+            };
+        }
+
+        function getInvitationRecipientStatsText(prefix = "") {
+            const stats = getInvitationRecipientStats();
+            if (!supportsInvitationRecipients) {
+                return "Empfänger-Tabelle ist noch nicht aktiv.";
+            }
+            if (!stats.activeCount) {
+                return `${prefix}keine aktiven Empfänger.`;
+            }
+            const inactiveSuffix = stats.inactiveCount ? ` ${stats.inactiveCount} inaktiv.` : "";
+            return `${prefix}${stats.activeCount} aktive Empfänger: ${stats.toCount} An, ${stats.ccCount} Cc, ${stats.bccCount} Bcc.${inactiveSuffix}`;
+        }
+
+        function renderInvitationSendRecipientSummary() {
+            const summary = document.getElementById("invitationEditorRecipientSummary");
+            if (!summary) return;
+            const stats = getInvitationRecipientStats();
+            summary.textContent = getInvitationRecipientStatsText("Die E-Mail würde an ");
+            summary.className = "modal-message" + (stats.activeCount ? " ok" : " error");
+        }
+
         async function loadInvitationRecipients() {
             if (!isCalendarAdmin || !supportsInvitationRecipients) {
                 invitationRecipients = [];
@@ -1918,17 +1955,13 @@
         function renderInvitationRecipients() {
             const list = document.getElementById("invitationRecipientList");
             const summary = document.getElementById("invitationRecipientSummary");
-            const activeRecipients = invitationRecipients.filter((recipient) => recipient.active);
-            const activeCount = activeRecipients.length;
-            const inactiveCount = invitationRecipients.length - activeCount;
-            const toCount = activeRecipients.filter((recipient) => recipient.deliveryType === "to").length;
-            const ccCount = activeRecipients.filter((recipient) => recipient.deliveryType === "cc").length;
-            const bccCount = activeRecipients.filter((recipient) => recipient.deliveryType === "bcc").length;
+            const stats = getInvitationRecipientStats();
             if (summary) {
-                summary.textContent = activeCount
-                    ? `${activeCount} aktive Empfänger: ${toCount} An, ${ccCount} Cc, ${bccCount} Bcc.${inactiveCount ? ` ${inactiveCount} inaktiv.` : ""}`
+                summary.textContent = stats.activeCount
+                    ? getInvitationRecipientStatsText()
                     : "Noch keine aktiven Empfänger.";
             }
+            renderInvitationSendRecipientSummary();
             if (!list) return;
             if (!isCalendarAdmin) {
                 list.textContent = "";
@@ -3904,6 +3937,7 @@
             });
             renderInvitationModeSelect();
             renderInvitationParticipantEditor();
+            renderInvitationSendRecipientSummary();
             setModalMessage("invitationEditorMessage", "", "");
         }
 
@@ -4220,7 +4254,8 @@
                 setModalMessage("invitationEditorMessage", "Bitte eine Begründung für die Modusabweichung eintragen.", "error");
                 return;
             }
-            if (!invitationRecipients.length) {
+            const recipientStats = getInvitationRecipientStats();
+            if (!recipientStats.activeCount) {
                 setModalMessage("invitationEditorMessage", "Bitte zuerst mindestens einen Ausschreibungs-Empfänger hinterlegen.", "error");
                 return;
             }
@@ -4247,7 +4282,7 @@
                 });
                 if (error) throw error;
                 if (!data?.ok) throw new Error(data?.error || "Die Einladung konnte nicht versendet werden.");
-                setModalMessage("invitationEditorMessage", `Einladung wurde an ${data.recipientCount || invitationRecipients.length} Empfänger versendet.`, "ok");
+                setModalMessage("invitationEditorMessage", `Einladung wurde an ${data.recipientCount || recipientStats.activeCount} Empfänger versendet.`, "ok");
             } catch (error) {
                 console.warn("Einladung konnte nicht versendet werden:", error);
                 setModalMessage("invitationEditorMessage", `Einladung konnte nicht versendet werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
@@ -4300,7 +4335,8 @@
                 showCalendarMessage("Für diesen Termin ist keine NBV-Detailseite hinterlegt.", "error");
                 return;
             }
-            if (!invitationRecipients.length) {
+            const recipientStats = getInvitationRecipientStats();
+            if (!recipientStats.activeCount) {
                 showCalendarMessage("Bitte zuerst mindestens einen Ausschreibungs-Empfänger hinterlegen.", "error");
                 return;
             }
@@ -4321,7 +4357,7 @@
                 if (!data?.ok || result?.status !== "sent") {
                     throw new Error(result?.error || "Die Ausschreibung konnte nicht versendet werden.");
                 }
-                showCalendarMessage(`Ausschreibung wurde an ${data.recipientCount || invitationRecipients.length} Empfänger versendet.`, "ok");
+                showCalendarMessage(`Ausschreibung wurde an ${data.recipientCount || recipientStats.activeCount} Empfänger versendet.`, "ok");
             } catch (error) {
                 console.warn("Ausschreibung konnte nicht versendet werden:", error);
                 showCalendarMessage(`Ausschreibung konnte nicht versendet werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
