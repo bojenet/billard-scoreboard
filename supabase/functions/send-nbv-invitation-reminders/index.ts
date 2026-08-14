@@ -29,9 +29,22 @@ type RecipientRow = {
 };
 
 type CalendarSettingsRow = {
+  source_url?: string;
+  season?: string;
   invitation_auto_send_enabled?: boolean;
   invitation_auto_send_days_before?: number;
   invitation_auto_send_limit?: number;
+};
+
+type CalendarEvent = {
+  id?: string;
+  date?: string;
+  time?: string;
+  title?: string;
+  location?: string;
+  link?: string;
+  disciplineId?: string;
+  disciplineLabel?: string;
 };
 
 type InvitationDetails = {
@@ -60,6 +73,24 @@ type RequestPayload = {
     pdfFilename?: string;
     pdfBase64?: string;
   };
+};
+
+const NBV_DISCIPLINES = {
+  "33": "5-Kegel",
+  "56": "Biathlon",
+  "36": "Billard Kegeln",
+  "57": "BK2K",
+  "9": "Cadre 35/2",
+  "10": "Cadre 47/2",
+  "11": "Cadre 52/2",
+  "12": "Cadre 71/2",
+  "5": "Dreiband (großes Billard)",
+  "6": "Dreiband (kleines Billard)",
+  "14": "Einband (großes Billard)",
+  "13": "Einband (kleines Billard)",
+  "31": "Eurokegel",
+  "7": "Freie Partie (großes Billard)",
+  "8": "Freie Partie (kleines Billard)",
 };
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
@@ -93,6 +124,13 @@ function todayIso() {
     month: "2-digit",
     day: "2-digit",
   }).format(now);
+}
+
+function addDaysIso(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function formatGermanDate(value: string) {
@@ -146,6 +184,110 @@ function buildPdfFilename(reminder: ReminderRow) {
   const title = cleanFilenamePart(reminder.title) || "Turnier";
   const season = getSeasonFromDate(reminder.event_date);
   return ["Ausschreibung", title, season].filter(Boolean).join(" - ") + ".pdf";
+}
+
+function buildAutoReminderId(event: CalendarEvent, daysBefore: number) {
+  const source = cleanText(event.id || event.link || `${event.date}-${event.title}`)
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `auto-invitation-${source}-${daysBefore}`.slice(0, 220);
+}
+
+function buildReminderMessage(event: CalendarEvent) {
+  const lines = [
+    "NBV Ausschreibung",
+    "",
+    cleanText(event.title),
+    `Termin: ${formatGermanDate(cleanText(event.date || ""))}`,
+    event.time ? `Beginn: ${cleanText(event.time)} Uhr` : "",
+    event.location ? `Ort: ${cleanText(event.location)}` : "",
+    "",
+    "Ausschreibung / Details:",
+    cleanText(event.link),
+  ];
+  return lines.filter((line, index) => line || index === 1 || index === 6).join("\n").trim();
+}
+
+function buildAutoReminderPayload(event: CalendarEvent, daysBefore: number) {
+  const eventDate = cleanText(event.date || "");
+  const reminderDate = addDaysIso(eventDate, -daysBefore);
+  if (!eventDate || !reminderDate || !cleanText(event.title) || !cleanText(event.link)) return null;
+  return {
+    id: buildAutoReminderId(event, daysBefore),
+    event_id: cleanText(event.id || event.link || ""),
+    event_date: eventDate,
+    reminder_date: reminderDate,
+    days_before: daysBefore,
+    title: cleanText(event.title),
+    location: cleanText(event.location || ""),
+    link: cleanText(event.link || ""),
+    message_text: buildReminderMessage(event),
+    status: "open",
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function syncAutoRemindersFromCalendar(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  adminClient: ReturnType<typeof createClient>,
+  settings: CalendarSettingsRow,
+  daysBefore: number,
+) {
+  const season = cleanText(settings.season || "");
+  if (!season) return { syncedCount: 0, skippedSentCount: 0, calendarEventCount: 0, failedDisciplines: [] };
+  const calendarResponse = await fetch(`${supabaseUrl}/functions/v1/get-nbv-calendar`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: serviceRoleKey,
+      authorization: `Bearer ${serviceRoleKey}`,
+    },
+    body: JSON.stringify({
+      season,
+      sourceUrl: cleanText(settings.source_url || ""),
+      disciplines: Object.entries(NBV_DISCIPLINES).map(([id, label]) => ({ id, label })),
+    }),
+  });
+  const calendarData = await calendarResponse.json().catch(() => ({}));
+  if (!calendarResponse.ok) {
+    throw new Error(cleanText(calendarData?.message || calendarData?.error || `NBV-Kalender Sync fehlgeschlagen (${calendarResponse.status})`));
+  }
+  const events = Array.isArray(calendarData?.events) ? calendarData.events as CalendarEvent[] : [];
+  const payloads = events
+    .map((event) => buildAutoReminderPayload(event, daysBefore))
+    .filter(Boolean) as Array<Record<string, unknown>>;
+  if (!payloads.length) {
+    return {
+      syncedCount: 0,
+      skippedSentCount: 0,
+      calendarEventCount: events.length,
+      failedDisciplines: Array.isArray(calendarData?.failedDisciplines) ? calendarData.failedDisciplines : [],
+    };
+  }
+  const ids = payloads.map((row) => String(row.id || ""));
+  const { data: existingRows, error: existingError } = await adminClient
+    .from("calendar_club_reminders")
+    .select("id, status")
+    .in("id", ids);
+  if (existingError) throw existingError;
+  const sentIds = new Set((existingRows || [])
+    .filter((row: { id?: string; status?: string }) => String(row.status || "") === "sent")
+    .map((row: { id?: string }) => String(row.id || "")));
+  const writablePayloads = payloads.filter((row) => !sentIds.has(String(row.id || "")));
+  if (writablePayloads.length) {
+    const { error: upsertError } = await adminClient
+      .from("calendar_club_reminders")
+      .upsert(writablePayloads, { onConflict: "id" });
+    if (upsertError) throw upsertError;
+  }
+  return {
+    syncedCount: writablePayloads.length,
+    skippedSentCount: sentIds.size,
+    calendarEventCount: events.length,
+    failedDisciplines: Array.isArray(calendarData?.failedDisciplines) ? calendarData.failedDisciplines : [],
+  };
 }
 
 function bytesToBase64(bytes: Uint8Array) {
@@ -536,7 +678,7 @@ Deno.serve(async (request) => {
 
     const { data: settingsData, error: settingsError } = await adminClient
       .from("calendar_settings")
-      .select("invitation_auto_send_enabled, invitation_auto_send_days_before, invitation_auto_send_limit")
+      .select("source_url, season, invitation_auto_send_enabled, invitation_auto_send_days_before, invitation_auto_send_limit")
       .eq("key", "nbv_public_calendar")
       .maybeSingle();
     if (settingsError) throw settingsError;
@@ -554,6 +696,11 @@ Deno.serve(async (request) => {
         daysBefore: autoSendDaysBefore,
         limit,
       });
+    }
+
+    let syncResult: Record<string, unknown> | null = null;
+    if (!requestedReminderId && !directInvitation?.pdfBase64 && (dryRun || autoSendEnabled)) {
+      syncResult = await syncAutoRemindersFromCalendar(supabaseUrl, serviceRoleKey, adminClient, settings, autoSendDaysBefore);
     }
 
     const { data: recipientsData, error: recipientsError } = await adminClient
@@ -667,7 +814,7 @@ Deno.serve(async (request) => {
       return jsonResponse({ ok: false, error: "reminder-not-found-or-not-open", reminderId: requestedReminderId }, 404);
     }
     if (dryRun) {
-      return jsonResponse({ ok: true, dryRun, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, limit, reminders });
+      return jsonResponse({ ok: true, dryRun, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, limit, sync: syncResult, reminders });
     }
 
     const mailFrom = Deno.env.get("INVITATION_EMAIL_FROM") || Deno.env.get("INVITATION_SMTP_USER") || Deno.env.get("RESULT_EMAIL_FROM") || Deno.env.get("SMTP_USER");
@@ -733,7 +880,7 @@ Deno.serve(async (request) => {
       }
     }
 
-    return jsonResponse({ ok: true, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, limit, results });
+    return jsonResponse({ ok: true, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, limit, sync: syncResult, results });
   } catch (error) {
     return jsonResponse({ error: error instanceof Error ? error.message : String(error) }, 500);
   }

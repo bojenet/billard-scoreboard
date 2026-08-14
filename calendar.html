@@ -1986,6 +1986,7 @@
                 return;
             }
             const reminders = Array.isArray(data.reminders) ? data.reminders : [];
+            const sync = data.sync || {};
             const statusLine = [
                 `Automatik: ${data.autoSendEnabled ? "aktiv" : "aus"}`,
                 `${data.daysBefore ?? invitationAutoSendDaysBefore} Tage vorher`,
@@ -1993,8 +1994,11 @@
                 `${data.recipientCount || 0} aktive Empfänger`,
                 `${data.reminderCount || reminders.length} fällige Ausschreibungen`
             ].join(" · ");
+            const syncLine = data.sync
+                ? `<br>Kalender-Sync: ${escapeHtml(sync.calendarEventCount || 0)} NBV-Termine gelesen, ${escapeHtml(sync.syncedCount || 0)} Reminder aktualisiert, ${escapeHtml(sync.skippedSentCount || 0)} bereits versendet übersprungen.`
+                : "";
             if (!reminders.length) {
-                result.innerHTML = `<strong>Dry Run:</strong> ${escapeHtml(statusLine)}<br>Keine fälligen offenen Ausschreibungen gefunden.`;
+                result.innerHTML = `<strong>Dry Run:</strong> ${escapeHtml(statusLine)}${syncLine}<br>Keine fälligen offenen Ausschreibungen gefunden.`;
                 return;
             }
             const rows = reminders.slice(0, 10).map((reminder) => {
@@ -2003,7 +2007,7 @@
                 return `<li>${escapeHtml(reminder.title || "Ohne Titel")} · Termin: ${escapeHtml(eventDate)} · Reminder: ${escapeHtml(reminderDate)} · Status: ${escapeHtml(reminder.status || "-")}</li>`;
             }).join("");
             const suffix = reminders.length > 10 ? `<br>Weitere ${reminders.length - 10} Einträge nicht angezeigt.` : "";
-            result.innerHTML = `<strong>Dry Run:</strong> ${escapeHtml(statusLine)}<ul style="margin:6px 0 0 18px;padding:0;">${rows}</ul>${suffix}`;
+            result.innerHTML = `<strong>Dry Run:</strong> ${escapeHtml(statusLine)}${syncLine}<ul style="margin:6px 0 0 18px;padding:0;">${rows}</ul>${suffix}`;
         }
 
         async function runInvitationAutoSendDryRun() {
