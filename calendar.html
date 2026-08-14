@@ -695,7 +695,7 @@
 
         .participant-editor-row {
             display: grid;
-            grid-template-columns: 58px 62px 92px 70px 82px minmax(160px, 1fr) minmax(130px, 0.8fr) 82px;
+            grid-template-columns: 64px 92px 70px 82px minmax(170px, 1fr) minmax(140px, 0.8fr) 82px;
             gap: 8px;
             align-items: center;
             padding: 8px;
@@ -912,15 +912,13 @@
                 grid-template-columns: 1fr;
             }
             .participant-editor-row {
-                grid-template-columns: 52px 58px 84px 58px;
+                grid-template-columns: 52px 84px 58px 70px;
             }
             .participant-editor-row.header span:nth-child(5),
             .participant-editor-row.header span:nth-child(6),
             .participant-editor-row.header span:nth-child(7),
-            .participant-editor-row.header span:nth-child(8),
             .participant-editor-row input:nth-child(5),
             .participant-editor-row input:nth-child(6),
-            .participant-editor-row input:nth-child(7),
             .participant-editor-row .row-tools {
                 grid-column: 1 / -1;
             }
@@ -3465,21 +3463,6 @@
             return normalizePassLookupName(cleaned);
         }
 
-        function assignDefaultClubCloudOrder(invitation, force = false) {
-            const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
-            if (!participants.length) return invitation;
-            if (!force && participants.some((participant) => String(participant?.ccNo || "").trim())) {
-                return invitation;
-            }
-            [...participants]
-                .map((participant, index) => ({ participant, index, key: getClubCloudParticipantSortKey(participant, index) }))
-                .sort((a, b) => a.key.localeCompare(b.key, "de") || a.index - b.index)
-                .forEach((item, index) => {
-                    item.participant.ccNo = String(index + 1);
-                });
-            return invitation;
-        }
-
         function applyInvitationPlayingTarget(target) {
             if (!currentInvitationDraft) return;
             currentInvitationDraft.playingTargetPoints = target?.points || "";
@@ -3496,7 +3479,6 @@
 
         function openInvitationEditorModal(invitation) {
             currentInvitationDraft = cloneInvitationDraft(invitation);
-            assignDefaultClubCloudOrder(currentInvitationDraft);
             if (!currentInvitationDraft.selectedModeCode) {
                 currentInvitationDraft.selectedModeCode = getSportordnungModeCode(currentInvitationDraft);
             }
@@ -3571,7 +3553,6 @@
             const header = `
                 <div class="participant-editor-row header">
                     <span>Setz.</span>
-                    <span>CC-Nr.</span>
                     <span>Pass-Nr.</span>
                     <span>Rang</span>
                     <span>GD</span>
@@ -3582,7 +3563,6 @@
             const rows = participants.map((participant, index) => `
                 <div class="participant-editor-row">
                     <input type="text" value="${escapeHtml(participant.number || String(index + 1))}" onchange="updateInvitationParticipant(${index}, 'number', this.value)">
-                    <input type="text" value="${escapeHtml(participant.ccNo || participant.number || String(index + 1))}" onchange="updateInvitationParticipant(${index}, 'ccNo', this.value)">
                     <input type="text" value="${escapeHtml(participant.passNo || "")}" onchange="updateInvitationParticipant(${index}, 'passNo', this.value)">
                     <input type="text" value="${escapeHtml(participant.seedRank || "")}" onchange="updateInvitationParticipant(${index}, 'seedRank', this.value)">
                     <input type="text" value="${escapeHtml(participant.seedGd || "")}" onchange="updateInvitationParticipant(${index}, 'seedGd', this.value)">
@@ -3670,7 +3650,6 @@
             }
             currentInvitationDraft.participants.push({
                 number: String(currentInvitationDraft.participants.length + 1),
-                ccNo: String(currentInvitationDraft.participants.length + 1),
                 passNo: "",
                 seedRank: "",
                 seedGd: "",
@@ -3694,18 +3673,11 @@
             renderInvitationModeSelect();
         }
 
-        function renumberClubCloudParticipants() {
-            if (!currentInvitationDraft || !Array.isArray(currentInvitationDraft.participants)) return;
-            assignDefaultClubCloudOrder(currentInvitationDraft, true);
-            renderInvitationParticipantEditor();
-        }
-
         function getResultWorkbookParticipants(invitation) {
             return (Array.isArray(invitation?.participants) ? invitation.participants : [])
                 .slice(0, 4)
                 .map((participant, index) => ({
                     seed: String(participant?.number || index + 1),
-                    ccNo: String(participant?.ccNo || participant?.number || index + 1),
                     passNo: String(participant?.passNo || [12092, 10338, 12094, 10019][index] || 900001 + index),
                     name: getPdfText(participant?.name || `Spieler ${index + 1}`),
                     club: getPdfText(participant?.club || ""),
@@ -3726,19 +3698,15 @@
         }
 
         function getClubCloudOrderedParticipants(participants) {
-            return [...participants].sort((a, b) => {
-                const aOrder = Number(a.ccNo);
-                const bOrder = Number(b.ccNo);
-                if (Number.isFinite(aOrder) && Number.isFinite(bOrder) && aOrder !== bOrder) return aOrder - bOrder;
-                if (Number.isFinite(aOrder)) return -1;
-                if (Number.isFinite(bOrder)) return 1;
-                return String(a.ccNo || a.seed || "").localeCompare(String(b.ccNo || b.seed || ""), "de");
-            });
+            return [...participants]
+                .map((participant, index) => ({ participant, index, key: getClubCloudParticipantSortKey(participant, index) }))
+                .sort((a, b) => a.key.localeCompare(b.key, "de") || a.index - b.index)
+                .map((item) => item.participant);
         }
 
         function getT3ClubCloudExportMatches(participants, scheduleMatches) {
             const ordered = getClubCloudOrderedParticipants(participants);
-            const player = (position) => ordered[position - 1] || { seed: String(position), ccNo: String(position), name: `Spieler ${position}`, club: "" };
+            const player = (position) => ordered[position - 1] || { seed: String(position), name: `Spieler ${position}`, club: "" };
             const sameSeed = (a, b) => String(a || "") === String(b || "");
             const findScheduleMatch = (aSeed, bSeed) => scheduleMatches.find((match) => (
                 (sameSeed(match.a.seed, aSeed) && sameSeed(match.b.seed, bSeed))
@@ -3814,16 +3782,15 @@
             ], [18, 38, 18, 32]);
 
             appendWorkbookSheet(workbook, "Teilnehmer", [
-                ["Setz.", "CC-Nr.", "Pass-Nr.", "Name", "Verein", "GD Setzliste"],
+                ["Setz.", "Pass-Nr.", "Name", "Verein", "GD Setzliste"],
                 ...participants.map((participant) => [
                     Number(participant.seed) || participant.seed,
-                    Number(participant.ccNo) || participant.ccNo,
                     Number(participant.passNo) || participant.passNo,
                     participant.name,
                     participant.club,
                     participant.gd
                 ])
-            ], [8, 8, 12, 28, 18, 14]);
+            ], [8, 12, 28, 18, 14]);
 
             appendWorkbookSheet(workbook, "Spielplan Eingabe", [
                 ["Spielplan / Ergebniseingabe"],
