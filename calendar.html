@@ -2014,9 +2014,17 @@
             if (!isSystemAdmin || !supportsInvitationSending) return;
             const result = document.getElementById("invitationAutoSendDryRunResult");
             if (result) {
-                result.textContent = "Dry Run wird ausgeführt. Hinweis: Es wird die gespeicherte Konfiguration verwendet.";
+                result.textContent = "Konfiguration wird gespeichert, danach startet der Dry Run...";
             }
             try {
+                const saved = await saveCalendarSettings({ refreshAfterSave: false, showSuccessMessage: false });
+                if (!saved) {
+                    if (result) result.textContent = "Dry Run abgebrochen: Konfiguration konnte nicht gespeichert werden.";
+                    return;
+                }
+                if (result) {
+                    result.textContent = "Dry Run wird mit der gerade gespeicherten Konfiguration ausgeführt...";
+                }
                 const { data, error } = await supabaseClient.functions.invoke("send-nbv-invitation-reminders", {
                     body: { dryRun: true }
                 });
@@ -4833,8 +4841,10 @@
             previewCalendarSeasonFromUrl();
         }
 
-        async function saveCalendarSettings() {
+        async function saveCalendarSettings(options = {}) {
             if (!isSystemAdmin) return;
+            const refreshAfterSave = options.refreshAfterSave !== false;
+            const showSuccessMessage = options.showSuccessMessage !== false;
             const input = document.getElementById("calendarSourceUrlInput");
             const seasonInput = document.getElementById("calendarSeasonInput");
             const publicViewToggle = document.getElementById("calendarPublicViewToggle");
@@ -4892,11 +4902,17 @@
                 previewCalendarSeasonFromUrl();
                 updateCalendarFeedUi();
                 applyPublicViewState();
-                showCalendarMessage(`NBV-Quelle gespeichert. Kalender laedt jetzt Saison ${currentCalendarSeason}.`, "ok");
-                await refreshCalendar();
+                if (showSuccessMessage) {
+                    showCalendarMessage(`NBV-Quelle gespeichert. Kalender laedt jetzt Saison ${currentCalendarSeason}.`, "ok");
+                }
+                if (refreshAfterSave) {
+                    await refreshCalendar();
+                }
+                return true;
             } catch (error) {
                 console.warn("Kalender-Einstellungen konnten nicht gespeichert werden:", error);
                 showCalendarMessage(`Die NBV-Quelle konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+                return false;
             }
         }
 
