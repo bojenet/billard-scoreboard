@@ -1207,6 +1207,7 @@
             </div>
             <div class="button-row">
                 <button class="btn btn-save" type="button" onclick="generateInvitationPdfFromEditor()">PDF erstellen</button>
+                <button class="btn btn-secondary" type="button" onclick="sendInvitationPdfFromEditor()">Einladung versenden</button>
                 <button class="btn btn-secondary" type="button" onclick="generateResultWorkbookFromEditor()">Excel Ergebnisformular</button>
                 <button class="btn btn-secondary" type="button" onclick="closeInvitationEditorModal()">Schließen</button>
             </div>
@@ -3304,7 +3305,7 @@
             drawModeTable(doc, invitation, state, mode);
         }
 
-        function drawInvitationPdf(invitation) {
+        function buildInvitationPdfDocument(invitation) {
             const JsPDF = getJsPdfConstructor();
             if (!JsPDF) {
                 throw new Error("PDF-Bibliothek konnte nicht geladen werden.");
@@ -3370,6 +3371,11 @@
             drawWrappedText(doc, "Mit sportlichem Gruß", 24, state.y, 168, 5.5, "normal", 11);
 
             drawInvitationFooter(doc, invitation);
+            return doc;
+        }
+
+        function drawInvitationPdf(invitation) {
+            const doc = buildInvitationPdfDocument(invitation);
             doc.save(getInvitationPdfFilename(invitation));
         }
 
@@ -3928,6 +3934,56 @@
             setModalMessage("invitationEditorMessage", "PDF wurde erstellt und als Download gestartet.", "ok");
         }
 
+        async function sendInvitationPdfFromEditor() {
+            if (!isCalendarAdmin || !supportsInvitationSending || !currentInvitationDraft) return;
+            const selected = currentInvitationDraft.selectedModeCode || getSportordnungModeCode(currentInvitationDraft);
+            const suggested = getSportordnungModeCode(currentInvitationDraft);
+            const targetPoints = String(currentInvitationDraft.playingTargetPoints || "").trim();
+            const targetInnings = String(currentInvitationDraft.playingTargetInnings || "").trim();
+            if (!targetPoints || !targetInnings) {
+                setModalMessage("invitationEditorMessage", "Bitte Punkte und Aufnahmen eintragen, bevor die Einladung versendet wird.", "error");
+                const targetInput = document.getElementById(!targetPoints ? "invitationEditorPlayingTargetPoints" : "invitationEditorPlayingTargetInnings");
+                if (targetInput) targetInput.focus();
+                return;
+            }
+            if (selected !== suggested && !String(currentInvitationDraft.overrideReason || "").trim()) {
+                setModalMessage("invitationEditorMessage", "Bitte eine Begründung für die Modusabweichung eintragen.", "error");
+                return;
+            }
+            if (!invitationRecipients.length) {
+                setModalMessage("invitationEditorMessage", "Bitte zuerst mindestens einen Ausschreibungs-Empfänger hinterlegen.", "error");
+                return;
+            }
+
+            setModalMessage("invitationEditorMessage", "Einladung wird als PDF erstellt und per E-Mail versendet...", "ok");
+            try {
+                const invitation = cloneInvitationDraft(currentInvitationDraft);
+                const doc = buildInvitationPdfDocument(invitation);
+                const pdfBase64 = String(doc.output("datauristring") || "").split(",")[1] || "";
+                if (!pdfBase64) throw new Error("PDF konnte nicht für den Versand vorbereitet werden.");
+                const { data, error } = await supabaseClient.functions.invoke("send-nbv-invitation-reminders", {
+                    body: {
+                        directInvitation: {
+                            id: `direct-invitation-${String(invitation.eventId || invitation.title || Date.now()).replace(/[^a-zA-Z0-9_-]+/g, "-")}-${Date.now()}`,
+                            eventId: String(invitation.eventId || ""),
+                            eventDate: invitation.date || invitation.eventDate || "",
+                            title: invitation.title || "",
+                            location: invitation.locationName || "",
+                            link: invitation.sourceUrl || invitation.link || "",
+                            pdfFilename: getInvitationPdfFilename(invitation),
+                            pdfBase64
+                        }
+                    }
+                });
+                if (error) throw error;
+                if (!data?.ok) throw new Error(data?.error || "Die Einladung konnte nicht versendet werden.");
+                setModalMessage("invitationEditorMessage", `Einladung wurde an ${data.recipientCount || invitationRecipients.length} Empfänger versendet.`, "ok");
+            } catch (error) {
+                console.warn("Einladung konnte nicht versendet werden:", error);
+                setModalMessage("invitationEditorMessage", `Einladung konnte nicht versendet werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
+        }
+
         async function createNbvInvitationPdf(eventId) {
             if (!isCalendarAdmin) return;
             const event = getCalendarEventById(eventId);
@@ -3952,6 +4008,12 @@
                 if (!invitation?.title) {
                     throw new Error("Die NBV-Seite konnte nicht als Turniereinladung gelesen werden.");
                 }
+                invitation.eventId = event.id || "";
+                invitation.sourceUrl = event.link || "";
+                invitation.link = event.link || "";
+                invitation.date = invitation.date || event.date || "";
+                invitation.startTime = invitation.startTime || event.time || "";
+                invitation.locationName = invitation.locationName || simplifyVenueName(event.location || "");
                 await applyPlayerPassNumbers(invitation);
                 openInvitationEditorModal(invitation);
                 showCalendarMessage("Einladung wurde vorbereitet und kann geprüft werden.", "ok");

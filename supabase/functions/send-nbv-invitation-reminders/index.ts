@@ -44,6 +44,16 @@ type RequestPayload = {
   dryRun?: boolean;
   limit?: number;
   reminderId?: string;
+  directInvitation?: {
+    id?: string;
+    eventId?: string;
+    eventDate?: string;
+    title?: string;
+    location?: string;
+    link?: string;
+    pdfFilename?: string;
+    pdfBase64?: string;
+  };
 };
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
@@ -447,6 +457,12 @@ function buildSubject(reminder: ReminderRow) {
   return buildPdfFilename(reminder).replace(/\.pdf$/i, "");
 }
 
+function buildDirectPdfFilename(invitation: NonNullable<RequestPayload["directInvitation"]>) {
+  const title = cleanFilenamePart(cleanText(invitation.title || "Turnier")) || "Turnier";
+  const season = getSeasonFromDate(cleanText(invitation.eventDate || ""));
+  return cleanText(invitation.pdfFilename || "") || ["Einladung", title, season].filter(Boolean).join(" - ") + ".pdf";
+}
+
 function buildHtml(reminder: ReminderRow) {
   const detailsLink = reminder.link
     ? `<p><a href="${reminder.link}">Ausschreibung / Details öffnen</a></p>`
@@ -482,6 +498,7 @@ Deno.serve(async (request) => {
     const payload = await request.json().catch(() => ({})) as RequestPayload;
     const dryRun = Boolean(payload.dryRun);
     const requestedReminderId = cleanText(payload.reminderId);
+    const directInvitation = payload.directInvitation;
     const limit = requestedReminderId ? 1 : Math.max(1, Math.min(25, Number(payload.limit || 10)));
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -508,6 +525,76 @@ Deno.serve(async (request) => {
       return jsonResponse({ ok: true, skipped: true, reason: "no-recipients" });
     }
 
+    const mailFrom = Deno.env.get("INVITATION_EMAIL_FROM") || Deno.env.get("INVITATION_SMTP_USER") || Deno.env.get("RESULT_EMAIL_FROM") || Deno.env.get("SMTP_USER");
+    if (!mailFrom) throw new Error("Fehlendes Secret: INVITATION_EMAIL_FROM, INVITATION_SMTP_USER, RESULT_EMAIL_FROM oder SMTP_USER.");
+    const transporter = buildTransport();
+
+    if (directInvitation?.pdfBase64) {
+      const title = cleanText(directInvitation.title || "NBV Turnier");
+      const reminder: ReminderRow = {
+        id: cleanText(directInvitation.id || `direct-${Date.now()}`),
+        event_id: cleanText(directInvitation.eventId || ""),
+        event_date: cleanText(directInvitation.eventDate || todayIso()),
+        reminder_date: todayIso(),
+        days_before: 0,
+        title,
+        location: cleanText(directInvitation.location || ""),
+        link: cleanText(directInvitation.link || ""),
+        message_text: "",
+        status: "open",
+      };
+      const subject = buildDirectPdfFilename(directInvitation).replace(/\.pdf$/i, "");
+      const { error: directReminderError } = await adminClient
+        .from("calendar_club_reminders")
+        .upsert({
+          id: reminder.id,
+          event_id: reminder.event_id || "",
+          event_date: reminder.event_date,
+          reminder_date: reminder.reminder_date,
+          days_before: 0,
+          title: reminder.title,
+          location: reminder.location,
+          link: reminder.link,
+          message_text: reminder.message_text,
+          status: "open",
+          updated_at: new Date().toISOString(),
+        });
+      if (directReminderError) throw directReminderError;
+      const info = await transporter.sendMail({
+        from: mailFrom,
+        to: toEmails.length ? toEmails : mailFrom,
+        bcc: bccEmails.length ? bccEmails : undefined,
+        subject,
+        html: buildHtml(reminder).replace(/Ausschreibung/g, "Einladung"),
+        attachments: [{
+          filename: buildDirectPdfFilename(directInvitation),
+          content: directInvitation.pdfBase64,
+          encoding: "base64",
+          contentType: "application/pdf",
+        }],
+      });
+      await adminClient
+        .from("calendar_invitation_email_logs")
+        .insert({
+          reminder_id: reminder.id,
+          event_id: reminder.event_id || "",
+          subject,
+          recipient_count: uniqueEmails.length,
+          status: "sent",
+          message_id: info.messageId || "",
+        });
+      await adminClient
+        .from("calendar_club_reminders")
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          sent_by_name: "Manueller E-Mail-Versand",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", reminder.id);
+      return jsonResponse({ ok: true, direct: true, recipientCount: uniqueEmails.length, messageId: info.messageId || "" });
+    }
+
     let reminderQuery = adminClient
       .from("calendar_club_reminders")
       .select("id, event_id, event_date, reminder_date, days_before, title, location, link, message_text, status")
@@ -527,9 +614,6 @@ Deno.serve(async (request) => {
       return jsonResponse({ ok: true, dryRun, reminderCount: reminders.length, recipientCount: uniqueEmails.length, reminders });
     }
 
-    const mailFrom = Deno.env.get("INVITATION_EMAIL_FROM") || Deno.env.get("INVITATION_SMTP_USER") || Deno.env.get("RESULT_EMAIL_FROM") || Deno.env.get("SMTP_USER");
-    if (!mailFrom) throw new Error("Fehlendes Secret: INVITATION_EMAIL_FROM, INVITATION_SMTP_USER, RESULT_EMAIL_FROM oder SMTP_USER.");
-    const transporter = buildTransport();
     const results: Array<Record<string, unknown>> = [];
 
     for (const reminder of reminders) {
