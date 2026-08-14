@@ -465,7 +465,7 @@ function buildDirectPdfFilename(invitation: NonNullable<RequestPayload["directIn
 
 function buildHtml(reminder: ReminderRow) {
   const detailsLink = reminder.link
-    ? `<p><a href="${reminder.link}">Ausschreibung / Details öffnen</a></p>`
+    ? `<p><a href="${reminder.link}">Turnier in Club Cloud öffnen</a></p>`
     : "";
   return `
     <div style="font-family:Arial,sans-serif;color:#17202a;line-height:1.5">
