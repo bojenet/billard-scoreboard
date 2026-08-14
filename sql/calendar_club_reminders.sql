@@ -110,7 +110,7 @@ alter table public.calendar_invitation_recipients
 
 alter table public.calendar_invitation_recipients
   add constraint calendar_invitation_recipients_delivery_type_check
-  check (delivery_type in ('to', 'bcc'));
+  check (delivery_type in ('to', 'cc', 'bcc'));
 
 create index if not exists idx_calendar_invitation_email_logs_reminder
   on public.calendar_invitation_email_logs (reminder_id, status);

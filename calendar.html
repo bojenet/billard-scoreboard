@@ -1007,8 +1007,29 @@
                     </div>
                     <div class="admin-settings-meta">Lädt die NBV-Termine der gewählten alten Saison und legt sie als Planungstermine in der aktiven Saison an. Monat und Kalendertag bleiben erhalten, das Saisonjahr wird auf die aktive Saison umgestellt.</div>
                     <div class="admin-settings-row">
+                        <div id="invitationRecipientSummary" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
+                        <button class="btn btn-secondary" type="button" onclick="openInvitationRecipientModal()">Empfänger verwalten</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="invitationRecipientModal" class="modal-backdrop" onclick="handleInvitationRecipientBackdrop(event)">
+        <div class="modal-card wide" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title">Ausschreibungs-Empfänger</h2>
+                    <div class="modal-subtitle">Empfänger für Einladung und Ausschreibung verwalten.</div>
+                </div>
+                <button class="close-btn" type="button" onclick="closeInvitationRecipientModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="editor-section">
+                    <h3>Empfänger hinzufügen</h3>
+                    <div class="editor-grid">
                         <div>
-                            <label class="field-title" for="invitationRecipientNameInput">Ausschreibungs-Empfänger</label>
+                            <label class="field-title" for="invitationRecipientNameInput">Name / Club</label>
                             <input id="invitationRecipientNameInput" type="text" placeholder="Name / Club">
                         </div>
                         <div>
@@ -1018,17 +1039,33 @@
                         <div>
                             <label class="field-title" for="invitationRecipientDeliveryTypeInput">Versandart</label>
                             <select id="invitationRecipientDeliveryTypeInput">
-                                <option value="bcc" selected>BCC</option>
                                 <option value="to">An</option>
+                                <option value="cc">Cc</option>
+                                <option value="bcc" selected>Bcc</option>
                             </select>
                         </div>
                     </div>
-                    <div class="admin-settings-row">
-                        <div id="invitationRecipientList" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
+                    <div class="button-row">
                         <button class="btn btn-secondary" type="button" onclick="saveInvitationRecipient()">Empfänger hinzufügen</button>
                     </div>
                 </div>
+                <div class="editor-section">
+                    <h3>Excel Import</h3>
+                    <div class="admin-settings-meta">Erwartete Spalten: Name, E-Mail, Versandart. Versandart kann An, Cc oder Bcc sein.</div>
+                    <div class="button-row">
+                        <input id="invitationRecipientImportInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importInvitationRecipientsFromFile(this.files && this.files[0]); this.value = '';">
+                        <button class="btn btn-secondary" type="button" onclick="triggerInvitationRecipientImport()">Excel Datei hochladen</button>
+                    </div>
+                </div>
+                <div class="editor-section">
+                    <h3>Aktive Empfänger</h3>
+                    <div id="invitationRecipientList" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
+                </div>
             </div>
+            <div class="button-row">
+                <button class="btn btn-secondary" type="button" onclick="closeInvitationRecipientModal()">Schließen</button>
+            </div>
+            <div id="invitationRecipientMessage" class="modal-message"></div>
         </div>
     </div>
 
@@ -1783,13 +1820,21 @@
         }
 
         function normalizeInvitationRecipientRecord(recipient) {
+            const rawDeliveryType = String(recipient?.delivery_type || recipient?.deliveryType || "bcc").trim().toLowerCase();
+            const deliveryType = rawDeliveryType === "to" || rawDeliveryType === "cc" ? rawDeliveryType : "bcc";
             return {
                 id: String(recipient?.id || "").trim(),
                 name: String(recipient?.name || "").trim(),
                 email: String(recipient?.email || "").trim().toLowerCase(),
-                deliveryType: String(recipient?.delivery_type || recipient?.deliveryType || "bcc").trim().toLowerCase() === "to" ? "to" : "bcc",
+                deliveryType,
                 active: Boolean(recipient?.active ?? true)
             };
+        }
+
+        function getInvitationRecipientDeliveryLabel(deliveryType) {
+            if (deliveryType === "to") return "An";
+            if (deliveryType === "cc") return "Cc";
+            return "Bcc";
         }
 
         async function loadInvitationRecipients() {
@@ -1819,6 +1864,16 @@
 
         function renderInvitationRecipients() {
             const list = document.getElementById("invitationRecipientList");
+            const summary = document.getElementById("invitationRecipientSummary");
+            const activeCount = invitationRecipients.length;
+            const toCount = invitationRecipients.filter((recipient) => recipient.deliveryType === "to").length;
+            const ccCount = invitationRecipients.filter((recipient) => recipient.deliveryType === "cc").length;
+            const bccCount = invitationRecipients.filter((recipient) => recipient.deliveryType === "bcc").length;
+            if (summary) {
+                summary.textContent = activeCount
+                    ? `${activeCount} aktive Empfänger: ${toCount} An, ${ccCount} Cc, ${bccCount} Bcc.`
+                    : "Noch keine aktiven Empfänger.";
+            }
             if (!list) return;
             if (!isCalendarAdmin) {
                 list.textContent = "";
@@ -1834,10 +1889,39 @@
             }
             list.innerHTML = invitationRecipients.map((recipient) => `
                 <div class="feed-actions" style="margin:0 0 6px;padding:0;">
-                    <span class="badge">${escapeHtml(recipient.deliveryType === "to" ? "An" : "BCC")} · ${escapeHtml(recipient.name || recipient.email)} · ${escapeHtml(recipient.email)}</span>
+                    <span class="badge">${escapeHtml(getInvitationRecipientDeliveryLabel(recipient.deliveryType))} · ${escapeHtml(recipient.name || recipient.email)} · ${escapeHtml(recipient.email)}</span>
                     <button class="mini-btn danger" type="button" onclick="deactivateInvitationRecipient('${escapeHtml(recipient.id)}')">Entfernen</button>
                 </div>
             `).join("");
+        }
+
+        function openInvitationRecipientModal() {
+            if (!isCalendarAdmin) return;
+            renderInvitationRecipients();
+            const modal = document.getElementById("invitationRecipientModal");
+            if (modal) modal.classList.add("open");
+        }
+
+        function closeInvitationRecipientModal() {
+            const modal = document.getElementById("invitationRecipientModal");
+            if (modal) modal.classList.remove("open");
+        }
+
+        function handleInvitationRecipientBackdrop(event) {
+            if (event.target?.id === "invitationRecipientModal") {
+                closeInvitationRecipientModal();
+            }
+        }
+
+        function setInvitationRecipientMessage(message, type = "") {
+            setModalMessage("invitationRecipientMessage", message, type);
+        }
+
+        function normalizeInvitationDeliveryType(value) {
+            const text = String(value || "").trim().toLowerCase();
+            if (["an", "to", "hauptempfaenger", "hauptempfänger"].includes(text)) return "to";
+            if (["cc", "kopie"].includes(text)) return "cc";
+            return "bcc";
         }
 
         async function saveInvitationRecipient() {
@@ -1847,9 +1931,9 @@
             const deliveryTypeInput = document.getElementById("invitationRecipientDeliveryTypeInput");
             const name = String(nameInput?.value || "").trim();
             const email = String(emailInput?.value || "").trim().toLowerCase();
-            const deliveryType = String(deliveryTypeInput?.value || "bcc").trim().toLowerCase() === "to" ? "to" : "bcc";
+            const deliveryType = normalizeInvitationDeliveryType(deliveryTypeInput?.value || "bcc");
             if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                showCalendarMessage("Bitte eine gültige Empfänger-E-Mail eintragen.", "error");
+                setInvitationRecipientMessage("Bitte eine gültige Empfänger-E-Mail eintragen.", "error");
                 return;
             }
             try {
@@ -1868,10 +1952,70 @@
                 if (emailInput) emailInput.value = "";
                 await loadInvitationRecipients();
                 renderInvitationRecipients();
+                setInvitationRecipientMessage("Empfänger wurde gespeichert.", "ok");
                 showCalendarMessage("Empfänger wurde gespeichert.", "ok");
             } catch (error) {
                 console.warn("Empfänger konnte nicht gespeichert werden:", error);
-                showCalendarMessage(`Empfänger konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+                setInvitationRecipientMessage(`Empfänger konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
+        }
+
+        function triggerInvitationRecipientImport() {
+            const input = document.getElementById("invitationRecipientImportInput");
+            if (input) input.click();
+        }
+
+        function getRecipientImportValue(row, candidates) {
+            const entries = Object.entries(row || {});
+            const normalizedCandidates = candidates.map((item) => normalizePassLookupName(item));
+            const match = entries.find(([key]) => normalizedCandidates.includes(normalizePassLookupName(key)));
+            return match ? match[1] : "";
+        }
+
+        function getRecipientImportDeliveryType(row) {
+            const directValue = getRecipientImportValue(row, ["Versandart", "Typ", "Senden als"]);
+            if (directValue) return normalizeInvitationDeliveryType(directValue);
+            const hasValue = (value) => {
+                const text = String(value || "").trim().toLowerCase();
+                return Boolean(text) && !["0", "nein", "no", "false", "-"].includes(text);
+            };
+            if (hasValue(getRecipientImportValue(row, ["An", "To"]))) return "to";
+            if (hasValue(getRecipientImportValue(row, ["Cc", "Kopie"]))) return "cc";
+            return "bcc";
+        }
+
+        async function importInvitationRecipientsFromFile(file) {
+            if (!isCalendarAdmin || !supportsInvitationRecipients || !file) return;
+            if (!window.XLSX) {
+                setInvitationRecipientMessage("Excel-Bibliothek konnte nicht geladen werden.", "error");
+                return;
+            }
+            try {
+                const buffer = await file.arrayBuffer();
+                const workbook = XLSX.read(buffer, { type: "array" });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                const recipients = rows.map((row) => {
+                    const name = String(getRecipientImportValue(row, ["Name", "Club", "Verein", "Empfänger", "Empfaenger"]) || "").trim();
+                    const email = String(getRecipientImportValue(row, ["E-Mail", "Email", "Mail", "Adresse"]) || "").trim().toLowerCase();
+                    const deliveryType = getRecipientImportDeliveryType(row);
+                    return { name, email, recipient_group: "clubs", delivery_type: deliveryType, active: true, updated_at: new Date().toISOString() };
+                }).filter((row) => row.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email));
+                if (!recipients.length) {
+                    setInvitationRecipientMessage("Keine gültigen Empfänger in der Datei gefunden.", "error");
+                    return;
+                }
+                const { error } = await supabaseClient
+                    .from("calendar_invitation_recipients")
+                    .upsert(recipients, { onConflict: "email,recipient_group" });
+                if (error) throw error;
+                await loadInvitationRecipients();
+                renderInvitationRecipients();
+                setInvitationRecipientMessage(`${recipients.length} Empfänger wurden importiert/aktualisiert.`, "ok");
+                showCalendarMessage(`${recipients.length} Empfänger wurden importiert/aktualisiert.`, "ok");
+            } catch (error) {
+                console.warn("Empfängerimport fehlgeschlagen:", error);
+                setInvitationRecipientMessage(`Empfängerimport fehlgeschlagen: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
@@ -1885,10 +2029,11 @@
                 if (error) throw error;
                 await loadInvitationRecipients();
                 renderInvitationRecipients();
+                setInvitationRecipientMessage("Empfänger wurde entfernt.", "ok");
                 showCalendarMessage("Empfänger wurde entfernt.", "ok");
             } catch (error) {
                 console.warn("Empfänger konnte nicht entfernt werden:", error);
-                showCalendarMessage(`Empfänger konnte nicht entfernt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+                setInvitationRecipientMessage(`Empfänger konnte nicht entfernt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
@@ -4937,6 +5082,7 @@
                 closeManualEventModal();
                 closePlanningEventModal();
                 closeInvitationEditorModal();
+                closeInvitationRecipientModal();
             }
         });
 

@@ -515,12 +515,15 @@ Deno.serve(async (request) => {
       .map((row: RecipientRow) => ({
         ...row,
         email: normalizeEmail(row.email),
-        delivery_type: String(row.delivery_type || "bcc").trim().toLowerCase() === "to" ? "to" : "bcc",
+        delivery_type: ["to", "cc"].includes(String(row.delivery_type || "").trim().toLowerCase())
+          ? String(row.delivery_type || "").trim().toLowerCase()
+          : "bcc",
       }))
       .filter((row: RecipientRow) => row.email);
     const toEmails = Array.from(new Set(recipients.filter((row: RecipientRow) => row.delivery_type === "to").map((row: RecipientRow) => row.email)));
-    const bccEmails = Array.from(new Set(recipients.filter((row: RecipientRow) => row.delivery_type !== "to").map((row: RecipientRow) => row.email)));
-    const uniqueEmails = Array.from(new Set([...toEmails, ...bccEmails]));
+    const ccEmails = Array.from(new Set(recipients.filter((row: RecipientRow) => row.delivery_type === "cc").map((row: RecipientRow) => row.email)));
+    const bccEmails = Array.from(new Set(recipients.filter((row: RecipientRow) => row.delivery_type === "bcc").map((row: RecipientRow) => row.email)));
+    const uniqueEmails = Array.from(new Set([...toEmails, ...ccEmails, ...bccEmails]));
     if (!uniqueEmails.length) {
       return jsonResponse({ ok: true, skipped: true, reason: "no-recipients" });
     }
@@ -563,6 +566,7 @@ Deno.serve(async (request) => {
       const info = await transporter.sendMail({
         from: mailFrom,
         to: toEmails.length ? toEmails : mailFrom,
+        cc: ccEmails.length ? ccEmails : undefined,
         bcc: bccEmails.length ? bccEmails : undefined,
         subject,
         html: buildHtml(reminder).replace(/Ausschreibung/g, "Einladung"),
@@ -623,6 +627,7 @@ Deno.serve(async (request) => {
         const info = await transporter.sendMail({
           from: mailFrom,
           to: toEmails.length ? toEmails : mailFrom,
+          cc: ccEmails.length ? ccEmails : undefined,
           bcc: bccEmails.length ? bccEmails : undefined,
           subject,
           html: buildHtml(reminder),
