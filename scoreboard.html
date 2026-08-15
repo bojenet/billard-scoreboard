@@ -558,7 +558,7 @@
         }
 
         #endScreen .end-box h1 {
-            font-size: clamp(28px, 3vw, 42px);
+            font-size: clamp(22px, 2.2vw, 32px);
             line-height: 1.05;
             margin: 0;
             text-align: left;
@@ -583,14 +583,15 @@
 
         .end-stats {
             display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
         }
 
         .end-player {
             display: grid;
-            grid-template-columns: minmax(220px, 1.5fr) 4fr;
+            grid-template-columns: 1fr;
             align-items: center;
-            gap: 22px;
+            gap: 8px;
             background: rgba(5, 14, 40, .3);
             border: 1px solid rgba(255, 255, 255, .1);
             border-radius: 14px;
@@ -605,7 +606,7 @@
         .end-player-stats {
             display: grid;
             grid-template-columns: repeat(5, minmax(0, 1fr));
-            gap: 8px;
+            gap: 6px;
             margin: 0;
         }
 
