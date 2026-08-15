@@ -1307,8 +1307,8 @@
                             <select id="invitationEditorMode" onchange="handleInvitationModeChange(this.value)"></select>
                         </div>
                         <div>
-                            <label class="field-title" for="invitationEditorOverrideReason">Begründung bei Abweichung</label>
-                            <input id="invitationEditorOverrideReason" type="text" placeholder="z. B. Entscheidung Turnierleitung" oninput="updateInvitationDraftField('overrideReason', this.value)">
+                            <label class="field-title" for="invitationEditorOverrideReason">Hinweis zur Moduswahl</label>
+                            <input id="invitationEditorOverrideReason" type="text" placeholder="Optionaler Hinweis" oninput="updateInvitationDraftField('overrideReason', this.value)">
                         </div>
                         <div>
                             <label class="field-title" for="invitationEditorPlayingTargetPoints">Punkte</label>
@@ -3689,9 +3689,7 @@
             return {
                 ...mode,
                 code,
-                summary: invitation?.overrideReason
-                    ? `Turniermodus ${code} nach Festlegung durch Landessportwart bzw. Turnierleitung.`
-                    : `Turniermodus ${code} gemäß STO-BTK Anhang Turniermodi.`,
+                summary: `Turniermodus ${code} gemäß STO-BTK Anhang Turniermodi.`,
                 scoring: getScoringText(mode)
             };
         }
@@ -4046,12 +4044,12 @@
             const mode = SPORTORDNUNG_MODES[selected];
             const count = Array.isArray(currentInvitationDraft.participants) ? currentInvitationDraft.participants.length : 0;
             const deviation = selected !== suggested
-                ? ` Abweichung vom STO-Vorschlag ${suggested}; bitte Begründung ausfüllen.`
+                ? ` Manuell gewählt; STO-Vorschlag wäre ${suggested}.`
                 : "";
             el.textContent = mode
                 ? `${count} Teilnehmer: ${selected} - ${mode.details}.${deviation}`
                 : `${count} Teilnehmer: Kein Modus gewählt.`;
-            el.className = "modal-message" + (selected !== suggested ? " error" : " ok");
+            el.className = "modal-message ok";
         }
 
         function renderInvitationParticipantEditor() {
@@ -4401,10 +4399,6 @@
                 if (targetInput) targetInput.focus();
                 return;
             }
-            if (selected !== suggested && !String(currentInvitationDraft.overrideReason || "").trim()) {
-                setModalMessage("invitationEditorMessage", "Bitte eine Begründung für die Modusabweichung eintragen.", "error");
-                return;
-            }
             drawInvitationPdf(cloneInvitationDraft(currentInvitationDraft));
             setModalMessage("invitationEditorMessage", "PDF wurde erstellt und als Download gestartet.", "ok");
         }
@@ -4419,10 +4413,6 @@
                 setModalMessage("invitationEditorMessage", "Bitte Punkte und Aufnahmen eintragen, bevor die Einladung versendet wird.", "error");
                 const targetInput = document.getElementById(!targetPoints ? "invitationEditorPlayingTargetPoints" : "invitationEditorPlayingTargetInnings");
                 if (targetInput) targetInput.focus();
-                return;
-            }
-            if (selected !== suggested && !String(currentInvitationDraft.overrideReason || "").trim()) {
-                setModalMessage("invitationEditorMessage", "Bitte eine Begründung für die Modusabweichung eintragen.", "error");
                 return;
             }
             const recipientStats = getInvitationRecipientStats();
