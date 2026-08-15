@@ -4014,21 +4014,42 @@
             }
         }
 
+        function isInvitationModeSelectable(code) {
+            const mode = SPORTORDNUNG_MODES[code];
+            if (!mode) return false;
+            return !/\b2\s+Turniertage\b/i.test(mode.details || "");
+        }
+
+        function getInvitationModeParticipantCount(code) {
+            const mode = SPORTORDNUNG_MODES[code];
+            const match = String(mode?.details || "").match(/\b(\d+)\s+Teilnehmer\b/i);
+            return match ? Number(match[1]) : null;
+        }
+
+        function getSelectableInvitationModeCode(invitation, availableCodes) {
+            const automaticCode = getSportordnungModeCode(invitation);
+            if (availableCodes.includes(invitation?.selectedModeCode)) return invitation.selectedModeCode;
+            if (availableCodes.includes(automaticCode)) return automaticCode;
+
+            const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
+            const sameParticipantCountCode = availableCodes.find((code) => getInvitationModeParticipantCount(code) === participants.length);
+            return sameParticipantCountCode || availableCodes[0] || "";
+        }
+
         function getSortedModeCodes() {
             return Object.keys(SPORTORDNUNG_MODES).sort((left, right) => {
                 const leftNumber = Number(left.replace(/\D/g, ""));
                 const rightNumber = Number(right.replace(/\D/g, ""));
                 return leftNumber - rightNumber;
-            }).filter((code) => code !== "T5");
+            }).filter(isInvitationModeSelectable);
         }
 
         function renderInvitationModeSelect() {
             const select = document.getElementById("invitationEditorMode");
             if (!select || !currentInvitationDraft) return;
             const availableCodes = getSortedModeCodes();
-            const selected = availableCodes.includes(currentInvitationDraft.selectedModeCode)
-                ? currentInvitationDraft.selectedModeCode
-                : getSportordnungModeCode(currentInvitationDraft);
+            const selected = getSelectableInvitationModeCode(currentInvitationDraft, availableCodes);
+            currentInvitationDraft.selectedModeCode = selected;
             select.innerHTML = availableCodes.map((code) => {
                 const mode = SPORTORDNUNG_MODES[code];
                 return `<option value="${escapeHtml(code)}"${code === selected ? " selected" : ""}>${escapeHtml(`${code} - ${mode.title}`)}</option>`;
