@@ -3159,6 +3159,8 @@
             "large|dreiband|3": { points: 20, innings: 40 }
         };
 
+        const DEFAULT_INVITATION_PLAYING_TARGET = { points: "100", innings: "20" };
+
         const SPORTORDNUNG_MODES = {
             T0: {
                 title: "Turnier findet nicht statt",
@@ -3631,7 +3633,7 @@
             }
 
             const sportordnungTarget = getSportordnungTarget(invitation);
-            if (!sportordnungTarget) return null;
+            if (!sportordnungTarget) return { ...DEFAULT_INVITATION_PLAYING_TARGET };
             return {
                 points: String(sportordnungTarget.points),
                 innings: String(sportordnungTarget.innings)
