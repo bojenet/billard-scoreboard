@@ -4052,7 +4052,9 @@
             currentInvitationDraft.selectedModeCode = selected;
             select.innerHTML = availableCodes.map((code) => {
                 const mode = SPORTORDNUNG_MODES[code];
-                return `<option value="${escapeHtml(code)}"${code === selected ? " selected" : ""}>${escapeHtml(`${code} - ${mode.title}`)}</option>`;
+                const participantCount = getInvitationModeParticipantCount(code);
+                const participantLabel = participantCount ? ` (${participantCount} Spieler)` : "";
+                return `<option value="${escapeHtml(code)}"${code === selected ? " selected" : ""}>${escapeHtml(`${code} - ${mode.title}${participantLabel}`)}</option>`;
             }).join("");
             renderInvitationModeInfo();
         }
