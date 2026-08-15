@@ -557,26 +557,70 @@
             margin-bottom: 50px;
         }
 
+        #endScreen .end-box h1 {
+            font-size: clamp(28px, 3vw, 42px);
+            line-height: 1.05;
+            margin: 0;
+            text-align: left;
+        }
+
         /* Spieler Zusammenfassung */
 
-        .end-stats {
-            display: flex;
-            justify-content: space-around;
-            margin-bottom: 50px;
-        }
-
-        .end-player {
-            text-align: center;
-        }
-
-        .end-player h2 {
-            font-size: 32px;
+        .end-summary {
+            display: grid;
+            gap: 14px;
             margin-bottom: 20px;
         }
 
-        .end-player div {
+        .end-summary-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 24px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, .14);
+        }
+
+        .end-stats {
+            display: grid;
+            gap: 8px;
+        }
+
+        .end-player {
+            display: grid;
+            grid-template-columns: minmax(220px, 1.5fr) 4fr;
+            align-items: center;
+            gap: 22px;
+            background: rgba(5, 14, 40, .3);
+            border: 1px solid rgba(255, 255, 255, .1);
+            border-radius: 14px;
+            padding: 10px 16px;
+        }
+
+        .end-player h2 {
+            font-size: 22px;
+            margin: 0 0 2px;
+        }
+
+        .end-player-stats {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 8px;
+            margin: 0;
+        }
+
+        .end-player .end-stat {
+            display: grid;
+            gap: 3px;
+            margin: 0;
+            font-size: 13px;
+            color: rgba(255, 255, 255, .68);
+        }
+
+        .end-stat strong {
+            color: #fff;
             font-size: 20px;
-            margin: 8px 0;
+            font-weight: 700;
         }
 
         /* Meta Infos */
@@ -589,26 +633,26 @@
         }
 
         .end-meta-top {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px 40px;
-            margin-bottom: 50px;
-            font-size: 18px;
+            display: flex;
+            justify-content: flex-end;
+            white-space: nowrap;
+            margin: 0;
+            font-size: 16px;
             opacity: .85;
         }
 
         .end-discipline {
-            font-size: 18px;
+            font-size: 14px;
             opacity: .7;
-            margin-bottom: 20px;
+            margin-bottom: 0;
             letter-spacing: 1px;
         }
 
         .meta-row {
             display: flex;
-            justify-content: space-between;
-            border-bottom: 1px solid rgba(255, 255, 255, .1);
-            padding: 6px 0;
+            justify-content: center;
+            gap: 8px;
+            padding: 0;
         }
 
         /* Serien Tabellen */
@@ -792,8 +836,21 @@
             }
 
             .end-stats {
-                flex-direction: column;
-                gap: 18px;
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .end-summary-head {
+                align-items: center;
+            }
+
+            .end-player {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .end-player-stats {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
             }
 
             .end-buttons {
@@ -971,40 +1028,49 @@
     <div id="endScreen" class="end-overlay">
         <div class="end-box">
 
-            <h1 id="winnerText"></h1>
+            <div class="end-summary">
+                <div class="end-summary-head">
+                    <h1 id="winnerText"></h1>
 
-            <!-- META OBEN -->
-            <div class="end-meta-top">
-
-                <div class="meta-row">
-                    <span>Dauer:</span>
-                    <span id="endDuration"></span>
-                </div>
-            </div>
-
-            <!-- SPIELER DATEN -->
-            <div class="end-stats">
-
-                <div class="end-player">
-                    <h2 id="endName1"></h2>
-                    <div class="end-discipline" id="endDisc1"></div>
-                    <div>Punkte: <span id="endScore1"></span></div>
-                    <div>Aufnahmen: <span id="endInnings1"></span></div>
-                    <div>DS: <span id="endAvg1"></span></div>
-                    <div>HR: <span id="endHs1"></span></div>
-                    <div>Prozent: <span id="endPercent1"></span></div>
+                    <!-- META OBEN -->
+                    <div class="end-meta-top">
+                        <div class="meta-row">
+                            <span>Dauer:</span>
+                            <span id="endDuration"></span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="end-player">
-                    <h2 id="endName2"></h2>
-                    <div class="end-discipline" id="endDisc2"></div>
-                    <div>Punkte: <span id="endScore2"></span></div>
-                    <div>Aufnahmen: <span id="endInnings2"></span></div>
-                    <div>DS: <span id="endAvg2"></span></div>
-                    <div>HR: <span id="endHs2"></span></div>
-                    <div>Prozent: <span id="endPercent2"></span></div>
-                </div>
+                <!-- SPIELER DATEN -->
+                <div class="end-stats">
+                    <div class="end-player">
+                        <div class="end-player-name">
+                            <h2 id="endName1"></h2>
+                            <div class="end-discipline" id="endDisc1"></div>
+                        </div>
+                        <div class="end-player-stats">
+                            <div class="end-stat">Punkte<strong id="endScore1"></strong></div>
+                            <div class="end-stat">Aufnahmen<strong id="endInnings1"></strong></div>
+                            <div class="end-stat">DS<strong id="endAvg1"></strong></div>
+                            <div class="end-stat">HR<strong id="endHs1"></strong></div>
+                            <div class="end-stat">Prozent<strong id="endPercent1"></strong></div>
+                        </div>
+                    </div>
 
+                    <div class="end-player">
+                        <div class="end-player-name">
+                            <h2 id="endName2"></h2>
+                            <div class="end-discipline" id="endDisc2"></div>
+                        </div>
+                        <div class="end-player-stats">
+                            <div class="end-stat">Punkte<strong id="endScore2"></strong></div>
+                            <div class="end-stat">Aufnahmen<strong id="endInnings2"></strong></div>
+                            <div class="end-stat">DS<strong id="endAvg2"></strong></div>
+                            <div class="end-stat">HR<strong id="endHs2"></strong></div>
+                            <div class="end-stat">Prozent<strong id="endPercent2"></strong></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- SERIEN -->
