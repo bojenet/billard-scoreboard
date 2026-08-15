@@ -3800,7 +3800,7 @@
                 ["Beschreibung", mode.summary],
                 ["Ausspielziel", getSportordnungTargetText(invitation)],
                 ["Zusatzhinweise", invitation?.extraNotes],
-                ["Abweichung", invitation?.overrideReason]
+                ["Hinweis", invitation?.overrideReason]
             ], state.y);
             drawModeTable(doc, invitation, state, mode);
         }
@@ -4023,15 +4023,13 @@
         function renderInvitationModeSelect() {
             const select = document.getElementById("invitationEditorMode");
             if (!select || !currentInvitationDraft) return;
-            const suggested = getSportordnungModeCode(currentInvitationDraft);
             const availableCodes = getSortedModeCodes();
             const selected = availableCodes.includes(currentInvitationDraft.selectedModeCode)
                 ? currentInvitationDraft.selectedModeCode
-                : suggested;
+                : getSportordnungModeCode(currentInvitationDraft);
             select.innerHTML = availableCodes.map((code) => {
                 const mode = SPORTORDNUNG_MODES[code];
-                const suffix = code === suggested ? " (Vorschlag)" : "";
-                return `<option value="${escapeHtml(code)}"${code === selected ? " selected" : ""}>${escapeHtml(`${code} - ${mode.title}${suffix}`)}</option>`;
+                return `<option value="${escapeHtml(code)}"${code === selected ? " selected" : ""}>${escapeHtml(`${code} - ${mode.title}`)}</option>`;
             }).join("");
             renderInvitationModeInfo();
         }
@@ -4039,15 +4037,11 @@
         function renderInvitationModeInfo() {
             const el = document.getElementById("invitationEditorModeInfo");
             if (!el || !currentInvitationDraft) return;
-            const suggested = getSportordnungModeCode(currentInvitationDraft);
-            const selected = currentInvitationDraft.selectedModeCode || suggested;
+            const selected = currentInvitationDraft.selectedModeCode || getSportordnungModeCode(currentInvitationDraft);
             const mode = SPORTORDNUNG_MODES[selected];
             const count = Array.isArray(currentInvitationDraft.participants) ? currentInvitationDraft.participants.length : 0;
-            const deviation = selected !== suggested
-                ? ` Manuell gewählt; STO-Vorschlag wäre ${suggested}.`
-                : "";
             el.textContent = mode
-                ? `${count} Teilnehmer: ${selected} - ${mode.details}.${deviation}`
+                ? `${count} Teilnehmer: ${selected} - ${mode.details}.`
                 : `${count} Teilnehmer: Kein Modus gewählt.`;
             el.className = "modal-message ok";
         }
@@ -4173,9 +4167,7 @@
                 ...participant,
                 number: String(index + 1)
             }));
-            if (!currentInvitationDraft.overrideReason) {
-                currentInvitationDraft.selectedModeCode = getSportordnungModeCode(currentInvitationDraft);
-            }
+            currentInvitationDraft.selectedModeCode = getSportordnungModeCode(currentInvitationDraft);
             renderInvitationParticipantEditor();
             renderInvitationModeSelect();
         }
@@ -4389,8 +4381,6 @@
 
         function generateInvitationPdfFromEditor() {
             if (!currentInvitationDraft) return;
-            const selected = currentInvitationDraft.selectedModeCode || getSportordnungModeCode(currentInvitationDraft);
-            const suggested = getSportordnungModeCode(currentInvitationDraft);
             const targetPoints = String(currentInvitationDraft.playingTargetPoints || "").trim();
             const targetInnings = String(currentInvitationDraft.playingTargetInnings || "").trim();
             if (!targetPoints || !targetInnings) {
@@ -4405,8 +4395,6 @@
 
         async function sendInvitationPdfFromEditor() {
             if (!isCalendarAdmin || !supportsInvitationSending || !currentInvitationDraft) return;
-            const selected = currentInvitationDraft.selectedModeCode || getSportordnungModeCode(currentInvitationDraft);
-            const suggested = getSportordnungModeCode(currentInvitationDraft);
             const targetPoints = String(currentInvitationDraft.playingTargetPoints || "").trim();
             const targetInnings = String(currentInvitationDraft.playingTargetInnings || "").trim();
             if (!targetPoints || !targetInnings) {
