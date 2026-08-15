@@ -3122,7 +3122,7 @@
         const SPORTORDNUNG_MODE_SEQUENCES = {
             standard: ["T0", "T1", "T2", "T3", "T4", "T6", "T9", "T13", "T16", "T18", "T21", "T23"],
             reduced: ["T0", "T1", "T2", "T3", "T4", "T7", "T12", "T15", "T16", "T18", "T21", "T24"],
-            dreibandMbKl1: ["T0", "T1", "T2", "T3", "T5", "T8", "T11", "T14", "T17", "T19", "T22", "T23"],
+            dreibandMbKl1: ["T0", "T1", "T2", "T3", "T4", "T8", "T11", "T14", "T17", "T19", "T22", "T23"],
             dreibandMbKl2: ["T0", "T1", "T2", "T3", "T4", "T6", "T9", "T13", "T17", "T19", "T22", "T23"],
             dreibandMbKl3: ["T0", "T1", "T2", "T3", "T4", "T6", "T9", "T13", "T16", "T18", "T22", "T23"],
             grandPrix: ["T0", "T0", "T0", "T3", "T4", "T7", "T12", "T15", "T16", "T18", "T21", "T24"],
@@ -4019,15 +4019,18 @@
                 const leftNumber = Number(left.replace(/\D/g, ""));
                 const rightNumber = Number(right.replace(/\D/g, ""));
                 return leftNumber - rightNumber;
-            });
+            }).filter((code) => code !== "T5");
         }
 
         function renderInvitationModeSelect() {
             const select = document.getElementById("invitationEditorMode");
             if (!select || !currentInvitationDraft) return;
             const suggested = getSportordnungModeCode(currentInvitationDraft);
-            const selected = currentInvitationDraft.selectedModeCode || suggested;
-            select.innerHTML = getSortedModeCodes().map((code) => {
+            const availableCodes = getSortedModeCodes();
+            const selected = availableCodes.includes(currentInvitationDraft.selectedModeCode)
+                ? currentInvitationDraft.selectedModeCode
+                : suggested;
+            select.innerHTML = availableCodes.map((code) => {
                 const mode = SPORTORDNUNG_MODES[code];
                 const suffix = code === suggested ? " (Vorschlag)" : "";
                 return `<option value="${escapeHtml(code)}"${code === selected ? " selected" : ""}>${escapeHtml(`${code} - ${mode.title}${suffix}`)}</option>`;
