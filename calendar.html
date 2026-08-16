@@ -3053,7 +3053,7 @@
                             doc.setDrawColor(218, 225, 232);
                             for (let lineIndex = 1; lineIndex < dayRow.lines.length; lineIndex += 1) {
                                 const separatorY = y + 1.35 + lineIndex * eventLineHeight;
-                                doc.line(x + dayWidth + dateWidth, separatorY, x + monthWidth, separatorY);
+                                doc.line(x, separatorY, x + monthWidth, separatorY);
                             }
                         }
                     }
