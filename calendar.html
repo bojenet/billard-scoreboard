@@ -1411,6 +1411,7 @@
         const MANUAL_CATEGORY_LABEL = "Sonstige";
         const TOURNAMENT_TYPE_OPTIONS = [
             { id: "all", label: "Alle" },
+            { id: "tournaments", label: "Nur Turniere" },
             { id: "ndm", label: "NDM" },
             { id: "grand_prix", label: "Grand Prix" },
             { id: "nordcup", label: "NordCup" }
@@ -2750,6 +2751,9 @@
 
         function matchesTournamentType(event) {
             const title = String(event?.title || "");
+            if (activeTournamentTypeFilter === "tournaments") {
+                return isTournamentEvent(event);
+            }
             if (activeTournamentTypeFilter === "ndm") {
                 return /\bndm\b/i.test(title);
             }
@@ -2760,6 +2764,13 @@
                 return /nord\s?cup/i.test(title);
             }
             return true;
+        }
+
+        function isTournamentEvent(event) {
+            if (!event || event.source === "manual" || event.source === "planning") return false;
+            const title = normalizeFilterText(event.title);
+            if (!title) return false;
+            return !/\b(training|lehrgang|sitzung|versammlung|tagung|seminar|workshop|ferien|feiertag)\b/.test(title);
         }
 
         function getCalendarFeedUrl() {
