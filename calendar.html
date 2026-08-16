@@ -2865,7 +2865,17 @@
                 participantCount: 8,
                 url: "nbv_turniermodi_excel/T15_8%20Spieler%20zwei%20Vierergruppen%20Kalender-Vorlage.xlsx",
                 titleCell: "D1",
-                dateCell: "O2"
+                dateCell: "O2",
+                participantNameCells: {
+                    0: ["B5", "A6"],
+                    1: ["B21", "A22"],
+                    2: ["D21", "A25"],
+                    3: ["D5", "A9"],
+                    4: ["F5", "A12"],
+                    5: ["F21", "A28"],
+                    6: ["H21", "A31"],
+                    7: ["H5", "A15"]
+                }
             }
         };
 
@@ -4848,13 +4858,20 @@
 
             const dateSerial = getExcelDateSerial(invitation?.date || "");
             const tournamentTitle = getPdfText(invitation?.title || "");
-            if (dateSerial || tournamentTitle) {
+            if (dateSerial || tournamentTitle || templateConfig.participantNameCells) {
                 let tableauXml = decoder.decode(zipFiles[tableauPath]);
                 if (tournamentTitle && templateConfig.titleCell) {
                     tableauXml = replaceXlsxInlineStringCell(tableauXml, templateConfig.titleCell, tournamentTitle);
                 }
                 if (dateSerial && templateConfig.dateCell) {
                     tableauXml = replaceXlsxNumberCell(tableauXml, templateConfig.dateCell, dateSerial);
+                }
+                if (templateConfig.participantNameCells) {
+                    participants.forEach((participant, index) => {
+                        (templateConfig.participantNameCells[index] || []).forEach((cellAddress) => {
+                            tableauXml = replaceXlsxInlineStringCell(tableauXml, cellAddress, participant.name || "");
+                        });
+                    });
                 }
                 zipFiles[tableauPath] = encoder.encode(tableauXml);
             }
