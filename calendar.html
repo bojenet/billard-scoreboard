@@ -4288,6 +4288,148 @@
             return sheet;
         }
 
+        function getResultWorkbookDisplayNames(participants) {
+            const parsed = participants.map((participant) => {
+                const cleanName = getPdfText(participant?.name || "");
+                const nameWithoutTitle = cleanName.replace(/\bdr\.?\s*/gi, "").trim();
+                const parts = nameWithoutTitle.split(/\s+/).filter(Boolean);
+                const lastName = parts.length > 1 ? parts[parts.length - 1] : nameWithoutTitle;
+                const firstName = parts.length > 1 ? parts.slice(0, -1).join(" ") : "";
+                return {
+                    cleanName,
+                    firstName,
+                    lastName: lastName || cleanName
+                };
+            });
+            const lastNameCounts = parsed.reduce((counts, item) => {
+                const key = normalizeSportordnungText(item.lastName);
+                counts[key] = (counts[key] || 0) + 1;
+                return counts;
+            }, {});
+            return parsed.map((item) => {
+                const key = normalizeSportordnungText(item.lastName);
+                if (lastNameCounts[key] <= 1) return item.lastName || item.cleanName;
+                const initial = item.firstName ? `${item.firstName.charAt(0).toUpperCase()}.` : "";
+                return [item.lastName, initial].filter(Boolean).join(", ") || item.cleanName;
+            });
+        }
+
+        function getResultMatrixPosition(playerSeed, opponentSeed, metric) {
+            const playerIndex = Number(playerSeed) - 1;
+            const opponentIndex = Number(opponentSeed) - 1;
+            if (playerIndex < 0 || opponentIndex < 0 || playerIndex === opponentIndex) return null;
+            const baseRow = 5 + playerIndex * 3;
+            const baseColumn = 1 + opponentIndex * 2;
+            if (metric === "balls") return { row: baseRow, column: baseColumn };
+            if (metric === "innings") return { row: baseRow, column: baseColumn + 1 };
+            if (metric === "points") return { row: baseRow + 1, column: baseColumn };
+            if (metric === "average") return { row: baseRow + 2, column: baseColumn };
+            if (metric === "highRun") return { row: baseRow + 2, column: baseColumn + 1 };
+            return null;
+        }
+
+        function getResultMatrixA1Reference(player, opponent, metric) {
+            const position = getResultMatrixPosition(player?.seed, opponent?.seed, metric);
+            if (!position || !window.XLSX) return "";
+            return `'Spielplan Eingabe'!${XLSX.utils.encode_cell({ r: position.row, c: position.column })}`;
+        }
+
+        function getBlankSafeResultMatrixValueFormula(player, opponent, metric) {
+            const ref = getResultMatrixA1Reference(player, opponent, metric);
+            return ref ? `IF(${ref}="","",${ref})` : "";
+        }
+
+        function getResultSummaryCell(rowIndex, columnIndex) {
+            if (!window.XLSX) return "";
+            return XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
+        }
+
+        function buildResultInputSheet(workbook, invitation, participants, matches, target) {
+            const playerNames = getResultWorkbookDisplayNames(participants);
+            const title = getPdfText(invitation?.title || "NBV Ergebnisformular");
+            const location = getPdfText(invitation?.locationName || "");
+            const dateText = formatInvitationDate(invitation?.date) || invitation?.date || "";
+            const columnCount = 15;
+            const rows = [
+                ["2=gewonnen    1=unentschieden", "", "", title, "", "", "", "", "", "", "", "", "", "", ""],
+                ["0=verloren", "", "", "", "", "", "", "", "", "", "Ausrichter:", location, "", "", ""],
+                ["", "", "", "", "", "", "", "", "", "", "Datum:", dateText, "", "", ""],
+                [],
+                ["Name", "", "", "", "", "", "", "", "", "Partie-punkte", "Bälle", "Aufnahmen", "DS", "HS", "Platz"]
+            ];
+            const merges = [
+                { s: { r: 0, c: 3 }, e: { r: 0, c: 8 } },
+                { s: { r: 1, c: 11 }, e: { r: 1, c: 14 } },
+                { s: { r: 2, c: 11 }, e: { r: 2, c: 14 } }
+            ];
+
+            playerNames.forEach((name, index) => {
+                const column = 1 + index * 2;
+                rows[4][column] = name;
+                merges.push({ s: { r: 4, c: column }, e: { r: 4, c: column + 1 } });
+            });
+
+            participants.forEach((participant, playerIndex) => {
+                const baseRow = 5 + playerIndex * 3;
+                const topRow = new Array(columnCount).fill("");
+                const middleRow = new Array(columnCount).fill("");
+                const bottomRow = new Array(columnCount).fill("");
+                topRow[0] = playerNames[playerIndex] || participant.name;
+                merges.push({ s: { r: baseRow, c: 0 }, e: { r: baseRow + 2, c: 0 } });
+
+                participants.forEach((opponent, opponentIndex) => {
+                    const column = 1 + opponentIndex * 2;
+                    if (playerIndex === opponentIndex) {
+                        topRow[column] = "Bälle";
+                        topRow[column + 1] = "Aufn.";
+                        middleRow[column] = "Partiepunkte";
+                        bottomRow[column] = "DS";
+                        bottomRow[column + 1] = "HS";
+                        merges.push({ s: { r: baseRow + 1, c: column }, e: { r: baseRow + 1, c: column + 1 } });
+                        return;
+                    }
+                    const ballsRef = getResultSummaryCell(baseRow, column);
+                    const opponentBallsRef = getResultSummaryCell(5 + opponentIndex * 3, 1 + playerIndex * 2);
+                    const inningsRef = getResultSummaryCell(baseRow, column + 1);
+                    middleRow[column] = formulaCell(`IF(OR(${ballsRef}="",${opponentBallsRef}=""),"",IF(${ballsRef}>${opponentBallsRef},2,IF(${ballsRef}<${opponentBallsRef},0,1)))`);
+                    bottomRow[column] = formulaCell(`IF(${inningsRef}>0,TRUNC(${ballsRef}/${inningsRef},3),"")`);
+                    merges.push({ s: { r: baseRow + 1, c: column }, e: { r: baseRow + 1, c: column + 1 } });
+                });
+
+                const opponentRefs = participants
+                    .map((opponent, opponentIndex) => opponentIndex === playerIndex ? null : ({ opponent, opponentIndex }))
+                    .filter(Boolean);
+                const sumRefs = (metric) => opponentRefs
+                    .map(({ opponent }) => getResultMatrixA1Reference(participant, opponent, metric).replace("'Spielplan Eingabe'!", ""))
+                    .filter(Boolean)
+                    .join(",");
+                const maxRefs = (metric) => opponentRefs
+                    .map(({ opponent }) => getResultMatrixA1Reference(participant, opponent, metric).replace("'Spielplan Eingabe'!", ""))
+                    .filter(Boolean)
+                    .join(",");
+                const ballsRefs = sumRefs("balls");
+                const pointsRefs = sumRefs("points");
+                const inningsRefs = sumRefs("innings");
+                const highRunRefs = maxRefs("highRun");
+                topRow[9] = formulaCell(`IF(COUNTA(${ballsRefs})=0,"",SUM(${pointsRefs}))`);
+                topRow[10] = formulaCell(`IF(COUNTA(${ballsRefs})=0,"",SUM(${ballsRefs}))`);
+                topRow[11] = formulaCell(`IF(COUNTA(${inningsRefs})=0,"",SUM(${inningsRefs}))`);
+                topRow[12] = formulaCell(`IF(${getResultSummaryCell(baseRow, 11)}>0,TRUNC(${getResultSummaryCell(baseRow, 10)}/${getResultSummaryCell(baseRow, 11)},3),"")`);
+                topRow[13] = formulaCell(`IF(COUNTA(${highRunRefs})=0,"",MAX(${highRunRefs}))`);
+                topRow[14] = formulaCell(`'Auswertung'!A${playerIndex + 2}`);
+                for (let column = 9; column <= 14; column += 1) {
+                    merges.push({ s: { r: baseRow, c: column }, e: { r: baseRow + 2, c: column } });
+                }
+
+                rows.push(topRow, middleRow, bottomRow);
+            });
+
+            const sheet = appendWorkbookSheet(workbook, "Spielplan Eingabe", rows, [18, 10, 10, 10, 10, 10, 10, 10, 10, 12, 10, 12, 10, 8, 8]);
+            sheet["!merges"] = merges;
+            sheet["!freeze"] = { xSplit: 1, ySplit: 5 };
+            return sheet;
+        }
+
         function buildResultWorkbookXlsx(invitation) {
             if (!window.XLSX) {
                 throw new Error("Die XLSX-Bibliothek konnte nicht geladen werden.");
@@ -4323,51 +4465,22 @@
                 ])
             ], [8, 12, 28, 18, 14]);
 
-            appendWorkbookSheet(workbook, "Spielplan Eingabe", [
-                ["Spielplan / Ergebniseingabe"],
-                [`Ausspielziel: ${target.points || ""} Punkte / ${target.innings || ""} Aufnahmen`],
-                [],
-                ["Nr.", "Runde", "Tisch", "Setz A", "Spieler A", "Verein A", "Bälle A", "Aufn. A", "HS A", "Setz B", "Spieler B", "Verein B", "Bälle B", "Aufn. B", "HS B", "PP A", "PP B", "GD A", "GD B", "Status"],
-                ...matches.map((match, index) => {
-                    const row = index + 5;
-                    return [
-                        match.no,
-                        match.round,
-                        match.table,
-                        Number(match.a.seed) || match.a.seed,
-                        match.a.name,
-                        match.a.club,
-                        "",
-                        "",
-                        "",
-                        Number(match.b.seed) || match.b.seed,
-                        match.b.name,
-                        match.b.club,
-                        "",
-                        "",
-                        "",
-                        formulaCell(`IF(OR(G${row}="",M${row}=""),"",IF(G${row}>M${row},2,IF(G${row}<M${row},0,1)))`),
-                        formulaCell(`IF(OR(G${row}="",M${row}=""),"",IF(M${row}>G${row},2,IF(M${row}<G${row},0,1)))`),
-                        formulaCell(`IF(H${row}>0,TRUNC(G${row}/H${row},3),"")`),
-                        formulaCell(`IF(N${row}>0,TRUNC(M${row}/N${row},3),"")`),
-                        formulaCell(`IF(OR(G${row}="",H${row}="",M${row}="",N${row}=""),"offen","ok")`)
-                    ];
-                })
-            ], [6, 8, 8, 8, 24, 14, 10, 10, 8, 8, 24, 14, 10, 10, 8, 8, 8, 10, 10, 10]);
+            buildResultInputSheet(workbook, invitation, participants, matches, target);
 
             appendWorkbookSheet(workbook, "Auswertung", [
                 ["Rang", "Setz.", "Name", "Partie-Punkte", "Bälle", "Aufn.", "GD", "HS", "Sortierwert"],
                 ...participants.map((participant, index) => {
                     const row = index + 2;
+                    const inputRow = 6 + index * 3;
                     return [
                         formulaCell(`IF(D${row}="","",RANK(I${row},$I$2:$I$5,0))`),
                         Number(participant.seed) || participant.seed,
                         participant.name,
-                        formulaCell(`SUMIF('Spielplan Eingabe'!$D$5:$D$10,B${row},'Spielplan Eingabe'!$P$5:$P$10)+SUMIF('Spielplan Eingabe'!$J$5:$J$10,B${row},'Spielplan Eingabe'!$Q$5:$Q$10)`),
-                        formulaCell(`SUMIF('Spielplan Eingabe'!$D$5:$D$10,B${row},'Spielplan Eingabe'!$G$5:$G$10)+SUMIF('Spielplan Eingabe'!$J$5:$J$10,B${row},'Spielplan Eingabe'!$M$5:$M$10)`),
-                        formulaCell(`SUMIF('Spielplan Eingabe'!$D$5:$D$10,B${row},'Spielplan Eingabe'!$H$5:$H$10)+SUMIF('Spielplan Eingabe'!$J$5:$J$10,B${row},'Spielplan Eingabe'!$N$5:$N$10)`),
-                        formulaCell(`IF(F${row}>0,TRUNC(E${row}/F${row},3),"")`),
-                        formulaCell(`MAX(MAXIFS('Spielplan Eingabe'!$I$5:$I$10,'Spielplan Eingabe'!$D$5:$D$10,B${row}),MAXIFS('Spielplan Eingabe'!$O$5:$O$10,'Spielplan Eingabe'!$J$5:$J$10,B${row}))`),
+                        formulaCell(`'Spielplan Eingabe'!J${inputRow}`),
+                        formulaCell(`'Spielplan Eingabe'!K${inputRow}`),
+                        formulaCell(`'Spielplan Eingabe'!L${inputRow}`),
+                        formulaCell(`'Spielplan Eingabe'!M${inputRow}`),
+                        formulaCell(`'Spielplan Eingabe'!N${inputRow}`),
                         formulaCell(`IF(D${row}="","",D${row}+G${row}/1000+E${row}/100000000)`)
                     ];
                 })
@@ -4379,12 +4492,12 @@
                 "",
                 Number(match.a.passNo) || match.a.passNo,
                 Number(match.b.passNo) || match.b.passNo,
-                formulaCell(getBlankSafeScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 7, 13)),
-                formulaCell(getBlankSafeScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 7, 13)),
-                formulaCell(getBlankSafeScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 8, 14)),
-                formulaCell(getBlankSafeScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 8, 14)),
-                formulaCell(getBlankSafeScheduleValueA1Formula(match.a, match.scheduleMatch, match.scheduleRow, 9, 15)),
-                formulaCell(getBlankSafeScheduleValueA1Formula(match.b, match.scheduleMatch, match.scheduleRow, 9, 15))
+                formulaCell(getBlankSafeResultMatrixValueFormula(match.a, match.b, "balls")),
+                formulaCell(getBlankSafeResultMatrixValueFormula(match.b, match.a, "balls")),
+                formulaCell(getBlankSafeResultMatrixValueFormula(match.a, match.b, "innings")),
+                formulaCell(getBlankSafeResultMatrixValueFormula(match.b, match.a, "innings")),
+                formulaCell(getBlankSafeResultMatrixValueFormula(match.a, match.b, "highRun")),
+                formulaCell(getBlankSafeResultMatrixValueFormula(match.b, match.a, "highRun"))
             ]), [12, 6, 6, 12, 12, 10, 10, 10, 10, 10, 10]);
 
             return workbook;
