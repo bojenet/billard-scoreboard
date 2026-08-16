@@ -4788,6 +4788,22 @@
             return replaceXlsxCell(sheetXml, address, "", content);
         }
 
+        function removeXlsxCalcChain(zipFiles, decoder, encoder) {
+            delete zipFiles["xl/calcChain.xml"];
+            const workbookRelsPath = "xl/_rels/workbook.xml.rels";
+            const contentTypesPath = "[Content_Types].xml";
+            if (zipFiles[workbookRelsPath]) {
+                const relsXml = decoder.decode(zipFiles[workbookRelsPath])
+                    .replace(/<Relationship\b[^>]*Type="http:\/\/schemas\.openxmlformats\.org\/officeDocument\/2006\/relationships\/calcChain"[^>]*\/>/g, "");
+                zipFiles[workbookRelsPath] = encoder.encode(relsXml);
+            }
+            if (zipFiles[contentTypesPath]) {
+                const contentTypesXml = decoder.decode(zipFiles[contentTypesPath])
+                    .replace(/<Override\b[^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/g, "");
+                zipFiles[contentTypesPath] = encoder.encode(contentTypesXml);
+            }
+        }
+
         function getResultWorkbookTemplateConfig(modeCode) {
             return RESULT_WORKBOOK_TEMPLATES[modeCode] || null;
         }
@@ -4843,6 +4859,7 @@
                 zipFiles[tableauPath] = encoder.encode(tableauXml);
             }
 
+            removeXlsxCalcChain(zipFiles, decoder, encoder);
             return fflate.zipSync(zipFiles, { level: 6 });
         }
 
