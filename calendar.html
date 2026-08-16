@@ -2852,7 +2852,22 @@
             return `NBV-Ergebnisformular-${datePart || "Termin"}-${titlePart || "Turnier"}.xlsx`;
         }
 
-        const T3_RESULT_WORKBOOK_TEMPLATE_URL = "nbv_turniermodi_excel/T3%2C%20T4%2C%20T7_bis%20zu%206%20Spieler%20jeder%20gegen%20jeden.xlsx";
+        const RESULT_WORKBOOK_TEMPLATES = {
+            T3: {
+                label: "T3 mit 4 Teilnehmern",
+                participantCount: 4,
+                url: "nbv_turniermodi_excel/T3%2C%20T4%2C%20T7_bis%20zu%206%20Spieler%20jeder%20gegen%20jeden.xlsx",
+                titleCell: "D1",
+                dateCell: "S2"
+            },
+            T15: {
+                label: "T15 mit 8 Teilnehmern",
+                participantCount: 8,
+                url: "nbv_turniermodi_excel/T15_8%20Spieler%20zwei%20Vierergruppen%20Kalender-Vorlage.xlsx",
+                titleCell: "D1",
+                dateCell: "O2"
+            }
+        };
 
         function getCalendarExcelFilename() {
             const seasonPart = String(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON).replace(/[^\d]+/g, "-").replace(/-$/g, "");
@@ -4430,12 +4445,12 @@
             renderInvitationModeSelect();
         }
 
-        function getResultWorkbookParticipants(invitation) {
+        function getResultWorkbookParticipants(invitation, participantCount = 4) {
             return (Array.isArray(invitation?.participants) ? invitation.participants : [])
-                .slice(0, 4)
+                .slice(0, participantCount)
                 .map((participant, index) => ({
                     seed: String(participant?.number || index + 1),
-                    passNo: String(participant?.passNo || [12092, 10338, 12094, 10019][index] || 900001 + index),
+                    passNo: String(participant?.passNo || 900001 + index),
                     name: getPdfText(participant?.name || `Spieler ${index + 1}`),
                     club: getPdfText(participant?.club || ""),
                     gd: getPdfText(participant?.seedGd || "")
@@ -4749,29 +4764,45 @@
             return type ? `${withoutType} t="${type}"` : withoutType;
         }
 
+        function replaceXlsxCell(sheetXml, address, type, content) {
+            const selfClosingRegex = new RegExp(`<c\\b((?=[^>]*\\br="${address}")[^>]*)\\/>`);
+            const selfClosingMatch = sheetXml.match(selfClosingRegex);
+            if (selfClosingMatch) {
+                const attributes = normalizeXlsxCellAttributes(selfClosingMatch[1], type);
+                return sheetXml.replace(selfClosingRegex, `<c${attributes}>${content}</c>`);
+            }
+            const pairedRegex = new RegExp(`<c\\b((?=[^>]*\\br="${address}")[^>]*)>[\\s\\S]*?<\\/c>`);
+            const pairedMatch = sheetXml.match(pairedRegex);
+            if (!pairedMatch) return sheetXml;
+            const attributes = normalizeXlsxCellAttributes(pairedMatch[1], type);
+            return sheetXml.replace(pairedRegex, `<c${attributes}>${content}</c>`);
+        }
+
         function replaceXlsxInlineStringCell(sheetXml, address, value) {
-            const regex = new RegExp(`<c\\b([^>]*\\br="${address}"[^>]*)>[\\s\\S]*?<\\/c>`);
-            const match = sheetXml.match(regex);
-            if (!match) return sheetXml;
-            const attributes = normalizeXlsxCellAttributes(match[1], "inlineStr");
             const content = value ? `<is><t>${escapeXlsxXml(value)}</t></is>` : "";
-            return sheetXml.replace(regex, `<c${attributes}>${content}</c>`);
+            return replaceXlsxCell(sheetXml, address, "inlineStr", content);
         }
 
         function replaceXlsxNumberCell(sheetXml, address, value) {
-            const regex = new RegExp(`<c\\b([^>]*\\br="${address}"[^>]*)>[\\s\\S]*?<\\/c>`);
-            const match = sheetXml.match(regex);
-            if (!match) return sheetXml;
-            const attributes = normalizeXlsxCellAttributes(match[1]);
             const content = value ? `<v>${escapeXlsxXml(value)}</v>` : "";
-            return sheetXml.replace(regex, `<c${attributes}>${content}</c>`);
+            return replaceXlsxCell(sheetXml, address, "", content);
         }
 
-        async function loadResultWorkbookTemplateZip() {
+        function getResultWorkbookTemplateConfig(modeCode) {
+            return RESULT_WORKBOOK_TEMPLATES[modeCode] || null;
+        }
+
+        function getSupportedResultWorkbookTemplateLabels() {
+            return Object.entries(RESULT_WORKBOOK_TEMPLATES)
+                .map(([code, config]) => `${code} (${config.participantCount} Teilnehmer)`)
+                .join(", ");
+        }
+
+        async function loadResultWorkbookTemplateZip(templateConfig) {
             if (!window.fflate) {
                 throw new Error("Die ZIP-Bibliothek konnte nicht geladen werden.");
             }
-            const response = await fetch(T3_RESULT_WORKBOOK_TEMPLATE_URL, { cache: "no-cache" });
+            const response = await fetch(templateConfig.url, { cache: "no-cache" });
             if (!response.ok) {
                 throw new Error(`Die Excel-Vorlage konnte nicht geladen werden (${response.status}).`);
             }
@@ -4779,8 +4810,8 @@
             return fflate.unzipSync(new Uint8Array(buffer));
         }
 
-        async function buildResultWorkbookBytesFromTemplate(invitation) {
-            const zipFiles = await loadResultWorkbookTemplateZip();
+        async function buildResultWorkbookBytesFromTemplate(invitation, templateConfig) {
+            const zipFiles = await loadResultWorkbookTemplateZip(templateConfig);
             const decoder = new TextDecoder();
             const encoder = new TextEncoder();
             const tableauPath = "xl/worksheets/sheet1.xml";
@@ -4790,7 +4821,7 @@
                 throw new Error("Die Excel-Vorlage ist unvollstaendig. Erwartet werden die Blaetter Tableau, Teilnehmer und CSV Export.");
             }
 
-            const participants = getResultWorkbookParticipants(invitation);
+            const participants = getResultWorkbookParticipants(invitation, templateConfig.participantCount);
             let participantsXml = decoder.decode(zipFiles[participantsPath]);
             participants.forEach((participant, index) => {
                 const row = index + 2;
@@ -4803,11 +4834,11 @@
             const tournamentTitle = getPdfText(invitation?.title || "");
             if (dateSerial || tournamentTitle) {
                 let tableauXml = decoder.decode(zipFiles[tableauPath]);
-                if (tournamentTitle) {
-                    tableauXml = replaceXlsxInlineStringCell(tableauXml, "D1", tournamentTitle);
+                if (tournamentTitle && templateConfig.titleCell) {
+                    tableauXml = replaceXlsxInlineStringCell(tableauXml, templateConfig.titleCell, tournamentTitle);
                 }
-                if (dateSerial) {
-                    tableauXml = replaceXlsxNumberCell(tableauXml, "S2", dateSerial);
+                if (dateSerial && templateConfig.dateCell) {
+                    tableauXml = replaceXlsxNumberCell(tableauXml, templateConfig.dateCell, dateSerial);
                 }
                 zipFiles[tableauPath] = encoder.encode(tableauXml);
             }
@@ -4833,8 +4864,13 @@
             const participants = Array.isArray(currentInvitationDraft.participants) ? currentInvitationDraft.participants : [];
             const targetPoints = String(currentInvitationDraft.playingTargetPoints || "").trim();
             const targetInnings = String(currentInvitationDraft.playingTargetInnings || "").trim();
-            if (selected !== "T3" || participants.length !== 4) {
-                setModalMessage("invitationEditorMessage", "Excel Ergebnisformular ist in Version 1 nur für T3 mit 4 Teilnehmern verfügbar.", "error");
+            const templateConfig = getResultWorkbookTemplateConfig(selected);
+            if (!templateConfig) {
+                setModalMessage("invitationEditorMessage", `Für diesen Modus ist noch keine Excel-Vorlage hinterlegt. Verfügbar: ${getSupportedResultWorkbookTemplateLabels()}.`, "error");
+                return;
+            }
+            if (participants.length !== templateConfig.participantCount) {
+                setModalMessage("invitationEditorMessage", `Die Excel-Vorlage ${selected} erwartet ${templateConfig.participantCount} Teilnehmer. Aktuell sind ${participants.length} Teilnehmer eingetragen.`, "error");
                 return;
             }
             if (!targetPoints || !targetInnings) {
@@ -4844,7 +4880,7 @@
                 return;
             }
             try {
-                const workbookBytes = await buildResultWorkbookBytesFromTemplate(cloneInvitationDraft(currentInvitationDraft));
+                const workbookBytes = await buildResultWorkbookBytesFromTemplate(cloneInvitationDraft(currentInvitationDraft), templateConfig);
                 downloadBinaryFile(
                     workbookBytes,
                     getInvitationExcelFilename(currentInvitationDraft),
