@@ -2851,6 +2851,8 @@
             return `NBV-Ergebnisformular-${datePart || "Termin"}-${titlePart || "Turnier"}.xlsx`;
         }
 
+        const T3_RESULT_WORKBOOK_TEMPLATE_URL = "nbv_turniermodi_excel/T3%2C%20T4%2C%20T7_bis%20zu%206%20Spieler%20jeder%20gegen%20jeden.xlsx";
+
         function getCalendarExcelFilename() {
             const seasonPart = String(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON).replace(/[^\d]+/g, "-").replace(/-$/g, "");
             const titlePart = activeTitleFilter
@@ -4726,7 +4728,64 @@
             return workbook;
         }
 
-        function generateResultWorkbookFromEditor() {
+        function setWorkbookCell(sheet, address, value) {
+            if (!sheet) return;
+            const normalizedValue = value ?? "";
+            sheet[address] = {
+                t: typeof normalizedValue === "number" ? "n" : "s",
+                v: normalizedValue
+            };
+        }
+
+        function setWorkbookDateCell(sheet, address, dateValue) {
+            if (!sheet || !dateValue) return;
+            const parsedDate = new Date(`${dateValue}T00:00:00`);
+            if (Number.isNaN(parsedDate.getTime())) {
+                setWorkbookCell(sheet, address, String(dateValue));
+                return;
+            }
+            sheet[address] = {
+                t: "d",
+                v: parsedDate,
+                z: "dd.mm.yyyy"
+            };
+        }
+
+        async function loadResultWorkbookTemplate() {
+            if (!window.XLSX) {
+                throw new Error("Die XLSX-Bibliothek konnte nicht geladen werden.");
+            }
+            const response = await fetch(T3_RESULT_WORKBOOK_TEMPLATE_URL, { cache: "no-cache" });
+            if (!response.ok) {
+                throw new Error(`Die Excel-Vorlage konnte nicht geladen werden (${response.status}).`);
+            }
+            const buffer = await response.arrayBuffer();
+            return XLSX.read(buffer, { type: "array", cellStyles: true, cellDates: true });
+        }
+
+        async function buildResultWorkbookFromTemplate(invitation) {
+            const workbook = await loadResultWorkbookTemplate();
+            const participantsSheet = workbook.Sheets["Teilnehmer"];
+            const tableauSheet = workbook.Sheets["Tableau"];
+            const csvSheet = workbook.Sheets["CSV Export"];
+            if (!participantsSheet || !tableauSheet || !csvSheet) {
+                throw new Error("Die Excel-Vorlage ist unvollstaendig. Erwartet werden die Blaetter Tableau, Teilnehmer und CSV Export.");
+            }
+
+            const participants = getResultWorkbookParticipants(invitation);
+            participants.forEach((participant, index) => {
+                const row = index + 2;
+                setWorkbookCell(participantsSheet, `B${row}`, participant.name || "");
+                setWorkbookCell(participantsSheet, `C${row}`, participant.passNo || "");
+            });
+            setWorkbookDateCell(tableauSheet, "S2", invitation?.date || "");
+
+            workbook.Workbook = workbook.Workbook || {};
+            workbook.Workbook.CalcPr = { fullCalcOnLoad: true, forceFullCalc: true };
+            return workbook;
+        }
+
+        async function generateResultWorkbookFromEditor() {
             if (!currentInvitationDraft) return;
             const selected = currentInvitationDraft.selectedModeCode || getSportordnungModeCode(currentInvitationDraft);
             const participants = Array.isArray(currentInvitationDraft.participants) ? currentInvitationDraft.participants : [];
@@ -4742,9 +4801,14 @@
                 if (targetInput) targetInput.focus();
                 return;
             }
-            const workbook = buildResultWorkbookXlsx(cloneInvitationDraft(currentInvitationDraft));
-            XLSX.writeFile(workbook, getInvitationExcelFilename(currentInvitationDraft), { bookType: "xlsx" });
-            setModalMessage("invitationEditorMessage", "Excel Ergebnisformular wurde erstellt und als Download gestartet.", "ok");
+            try {
+                const workbook = await buildResultWorkbookFromTemplate(cloneInvitationDraft(currentInvitationDraft));
+                XLSX.writeFile(workbook, getInvitationExcelFilename(currentInvitationDraft), { bookType: "xlsx", cellStyles: true });
+                setModalMessage("invitationEditorMessage", "Excel Ergebnisformular wurde aus der Vorlage erstellt und als Download gestartet.", "ok");
+            } catch (error) {
+                console.error("Excel Ergebnisformular konnte nicht erstellt werden:", error);
+                setModalMessage("invitationEditorMessage", error?.message || "Excel Ergebnisformular konnte nicht erstellt werden.", "error");
+            }
         }
 
         function generateInvitationPdfFromEditor() {
