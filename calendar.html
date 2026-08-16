@@ -1389,6 +1389,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/jspdf.umd.min.js"></script>
     <script src="js/xlsx.full.min.js"></script>
+    <script src="js/fflate.min.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/calendar_access.js"></script>
@@ -4728,61 +4729,96 @@
             return workbook;
         }
 
-        function setWorkbookCell(sheet, address, value) {
-            if (!sheet) return;
-            const normalizedValue = value ?? "";
-            sheet[address] = {
-                t: typeof normalizedValue === "number" ? "n" : "s",
-                v: normalizedValue
-            };
+        function escapeXlsxXml(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
         }
 
-        function setWorkbookDateCell(sheet, address, dateValue) {
-            if (!sheet || !dateValue) return;
+        function getExcelDateSerial(dateValue) {
             const parsedDate = new Date(`${dateValue}T00:00:00`);
-            if (Number.isNaN(parsedDate.getTime())) {
-                setWorkbookCell(sheet, address, String(dateValue));
-                return;
-            }
-            sheet[address] = {
-                t: "d",
-                v: parsedDate,
-                z: "dd.mm.yyyy"
-            };
+            if (Number.isNaN(parsedDate.getTime())) return "";
+            const excelEpoch = Date.UTC(1899, 11, 30);
+            return String(Math.round((Date.UTC(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate()) - excelEpoch) / 86400000));
         }
 
-        async function loadResultWorkbookTemplate() {
-            if (!window.XLSX) {
-                throw new Error("Die XLSX-Bibliothek konnte nicht geladen werden.");
+        function normalizeXlsxCellAttributes(attributes, type = "") {
+            const withoutType = String(attributes || "").replace(/\s+t="[^"]*"/, "");
+            return type ? `${withoutType} t="${type}"` : withoutType;
+        }
+
+        function replaceXlsxInlineStringCell(sheetXml, address, value) {
+            const regex = new RegExp(`<c\\b([^>]*\\br="${address}"[^>]*)>[\\s\\S]*?<\\/c>`);
+            const match = sheetXml.match(regex);
+            if (!match) return sheetXml;
+            const attributes = normalizeXlsxCellAttributes(match[1], "inlineStr");
+            const content = value ? `<is><t>${escapeXlsxXml(value)}</t></is>` : "";
+            return sheetXml.replace(regex, `<c${attributes}>${content}</c>`);
+        }
+
+        function replaceXlsxNumberCell(sheetXml, address, value) {
+            const regex = new RegExp(`<c\\b([^>]*\\br="${address}"[^>]*)>[\\s\\S]*?<\\/c>`);
+            const match = sheetXml.match(regex);
+            if (!match) return sheetXml;
+            const attributes = normalizeXlsxCellAttributes(match[1]);
+            const content = value ? `<v>${escapeXlsxXml(value)}</v>` : "";
+            return sheetXml.replace(regex, `<c${attributes}>${content}</c>`);
+        }
+
+        async function loadResultWorkbookTemplateZip() {
+            if (!window.fflate) {
+                throw new Error("Die ZIP-Bibliothek konnte nicht geladen werden.");
             }
             const response = await fetch(T3_RESULT_WORKBOOK_TEMPLATE_URL, { cache: "no-cache" });
             if (!response.ok) {
                 throw new Error(`Die Excel-Vorlage konnte nicht geladen werden (${response.status}).`);
             }
             const buffer = await response.arrayBuffer();
-            return XLSX.read(buffer, { type: "array", cellStyles: true, cellDates: true });
+            return fflate.unzipSync(new Uint8Array(buffer));
         }
 
-        async function buildResultWorkbookFromTemplate(invitation) {
-            const workbook = await loadResultWorkbookTemplate();
-            const participantsSheet = workbook.Sheets["Teilnehmer"];
-            const tableauSheet = workbook.Sheets["Tableau"];
-            const csvSheet = workbook.Sheets["CSV Export"];
-            if (!participantsSheet || !tableauSheet || !csvSheet) {
+        async function buildResultWorkbookBytesFromTemplate(invitation) {
+            const zipFiles = await loadResultWorkbookTemplateZip();
+            const decoder = new TextDecoder();
+            const encoder = new TextEncoder();
+            const tableauPath = "xl/worksheets/sheet1.xml";
+            const participantsPath = "xl/worksheets/sheet2.xml";
+            const csvPath = "xl/worksheets/sheet3.xml";
+            if (!zipFiles[tableauPath] || !zipFiles[participantsPath] || !zipFiles[csvPath]) {
                 throw new Error("Die Excel-Vorlage ist unvollstaendig. Erwartet werden die Blaetter Tableau, Teilnehmer und CSV Export.");
             }
 
             const participants = getResultWorkbookParticipants(invitation);
+            let participantsXml = decoder.decode(zipFiles[participantsPath]);
             participants.forEach((participant, index) => {
                 const row = index + 2;
-                setWorkbookCell(participantsSheet, `B${row}`, participant.name || "");
-                setWorkbookCell(participantsSheet, `C${row}`, participant.passNo || "");
+                participantsXml = replaceXlsxInlineStringCell(participantsXml, `B${row}`, participant.name || "");
+                participantsXml = replaceXlsxInlineStringCell(participantsXml, `C${row}`, participant.passNo || "");
             });
-            setWorkbookDateCell(tableauSheet, "S2", invitation?.date || "");
+            zipFiles[participantsPath] = encoder.encode(participantsXml);
 
-            workbook.Workbook = workbook.Workbook || {};
-            workbook.Workbook.CalcPr = { fullCalcOnLoad: true, forceFullCalc: true };
-            return workbook;
+            const dateSerial = getExcelDateSerial(invitation?.date || "");
+            if (dateSerial) {
+                let tableauXml = decoder.decode(zipFiles[tableauPath]);
+                tableauXml = replaceXlsxNumberCell(tableauXml, "S2", dateSerial);
+                zipFiles[tableauPath] = encoder.encode(tableauXml);
+            }
+
+            return fflate.zipSync(zipFiles, { level: 6 });
+        }
+
+        function downloadBinaryFile(bytes, filename, mimeType) {
+            const blob = new Blob([bytes], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
 
         async function generateResultWorkbookFromEditor() {
@@ -4802,8 +4838,12 @@
                 return;
             }
             try {
-                const workbook = await buildResultWorkbookFromTemplate(cloneInvitationDraft(currentInvitationDraft));
-                XLSX.writeFile(workbook, getInvitationExcelFilename(currentInvitationDraft), { bookType: "xlsx", cellStyles: true });
+                const workbookBytes = await buildResultWorkbookBytesFromTemplate(cloneInvitationDraft(currentInvitationDraft));
+                downloadBinaryFile(
+                    workbookBytes,
+                    getInvitationExcelFilename(currentInvitationDraft),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                );
                 setModalMessage("invitationEditorMessage", "Excel Ergebnisformular wurde aus der Vorlage erstellt und als Download gestartet.", "ok");
             } catch (error) {
                 console.error("Excel Ergebnisformular konnte nicht erstellt werden:", error);
