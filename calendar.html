@@ -1038,6 +1038,7 @@
                 <button id="calendarFeedCopyBtn" class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()" style="display:none;">ICS URL kopieren</button>
                 <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer" style="display:none;">ICS abonnieren</a>
                 <button id="calendarExcelExportBtn" class="btn btn-secondary" type="button" onclick="exportFilteredCalendarToExcel()" style="display:none;">Excel Export</button>
+                <button id="calendarPdfExportBtn" class="btn btn-secondary" type="button" onclick="exportFilteredCalendarToPdf()" style="display:none;">PDF Export</button>
                 <button id="calendarAdminCenterBtn" class="btn btn-secondary" type="button" onclick="window.location.href='nbv-admin.html'" style="display:none;">Admin</button>
                 <button id="calendarBackBtn" class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
             </div>
@@ -2847,6 +2848,10 @@
             return `NBV-Kalender-${seasonPart}${titlePart || ""}.xls`;
         }
 
+        function getCalendarPdfFilename() {
+            return getCalendarExcelFilename().replace(/\.xls$/i, ".pdf");
+        }
+
         function exportFilteredCalendarToExcel() {
             const events = getFilteredEvents();
             if (!events.length) {
@@ -2908,6 +2913,125 @@
             link.remove();
             URL.revokeObjectURL(url);
             showCalendarMessage(`${events.length} Termine wurden als Excel-Datei exportiert.`, "ok");
+        }
+
+        function exportFilteredCalendarToPdf() {
+            const PdfConstructor = getJsPdfConstructor();
+            if (!PdfConstructor) {
+                showCalendarMessage("PDF-Export ist nicht verfügbar. Bitte Seite neu laden.", "error");
+                return;
+            }
+
+            const events = getFilteredEvents();
+            if (!events.length) {
+                showCalendarMessage("Für den aktuellen Filter gibt es keine Termine zum Exportieren.", "error");
+                return;
+            }
+
+            const doc = new PdfConstructor({ orientation: "landscape", unit: "mm", format: "a4" });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 14;
+            const tableWidth = pageWidth - (margin * 2);
+            const columns = [
+                { key: "date", label: "Datum", width: 36 },
+                { key: "time", label: "Uhrzeit", width: 22 },
+                { key: "title", label: "Titel", width: 88 },
+                { key: "discipline", label: "Disziplin", width: 48 },
+                { key: "type", label: "Art", width: 28 },
+                { key: "venue", label: "Ort", width: tableWidth - 222 }
+            ];
+            const lineHeight = 4.6;
+            const cellPadding = 2;
+            let y = 16;
+
+            function addPageHeader() {
+                doc.setTextColor(0, 98, 36);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(16);
+                doc.text("NBV Kalender", margin, y);
+                doc.setTextColor(20, 26, 34);
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                doc.text(`Saison: ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON}`, margin, y + 7);
+                doc.text(`Filter: ${getActiveFilterSummary()}`, margin, y + 13);
+                doc.text(`Exportiert am: ${new Date().toLocaleString("de-DE")}`, pageWidth - margin, y + 7, { align: "right" });
+                y += 22;
+            }
+
+            function addTableHeader() {
+                let x = margin;
+                doc.setFillColor(31, 41, 55);
+                doc.rect(margin, y, tableWidth, 8, "F");
+                doc.setTextColor(255, 255, 255);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(9);
+                columns.forEach((column) => {
+                    doc.text(column.label, x + cellPadding, y + 5.4);
+                    x += column.width;
+                });
+                y += 8;
+                doc.setTextColor(20, 26, 34);
+                doc.setFont("helvetica", "normal");
+            }
+
+            function addNewPage() {
+                doc.addPage("a4", "landscape");
+                y = 16;
+                addPageHeader();
+                addTableHeader();
+            }
+
+            function getRowValues(event) {
+                return {
+                    date: isMultiDayEvent(event)
+                        ? `${formatInvitationDate(event.date) || event.date || ""} bis ${formatInvitationDate(event.endDate) || event.endDate || ""}`
+                        : (formatInvitationDate(event.date) || event.date || ""),
+                    time: event.time || "",
+                    title: event.title || "",
+                    discipline: event.disciplineLabel || NBV_DISCIPLINES[event.disciplineId] || "",
+                    type: getTournamentTypeLabelForEvent(event),
+                    venue: getEventVenueLabel(event)
+                };
+            }
+
+            addPageHeader();
+            addTableHeader();
+
+            events.forEach((event, index) => {
+                const row = getRowValues(event);
+                const wrapped = columns.map((column) => ({
+                    column,
+                    lines: doc.splitTextToSize(getPdfText(row[column.key]), column.width - (cellPadding * 2))
+                }));
+                const rowHeight = Math.max(8, Math.max(...wrapped.map((item) => item.lines.length)) * lineHeight + (cellPadding * 2));
+                if (y + rowHeight > pageHeight - 16) {
+                    addNewPage();
+                }
+
+                doc.setFillColor(index % 2 === 0 ? 248 : 255, index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 252 : 255);
+                doc.rect(margin, y, tableWidth, rowHeight, "F");
+                doc.setDrawColor(218, 225, 232);
+                doc.line(margin, y + rowHeight, margin + tableWidth, y + rowHeight);
+
+                let x = margin;
+                wrapped.forEach((item) => {
+                    doc.text(item.lines, x + cellPadding, y + cellPadding + 3.2, { maxWidth: item.column.width - (cellPadding * 2) });
+                    x += item.column.width;
+                });
+                y += rowHeight;
+            });
+
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
+                doc.setPage(pageIndex);
+                doc.setFontSize(8);
+                doc.setTextColor(90, 100, 112);
+                doc.text(`Seite ${pageIndex} / ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: "right" });
+            }
+
+            doc.save(getCalendarPdfFilename());
+            showCalendarMessage(`${events.length} Termine wurden als PDF-Datei exportiert.`, "ok");
         }
 
         function updateCalendarFeedUi() {
@@ -5555,6 +5679,7 @@
             const feedCopyBtn = document.getElementById("calendarFeedCopyBtn");
             const feedLink = document.getElementById("calendarFeedLink");
             const excelExportBtn = document.getElementById("calendarExcelExportBtn");
+            const pdfExportBtn = document.getElementById("calendarPdfExportBtn");
             const adminCenterBtn = document.getElementById("calendarAdminCenterBtn");
             const backBtn = document.getElementById("calendarBackBtn");
             const actionsRow = document.getElementById("calendarActions");
@@ -5576,7 +5701,10 @@
                 feedLink.style.display = isCalendarAdmin ? "" : "none";
             }
             if (excelExportBtn) {
-                excelExportBtn.style.display = "";
+                excelExportBtn.style.display = isCalendarAdmin ? "" : "none";
+            }
+            if (pdfExportBtn) {
+                pdfExportBtn.style.display = IS_ADMIN_CENTER_MODE ? "none" : "";
             }
             if (adminCenterBtn) {
                 adminCenterBtn.style.display = hasAdminCenterAccessFlag && !IS_ADMIN_CENTER_MODE ? "" : "none";
