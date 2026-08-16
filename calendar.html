@@ -1105,10 +1105,52 @@
                     <div class="admin-center-section" data-admin-section="recipients">
                     <div class="feed-heading">Admin: Empfänger</div>
                     <div class="feed-copy">Empfängerlisten für Einladungen und Ausschreibungen pflegen.</div>
-                    <div class="admin-settings-row">
-                        <div id="invitationRecipientSummary" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
-                        <button class="btn btn-secondary" type="button" onclick="openInvitationRecipientModal()">Empfänger verwalten</button>
+                    <div id="invitationRecipientSummary" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
+                    <div class="editor-section">
+                        <h3>Empfänger hinzufügen</h3>
+                        <div class="editor-grid">
+                            <div>
+                                <label class="field-title" for="invitationRecipientNameInput">Name / Club</label>
+                                <input id="invitationRecipientNameInput" type="text" placeholder="Name / Club">
+                            </div>
+                            <div>
+                                <label class="field-title" for="invitationRecipientPositionInput">Position</label>
+                                <input id="invitationRecipientPositionInput" type="text" placeholder="Position">
+                            </div>
+                            <div>
+                                <label class="field-title" for="invitationRecipientEmailInput">E-Mail</label>
+                                <input id="invitationRecipientEmailInput" type="email" placeholder="club@example.de">
+                            </div>
+                            <div>
+                                <label class="field-title" for="invitationRecipientDeliveryTypeInput">Versandart</label>
+                                <select id="invitationRecipientDeliveryTypeInput">
+                                    <option value="to">An</option>
+                                    <option value="cc">Cc</option>
+                                    <option value="bcc" selected>Bcc</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="button-row">
+                            <button class="btn btn-secondary" type="button" onclick="saveInvitationRecipient()">Empfänger hinzufügen</button>
+                        </div>
                     </div>
+                    <div class="editor-section">
+                        <h3>Excel Import</h3>
+                        <div class="admin-settings-meta">Erwartete Spalten: Name, Position, E-Mail-Adresse. Optional: Versandart mit An, Cc oder Bcc.</div>
+                        <div class="button-row">
+                            <input id="invitationRecipientImportInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importInvitationRecipientsFromFile(this.files && this.files[0]); this.value = '';">
+                            <button class="btn btn-secondary" type="button" onclick="triggerInvitationRecipientImport()">Excel Datei hochladen</button>
+                        </div>
+                    </div>
+                    <div class="editor-section">
+                        <h3>Empfänger verwalten</h3>
+                        <div class="button-row">
+                            <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(true)">Ausgewählte aktivieren</button>
+                            <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(false)">Ausgewählte deaktivieren</button>
+                        </div>
+                        <div id="invitationRecipientList" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
+                    </div>
+                    <div id="invitationRecipientMessage" class="modal-message"></div>
                     </div>
                     <div class="admin-center-section" data-admin-section="automation">
                     <div class="feed-heading">Admin: Automatischer Ausschreibungsversand</div>
@@ -1157,68 +1199,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div id="invitationRecipientModal" class="modal-backdrop" onclick="handleInvitationRecipientBackdrop(event)">
-        <div class="modal-card wide" onclick="event.stopPropagation()">
-            <div class="modal-header">
-                <div>
-                    <h2 class="modal-title">Ausschreibungs-Empfänger</h2>
-                    <div class="modal-subtitle">Empfänger für Einladung und Ausschreibung verwalten.</div>
-                </div>
-                <button class="close-btn" type="button" onclick="closeInvitationRecipientModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="editor-section">
-                    <h3>Empfänger hinzufügen</h3>
-                    <div class="editor-grid">
-                        <div>
-                            <label class="field-title" for="invitationRecipientNameInput">Name / Club</label>
-                            <input id="invitationRecipientNameInput" type="text" placeholder="Name / Club">
-                        </div>
-                        <div>
-                            <label class="field-title" for="invitationRecipientPositionInput">Position</label>
-                            <input id="invitationRecipientPositionInput" type="text" placeholder="Position">
-                        </div>
-                        <div>
-                            <label class="field-title" for="invitationRecipientEmailInput">E-Mail</label>
-                            <input id="invitationRecipientEmailInput" type="email" placeholder="club@example.de">
-                        </div>
-                        <div>
-                            <label class="field-title" for="invitationRecipientDeliveryTypeInput">Versandart</label>
-                            <select id="invitationRecipientDeliveryTypeInput">
-                                <option value="to">An</option>
-                                <option value="cc">Cc</option>
-                                <option value="bcc" selected>Bcc</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="button-row">
-                        <button class="btn btn-secondary" type="button" onclick="saveInvitationRecipient()">Empfänger hinzufügen</button>
-                    </div>
-                </div>
-                <div class="editor-section">
-                    <h3>Excel Import</h3>
-                    <div class="admin-settings-meta">Erwartete Spalten: Name, Position, E-Mail-Adresse. Optional: Versandart mit An, Cc oder Bcc.</div>
-                    <div class="button-row">
-                        <input id="invitationRecipientImportInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importInvitationRecipientsFromFile(this.files && this.files[0]); this.value = '';">
-                        <button class="btn btn-secondary" type="button" onclick="triggerInvitationRecipientImport()">Excel Datei hochladen</button>
-                    </div>
-                </div>
-                <div class="editor-section">
-                    <h3>Empfänger verwalten</h3>
-                    <div class="button-row">
-                        <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(true)">Ausgewählte aktivieren</button>
-                        <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(false)">Ausgewählte deaktivieren</button>
-                    </div>
-                    <div id="invitationRecipientList" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
-                </div>
-            </div>
-            <div class="button-row">
-                <button class="btn btn-secondary" type="button" onclick="closeInvitationRecipientModal()">Schließen</button>
-            </div>
-            <div id="invitationRecipientMessage" class="modal-message"></div>
         </div>
     </div>
 
@@ -2249,24 +2229,6 @@
                     `).join("")}
                 </div>
             `;
-        }
-
-        function openInvitationRecipientModal() {
-            if (!hasAdminCenterAccessFlag) return;
-            renderInvitationRecipients();
-            const modal = document.getElementById("invitationRecipientModal");
-            if (modal) modal.classList.add("open");
-        }
-
-        function closeInvitationRecipientModal() {
-            const modal = document.getElementById("invitationRecipientModal");
-            if (modal) modal.classList.remove("open");
-        }
-
-        function handleInvitationRecipientBackdrop(event) {
-            if (event.target?.id === "invitationRecipientModal") {
-                closeInvitationRecipientModal();
-            }
         }
 
         function setInvitationRecipientMessage(message, type = "") {
@@ -5709,7 +5671,6 @@
                 closeManualEventModal();
                 closePlanningEventModal();
                 closeInvitationEditorModal();
-                closeInvitationRecipientModal();
             }
         });
 
