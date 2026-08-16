@@ -1060,7 +1060,7 @@
                         <button class="admin-center-tab active" type="button" onclick="showAdminCenterSection('source')">Quelle</button>
                         <button class="admin-center-tab" type="button" onclick="showAdminCenterSection('recipients')">Empfänger</button>
                         <button class="admin-center-tab" type="button" onclick="showAdminCenterSection('automation')">Automatik</button>
-                        <button class="btn btn-secondary" type="button" onclick="window.location.href='calendar.html'">Zum Kalender</button>
+                        <button class="btn btn-secondary" type="button" onclick="navigateFromAdminCenter('calendar.html')">Zum Kalender</button>
                     </div>
                     <div class="admin-center-section active" data-admin-section="source">
                     <div class="feed-heading">Admin: NBV-Quelle</div>
@@ -2085,6 +2085,15 @@
                 const onclick = String(button.getAttribute("onclick") || "");
                 button.classList.toggle("active", onclick.includes(`'${target}'`) || onclick.includes(`\"${target}\"`));
             });
+        }
+
+        function navigateFromAdminCenter(url) {
+            const targetUrl = String(url || "calendar.html").trim() || "calendar.html";
+            if (window.top && window.top !== window.self) {
+                window.top.location.href = targetUrl;
+                return;
+            }
+            window.location.href = targetUrl;
         }
 
         function renderInvitationAutoSendDryRunResult(data) {
