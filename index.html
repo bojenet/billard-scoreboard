@@ -378,82 +378,118 @@
             });
         }
 
-        async function applyTrainingAccess(user) {
-            const tile = document.getElementById("trainingTile");
-            if (!tile) return;
-            const accessMode = await getTrainingAccess(user);
-            tile.style.display = isTrainingVisible(accessMode) ? "" : "none";
+        async function loadUserRoleSettings(userId) {
+            if (!userId) return { roleRow: null, roleError: null };
+            const { data, error } = await supabaseClient
+                .from("user_roles")
+                .select("role,match_access,training_access,tournament_access,calendar_access,club_mobile_access")
+                .eq("user_id", userId)
+                .maybeSingle();
+
+            if (error) {
+                console.warn("Rechte konnten nicht geladen werden:", userId, error);
+            }
+            return { roleRow: data || null, roleError: error || null };
         }
 
-        async function applyMatchAccess(user) {
-            const accessMode = await getMatchAccess(user);
+        function resolveStartAccess(user, roleRow, roleError) {
+            const isAdmin = isAdminUser(user) || roleRow?.role === "admin";
+            if (isAdmin) {
+                return {
+                    isAdmin,
+                    club: "edit",
+                    match: "edit",
+                    training: "edit",
+                    tournament: "edit",
+                    calendar: "edit"
+                };
+            }
+
+            if (roleError) {
+                return {
+                    isAdmin: false,
+                    club: "hidden",
+                    match: "hidden",
+                    training: "edit",
+                    tournament: "edit",
+                    calendar: "hidden"
+                };
+            }
+
+            return {
+                isAdmin: false,
+                club: normalizeClubMobileAccess(roleRow?.club_mobile_access),
+                match: normalizeMatchAccess(roleRow?.match_access),
+                training: normalizeTrainingAccess(roleRow?.training_access),
+                tournament: normalizeTournamentAccess(roleRow?.tournament_access),
+                calendar: normalizeCalendarAccess(roleRow?.calendar_access)
+            };
+        }
+
+        function applyStartAccess(access) {
             ["matchTile", "playersTile", "archiveTile"].forEach((id) => {
                 const tile = document.getElementById(id);
-                if (tile) tile.style.display = isMatchVisible(accessMode) ? "" : "none";
+                if (tile) tile.style.display = isMatchVisible(access.match) ? "" : "none";
             });
-        }
 
-        async function applyTournamentAccess(user) {
+            const trainingTile = document.getElementById("trainingTile");
+            if (trainingTile) trainingTile.style.display = isTrainingVisible(access.training) ? "" : "none";
+
             const tile = document.getElementById("tournamentTile");
-            const accessMode = await getTournamentAccess(user);
-            if (tile) tile.style.display = isTournamentVisible(accessMode) ? "" : "none";
-        }
+            if (tile) tile.style.display = isTournamentVisible(access.tournament) ? "" : "none";
 
-        async function applyCalendarAccess(user) {
             const calendarTile = document.getElementById("calendarTile");
-            const accessMode = await getCalendarAccess(user);
-            if (calendarTile) calendarTile.style.display = isCalendarVisibleForUser(accessMode) ? "" : "none";
+            if (calendarTile) calendarTile.style.display = isCalendarVisibleForUser(access.calendar) ? "" : "none";
+
+            const usersTile = document.getElementById("usersTile");
+            if (usersTile) usersTile.style.display = access.isAdmin ? "flex" : "none";
         }
 
         async function loadLiveMatches() {
             const user = await requireAuth();
             if (!user) return;
-            const isAdmin = await hasAdminAccess(user);
-            const [clubAccess, matchAccess, trainingAccess, tournamentAccess, calendarAccess] = await Promise.all([
-                getClubMobileAccess(user),
-                getMatchAccess(user),
-                getTrainingAccess(user),
-                getTournamentAccess(user),
-                getCalendarAccess(user)
-            ]);
-            if (!isAdmin &&
-                isClubMobileVisible(clubAccess) &&
-                !isMatchVisible(matchAccess) &&
-                !isTrainingVisible(trainingAccess) &&
-                !isTournamentVisible(tournamentAccess) &&
-                !isCalendarVisibleForUser(calendarAccess)) {
+
+            document.body.classList.add("auth-ready");
+
+            const { roleRow, roleError } = await loadUserRoleSettings(user.id);
+            const access = resolveStartAccess(user, roleRow, roleError);
+            applyStartAccess(access);
+
+            if (!access.isAdmin &&
+                isClubMobileVisible(access.club) &&
+                !isMatchVisible(access.match) &&
+                !isTrainingVisible(access.training) &&
+                !isTournamentVisible(access.tournament) &&
+                !isCalendarVisibleForUser(access.calendar)) {
                 window.location.replace("/club_mobile.html");
                 return;
             }
-            const usersTile = document.getElementById("usersTile");
-            if (usersTile) {
-                usersTile.style.display = isAdmin ? "flex" : "none";
-            }
 
-            const [, , , , , , ownedNames] = await Promise.all([
-                applyMatchAccess(user),
-                applyTrainingAccess(user),
-                applyTournamentAccess(user),
-                applyCalendarAccess(user),
-                loadCountdownInvites(user),
-                loadRemoteMatchInvites(user),
-                getOwnedPlayerNames(user.id)
+            loadCountdownInvites(user).catch((error) => {
+                console.warn("Countdown-Einladungen konnten nicht initialisiert werden:", error);
+            });
+            loadRemoteMatchInvites(user).catch((error) => {
+                console.warn("Remote-Match-Einladungen konnten nicht initialisiert werden:", error);
+            });
+
+            const [ownedNames, matchesResult] = await Promise.all([
+                getOwnedPlayerNames(user.id),
+                supabaseClient
+                    .from("matches")
+                    .select("*")
+                    .eq("status", 1)
+                    .eq("finished", 0)
+                    .order("started_at", { ascending: false })
             ]);
 
-            const { data, error } = await supabaseClient
-                .from("matches")
-                .select("*")
-                .eq("status", 1)
-                .eq("finished", 0)
-                .order("started_at", { ascending: false });
+            const { data, error } = matchesResult;
 
             if (error) {
                 console.log("Fehler:", error);
-                document.body.classList.add("auth-ready");
                 return;
             }
 
-            const filtered = isAdmin
+            const filtered = access.isAdmin
                 ? (data || [])
                 : (data || []).filter((match) =>
                     isOwnedMatch(match, user.id, ownedNames)
@@ -461,6 +497,7 @@
 
             const activeSection = document.getElementById("activeMatchesSection");
             const activeList = document.getElementById("activeMatchesList");
+            activeList.innerHTML = "";
 
             filtered.forEach(match => {
                 const activeMatch = document.createElement("button");
@@ -481,8 +518,6 @@
             if (filtered.length > 0) {
                 activeSection.classList.add("open");
             }
-
-            document.body.classList.add("auth-ready");
         }
 
         loadLiveMatches()
