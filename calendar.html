@@ -168,7 +168,6 @@
             padding-bottom: 2px;
         }
 
-        .calendar-loading #calendarActions,
         .calendar-loading #calendarFooterPanel {
             display: none !important;
         }
@@ -5646,6 +5645,8 @@
                 calendarAccessMode = currentUser ? await getCalendarAccess(currentUser) : "hidden";
                 isCalendarAdmin = isCalendarEditable(calendarAccessMode);
                 tournamentAccessMode = isCalendarAdmin ? "edit" : "read";
+                applyAccessUi();
+                document.body.classList.remove("calendar-loading");
 
                 await loadCalendarSettings();
                 await loadManualEvents();
