@@ -2818,7 +2818,7 @@
             }
             if (activeTournamentTypeFilter !== "all") {
                 const option = TOURNAMENT_TYPE_OPTIONS.find((item) => item.id === activeTournamentTypeFilter);
-                filters.push(`Turnierart: ${option?.label || activeTournamentTypeFilter}`);
+                filters.push(`Terminart: ${option?.label || activeTournamentTypeFilter}`);
             }
             if (activeVenueFilter !== "all") filters.push(`Austragungsort: ${activeVenueFilter}`);
             if (activeTitleFilter) filters.push(`Titel enthält: ${activeTitleFilter}`);
@@ -2870,7 +2870,7 @@
                 return;
             }
 
-            const headers = ["Datum", "Bis", "Uhrzeit", "Titel", "Disziplin", "Turnierart", "Austragungsort", "Quelle", "Notiz", "Link"];
+            const headers = ["Datum", "Bis", "Uhrzeit", "Titel", "Disziplin", "Terminart", "Austragungsort", "Quelle", "Notiz", "Link"];
             const rows = events.map((event) => ([
                 formatInvitationDate(event.date) || event.date || "",
                 isMultiDayEvent(event) ? (formatInvitationDate(event.endDate) || event.endDate || "") : "",
@@ -4916,7 +4916,7 @@
                 <select id="calendarFilterSelect" class="filter-select" onchange="setDisciplineFilter(this.value)">
                     ${disciplineOptions.map((item) => `<option value="${escapeHtml(item.id)}" ${activeDisciplineFilter === item.id ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
                 </select>
-                <label for="calendarTypeFilterSelect">Turnierart</label>
+                <label for="calendarTypeFilterSelect">Terminart</label>
                 <select id="calendarTypeFilterSelect" class="filter-select" onchange="setTournamentTypeFilter(this.value)">
                     ${TOURNAMENT_TYPE_OPTIONS.map((item) => `<option value="${escapeHtml(item.id)}" ${activeTournamentTypeFilter === item.id ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
                 </select>
