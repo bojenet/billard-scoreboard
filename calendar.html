@@ -2931,95 +2931,118 @@
             const doc = new PdfConstructor({ orientation: "landscape", unit: "mm", format: "a4" });
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
-            const margin = 14;
-            const tableWidth = pageWidth - (margin * 2);
-            const columns = [
-                { key: "date", label: "Datum", width: 36 },
-                { key: "time", label: "Uhrzeit", width: 22 },
-                { key: "title", label: "Titel", width: 88 },
-                { key: "discipline", label: "Disziplin", width: 48 },
-                { key: "type", label: "Art", width: 28 },
-                { key: "venue", label: "Ort", width: tableWidth - 222 }
-            ];
-            const lineHeight = 4.6;
-            const cellPadding = 2;
-            let y = 16;
+            const margin = 9;
+            const gap = 5;
+            const headerHeight = 19;
+            const monthWidth = (pageWidth - (margin * 2) - (gap * 2)) / 3;
+            const dayWidth = 8;
+            const dateWidth = 13;
+            const eventWidth = monthWidth - dayWidth - dateWidth;
+            const monthHeadHeight = 7;
+            const rowHeight = 4.55;
+            const monthTop = margin + headerHeight;
+            const eventsByMonth = new Map();
+            const expandedEvents = expandEventsForCalendar(events);
+            const seasonMonthKeys = getSeasonMonthKeys(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON);
+            const hideEmptyMonths = activeDisciplineFilter !== "all" || activeTournamentTypeFilter !== "all" || activeVenueFilter !== "all" || activeCreatorFilter !== "all" || Boolean(activeTitleFilter);
 
-            function addPageHeader() {
-                doc.setTextColor(0, 98, 36);
-                doc.setFont("helvetica", "bold");
-                doc.setFontSize(16);
-                doc.text("NBV Kalender", margin, y);
-                doc.setTextColor(20, 26, 34);
-                doc.setFontSize(10);
-                doc.setFont("helvetica", "normal");
-                doc.text(`Saison: ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON}`, margin, y + 7);
-                doc.text(`Filter: ${getActiveFilterSummary()}`, margin, y + 13);
-                doc.text(`Exportiert am: ${new Date().toLocaleString("de-DE")}`, pageWidth - margin, y + 7, { align: "right" });
-                y += 22;
-            }
-
-            function addTableHeader() {
-                let x = margin;
-                doc.setFillColor(31, 41, 55);
-                doc.rect(margin, y, tableWidth, 8, "F");
-                doc.setTextColor(255, 255, 255);
-                doc.setFont("helvetica", "bold");
-                doc.setFontSize(9);
-                columns.forEach((column) => {
-                    doc.text(column.label, x + cellPadding, y + 5.4);
-                    x += column.width;
-                });
-                y += 8;
-                doc.setTextColor(20, 26, 34);
-                doc.setFont("helvetica", "normal");
-            }
-
-            function addNewPage() {
-                doc.addPage("a4", "landscape");
-                y = 16;
-                addPageHeader();
-                addTableHeader();
-            }
-
-            function getRowValues(event) {
-                return {
-                    date: isMultiDayEvent(event)
-                        ? `${formatInvitationDate(event.date) || event.date || ""} bis ${formatInvitationDate(event.endDate) || event.endDate || ""}`
-                        : (formatInvitationDate(event.date) || event.date || ""),
-                    time: event.time || "",
-                    title: event.title || "",
-                    discipline: event.disciplineLabel || NBV_DISCIPLINES[event.disciplineId] || "",
-                    type: getTournamentTypeLabelForEvent(event),
-                    venue: getEventVenueLabel(event)
-                };
-            }
-
-            addPageHeader();
-            addTableHeader();
-
-            events.forEach((event, index) => {
-                const row = getRowValues(event);
-                const wrapped = columns.map((column) => ({
-                    column,
-                    lines: doc.splitTextToSize(getPdfText(row[column.key]), column.width - (cellPadding * 2))
-                }));
-                const rowHeight = Math.max(8, Math.max(...wrapped.map((item) => item.lines.length)) * lineHeight + (cellPadding * 2));
-                if (y + rowHeight > pageHeight - 16) {
-                    addNewPage();
+            seasonMonthKeys.forEach((monthKey) => {
+                eventsByMonth.set(monthKey, []);
+            });
+            expandedEvents.forEach((event) => {
+                const monthKey = getMonthKey(event.displayDate || event.date);
+                if (eventsByMonth.has(monthKey)) {
+                    eventsByMonth.get(monthKey).push(event);
                 }
+            });
 
-                doc.setFillColor(index % 2 === 0 ? 248 : 255, index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 252 : 255);
-                doc.rect(margin, y, tableWidth, rowHeight, "F");
-                doc.setDrawColor(218, 225, 232);
-                doc.line(margin, y + rowHeight, margin + tableWidth, y + rowHeight);
+            const visibleMonths = Array.from(eventsByMonth.entries()).filter(([, monthEvents]) => !hideEmptyMonths || monthEvents.length > 0);
+            if (!visibleMonths.length) {
+                showCalendarMessage("Für den aktuellen Filter gibt es keine Termine zum Exportieren.", "error");
+                return;
+            }
 
-                let x = margin;
-                wrapped.forEach((item) => {
-                    doc.text(item.lines, x + cellPadding, y + cellPadding + 3.2, { maxWidth: item.column.width - (cellPadding * 2) });
-                    x += item.column.width;
+            function addPdfHeader() {
+                doc.setTextColor(17, 24, 39);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(13);
+                doc.text(`Terminplan NBV - Saison ${currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON}`, margin, margin + 4);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(7.5);
+                doc.setTextColor(91, 100, 112);
+                doc.text(`Filter: ${getActiveFilterSummary()}`, margin, margin + 10);
+                doc.text(`Exportiert am: ${new Date().toLocaleString("de-DE")}`, pageWidth - margin, margin + 4, { align: "right" });
+            }
+
+            function drawMonth(monthKey, monthEvents, columnIndex) {
+                const x = margin + columnIndex * (monthWidth + gap);
+                let y = monthTop;
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(9.5);
+                doc.setTextColor(27, 27, 27);
+                doc.text(formatMonthLabel(monthKey), x, y);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(6.5);
+                doc.setTextColor(91, 100, 112);
+                doc.text(`${monthEvents.length} Termin${monthEvents.length === 1 ? "" : "e"}`, x + monthWidth, y, { align: "right" });
+                y += 3;
+
+                doc.setDrawColor(200, 204, 210);
+                doc.setFillColor(255, 255, 255);
+                doc.rect(x, y, monthWidth, monthHeadHeight + getDaysInMonth(monthKey) * rowHeight, "S");
+                doc.setFillColor(244, 244, 239);
+                doc.rect(x, y, monthWidth, monthHeadHeight, "F");
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(6.4);
+                doc.setTextColor(91, 100, 112);
+                doc.text("Tag", x + 1.5, y + 4.8);
+                doc.text("Datum", x + dayWidth + 1.5, y + 4.8);
+                doc.text("Termin", x + dayWidth + dateWidth + 1.5, y + 4.8);
+                y += monthHeadHeight;
+
+                getDaysOfMonth(monthKey).forEach((dateValue) => {
+                    const dayEvents = monthEvents.filter((event) => (event.displayDate || event.date) === dateValue);
+                    const weekend = isWeekendDate(dateValue);
+                    if (weekend) {
+                        doc.setFillColor(243, 245, 248);
+                        doc.rect(x, y, monthWidth, rowHeight, "F");
+                    }
+                    doc.setDrawColor(200, 204, 210);
+                    doc.line(x, y, x + monthWidth, y);
+                    doc.line(x + dayWidth, y, x + dayWidth, y + rowHeight);
+                    doc.line(x + dayWidth + dateWidth, y, x + dayWidth + dateWidth, y + rowHeight);
+
+                    doc.setFont("helvetica", weekend ? "bold" : "normal");
+                    doc.setFontSize(5.9);
+                    doc.setTextColor(22, 22, 22);
+                    doc.text(formatDayName(dateValue), x + 1.2, y + 3.15);
+                    doc.text(formatDayNumber(dateValue), x + dayWidth + 1.2, y + 3.15);
+
+                    const eventText = dayEvents.map((event) => {
+                        const prefix = event.time ? `${event.time} ` : "";
+                        const venue = event.source === "manual" || event.source === "planning" ? getEventVenueLabel(event) : simplifyVenueName(event.location || "");
+                        return `${prefix}${event.title || ""}${venue ? ` - ${venue}` : ""}`;
+                    }).join(" / ");
+                    if (eventText) {
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(5.3);
+                        doc.setTextColor(22, 22, 22);
+                        const lines = doc.splitTextToSize(getPdfText(eventText), eventWidth - 2).slice(0, 2);
+                        doc.text(lines, x + dayWidth + dateWidth + 1.2, y + 2.4, { lineHeightFactor: 0.9 });
+                    }
+                    y += rowHeight;
                 });
-                y += rowHeight;
+                doc.line(x, y, x + monthWidth, y);
+            }
+
+            visibleMonths.forEach(([monthKey, monthEvents], index) => {
+                if (index > 0 && index % 3 === 0) {
+                    doc.addPage("a4", "landscape");
+                }
+                if (index % 3 === 0) {
+                    addPdfHeader();
+                }
+                drawMonth(monthKey, monthEvents, index % 3);
             });
 
             const pageCount = doc.internal.getNumberOfPages();
