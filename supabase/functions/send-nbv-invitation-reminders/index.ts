@@ -465,12 +465,12 @@ async function assertInvocationAllowed(request: Request, supabaseUrl: string, se
     if (userId) {
       const { data: roleRow } = await adminClient
         .from("user_roles")
-        .select("role, calendar_access")
+        .select("role, calendar_access, admin_center_access")
         .eq("user_id", userId)
         .maybeSingle();
       const role = String(roleRow?.role || "").toLowerCase();
       const calendarAccess = String(roleRow?.calendar_access || "").toLowerCase();
-      if (role === "admin" || calendarAccess === "edit") return;
+      if (role === "admin" || calendarAccess === "edit" || roleRow?.admin_center_access === true) return;
     }
   }
   throw new Error("Nicht autorisiert.");

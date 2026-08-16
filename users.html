@@ -516,6 +516,13 @@
           </select>
         </div>
         <div class="form-field">
+          <label for="editAdminCenterAccess">NBV Admin-Center</label>
+          <select id="editAdminCenterAccess">
+            <option value="false">sperren</option>
+            <option value="true">erlauben</option>
+          </select>
+        </div>
+        <div class="form-field">
           <label for="editStreamOverlayAccess">OBS Streaming Link</label>
           <select id="editStreamOverlayAccess">
             <option value="true">erlauben</option>
@@ -543,6 +550,7 @@
   <script src="js/tournament_access.js"></script>
   <script src="js/calendar_access.js"></script>
   <script src="js/club_mobile_access.js"></script>
+  <script src="js/admin_center_access.js"></script>
   <script src="js/stream_overlay_access.js"></script>
   <script src="js/user_menu.js"></script>
   <script>
@@ -750,6 +758,7 @@
       setModalValue("editTournamentAccess", existing?.tournament_access || "edit");
       setModalValue("editCalendarAccess", existing?.calendar_access || "edit");
       setModalValue("editClubMobileAccess", existing?.club_mobile_access || "hidden");
+      setModalValue("editAdminCenterAccess", existing?.admin_center_access ? "true" : "false");
       setModalValue("editStreamOverlayAccess", normalizeStreamOverlayAccess(existing?.stream_overlay_access) ? "true" : "false");
       setModalValue("passwordComplexity", "medium");
       const passwordInput = document.getElementById("editPassword");
@@ -789,10 +798,10 @@
 
       let { data: roles, error: rolesError } = await supabaseClient
         .from("user_roles")
-        .select("user_id,role,match_access,position_library_access,training_access,tournament_access,calendar_access,club_mobile_access,stream_overlay_access");
+        .select("user_id,role,match_access,position_library_access,training_access,tournament_access,calendar_access,club_mobile_access,admin_center_access,stream_overlay_access");
 
       const rolesErrorText = String(rolesError?.message || "").toLowerCase();
-      if (rolesError && (rolesErrorText.includes("club_mobile_access") || rolesErrorText.includes("stream_overlay_access") || rolesErrorText.includes("match_access"))) {
+      if (rolesError && (rolesErrorText.includes("admin_center_access") || rolesErrorText.includes("club_mobile_access") || rolesErrorText.includes("stream_overlay_access") || rolesErrorText.includes("match_access"))) {
         const fallback = await supabaseClient
           .from("user_roles")
           .select("user_id,role,position_library_access,training_access,tournament_access,calendar_access");
@@ -825,6 +834,7 @@
           tournament_access: r.tournament_access || "edit",
           calendar_access: r.calendar_access || "edit",
           club_mobile_access: r.club_mobile_access || "hidden",
+          admin_center_access: r.admin_center_access === true,
           stream_overlay_access: normalizeStreamOverlayAccess(r.stream_overlay_access)
         };
       });
@@ -841,6 +851,7 @@
           <th class="access-head">Turnier</th>
           <th class="access-head">Kal.</th>
           <th class="access-head">Club</th>
+          <th class="access-head">Admin</th>
           <th class="access-head">OBS</th>
           <th>Letzter Login</th>
           <th>Aktion</th>
@@ -863,6 +874,7 @@
           tournament_access: normalizeTournamentAccess(roleInfo.tournament_access),
           calendar_access: normalizeCalendarAccess(roleInfo.calendar_access),
           club_mobile_access: normalizeClubMobileAccess(roleInfo.club_mobile_access),
+          admin_center_access: roleInfo.admin_center_access === true,
           stream_overlay_access: normalizeStreamOverlayAccess(roleInfo.stream_overlay_access)
         };
       });
@@ -879,6 +891,7 @@
           <td class="access-cell">${accessIcon(p.tournament_access)}</td>
           <td class="access-cell">${accessIcon(p.calendar_access)}</td>
           <td class="access-cell">${accessIcon(p.club_mobile_access)}</td>
+          <td class="access-cell">${booleanAccessIcon(p.admin_center_access)}</td>
           <td class="access-cell">${booleanAccessIcon(p.stream_overlay_access)}</td>
           <td>${formatDateTime(latestLoginByUser[p.id]?.created_at)}</td>
           <td>
@@ -1000,6 +1013,7 @@
         tournament_access: normalizeTournamentAccess(document.getElementById("editTournamentAccess").value),
         calendar_access: normalizeCalendarAccess(document.getElementById("editCalendarAccess").value),
         club_mobile_access: normalizeClubMobileAccess(document.getElementById("editClubMobileAccess").value),
+        admin_center_access: document.getElementById("editAdminCenterAccess").value === "true",
         stream_overlay_access: normalizeStreamOverlayAccess(document.getElementById("editStreamOverlayAccess").value)
       };
 

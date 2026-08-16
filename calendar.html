@@ -211,6 +211,49 @@
             align-items: end;
         }
 
+        .admin-center-layout .calendar-main-panel {
+            display: none;
+        }
+
+        .admin-center-layout #calendarFooterPanel {
+            display: block;
+        }
+
+        .admin-center-layout #calendarAdminSettings {
+            display: block;
+        }
+
+        .admin-center-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 0 14px;
+        }
+
+        .admin-center-tab {
+            border: 1px solid var(--line);
+            background: var(--soft-head);
+            color: var(--head);
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .admin-center-tab.active {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff;
+        }
+
+        .admin-center-section {
+            display: none;
+        }
+
+        .admin-center-section.active {
+            display: block;
+        }
+
         .admin-settings-meta {
             font-size: 12px;
             color: var(--muted);
@@ -988,7 +1031,7 @@
     <div id="calendarHeader" class="header">Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel</div>
 
     <div class="page">
-        <div class="panel">
+        <div class="panel calendar-main-panel">
             <div id="calendarActions" class="feed-actions" style="display:none;">
                 <button id="planningEventOpenBtn" class="btn btn-primary" type="button" onclick="openPlanningEventModal()" style="display:none;">Planungstermin anlegen</button>
                 <button id="manualEventOpenBtn" class="btn btn-save" type="button" onclick="openManualEventModal()" style="display:none;">Manuellen Termin anlegen</button>
@@ -996,6 +1039,7 @@
                 <button id="calendarFeedCopyBtn" class="btn btn-secondary" type="button" onclick="copyCalendarFeedUrl()" style="display:none;">ICS URL kopieren</button>
                 <a id="calendarFeedLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer" style="display:none;">ICS abonnieren</a>
                 <button id="calendarExcelExportBtn" class="btn btn-secondary" type="button" onclick="exportFilteredCalendarToExcel()" style="display:none;">Excel Export</button>
+                <button id="calendarAdminCenterBtn" class="btn btn-secondary" type="button" onclick="window.location.href='nbv-admin.html'" style="display:none;">Admin-Center</button>
                 <button id="calendarBackBtn" class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Zurück</button>
             </div>
             <div id="calendarFilters" class="filters"></div>
@@ -1012,6 +1056,13 @@
         <div id="calendarFooterPanel" class="panel" style="display:none;">
             <div class="footer-tools">
                 <div id="calendarAdminSettings" class="admin-settings">
+                    <div class="admin-center-tabs">
+                        <button class="admin-center-tab active" type="button" onclick="showAdminCenterSection('source')">Quelle</button>
+                        <button class="admin-center-tab" type="button" onclick="showAdminCenterSection('recipients')">Empfänger</button>
+                        <button class="admin-center-tab" type="button" onclick="showAdminCenterSection('automation')">Automatik</button>
+                        <button class="btn btn-secondary" type="button" onclick="window.location.href='calendar.html'">Zum Kalender</button>
+                    </div>
+                    <div class="admin-center-section active" data-admin-section="source">
                     <div class="feed-heading">Admin: NBV-Quelle</div>
                     <div class="feed-copy">Saison kann manuell gesetzt werden. Die NBV-URL ist optional und kann später ergänzt werden.</div>
                     <div class="admin-settings-row">
@@ -1050,10 +1101,16 @@
                         <button class="btn btn-secondary" type="button" onclick="importNbvSeasonToPlanning()">Als Planung übernehmen</button>
                     </div>
                     <div class="admin-settings-meta">Lädt die NBV-Termine der gewählten alten Saison und legt sie als Planungstermine in der aktiven Saison an. Monat und Kalendertag bleiben erhalten, das Saisonjahr wird auf die aktive Saison umgestellt.</div>
+                    </div>
+                    <div class="admin-center-section" data-admin-section="recipients">
+                    <div class="feed-heading">Admin: Empfänger</div>
+                    <div class="feed-copy">Empfängerlisten für Einladungen und Ausschreibungen pflegen.</div>
                     <div class="admin-settings-row">
                         <div id="invitationRecipientSummary" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
                         <button class="btn btn-secondary" type="button" onclick="openInvitationRecipientModal()">Empfänger verwalten</button>
                     </div>
+                    </div>
+                    <div class="admin-center-section" data-admin-section="automation">
                     <div class="feed-heading">Admin: Automatischer Ausschreibungsversand</div>
                     <div class="feed-copy">Konfiguration fuer spaetere Cron-Laeufe. Manuelle Tests ueber die Buttons bleiben davon unabhaengig.</div>
                     <div class="admin-settings-row">
@@ -1097,6 +1154,7 @@
                     </div>
                     <div id="invitationAutoSendInfo" class="admin-settings-meta">Automatischer Versand ist nicht geladen.</div>
                     <div id="invitationAutoSendDryRunResult" class="admin-settings-meta"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1354,6 +1412,7 @@
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/calendar_access.js"></script>
+    <script src="js/admin_center_access.js"></script>
     <script src="js/tournament_access.js"></script>
     <script src="js/user_menu.js"></script>
     <script>
@@ -1366,6 +1425,7 @@
         const CALENDAR_SETTINGS_KEY = "nbv_public_calendar";
         const DEFAULT_NBV_CALENDAR_SEASON = getDefaultNbvCalendarSeason();
         const DEFAULT_CALENDAR_HEADER_PREFIX = "Terminplan Norddeutscher Billardverband e.V. - Karambol/Kegel - Saison ";
+        const IS_ADMIN_CENTER_MODE = new URLSearchParams(window.location.search).get("adminCenter") === "1";
         const PUBLIC_SUPABASE_URL = "https://kstqhcaazuuxchqtnyfc.supabase.co";
         const MANUAL_CATEGORY_ID = "other";
         const MANUAL_CATEGORY_LABEL = "Sonstige";
@@ -1403,6 +1463,7 @@
         let activeTitleFilter = "";
         let isCalendarAdmin = false;
         let isSystemAdmin = false;
+        let hasAdminCenterAccessFlag = false;
         let calendarAccessMode = "hidden";
         let editingManualEventId = null;
         let editingPlanningEventId = null;
@@ -1465,7 +1526,9 @@
 
         function updateCalendarSeasonUi() {
             const season = currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON;
-            const titleText = `${DEFAULT_CALENDAR_HEADER_PREFIX}${season}`;
+            const titleText = IS_ADMIN_CENTER_MODE
+                ? "NBV Admin-Center"
+                : `${DEFAULT_CALENDAR_HEADER_PREFIX}${season}`;
             const header = document.getElementById("calendarHeader");
             if (header) {
                 header.textContent = titleText;
@@ -1970,6 +2033,11 @@
         function renderInvitationSendRecipientSummary() {
             const summary = document.getElementById("invitationEditorRecipientSummary");
             if (!summary) return;
+            if (!hasAdminCenterAccessFlag && supportsInvitationSending) {
+                summary.textContent = "Empfänger werden beim Versand aus der Admin-Center-Liste gelesen.";
+                summary.className = "modal-message ok";
+                return;
+            }
             const stats = getInvitationRecipientStats();
             summary.textContent = getInvitationRecipientStatsText("Die E-Mail würde an ");
             summary.className = "modal-message" + (stats.activeCount ? " ok" : " error");
@@ -2028,6 +2096,17 @@
             }
         }
 
+        function showAdminCenterSection(sectionName) {
+            const target = String(sectionName || "source").trim() || "source";
+            document.querySelectorAll(".admin-center-section").forEach((section) => {
+                section.classList.toggle("active", section.dataset.adminSection === target);
+            });
+            document.querySelectorAll(".admin-center-tab").forEach((button) => {
+                const onclick = String(button.getAttribute("onclick") || "");
+                button.classList.toggle("active", onclick.includes(`'${target}'`) || onclick.includes(`\"${target}\"`));
+            });
+        }
+
         function renderInvitationAutoSendDryRunResult(data) {
             const result = document.getElementById("invitationAutoSendDryRunResult");
             if (!result) return;
@@ -2064,7 +2143,7 @@
         }
 
         async function runInvitationAutoSendDryRun() {
-            if (!isSystemAdmin || !supportsInvitationSending) return;
+            if (!hasAdminCenterAccessFlag || !supportsInvitationSending) return;
             const result = document.getElementById("invitationAutoSendDryRunResult");
             if (result) {
                 result.textContent = "Konfiguration wird gespeichert, danach startet der Dry Run...";
@@ -2092,7 +2171,7 @@
         }
 
         async function loadInvitationRecipients() {
-            if (!isCalendarAdmin || !supportsInvitationRecipients) {
+            if (!hasAdminCenterAccessFlag || !supportsInvitationRecipients) {
                 invitationRecipients = [];
                 return;
             }
@@ -2127,7 +2206,7 @@
             }
             renderInvitationSendRecipientSummary();
             if (!list) return;
-            if (!isCalendarAdmin) {
+            if (!hasAdminCenterAccessFlag) {
                 list.textContent = "";
                 return;
             }
@@ -2173,7 +2252,7 @@
         }
 
         function openInvitationRecipientModal() {
-            if (!isCalendarAdmin) return;
+            if (!hasAdminCenterAccessFlag) return;
             renderInvitationRecipients();
             const modal = document.getElementById("invitationRecipientModal");
             if (modal) modal.classList.add("open");
@@ -2202,7 +2281,7 @@
         }
 
         async function saveInvitationRecipient() {
-            if (!isCalendarAdmin || !supportsInvitationRecipients) return;
+            if (!hasAdminCenterAccessFlag || !supportsInvitationRecipients) return;
             const nameInput = document.getElementById("invitationRecipientNameInput");
             const positionInput = document.getElementById("invitationRecipientPositionInput");
             const emailInput = document.getElementById("invitationRecipientEmailInput");
@@ -2259,7 +2338,7 @@
         }
 
         async function updateInvitationRecipient(recipientId) {
-            if (!isCalendarAdmin || !supportsInvitationRecipients || !recipientId) return;
+            if (!hasAdminCenterAccessFlag || !supportsInvitationRecipients || !recipientId) return;
             const name = getInvitationRecipientRowValue(recipientId, "name");
             const position = getInvitationRecipientRowValue(recipientId, "position");
             const email = getInvitationRecipientRowValue(recipientId, "email").toLowerCase();
@@ -2317,7 +2396,7 @@
         }
 
         async function importInvitationRecipientsFromFile(file) {
-            if (!isCalendarAdmin || !supportsInvitationRecipients || !file) return;
+            if (!hasAdminCenterAccessFlag || !supportsInvitationRecipients || !file) return;
             if (!window.XLSX) {
                 setInvitationRecipientMessage("Excel-Bibliothek konnte nicht geladen werden.", "error");
                 return;
@@ -2353,7 +2432,7 @@
         }
 
         async function setInvitationRecipientActive(recipientId, active) {
-            if (!isCalendarAdmin || !supportsInvitationRecipients || !recipientId) return;
+            if (!hasAdminCenterAccessFlag || !supportsInvitationRecipients || !recipientId) return;
             try {
                 const { error } = await supabaseClient
                     .from("calendar_invitation_recipients")
@@ -2371,7 +2450,7 @@
         }
 
         async function setSelectedInvitationRecipientsActive(active) {
-            if (!isCalendarAdmin || !supportsInvitationRecipients) return;
+            if (!hasAdminCenterAccessFlag || !supportsInvitationRecipients) return;
             const selectedIds = getSelectedInvitationRecipientIds();
             if (!selectedIds.length) {
                 setInvitationRecipientMessage("Bitte mindestens einen Empfänger auswählen.", "error");
@@ -5029,7 +5108,7 @@
         }
 
         async function saveCalendarSettings(options = {}) {
-            if (!isSystemAdmin) return;
+            if (!hasAdminCenterAccessFlag) return;
             const refreshAfterSave = options.refreshAfterSave !== false;
             const showSuccessMessage = options.showSuccessMessage !== false;
             const input = document.getElementById("calendarSourceUrlInput");
@@ -5112,7 +5191,7 @@
         }
 
         async function createHamburgHolidayEvents() {
-            if (!isSystemAdmin) return;
+            if (!hasAdminCenterAccessFlag) return;
             const holidays = buildHamburgHolidayEventsForSeason(currentCalendarSeason);
             if (!holidays.length) {
                 showCalendarMessage("Fuer die aktive Saison konnten keine Hamburger Feiertage abgeleitet werden.", "error");
@@ -5136,7 +5215,7 @@
         }
 
         async function importNbvSeasonToPlanning() {
-            if (!isCalendarAdmin) return;
+            if (!hasAdminCenterAccessFlag) return;
             const input = document.getElementById("calendarImportSeasonInput");
             const sourceSeason = normalizeSeasonText(input?.value || "");
             const targetSeason = currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON;
@@ -5472,6 +5551,12 @@
             const filters = document.getElementById("calendarFilters");
             const footer = document.getElementById("calendarFooterPanel");
             const actionsRow = document.getElementById("calendarActions");
+            if (IS_ADMIN_CENTER_MODE) {
+                if (filters) filters.style.display = "none";
+                if (actionsRow) actionsRow.style.display = "none";
+                if (footer) footer.style.display = hasAdminCenterAccessFlag ? "" : "none";
+                return;
+            }
             if (!isCalendarAdmin && !isPublicViewEnabled) {
                 if (filters) filters.style.display = "none";
                 if (footer) footer.style.display = "none";
@@ -5500,9 +5585,11 @@
             const feedCopyBtn = document.getElementById("calendarFeedCopyBtn");
             const feedLink = document.getElementById("calendarFeedLink");
             const excelExportBtn = document.getElementById("calendarExcelExportBtn");
+            const adminCenterBtn = document.getElementById("calendarAdminCenterBtn");
             const backBtn = document.getElementById("calendarBackBtn");
             const actionsRow = document.getElementById("calendarActions");
             const settingsBlock = document.getElementById("calendarAdminSettings");
+            document.body.classList.toggle("admin-center-layout", IS_ADMIN_CENTER_MODE);
             if (openBtn) {
                 openBtn.style.display = isCalendarAdmin ? "" : "none";
             }
@@ -5521,15 +5608,18 @@
             if (excelExportBtn) {
                 excelExportBtn.style.display = "";
             }
+            if (adminCenterBtn) {
+                adminCenterBtn.style.display = hasAdminCenterAccessFlag && !IS_ADMIN_CENTER_MODE ? "" : "none";
+            }
             if (backBtn) {
-                backBtn.style.display = isCalendarAdmin ? "" : "none";
+                backBtn.style.display = IS_ADMIN_CENTER_MODE ? "none" : (isCalendarAdmin ? "" : "none");
             }
             if (settingsBlock) {
-                settingsBlock.classList.toggle("open", isSystemAdmin);
+                settingsBlock.classList.toggle("open", hasAdminCenterAccessFlag && IS_ADMIN_CENTER_MODE);
             }
             const footer = document.getElementById("calendarFooterPanel");
             if (footer) {
-                footer.style.display = isSystemAdmin ? "" : "none";
+                footer.style.display = hasAdminCenterAccessFlag && IS_ADMIN_CENTER_MODE ? "" : "none";
             }
             if (actionsRow) {
                 const hasVisibleAction = Array.from(actionsRow.children).some((element) => {
@@ -5577,6 +5667,11 @@
                 updateCalendarSeasonUi();
                 currentUser = await getCurrentUser();
                 isSystemAdmin = currentUser ? await hasAdminAccess(currentUser) : false;
+                hasAdminCenterAccessFlag = currentUser ? await getAdminCenterAccess(currentUser) : false;
+                if (IS_ADMIN_CENTER_MODE && !hasAdminCenterAccessFlag) {
+                    document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Admin-Center-Zugriff.</div>";
+                    return;
+                }
                 calendarAccessMode = currentUser ? await getCalendarAccess(currentUser) : "hidden";
                 isCalendarAdmin = isCalendarEditable(calendarAccessMode);
                 tournamentAccessMode = isCalendarAdmin ? "edit" : "read";
@@ -5597,6 +5692,9 @@
                 renderInvitationRecipients();
                 applyAccessUi();
                 applyPublicViewState();
+                if (IS_ADMIN_CENTER_MODE) {
+                    return;
+                }
                 if (!isCalendarAdmin && !isPublicViewEnabled) {
                     return;
                 }

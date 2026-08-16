@@ -21,6 +21,7 @@ type UserPayload = {
   tournament_access?: string;
   calendar_access?: string;
   club_mobile_access?: string;
+  admin_center_access?: boolean;
   stream_overlay_access?: boolean;
 };
 
@@ -53,6 +54,12 @@ function normalizeBooleanAccess(value: unknown) {
   if (typeof value === "boolean") return value;
   const text = cleanText(value).toLowerCase();
   return !["false", "0", "no", "nein", "hidden", "disabled"].includes(text);
+}
+
+function normalizeEnabledAccess(value: unknown) {
+  if (typeof value === "boolean") return value;
+  const text = cleanText(value).toLowerCase();
+  return ["true", "1", "yes", "ja", "edit", "enabled", "erlauben"].includes(text);
 }
 
 serve(async (request) => {
@@ -129,6 +136,7 @@ serve(async (request) => {
     const tournamentAccess = normalizeAccess(payload.tournament_access);
     const calendarAccess = normalizeAccess(payload.calendar_access);
     const clubMobileAccess = normalizeClubMobileAccess(payload.club_mobile_access);
+    const adminCenterAccess = normalizeEnabledAccess(payload.admin_center_access);
     const streamOverlayAccess = normalizeBooleanAccess(payload.stream_overlay_access);
 
     if (!email) {
@@ -223,11 +231,12 @@ serve(async (request) => {
         tournament_access: tournamentAccess,
         calendar_access: calendarAccess,
         club_mobile_access: clubMobileAccess,
+        admin_center_access: adminCenterAccess,
         stream_overlay_access: streamOverlayAccess,
       }], { onConflict: "user_id" });
 
     const roleErrorText = String(roleError?.message || "").toLowerCase();
-    if (roleError && (roleErrorText.includes("club_mobile_access") || roleErrorText.includes("stream_overlay_access") || roleErrorText.includes("match_access"))) {
+    if (roleError && (roleErrorText.includes("admin_center_access") || roleErrorText.includes("club_mobile_access") || roleErrorText.includes("stream_overlay_access") || roleErrorText.includes("match_access"))) {
       const fallback = await adminClient
         .from("user_roles")
         .upsert([{

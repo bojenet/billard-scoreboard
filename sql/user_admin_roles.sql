@@ -24,6 +24,7 @@ create table if not exists public.user_roles (
   tournament_access text not null default 'edit' check (tournament_access in ('hidden', 'read', 'edit')),
   calendar_access text not null default 'edit' check (calendar_access in ('hidden', 'read', 'edit')),
   club_mobile_access text not null default 'hidden' check (club_mobile_access in ('hidden', 'edit')),
+  admin_center_access boolean not null default false,
   stream_overlay_access boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -53,6 +54,9 @@ alter table public.user_roles
 
 alter table public.user_roles
   add column if not exists club_mobile_access text not null default 'hidden';
+
+alter table public.user_roles
+  add column if not exists admin_center_access boolean not null default false;
 
 alter table public.user_roles
   add column if not exists stream_overlay_access boolean not null default true;
@@ -111,8 +115,8 @@ from auth.users
 on conflict (id) do update
 set email = excluded.email;
 
-insert into public.user_roles (user_id, role, match_access, position_library_access, training_access, tournament_access, calendar_access, club_mobile_access, stream_overlay_access)
-select id, 'member', 'edit', 'edit', 'edit', 'edit', 'edit', 'hidden', true
+insert into public.user_roles (user_id, role, match_access, position_library_access, training_access, tournament_access, calendar_access, club_mobile_access, admin_center_access, stream_overlay_access)
+select id, 'member', 'edit', 'edit', 'edit', 'edit', 'edit', 'hidden', false, true
 from auth.users
 on conflict (user_id) do nothing;
 
@@ -133,6 +137,26 @@ as $$
 $$;
 
 grant execute on function public.is_admin(uuid) to authenticated;
+
+create or replace function public.has_admin_center_access(uid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.user_roles ur
+    where ur.user_id = uid
+      and (
+        ur.role = 'admin'
+        or coalesce(ur.admin_center_access, false) = true
+      )
+  );
+$$;
+
+grant execute on function public.has_admin_center_access(uuid) to authenticated;
 
 create or replace function public.calendar_access_mode(uid uuid)
 returns text
