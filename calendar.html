@@ -2940,6 +2940,7 @@
             const eventWidth = monthWidth - dayWidth - dateWidth;
             const monthHeadHeight = 7;
             const rowHeight = 4.55;
+            const eventLineHeight = 3.35;
             const monthTop = margin + headerHeight;
             const eventsByMonth = new Map();
             const expandedEvents = expandEventsForCalendar(events);
@@ -2977,6 +2978,21 @@
             function drawMonth(monthKey, monthEvents, columnIndex) {
                 const x = margin + columnIndex * (monthWidth + gap);
                 let y = monthTop;
+                const dayRows = getDaysOfMonth(monthKey).map((dateValue) => {
+                    const dayEvents = monthEvents.filter((event) => (event.displayDate || event.date) === dateValue);
+                    const lines = dayEvents.flatMap((event) => {
+                        const prefix = event.time ? `${event.time} ` : "";
+                        const venue = event.source === "manual" || event.source === "planning" ? getEventVenueLabel(event) : simplifyVenueName(event.location || "");
+                        const text = `${prefix}${event.title || ""}${venue ? ` - ${venue}` : ""}`;
+                        return doc.splitTextToSize(getPdfText(text), eventWidth - 2).slice(0, 1);
+                    });
+                    return {
+                        dateValue,
+                        lines,
+                        height: Math.max(rowHeight, lines.length ? (lines.length * eventLineHeight + 1.8) : rowHeight)
+                    };
+                });
+                const tableHeight = monthHeadHeight + dayRows.reduce((sum, row) => sum + row.height, 0);
                 doc.setFont("helvetica", "bold");
                 doc.setFontSize(9.5);
                 doc.setTextColor(27, 27, 27);
@@ -2989,7 +3005,7 @@
 
                 doc.setDrawColor(200, 204, 210);
                 doc.setFillColor(255, 255, 255);
-                doc.rect(x, y, monthWidth, monthHeadHeight + getDaysInMonth(monthKey) * rowHeight, "S");
+                doc.rect(x, y, monthWidth, tableHeight, "S");
                 doc.setFillColor(244, 244, 239);
                 doc.rect(x, y, monthWidth, monthHeadHeight, "F");
                 doc.setFont("helvetica", "bold");
@@ -3000,37 +3016,30 @@
                 doc.text("Termin", x + dayWidth + dateWidth + 1.5, y + 4.8);
                 y += monthHeadHeight;
 
-                getDaysOfMonth(monthKey).forEach((dateValue) => {
-                    const dayEvents = monthEvents.filter((event) => (event.displayDate || event.date) === dateValue);
-                    const weekend = isWeekendDate(dateValue);
+                dayRows.forEach((dayRow) => {
+                    const weekend = isWeekendDate(dayRow.dateValue);
                     if (weekend) {
                         doc.setFillColor(243, 245, 248);
-                        doc.rect(x, y, monthWidth, rowHeight, "F");
+                        doc.rect(x, y, monthWidth, dayRow.height, "F");
                     }
                     doc.setDrawColor(200, 204, 210);
                     doc.line(x, y, x + monthWidth, y);
-                    doc.line(x + dayWidth, y, x + dayWidth, y + rowHeight);
-                    doc.line(x + dayWidth + dateWidth, y, x + dayWidth + dateWidth, y + rowHeight);
+                    doc.line(x + dayWidth, y, x + dayWidth, y + dayRow.height);
+                    doc.line(x + dayWidth + dateWidth, y, x + dayWidth + dateWidth, y + dayRow.height);
 
                     doc.setFont("helvetica", weekend ? "bold" : "normal");
                     doc.setFontSize(5.9);
                     doc.setTextColor(22, 22, 22);
-                    doc.text(formatDayName(dateValue), x + 1.2, y + 3.15);
-                    doc.text(formatDayNumber(dateValue), x + dayWidth + 1.2, y + 3.15);
+                    doc.text(formatDayName(dayRow.dateValue), x + 1.2, y + 3.15);
+                    doc.text(formatDayNumber(dayRow.dateValue), x + dayWidth + 1.2, y + 3.15);
 
-                    const eventText = dayEvents.map((event) => {
-                        const prefix = event.time ? `${event.time} ` : "";
-                        const venue = event.source === "manual" || event.source === "planning" ? getEventVenueLabel(event) : simplifyVenueName(event.location || "");
-                        return `${prefix}${event.title || ""}${venue ? ` - ${venue}` : ""}`;
-                    }).join(" / ");
-                    if (eventText) {
+                    if (dayRow.lines.length) {
                         doc.setFont("helvetica", "bold");
                         doc.setFontSize(5.3);
                         doc.setTextColor(22, 22, 22);
-                        const lines = doc.splitTextToSize(getPdfText(eventText), eventWidth - 2).slice(0, 2);
-                        doc.text(lines, x + dayWidth + dateWidth + 1.2, y + 2.4, { lineHeightFactor: 0.9 });
+                        doc.text(dayRow.lines, x + dayWidth + dateWidth + 1.2, y + 2.6, { lineHeightFactor: 0.92 });
                     }
-                    y += rowHeight;
+                    y += dayRow.height;
                 });
                 doc.line(x, y, x + monthWidth, y);
             }
