@@ -3806,10 +3806,9 @@
             state.y = drawSectionTitle(doc, "Modus / Turnierbesonderheit", state.y);
             state.y = drawFieldRows(doc, [
                 ["Modus", formatInvitationModeDisplayText([mode.code, mode.title].filter(Boolean).join(" - "))],
+                ["Hinweis Modus", invitation?.overrideReason],
                 ["Beschreibung", mode.summary],
-                ["Ausspielziel", getSportordnungTargetText(invitation)],
-                ["Zusatzhinweise", invitation?.extraNotes],
-                ["Hinweis", invitation?.overrideReason]
+                ["Ausspielziel", getSportordnungTargetText(invitation)]
             ], state.y);
             drawModeTable(doc, invitation, state, mode);
         }
@@ -3843,7 +3842,8 @@
                 ["Verantwortlicher", "Landessportwart Karambolage/Kegel"],
                 ["Turnierleitung", "stellt der Ausrichter"],
                 ["Disziplin", invitation?.discipline],
-                ["Startberechtigt", "Alle gemeldeten NBV-Sportler/innen, die in der Billard-Area als aktiv gemeldet sind."]
+                ["Startberechtigt", "Alle gemeldeten NBV-Sportler/innen, die in der Billard-Area als aktiv gemeldet sind."],
+                ["Zusatzhinweise", invitation?.extraNotes]
             ], state.y);
 
             ensureInvitationPage(doc, invitation, state, 46);
