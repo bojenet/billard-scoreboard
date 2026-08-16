@@ -4800,9 +4800,15 @@
             zipFiles[participantsPath] = encoder.encode(participantsXml);
 
             const dateSerial = getExcelDateSerial(invitation?.date || "");
-            if (dateSerial) {
+            const tournamentTitle = getPdfText(invitation?.title || "");
+            if (dateSerial || tournamentTitle) {
                 let tableauXml = decoder.decode(zipFiles[tableauPath]);
-                tableauXml = replaceXlsxNumberCell(tableauXml, "S2", dateSerial);
+                if (tournamentTitle) {
+                    tableauXml = replaceXlsxInlineStringCell(tableauXml, "D1", tournamentTitle);
+                }
+                if (dateSerial) {
+                    tableauXml = replaceXlsxNumberCell(tableauXml, "S2", dateSerial);
+                }
                 zipFiles[tableauPath] = encoder.encode(tableauXml);
             }
 
