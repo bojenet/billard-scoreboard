@@ -1144,9 +1144,21 @@
                     </div>
                     <div class="editor-section">
                         <h3>Empfänger verwalten</h3>
+                        <div class="admin-settings-row">
+                            <div>
+                                <label class="field-title" for="invitationRecipientEmailFilter">E-Mail-Adresse enthält</label>
+                                <input id="invitationRecipientEmailFilter" type="search" placeholder="E-Mail-Adresse filtern" oninput="setInvitationRecipientEmailFilter(this.value)">
+                            </div>
+                        </div>
                         <div class="button-row">
                             <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(true)">Ausgewählte aktivieren</button>
                             <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(false)">Ausgewählte deaktivieren</button>
+                            <select id="selectedInvitationRecipientDeliveryType" aria-label="Versandart für ausgewählte Empfänger">
+                                <option value="to">An</option>
+                                <option value="cc">Cc</option>
+                                <option value="bcc" selected>Bcc</option>
+                            </select>
+                            <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsDeliveryType()">Versandart übernehmen</button>
                         </div>
                         <div id="invitationRecipientList" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
                     </div>
@@ -1463,6 +1475,7 @@
         let planningEvents = [];
         let supportsInvitationSending = true;
         let invitationRecipients = [];
+        let invitationRecipientEmailFilter = "";
         let supportsInvitationRecipients = true;
         let playerPassNumberIndex = null;
         let playerPassNumberSortIndex = null;
@@ -2190,6 +2203,10 @@
             const list = document.getElementById("invitationRecipientList");
             const summary = document.getElementById("invitationRecipientSummary");
             const stats = getInvitationRecipientStats();
+            const emailFilter = invitationRecipientEmailFilter.trim().toLowerCase();
+            const filteredRecipients = emailFilter
+                ? invitationRecipients.filter((recipient) => String(recipient.email || "").toLowerCase().includes(emailFilter))
+                : invitationRecipients;
             if (summary) {
                 summary.textContent = stats.activeCount
                     ? getInvitationRecipientStatsText()
@@ -2209,6 +2226,10 @@
                 list.textContent = "Noch keine Empfänger.";
                 return;
             }
+            if (!filteredRecipients.length) {
+                list.textContent = "Keine Empfänger mit einer passenden E-Mail-Adresse gefunden.";
+                return;
+            }
             list.innerHTML = `
                 <div class="recipient-admin-table">
                     <div class="recipient-admin-row header">
@@ -2220,7 +2241,7 @@
                         <div>Aktiv</div>
                         <div>Aktion</div>
                     </div>
-                    ${invitationRecipients.map((recipient) => `
+                    ${filteredRecipients.map((recipient) => `
                         <div class="recipient-admin-row${recipient.active ? "" : " inactive"}">
                             <input class="recipient-check invitation-recipient-select" type="checkbox" value="${escapeHtml(recipient.id)}" aria-label="Empfänger auswählen">
                             <input id="recipient-name-${escapeHtml(recipient.id)}" type="text" value="${escapeHtml(recipient.name)}" placeholder="Name">
@@ -2240,6 +2261,11 @@
                     `).join("")}
                 </div>
             `;
+        }
+
+        function setInvitationRecipientEmailFilter(value) {
+            invitationRecipientEmailFilter = String(value || "");
+            renderInvitationRecipients();
         }
 
         function setInvitationRecipientMessage(message, type = "") {
@@ -2442,6 +2468,32 @@
             } catch (error) {
                 console.warn("Empfängerstatus konnte nicht geändert werden:", error);
                 setInvitationRecipientMessage(`Empfängerstatus konnte nicht geändert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
+        }
+
+        async function setSelectedInvitationRecipientsDeliveryType() {
+            if (!hasAdminCenterAccessFlag || !supportsInvitationRecipients) return;
+            const selectedIds = getSelectedInvitationRecipientIds();
+            if (!selectedIds.length) {
+                setInvitationRecipientMessage("Bitte mindestens einen Empfänger auswählen.", "error");
+                return;
+            }
+            const select = document.getElementById("selectedInvitationRecipientDeliveryType");
+            const deliveryType = normalizeInvitationDeliveryType(select?.value);
+            const deliveryLabel = deliveryType === "to" ? "An" : deliveryType === "cc" ? "Cc" : "Bcc";
+            try {
+                const { error } = await supabaseClient
+                    .from("calendar_invitation_recipients")
+                    .update({ delivery_type: deliveryType, updated_at: new Date().toISOString() })
+                    .in("id", selectedIds);
+                if (error) throw error;
+                await loadInvitationRecipients();
+                renderInvitationRecipients();
+                setInvitationRecipientMessage(`Versandart für ${selectedIds.length} Empfänger wurde auf ${deliveryLabel} gesetzt.`, "ok");
+                showCalendarMessage(`Versandart für ${selectedIds.length} Empfänger wurde auf ${deliveryLabel} gesetzt.`, "ok");
+            } catch (error) {
+                console.warn("Versandart konnte nicht geändert werden:", error);
+                setInvitationRecipientMessage(`Versandart konnte nicht geändert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
             }
         }
 
