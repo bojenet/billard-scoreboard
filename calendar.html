@@ -737,7 +737,7 @@
 
         .recipient-admin-row {
             display: grid;
-            grid-template-columns: 34px minmax(130px, 1fr) minmax(120px, 0.8fr) minmax(190px, 1.2fr) 104px 74px 172px;
+            grid-template-columns: 34px minmax(130px, 1fr) minmax(120px, 0.8fr) minmax(190px, 1.2fr) 210px 74px 172px;
             gap: 8px;
             align-items: center;
             padding: 8px;
@@ -752,6 +752,17 @@
             font-weight: 700;
             color: #374151;
             text-transform: uppercase;
+        }
+
+        .recipient-bulk-delivery {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .recipient-bulk-delivery select,
+        .recipient-bulk-delivery button {
+            text-transform: none;
         }
 
         .recipient-admin-row.inactive {
@@ -1153,12 +1164,6 @@
                         <div class="button-row">
                             <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(true)">Ausgewählte aktivieren</button>
                             <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(false)">Ausgewählte deaktivieren</button>
-                            <select id="selectedInvitationRecipientDeliveryType" aria-label="Versandart für ausgewählte Empfänger">
-                                <option value="to">An</option>
-                                <option value="cc">Cc</option>
-                                <option value="bcc" selected>Bcc</option>
-                            </select>
-                            <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsDeliveryType()">Versandart übernehmen</button>
                         </div>
                         <div id="invitationRecipientList" class="admin-settings-meta">Noch keine Empfänger geladen.</div>
                     </div>
@@ -2237,7 +2242,14 @@
                         <div>Name</div>
                         <div>Position</div>
                         <div>E-Mail-Adresse</div>
-                        <div>Versand</div>
+                        <div class="recipient-bulk-delivery">
+                            <select id="selectedInvitationRecipientDeliveryType" aria-label="Versandart für ausgewählte Empfänger">
+                                <option value="to">An</option>
+                                <option value="cc">Cc</option>
+                                <option value="bcc" selected>Bcc</option>
+                            </select>
+                            <button class="mini-btn" type="button" onclick="setSelectedInvitationRecipientsDeliveryType()">Übernehmen</button>
+                        </div>
                         <div>Aktiv</div>
                         <div>Aktion</div>
                     </div>
