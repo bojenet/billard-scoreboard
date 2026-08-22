@@ -737,7 +737,7 @@
 
         .recipient-admin-row {
             display: grid;
-            grid-template-columns: 34px minmax(130px, 1fr) minmax(120px, 0.8fr) minmax(190px, 1.2fr) 210px 74px 172px;
+            grid-template-columns: 34px minmax(160px, 1fr) minmax(120px, 0.8fr) minmax(210px, 1.2fr) 230px 74px 172px;
             gap: 8px;
             align-items: center;
             padding: 8px;
@@ -758,6 +758,23 @@
             display: flex;
             gap: 6px;
             align-items: center;
+        }
+
+        .recipient-header-filter {
+            display: grid;
+            gap: 4px;
+        }
+
+        .recipient-header-filter > span {
+            line-height: 1.2;
+        }
+
+        .recipient-header-filter input,
+        .recipient-header-filter select {
+            min-width: 0;
+            width: 100%;
+            text-transform: none;
+            font-weight: 400;
         }
 
         .recipient-bulk-delivery select,
@@ -783,6 +800,14 @@
 
         .recipient-admin-row .mini-btn {
             width: auto;
+        }
+
+        .recipient-admin-empty {
+            padding: 12px;
+            border: 1px solid #d9dee5;
+            border-radius: 4px;
+            background: #fff;
+            color: var(--muted);
         }
 
         .participant-editor-list {
@@ -1155,12 +1180,6 @@
                     </div>
                     <div class="editor-section">
                         <h3>Empfänger verwalten</h3>
-                        <div class="admin-settings-row">
-                            <div>
-                                <label class="field-title" for="invitationRecipientEmailFilter">E-Mail-Adresse enthält</label>
-                                <input id="invitationRecipientEmailFilter" type="search" placeholder="E-Mail-Adresse filtern" oninput="setInvitationRecipientEmailFilter(this.value)">
-                            </div>
-                        </div>
                         <div class="button-row">
                             <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(true)">Ausgewählte aktivieren</button>
                             <button class="btn btn-secondary" type="button" onclick="setSelectedInvitationRecipientsActive(false)">Ausgewählte deaktivieren</button>
@@ -1480,7 +1499,9 @@
         let planningEvents = [];
         let supportsInvitationSending = true;
         let invitationRecipients = [];
+        let invitationRecipientNameFilter = "";
         let invitationRecipientEmailFilter = "";
+        let invitationRecipientDeliveryFilter = "all";
         let supportsInvitationRecipients = true;
         let playerPassNumberIndex = null;
         let playerPassNumberSortIndex = null;
@@ -2208,10 +2229,13 @@
             const list = document.getElementById("invitationRecipientList");
             const summary = document.getElementById("invitationRecipientSummary");
             const stats = getInvitationRecipientStats();
+            const nameFilter = invitationRecipientNameFilter.trim().toLowerCase();
             const emailFilter = invitationRecipientEmailFilter.trim().toLowerCase();
-            const filteredRecipients = emailFilter
-                ? invitationRecipients.filter((recipient) => String(recipient.email || "").toLowerCase().includes(emailFilter))
-                : invitationRecipients;
+            const filteredRecipients = invitationRecipients.filter((recipient) => {
+                if (nameFilter && !String(recipient.name || "").toLowerCase().includes(nameFilter)) return false;
+                if (emailFilter && !String(recipient.email || "").toLowerCase().includes(emailFilter)) return false;
+                return invitationRecipientDeliveryFilter === "all" || recipient.deliveryType === invitationRecipientDeliveryFilter;
+            });
             if (summary) {
                 summary.textContent = stats.activeCount
                     ? getInvitationRecipientStatsText()
@@ -2231,29 +2255,39 @@
                 list.textContent = "Noch keine Empfänger.";
                 return;
             }
-            if (!filteredRecipients.length) {
-                list.textContent = "Keine Empfänger mit einer passenden E-Mail-Adresse gefunden.";
-                return;
-            }
             list.innerHTML = `
                 <div class="recipient-admin-table">
                     <div class="recipient-admin-row header">
                         <input class="recipient-check" type="checkbox" aria-label="Alle Empfänger auswählen" onchange="setAllInvitationRecipientSelection(this.checked)">
-                        <div>Name</div>
+                        <label class="recipient-header-filter" for="invitationRecipientNameFilter">
+                            <span>Name enthält</span>
+                            <input id="invitationRecipientNameFilter" type="search" value="${escapeHtml(invitationRecipientNameFilter)}" placeholder="Name filtern" oninput="setInvitationRecipientTextFilter('name', this.value)">
+                        </label>
                         <div>Position</div>
-                        <div>E-Mail-Adresse</div>
-                        <div class="recipient-bulk-delivery">
-                            <select id="selectedInvitationRecipientDeliveryType" aria-label="Versandart für ausgewählte Empfänger">
-                                <option value="to">An</option>
-                                <option value="cc">Cc</option>
-                                <option value="bcc" selected>Bcc</option>
+                        <label class="recipient-header-filter" for="invitationRecipientEmailFilter">
+                            <span>E-Mail-Adresse enthält</span>
+                            <input id="invitationRecipientEmailFilter" type="search" value="${escapeHtml(invitationRecipientEmailFilter)}" placeholder="E-Mail filtern" oninput="setInvitationRecipientTextFilter('email', this.value)">
+                        </label>
+                        <div class="recipient-header-filter">
+                            <select id="invitationRecipientDeliveryFilter" aria-label="Nach Versandart filtern" onchange="setInvitationRecipientDeliveryFilter(this.value)">
+                                <option value="all"${invitationRecipientDeliveryFilter === "all" ? " selected" : ""}>Alle Versandarten</option>
+                                <option value="to"${invitationRecipientDeliveryFilter === "to" ? " selected" : ""}>An</option>
+                                <option value="cc"${invitationRecipientDeliveryFilter === "cc" ? " selected" : ""}>Cc</option>
+                                <option value="bcc"${invitationRecipientDeliveryFilter === "bcc" ? " selected" : ""}>Bcc</option>
                             </select>
-                            <button class="mini-btn" type="button" onclick="setSelectedInvitationRecipientsDeliveryType()">Übernehmen</button>
+                            <div class="recipient-bulk-delivery">
+                                <select id="selectedInvitationRecipientDeliveryType" aria-label="Versandart für ausgewählte Empfänger">
+                                    <option value="to">An</option>
+                                    <option value="cc">Cc</option>
+                                    <option value="bcc" selected>Bcc</option>
+                                </select>
+                                <button class="mini-btn" type="button" onclick="setSelectedInvitationRecipientsDeliveryType()">Übernehmen</button>
+                            </div>
                         </div>
                         <div>Aktiv</div>
                         <div>Aktion</div>
                     </div>
-                    ${filteredRecipients.map((recipient) => `
+                    ${filteredRecipients.length ? filteredRecipients.map((recipient) => `
                         <div class="recipient-admin-row${recipient.active ? "" : " inactive"}">
                             <input class="recipient-check invitation-recipient-select" type="checkbox" value="${escapeHtml(recipient.id)}" aria-label="Empfänger auswählen">
                             <input id="recipient-name-${escapeHtml(recipient.id)}" type="text" value="${escapeHtml(recipient.name)}" placeholder="Name">
@@ -2270,13 +2304,25 @@
                                 <button class="mini-btn${recipient.active ? " danger" : ""}" type="button" onclick="setInvitationRecipientActive('${escapeHtml(recipient.id)}', ${recipient.active ? "false" : "true"})">${recipient.active ? "Deaktivieren" : "Aktivieren"}</button>
                             </div>
                         </div>
-                    `).join("")}
+                    `).join("") : '<div class="recipient-admin-empty">Keine Empfänger für die gewählten Filter gefunden.</div>'}
                 </div>
             `;
         }
 
-        function setInvitationRecipientEmailFilter(value) {
-            invitationRecipientEmailFilter = String(value || "");
+        function setInvitationRecipientTextFilter(field, value) {
+            const inputId = field === "name" ? "invitationRecipientNameFilter" : "invitationRecipientEmailFilter";
+            if (field === "name") invitationRecipientNameFilter = String(value || "");
+            else invitationRecipientEmailFilter = String(value || "");
+            renderInvitationRecipients();
+            const input = document.getElementById(inputId);
+            if (input) {
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+            }
+        }
+
+        function setInvitationRecipientDeliveryFilter(value) {
+            invitationRecipientDeliveryFilter = ["to", "cc", "bcc"].includes(value) ? value : "all";
             renderInvitationRecipients();
         }
 
