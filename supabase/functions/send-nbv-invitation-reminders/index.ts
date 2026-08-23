@@ -228,6 +228,11 @@ function getSeasonFromDate(value: string) {
   return `${startYear}-${startYear + 1}`;
 }
 
+function normalizeSeasonKey(value: unknown) {
+  const years = cleanText(value).match(/\d{4}/g) || [];
+  return years.length >= 2 ? `${years[0]}-${years[1]}` : cleanText(value).replace(/\D+/g, "-");
+}
+
 function cleanFilenamePart(value: string) {
   return cleanText(value)
     .replace(/[\\/:*?"<>|]+/g, " ")
@@ -358,7 +363,7 @@ async function syncAutoRemindersFromCalendar(
     const currentIds = new Set(ids);
     const staleIds = (openAutoRows || [])
       .filter((row: { id?: string; event_date?: string }) =>
-        getSeasonFromDate(cleanText(row.event_date || "")) === season &&
+        normalizeSeasonKey(getSeasonFromDate(cleanText(row.event_date || ""))) === normalizeSeasonKey(season) &&
         !currentIds.has(cleanText(row.id || "")))
       .map((row: { id?: string }) => cleanText(row.id || ""))
       .filter(Boolean);
