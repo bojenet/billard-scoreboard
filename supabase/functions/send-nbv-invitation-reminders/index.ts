@@ -319,21 +319,18 @@ async function syncAutoRemindersFromCalendar(
   const payloads = events
     .map((event) => buildAutoReminderPayload(event, daysBefore))
     .filter(Boolean) as Array<Record<string, unknown>>;
-  if (!payloads.length) {
-    return {
-      syncedCount: 0,
-      skippedSentCount: 0,
-      calendarEventCount: events.length,
-      failedDisciplines: Array.isArray(calendarData?.failedDisciplines) ? calendarData.failedDisciplines : [],
-    };
-  }
+  const failedDisciplines = Array.isArray(calendarData?.failedDisciplines) ? calendarData.failedDisciplines : [];
   const ids = payloads.map((row) => String(row.id || ""));
   const eventIds = Array.from(new Set(payloads.map((row) => String(row.event_id || "")).filter(Boolean)));
-  const { data: existingRows, error: existingError } = await adminClient
-    .from("calendar_club_reminders")
-    .select("id, event_id, status")
-    .in("event_id", eventIds);
-  if (existingError) throw existingError;
+  let existingRows: Array<{ id?: string; event_id?: string; status?: string }> = [];
+  if (eventIds.length) {
+    const { data, error: existingError } = await adminClient
+      .from("calendar_club_reminders")
+      .select("id, event_id, status")
+      .in("event_id", eventIds);
+    if (existingError) throw existingError;
+    existingRows = data || [];
+  }
   const sentEventIds = new Set((existingRows || [])
     .filter((row: { id?: string; status?: string }) => String(row.status || "") === "sent")
     .map((row: { event_id?: string }) => String(row.event_id || "")));
@@ -344,11 +341,48 @@ async function syncAutoRemindersFromCalendar(
       .upsert(writablePayloads, { onConflict: "id" });
     if (upsertError) throw upsertError;
   }
+
+  // A moved or deleted ClubCloud event can receive a new calendar ID. The old
+  // reminder then no longer gets overwritten and would otherwise still be sent.
+  // Only retire stale reminders after a complete calendar load; on partial
+  // discipline failures the absence of an event is not reliable evidence.
+  let skippedStaleCount = 0;
+  if (!failedDisciplines.length) {
+    const { data: openAutoRows, error: openAutoError } = await adminClient
+      .from("calendar_club_reminders")
+      .select("id, event_date")
+      .eq("status", "open")
+      .eq("days_before", daysBefore)
+      .like("id", "auto-invitation-%");
+    if (openAutoError) throw openAutoError;
+    const currentIds = new Set(ids);
+    const staleIds = (openAutoRows || [])
+      .filter((row: { id?: string; event_date?: string }) =>
+        getSeasonFromDate(cleanText(row.event_date || "")) === season &&
+        !currentIds.has(cleanText(row.id || "")))
+      .map((row: { id?: string }) => cleanText(row.id || ""))
+      .filter(Boolean);
+    if (staleIds.length) {
+      const { data: skippedRows, error: skipError } = await adminClient
+        .from("calendar_club_reminders")
+        .update({
+          status: "skipped",
+          sent_by_name: "Automatisch deaktiviert: Termin geändert oder entfernt",
+          updated_at: new Date().toISOString(),
+        })
+        .in("id", staleIds)
+        .eq("status", "open")
+        .select("id");
+      if (skipError) throw skipError;
+      skippedStaleCount = skippedRows?.length || 0;
+    }
+  }
   return {
     syncedCount: writablePayloads.length,
     skippedSentCount: sentEventIds.size,
+    skippedStaleCount,
     calendarEventCount: events.length,
-    failedDisciplines: Array.isArray(calendarData?.failedDisciplines) ? calendarData.failedDisciplines : [],
+    failedDisciplines,
   };
 }
 
