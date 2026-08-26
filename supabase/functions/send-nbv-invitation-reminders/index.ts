@@ -8,6 +8,8 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const NBV_CREST_URL = "https://raw.githubusercontent.com/bojenet/billard-scoreboard/main/assets/2022%20NBV%20Wappen.png";
+
 type ReminderRow = {
   id: string;
   event_id: string;
@@ -560,6 +562,9 @@ async function buildInvitationPdf(reminder: ReminderRow) {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const crestResponse = await fetch(NBV_CREST_URL);
+  if (!crestResponse.ok) throw new Error(`NBV-Wappen konnte nicht geladen werden (${crestResponse.status}).`);
+  const crest = await pdf.embedPng(await crestResponse.arrayBuffer());
   let page = pdf.addPage([595, 842]);
   const green = rgb(0, 0.38, 0.13);
   const text = rgb(0.08, 0.1, 0.14);
@@ -624,10 +629,13 @@ async function buildInvitationPdf(reminder: ReminderRow) {
   };
 
   const drawDocumentHeader = (pageNumber: number) => {
-    drawText("NBV", 48, 770, 28, { isBold: true, color: green });
-    page.drawLine({ start: { x: 112, y: 762 }, end: { x: 112, y: 792 }, thickness: 1, color: muted });
-    drawText("Turnierausschreibung", 130, 786, 13);
-    drawText("Karambolage/Kegel", 130, 767, 13);
+    const crestHeight = 28;
+    const crestWidth = crest.width / crest.height * crestHeight;
+    page.drawImage(crest, { x: 48, y: 768, width: crestWidth, height: crestHeight });
+    drawText("NBV", 78, 770, 28, { isBold: true, color: green });
+    page.drawLine({ start: { x: 140, y: 762 }, end: { x: 140, y: 792 }, thickness: 1, color: muted });
+    drawText("Turnierausschreibung", 158, 786, 13);
+    drawText("Karambolage/Kegel", 158, 767, 13);
     drawText(`Seite ${pageNumber}`, 500, 786, 10, { color: muted });
     page.drawLine({ start: { x: 48, y: 738 }, end: { x: 547, y: 738 }, thickness: 1.2, color: green });
   };

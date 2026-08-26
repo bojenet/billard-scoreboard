@@ -3343,6 +3343,25 @@
             return window.jspdf?.jsPDF || window.jsPDF || null;
         }
 
+        let invitationLogoDataUrlPromise = null;
+
+        function loadInvitationLogoDataUrl() {
+            if (!invitationLogoDataUrlPromise) {
+                invitationLogoDataUrlPromise = fetch("assets/2022%20NBV%20Wappen.png", { cache: "force-cache" })
+                    .then((response) => {
+                        if (!response.ok) throw new Error(`NBV-Wappen konnte nicht geladen werden (${response.status}).`);
+                        return response.blob();
+                    })
+                    .then((blob) => new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(String(reader.result || ""));
+                        reader.onerror = () => reject(new Error("NBV-Wappen konnte nicht gelesen werden."));
+                        reader.readAsDataURL(blob);
+                    }));
+            }
+            return invitationLogoDataUrlPromise;
+        }
+
         function getInvitationPdfFilename(invitation) {
             const datePart = String(invitation?.date || "")
                 .replace(/[^0-9]+/g, "-")
@@ -3378,21 +3397,24 @@
             }).format(new Date());
         }
 
-        function drawInvitationHeader(doc, pageNumber) {
+        function drawInvitationHeader(doc, pageNumber, logoDataUrl) {
+            if (logoDataUrl) {
+                doc.addImage(logoDataUrl, "PNG", 18, 16.5, 8, 10, undefined, "FAST");
+            }
             doc.setTextColor(0, 96, 32);
             doc.setFont("helvetica", "bold");
             doc.setFontSize(22);
-            doc.text("NBV", 18, 25);
+            doc.text("NBV", 29, 25);
 
             doc.setDrawColor(148, 157, 166);
             doc.setLineWidth(0.4);
-            doc.line(45, 16.5, 45, 27.5);
+            doc.line(48, 16.5, 48, 27.5);
 
             doc.setTextColor(20, 29, 38);
             doc.setFont("helvetica", "normal");
             doc.setFontSize(10.5);
-            doc.text("Turniereinladung", 51, 20.4);
-            doc.text("Karambolage/Kegel", 51, 27);
+            doc.text("Turniereinladung", 54, 20.4);
+            doc.text("Karambolage/Kegel", 54, 27);
 
             doc.setDrawColor(0, 96, 32);
             doc.setLineWidth(0.45);
@@ -3478,7 +3500,7 @@
             drawInvitationFooter(doc, invitation);
             doc.addPage();
             state.pageNumber += 1;
-            drawInvitationHeader(doc, state.pageNumber);
+            drawInvitationHeader(doc, state.pageNumber, state.logoDataUrl);
             state.y = 48;
         }
 
@@ -4220,15 +4242,16 @@
             drawModeTable(doc, invitation, state, mode);
         }
 
-        function buildInvitationPdfDocument(invitation) {
+        async function buildInvitationPdfDocument(invitation) {
             const JsPDF = getJsPdfConstructor();
             if (!JsPDF) {
                 throw new Error("PDF-Bibliothek konnte nicht geladen werden.");
             }
 
+            const logoDataUrl = await loadInvitationLogoDataUrl();
             const doc = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-            const state = { pageNumber: 1, y: 48 };
-            drawInvitationHeader(doc, state.pageNumber);
+            const state = { pageNumber: 1, y: 48, logoDataUrl };
+            drawInvitationHeader(doc, state.pageNumber, state.logoDataUrl);
 
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(202, 209, 217);
@@ -4290,8 +4313,8 @@
             return doc;
         }
 
-        function drawInvitationPdf(invitation) {
-            const doc = buildInvitationPdfDocument(invitation);
+        async function drawInvitationPdf(invitation) {
+            const doc = await buildInvitationPdfDocument(invitation);
             doc.save(getInvitationPdfFilename(invitation));
         }
 
@@ -5083,7 +5106,7 @@
             }
         }
 
-        function generateInvitationPdfFromEditor() {
+        async function generateInvitationPdfFromEditor() {
             if (!currentInvitationDraft) return;
             const targetPoints = String(currentInvitationDraft.playingTargetPoints || "").trim();
             const targetInnings = String(currentInvitationDraft.playingTargetInnings || "").trim();
@@ -5093,8 +5116,13 @@
                 if (targetInput) targetInput.focus();
                 return;
             }
-            drawInvitationPdf(cloneInvitationDraft(currentInvitationDraft));
-            setModalMessage("invitationEditorMessage", "PDF wurde erstellt und als Download gestartet.", "ok");
+            try {
+                await drawInvitationPdf(cloneInvitationDraft(currentInvitationDraft));
+                setModalMessage("invitationEditorMessage", "PDF wurde erstellt und als Download gestartet.", "ok");
+            } catch (error) {
+                console.warn("PDF konnte nicht erstellt werden:", error);
+                setModalMessage("invitationEditorMessage", `PDF konnte nicht erstellt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
         }
 
         async function sendInvitationPdfFromEditor() {
@@ -5116,7 +5144,7 @@
             setModalMessage("invitationEditorMessage", "Einladung wird als PDF erstellt und per E-Mail versendet...", "ok");
             try {
                 const invitation = cloneInvitationDraft(currentInvitationDraft);
-                const doc = buildInvitationPdfDocument(invitation);
+                const doc = await buildInvitationPdfDocument(invitation);
                 const pdfBase64 = String(doc.output("datauristring") || "").split(",")[1] || "";
                 if (!pdfBase64) throw new Error("PDF konnte nicht für den Versand vorbereitet werden.");
                 const { data, error } = await supabaseClient.functions.invoke("send-nbv-invitation-reminders", {
