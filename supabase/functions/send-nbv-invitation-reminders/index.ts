@@ -539,7 +539,20 @@ async function buildInvitationPdf(reminder: ReminderRow) {
   const details = await fetchInvitationDetails(reminder.link);
   const title = cleanText(details.tournament || reminder.title);
   const discipline = cleanText(details.discipline || "");
-  const typeParts = [details.tournamentType, details.category].map(cleanText).filter(Boolean);
+  const seenTypeParts = new Set<string>();
+  const typeParts = [details.tournamentType, details.category]
+    .map(cleanText)
+    .filter(Boolean)
+    .filter((value) => {
+      const comparisonKey = value
+        .toLocaleLowerCase("de-DE")
+        .replace(/\([^)]*\)/g, "")
+        .replace(/[^a-z0-9äöüß]+/gi, " ")
+        .trim();
+      if (seenTypeParts.has(comparisonKey)) return false;
+      seenTypeParts.add(comparisonKey);
+      return true;
+    });
   const locationName = cleanText(details.locationName || reminder.location || "");
   const locationLines = [locationName, ...(details.locationAddress || [])].filter(Boolean);
   const startTime = cleanText(details.startTime || getStartTimeFromMessage(reminder.message_text));
