@@ -766,10 +766,10 @@ function buildHtml(reminder: ReminderRow) {
         ${reminder.location ? `Ort: ${cleanText(reminder.location)}<br>` : ""}
       </p>
       ${detailsLink}
-      <p>
-        Verteiler in BCC:<br><br>
-        --- Vereinssportwarte im NBV<br><br>
-        --- Funktionsträger der Karambolage-Vereine im NBV<br><br>
+      <p style="font-size:12px;line-height:1.25;margin:12px 0;">
+        Verteiler in BCC:<br>
+        --- Vereinssportwarte im NBV<br>
+        --- Funktionsträger der Karambolage-Vereine im NBV<br>
         --- weitere interessierte NBV-Sportler
       </p>
       <p>Mit sportlichem Gruß<br>Norddeutscher Billard Verband e.V.</p>
