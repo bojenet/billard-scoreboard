@@ -1232,6 +1232,18 @@
                     </div>
                     <div id="invitationAutoSendInfo" class="admin-settings-meta">Automatischer Versand ist nicht geladen.</div>
                     <div id="invitationAutoSendDryRunResult" class="admin-settings-meta"></div>
+                    <div class="editor-section" style="margin-top:12px;">
+                        <h3>Testmail senden</h3>
+                        <div class="admin-settings-meta">Sendet die nächste offene Ausschreibung samt PDF ausschließlich an die angegebene Adresse. Empfängerlisten und Reminder-Status bleiben unverändert.</div>
+                        <div class="admin-settings-row" style="margin-top:10px;">
+                            <div>
+                                <label class="field-title" for="invitationTestEmailInput">Test-E-Mail-Adresse</label>
+                                <input id="invitationTestEmailInput" type="email" placeholder="name@example.de">
+                            </div>
+                            <button id="invitationTestEmailButton" class="btn btn-secondary" type="button" onclick="sendInvitationTestEmail()">Testmail senden</button>
+                        </div>
+                        <div id="invitationTestEmailResult" class="admin-settings-meta"></div>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -2197,6 +2209,40 @@
                 if (result) {
                     result.textContent = `Dry Run konnte nicht ausgeführt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`;
                 }
+            }
+        }
+
+        async function sendInvitationTestEmail() {
+            if (!hasAdminCenterAccessFlag || !supportsInvitationSending) return;
+            const input = document.getElementById("invitationTestEmailInput");
+            const button = document.getElementById("invitationTestEmailButton");
+            const result = document.getElementById("invitationTestEmailResult");
+            const testEmail = String(input?.value || "").trim().toLowerCase();
+            if (!testEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testEmail)) {
+                if (result) result.textContent = "Bitte eine gültige Test-E-Mail-Adresse eingeben.";
+                return;
+            }
+            if (button) button.disabled = true;
+            if (result) result.textContent = "Testmail wird erstellt und ausschließlich an die Testadresse gesendet...";
+            try {
+                const { data, error } = await supabaseClient.functions.invoke("send-nbv-invitation-reminders", {
+                    body: { testEmail }
+                });
+                if (error) throw error;
+                if (!data?.ok) throw new Error(data?.error || "Testmail konnte nicht gesendet werden.");
+                const sentResult = Array.isArray(data.results) ? data.results[0] : null;
+                if (sentResult?.status === "failed") throw new Error(sentResult.error || "Testmail konnte nicht gesendet werden.");
+                if (result) result.textContent = `Testmail wurde ausschließlich an ${testEmail} gesendet. Der Reminder-Status wurde nicht verändert.`;
+            } catch (error) {
+                console.warn("Testmail konnte nicht gesendet werden:", error);
+                const message = getErrorMessage(error, "Unbekannter Fehler");
+                if (result) {
+                    result.textContent = /no-open-reminder-for-test/i.test(message)
+                        ? "Es ist keine offene Ausschreibung für eine Testmail vorhanden."
+                        : `Testmail konnte nicht gesendet werden: ${message}`;
+                }
+            } finally {
+                if (button) button.disabled = false;
             }
         }
 

@@ -66,6 +66,7 @@ type RequestPayload = {
   dryRun?: boolean;
   limit?: number;
   reminderId?: string;
+  testEmail?: string;
   directInvitation?: {
     id?: string;
     eventId?: string;
@@ -487,11 +488,11 @@ async function fetchInvitationDetails(link: string): Promise<InvitationDetails> 
   }
 }
 
-async function assertInvocationAllowed(request: Request, supabaseUrl: string, serviceRoleKey: string) {
+async function assertInvocationAllowed(request: Request, supabaseUrl: string, serviceRoleKey: string, requireAdminCenter = false) {
   const cronSecret = Deno.env.get("CRON_SECRET") || "";
   const providedSecret = request.headers.get("x-cron-secret") || request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "";
-  if (cronSecret && providedSecret === cronSecret) return;
-  if (!cronSecret) return;
+  if (!requireAdminCenter && cronSecret && providedSecret === cronSecret) return;
+  if (!requireAdminCenter && !cronSecret) return;
 
   const authHeader = request.headers.get("authorization") || "";
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
@@ -509,7 +510,8 @@ async function assertInvocationAllowed(request: Request, supabaseUrl: string, se
         .maybeSingle();
       const role = String(roleRow?.role || "").toLowerCase();
       const calendarAccess = String(roleRow?.calendar_access || "").toLowerCase();
-      if (role === "admin" || calendarAccess === "edit" || roleRow?.admin_center_access === true) return;
+      if (requireAdminCenter && (role === "admin" || roleRow?.admin_center_access === true)) return;
+      if (!requireAdminCenter && (role === "admin" || calendarAccess === "edit" || roleRow?.admin_center_access === true)) return;
     }
   }
   throw new Error("Nicht autorisiert.");
@@ -773,11 +775,15 @@ Deno.serve(async (request) => {
     if (!supabaseUrl || !serviceRoleKey) {
       return jsonResponse({ error: "service-role-missing" }, 500);
     }
-    await assertInvocationAllowed(request, supabaseUrl, serviceRoleKey);
-
     const payload = await request.json().catch(() => ({})) as RequestPayload;
+    await assertInvocationAllowed(request, supabaseUrl, serviceRoleKey, Boolean(payload.testEmail));
     const dryRun = Boolean(payload.dryRun);
     const requestedReminderId = cleanText(payload.reminderId);
+    const testEmail = normalizeEmail(payload.testEmail);
+    const isTestEmail = Boolean(testEmail);
+    if (payload.testEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testEmail)) {
+      return jsonResponse({ error: "invalid-test-email" }, 400);
+    }
     const directInvitation = payload.directInvitation;
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -796,9 +802,9 @@ Deno.serve(async (request) => {
     const autoSendFrequency = normalizeFrequencySetting(settings.invitation_auto_send_frequency);
     const currentBerlinTime = berlinTimeHHmm();
     const configuredLimit = clampInteger(settings.invitation_auto_send_limit, 10, 1, 25);
-    const limit = requestedReminderId ? 1 : configuredLimit;
-    const isAutomaticRun = !dryRun && !requestedReminderId && !directInvitation?.pdfBase64;
-    if (!dryRun && !requestedReminderId && !directInvitation?.pdfBase64 && !autoSendEnabled) {
+    const limit = requestedReminderId || isTestEmail ? 1 : configuredLimit;
+    const isAutomaticRun = !dryRun && !requestedReminderId && !isTestEmail && !directInvitation?.pdfBase64;
+    if (!dryRun && !requestedReminderId && !isTestEmail && !directInvitation?.pdfBase64 && !autoSendEnabled) {
       return jsonResponse({
         ok: true,
         skipped: true,
@@ -842,7 +848,7 @@ Deno.serve(async (request) => {
     }
 
     let syncResult: Record<string, unknown> | null = null;
-    if (!requestedReminderId && !directInvitation?.pdfBase64 && (dryRun || autoSendEnabled)) {
+    if (!requestedReminderId && !directInvitation?.pdfBase64 && (dryRun || isTestEmail || autoSendEnabled)) {
       syncResult = await syncAutoRemindersFromCalendar(supabaseUrl, serviceRoleKey, adminClient, settings, autoSendDaysBefore);
     }
 
@@ -865,7 +871,10 @@ Deno.serve(async (request) => {
     const toEmails = Array.from(new Set(recipients.filter((row: RecipientRow) => row.delivery_type === "to").map((row: RecipientRow) => row.email)));
     const ccEmails = Array.from(new Set(recipients.filter((row: RecipientRow) => row.delivery_type === "cc").map((row: RecipientRow) => row.email)));
     const bccEmails = Array.from(new Set(recipients.filter((row: RecipientRow) => row.delivery_type === "bcc").map((row: RecipientRow) => row.email)));
-    const uniqueEmails = Array.from(new Set([...toEmails, ...ccEmails, ...bccEmails]));
+    const effectiveToEmails = isTestEmail ? [testEmail] : toEmails;
+    const effectiveCcEmails = isTestEmail ? [] : ccEmails;
+    const effectiveBccEmails = isTestEmail ? [] : bccEmails;
+    const uniqueEmails = Array.from(new Set([...effectiveToEmails, ...effectiveCcEmails, ...effectiveBccEmails]));
     if (!uniqueEmails.length && !dryRun) {
       return jsonResponse({ ok: true, skipped: true, reason: "no-recipients" });
     }
@@ -906,9 +915,9 @@ Deno.serve(async (request) => {
       if (directReminderError) throw directReminderError;
       const info = await transporter.sendMail({
         from: mailFrom,
-        to: toEmails.length ? toEmails : mailFrom,
-        cc: ccEmails.length ? ccEmails : undefined,
-        bcc: bccEmails.length ? bccEmails : undefined,
+        to: effectiveToEmails.length ? effectiveToEmails : mailFrom,
+        cc: effectiveCcEmails.length ? effectiveCcEmails : undefined,
+        bcc: effectiveBccEmails.length ? effectiveBccEmails : undefined,
         subject,
         html: buildHtml(reminder).replace(/Ausschreibung/g, "Einladung"),
         attachments: [{
@@ -944,17 +953,20 @@ Deno.serve(async (request) => {
       .from("calendar_club_reminders")
       .select("id, event_id, event_date, reminder_date, days_before, title, location, link, message_text, status")
       .eq("status", "open")
-      .lte("reminder_date", todayIso())
       .order("reminder_date", { ascending: true })
       .limit(limit);
+    if (!isTestEmail) reminderQuery = reminderQuery.lte("reminder_date", todayIso());
     if (requestedReminderId) reminderQuery = reminderQuery.eq("id", requestedReminderId);
-    if (!requestedReminderId) reminderQuery = reminderQuery.eq("days_before", autoSendDaysBefore);
+    if (!requestedReminderId && !isTestEmail) reminderQuery = reminderQuery.eq("days_before", autoSendDaysBefore);
 
     const { data: remindersData, error: remindersError } = await reminderQuery;
     if (remindersError) throw remindersError;
     const reminders = (remindersData || []) as ReminderRow[];
     if (requestedReminderId && reminders.length !== 1) {
       return jsonResponse({ ok: false, error: "reminder-not-found-or-not-open", reminderId: requestedReminderId }, 404);
+    }
+    if (isTestEmail && reminders.length !== 1) {
+      return jsonResponse({ ok: false, error: "no-open-reminder-for-test" });
     }
     if (dryRun) {
       return jsonResponse({ ok: true, dryRun, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, sendTime: autoSendTime, frequency: autoSendFrequency, currentTime: currentBerlinTime, limit, sync: syncResult, reminders });
@@ -967,14 +979,14 @@ Deno.serve(async (request) => {
     const results: Array<Record<string, unknown>> = [];
 
     for (const reminder of reminders) {
-      const subject = buildSubject(reminder);
+      const subject = `${isTestEmail ? "[TEST] " : ""}${buildSubject(reminder)}`;
       try {
         const pdfBytes = await buildInvitationPdf(reminder);
         const info = await transporter.sendMail({
           from: mailFrom,
-          to: toEmails.length ? toEmails : mailFrom,
-          cc: ccEmails.length ? ccEmails : undefined,
-          bcc: bccEmails.length ? bccEmails : undefined,
+          to: effectiveToEmails.length ? effectiveToEmails : mailFrom,
+          cc: effectiveCcEmails.length ? effectiveCcEmails : undefined,
+          bcc: effectiveBccEmails.length ? effectiveBccEmails : undefined,
           subject,
           html: buildHtml(reminder),
           attachments: [{
@@ -985,40 +997,44 @@ Deno.serve(async (request) => {
           }],
         });
 
-        await adminClient
-          .from("calendar_invitation_email_logs")
-          .insert({
-            reminder_id: reminder.id,
-            event_id: reminder.event_id || "",
-            subject,
-            recipient_count: uniqueEmails.length,
-            status: "sent",
-            message_id: info.messageId || "",
-          });
+        if (!isTestEmail) {
+          await adminClient
+            .from("calendar_invitation_email_logs")
+            .insert({
+              reminder_id: reminder.id,
+              event_id: reminder.event_id || "",
+              subject,
+              recipient_count: uniqueEmails.length,
+              status: "sent",
+              message_id: info.messageId || "",
+            });
 
-        await adminClient
-          .from("calendar_club_reminders")
-          .update({
-            status: "sent",
-            sent_at: new Date().toISOString(),
-            sent_by_name: "Automatischer E-Mail-Versand",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", reminder.id);
+          await adminClient
+            .from("calendar_club_reminders")
+            .update({
+              status: "sent",
+              sent_at: new Date().toISOString(),
+              sent_by_name: "Automatischer E-Mail-Versand",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", reminder.id);
+        }
 
         results.push({ reminderId: reminder.id, status: "sent", recipientCount: uniqueEmails.length, messageId: info.messageId });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        await adminClient
-          .from("calendar_invitation_email_logs")
-          .insert({
-            reminder_id: reminder.id,
-            event_id: reminder.event_id || "",
-            subject,
-            recipient_count: uniqueEmails.length,
-            status: "failed",
-            error_message: message,
-          });
+        if (!isTestEmail) {
+          await adminClient
+            .from("calendar_invitation_email_logs")
+            .insert({
+              reminder_id: reminder.id,
+              event_id: reminder.event_id || "",
+              subject,
+              recipient_count: uniqueEmails.length,
+              status: "failed",
+              error_message: message,
+            });
+        }
         results.push({ reminderId: reminder.id, status: "failed", error: message });
       }
     }
@@ -1033,7 +1049,7 @@ Deno.serve(async (request) => {
         .eq("key", "nbv_public_calendar");
     }
 
-    return jsonResponse({ ok: true, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, sendTime: autoSendTime, frequency: autoSendFrequency, currentTime: currentBerlinTime, limit, sync: syncResult, results });
+    return jsonResponse({ ok: true, testEmail: isTestEmail ? testEmail : undefined, reminderCount: reminders.length, recipientCount: uniqueEmails.length, autoSendEnabled, daysBefore: autoSendDaysBefore, sendTime: autoSendTime, frequency: autoSendFrequency, currentTime: currentBerlinTime, limit, sync: syncResult, results });
   } catch (error) {
     return jsonResponse({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
