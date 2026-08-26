@@ -604,7 +604,7 @@ async function buildInvitationPdf(reminder: ReminderRow) {
 
   const drawFooter = () => {
     page.drawLine({ start: { x: 48, y: 62 }, end: { x: 547, y: 62 }, thickness: 0.8, color: muted });
-    drawText("Norddeutscher Billard-Verband e.V. (NBV)", 48, 42, 8, { color: muted });
+    drawText("Norddeutscher Billard Verband e.V. (NBV)", 48, 42, 8, { color: muted });
     drawText(`Stand: ${formatGermanDate(todayIso()).replace(/^\S+,\s*/, "")}`, 465, 42, 8, { color: muted });
   };
 
@@ -705,8 +705,8 @@ async function buildInvitationPdf(reminder: ReminderRow) {
   const importantRows = [
     ["Regeln", "Es gelten die Spielregeln und Spielregularien der DBU und die Bestimmungen der STO-BTK des NBV."],
     ["Doping", "Die Teilnehmer dieses Turniers erkennen mit ihrer Meldung die Richtlinien der NADA an."],
-    ["Haftung", "Der Veranstalter uebernimmt keine Haftung fuer Sach- und Personenschaeden sowie Entwendung von Wertsachen."],
-    ["Vorbehalte", "Kurzfristige Aenderungen durch den Landessportwart bzw. die Turnierleitung bleiben vorbehalten."],
+    ["Haftung", "Der Veranstalter übernimmt keine Haftung für Sach- und Personenschäden sowie Entwendung von Wertsachen."],
+    ["Vorbehalte", "Kurzfristige Änderungen durch den Landessportwart bzw. die Turnierleitung bleiben vorbehalten."],
   ];
   importantRows.forEach(([label, value]) => {
     if (y < 102) return;
@@ -719,7 +719,7 @@ async function buildInvitationPdf(reminder: ReminderRow) {
 
   if (y >= 84) {
     y -= 10;
-    drawText("Mit sportlichem Gruss", 48, y, 10.5);
+    drawText("Mit sportlichem Gruß", 48, y, 10.5);
   }
 
   drawFooter();
@@ -751,7 +751,13 @@ function buildHtml(reminder: ReminderRow) {
         ${reminder.location ? `Ort: ${cleanText(reminder.location)}<br>` : ""}
       </p>
       ${detailsLink}
-      <p>Mit sportlichem Gruß<br>Norddeutscher Billard-Verband e.V.</p>
+      <p>
+        Verteiler in BCC:<br><br>
+        --- Vereinssportwarte im NBV<br><br>
+        --- Funktionsträger der Karambolage-Vereine im NBV<br><br>
+        --- weitere interessierte NBV-Sportler
+      </p>
+      <p>Mit sportlichem Gruß<br>Norddeutscher Billard Verband e.V.</p>
     </div>
   `;
 }
