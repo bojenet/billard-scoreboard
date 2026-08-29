@@ -49,6 +49,26 @@ systemctl status billard-keypad.service
 journalctl -u billard-keypad.service -f
 ```
 
+Vor dem ersten Start `/etc/default/billard-keypad` anlegen. Das Secret muss mit
+dem Supabase-Secret `BILLARD_KEYPAD_SECRET` uebereinstimmen:
+
+```bash
+sudo nano /etc/default/billard-keypad
+```
+
+Beispiel fuer Display 1:
+
+```text
+BILLARD_DISPLAY_TABLE=tisch1
+BILLARD_KEYPAD_SECRET=HIER_DAS_GEMEINSAME_SECRET
+```
+
+Danach:
+
+```bash
+sudo systemctl restart billard-keypad.service
+```
+
 ## URL spaeter aendern
 
 ```bash

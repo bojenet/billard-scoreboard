@@ -1957,21 +1957,10 @@
             }
 
             if (event.code !== "NumpadEnter") return;
-
-            saveState();
-            const enteredValue = keypadInput === "" ? 0 : Number(keypadInput);
-            if (activePlayer === 1) {
-                series1 = Math.max(0, target1 > 0
-                    ? Math.min(enteredValue, target1 - score1)
-                    : enteredValue);
-            } else {
-                series2 = Math.max(0, target2 > 0
-                    ? Math.min(enteredValue, target2 - score2)
-                    : enteredValue);
-            }
-
+            // The Pi service commits the series through the protected backend.
+            // NumpadEnter is emitted only after that request succeeded.
             keypadInput = "";
-            switchTo(activePlayer === 1 ? 2 : 1, true);
+            updateUI();
         }
 
         function getRemoteAction(event) {

@@ -4,6 +4,7 @@ After=multi-user.target
 
 [Service]
 Type=simple
+EnvironmentFile=/etc/default/billard-keypad
 ExecStart=/usr/local/bin/billard-keypad
 Restart=always
 RestartSec=2

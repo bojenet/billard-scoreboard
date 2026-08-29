@@ -4,6 +4,9 @@ verify_jwt = false
 [functions.get-stream-remote-match]
 verify_jwt = false
 
+[functions.apply-keypad-series]
+verify_jwt = false
+
 [functions.get-nbv-calendar-ics]
 verify_jwt = false
 

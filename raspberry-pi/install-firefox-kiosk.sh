@@ -41,8 +41,12 @@ if [ -f "./keypad-uinput.py" ] && [ -f "./billard-keypad.service" ]; then
   echo "Installing serial keypad service."
   sudo install -m 0755 ./keypad-uinput.py /usr/local/bin/billard-keypad
   sudo install -m 0644 ./billard-keypad.service /etc/systemd/system/billard-keypad.service
+  if [ ! -f /etc/default/billard-keypad ]; then
+    echo "Keypad-Konfiguration fehlt: /etc/default/billard-keypad"
+    echo "Siehe README-firefox-kiosk.md."
+  fi
   sudo systemctl daemon-reload
-  sudo systemctl enable --now billard-keypad.service
+  sudo systemctl enable billard-keypad.service
 fi
 
 cat > "$DESKTOP_PATH" <<EOF
