@@ -1,0 +1,12 @@
+[Unit]
+Description=Billard Scoreboard serial keypad
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/billard-keypad
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

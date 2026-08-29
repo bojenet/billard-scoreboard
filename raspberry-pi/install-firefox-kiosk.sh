@@ -9,7 +9,7 @@ DESKTOP_PATH="$HOME/.config/autostart/billard-kiosk.desktop"
 echo "Installing Firefox kiosk for: $KIOSK_URL"
 
 sudo apt update
-sudo apt install -y firefox-esr unclutter x11-xserver-utils
+sudo apt install -y firefox-esr unclutter x11-xserver-utils python3-evdev python3-serial
 
 mkdir -p "$HOME/.local/bin" "$HOME/.config/autostart"
 
@@ -36,6 +36,14 @@ done
 EOF
 
 chmod +x "$SCRIPT_PATH"
+
+if [ -f "./keypad-uinput.py" ] && [ -f "./billard-keypad.service" ]; then
+  echo "Installing serial keypad service."
+  sudo install -m 0755 ./keypad-uinput.py /usr/local/bin/billard-keypad
+  sudo install -m 0644 ./billard-keypad.service /etc/systemd/system/billard-keypad.service
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now billard-keypad.service
+fi
 
 cat > "$DESKTOP_PATH" <<EOF
 [Desktop Entry]

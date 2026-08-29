@@ -31,6 +31,23 @@ Fuer Display 1 oder 2 die passende URL einsetzen, zum Beispiel:
 - Autostart-Datei: `~/.config/autostart/billard-kiosk.desktop`
 - Startscript: `~/.local/bin/billard-kiosk.sh`
 - Optional: `90-sharkoon-presenter.hwdb`, wenn das Script aus diesem Ordner gestartet wird.
+- Serieller Keypad-Dienst fuer `/dev/ttyUSB0` mit 115200 Baud
+
+## 3x4-Keypad
+
+Der Keypad-Dienst startet automatisch und verbindet sich nach einem USB-Ausfall erneut.
+
+- `0` bis `9`: mehrstellige Serie eingeben
+- `*`: letzte Ziffer loeschen
+- `#`: Serie verbuchen und zum anderen Spieler wechseln
+- `#` ohne Zifferneingabe: Nullaufnahme verbuchen und wechseln
+
+Status und Protokoll pruefen:
+
+```bash
+systemctl status billard-keypad.service
+journalctl -u billard-keypad.service -f
+```
 
 ## URL spaeter aendern
 
