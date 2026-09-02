@@ -5136,7 +5136,7 @@
                 return;
             }
             const recipientStats = getInvitationRecipientStats();
-            if (!recipientStats.activeCount) {
+            if (hasAdminCenterAccessFlag && !recipientStats.activeCount) {
                 setModalMessage("invitationEditorMessage", "Bitte zuerst mindestens einen Ausschreibungs-Empfänger hinterlegen.", "error");
                 return;
             }
