@@ -4196,14 +4196,14 @@
         function getInvitationGroupRows(invitation) {
             const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
             return getInvitationModeGroups(invitation).map((group) => {
-                const playerLabels = group.seeds.map((seed) => {
+                const playerLabels = group.seeds.map((seed, groupPosition) => {
                     const participant = participants.find((item, index) => Number(item?.number || index + 1) === seed);
-                    if (!participant) return `Setzplatz ${seed}`;
+                    if (!participant) return `${groupPosition + 1}. Setzplatz ${seed}`;
                     const name = getPdfText(participant.name || `Setzplatz ${seed}`);
                     const club = getPdfText(participant.club || "");
-                    return `${seed}. ${name}${club ? ` (${club})` : ""}`;
+                    return `${groupPosition + 1}. ${name}${club ? ` (${club})` : ""}`;
                 });
-                return [group.label, playerLabels.join("; ")];
+                return [group.label, playerLabels];
             });
         }
 
@@ -4213,7 +4213,8 @@
             doc.setFont("helvetica", "normal");
             doc.setFontSize(9.8);
             const rowsHeight = groupRows.reduce((total, row) => {
-                const lines = doc.splitTextToSize(getPdfText(row[1]), 108);
+                const values = Array.isArray(row[1]) ? row[1] : [row[1]];
+                const lines = values.flatMap((value) => doc.splitTextToSize(getPdfText(value), 108));
                 return total + Math.max(10.8, lines.length * 4.5 + 5.4);
             }, 0);
             ensureInvitationPage(doc, invitation, state, 17 + rowsHeight);
