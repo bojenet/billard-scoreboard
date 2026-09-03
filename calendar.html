@@ -826,6 +826,10 @@
             background: #fff;
         }
 
+        .participant-editor-row.vorgabepokal {
+            grid-template-columns: 64px 92px 70px 82px 82px minmax(170px, 1fr) minmax(140px, 0.8fr) 82px;
+        }
+
         .participant-editor-row.header {
             background: #eef2f6;
             font-size: 12px;
@@ -1397,7 +1401,7 @@
                             <input id="invitationEditorOverrideReason" type="text" placeholder="Optionaler Hinweis" oninput="updateInvitationDraftField('overrideReason', this.value)">
                         </div>
                         <div>
-                            <label class="field-title" for="invitationEditorPlayingTargetPoints">Punkte</label>
+                            <label class="field-title" id="invitationEditorPlayingTargetPointsLabel" for="invitationEditorPlayingTargetPoints">Punkte</label>
                             <input id="invitationEditorPlayingTargetPoints" type="number" inputmode="numeric" min="1" placeholder="z. B. 20" required oninput="updateInvitationDraftField('playingTargetPoints', this.value)">
                         </div>
                         <div>
@@ -3506,6 +3510,7 @@
 
         function drawParticipantTable(doc, invitation, state) {
             const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
+            const isVorgabepokal = isVorgabepokalInvitation(invitation);
             ensureInvitationPage(doc, invitation, state, 30 + participants.length * 8);
             state.y = drawSectionTitle(doc, "Setzliste / Teilnehmer", state.y);
             if (invitation?.rankingSeason || invitation?.seedingNote) {
@@ -3524,9 +3529,10 @@
             doc.setFont("helvetica", "bold");
             doc.setFontSize(9);
             doc.text("Setz.", 28, state.y + 5.2);
-            doc.text("GD", 50, state.y + 5.2);
-            doc.text("Name", 76, state.y + 5.2);
-            doc.text("Verein", 148, state.y + 5.2);
+            doc.text("GD", 48, state.y + 5.2);
+            if (isVorgabepokal) doc.text("Ballzahl", 68, state.y + 5.2);
+            doc.text("Name", isVorgabepokal ? 94 : 76, state.y + 5.2);
+            doc.text("Verein", isVorgabepokal ? 154 : 148, state.y + 5.2);
             state.y += 8;
 
             if (!participants.length) {
@@ -3547,9 +3553,10 @@
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(9.5);
                 doc.text(getPdfText(participant?.number || String(index + 1)), 28, state.y + 5.3);
-                doc.text(getPdfText(participant?.seedGd || "-"), 50, state.y + 5.3);
-                doc.text(doc.splitTextToSize(getPdfText(participant?.name || ""), 66), 76, state.y + 5.3);
-                doc.text(doc.splitTextToSize(getPdfText(participant?.club || ""), 42), 148, state.y + 5.3);
+                doc.text(getPdfText(participant?.seedGd || "-"), 48, state.y + 5.3);
+                if (isVorgabepokal) doc.text(getPdfText(participant?.ballCount || "-"), 68, state.y + 5.3);
+                doc.text(doc.splitTextToSize(getPdfText(participant?.name || ""), isVorgabepokal ? 56 : 66), isVorgabepokal ? 94 : 76, state.y + 5.3);
+                doc.text(doc.splitTextToSize(getPdfText(participant?.club || ""), isVorgabepokal ? 36 : 42), isVorgabepokal ? 154 : 148, state.y + 5.3);
                 state.y += 8;
             });
             state.y += 6;
@@ -3956,6 +3963,12 @@
             ].map((value) => String(value || "")).join(" ");
         }
 
+        function isVorgabepokalInvitation(invitation) {
+            return /vorgabe[\s-]*pokal/i.test(getInvitationTextBlob(invitation));
+        }
+
+        const VORGABEPOKAL_TARGET_COMMENT = 'siehe Spalte pro Spieler "Ballzahl"';
+
         function getInvitationClassKey(invitation) {
             const text = getInvitationTextBlob(invitation);
             if (/\bkl\.?\s*(iii|3)\b/i.test(text)) return "3";
@@ -4052,6 +4065,11 @@
         }
 
         function getSportordnungTargetText(invitation) {
+            if (isVorgabepokalInvitation(invitation)) {
+                const comment = String(invitation?.playingTargetPoints || "").trim();
+                const innings = String(invitation?.playingTargetInnings || "").trim();
+                return [comment, innings ? `${innings} Aufnahmen` : ""].filter(Boolean).join(" / ");
+            }
             const target = getInvitationPlayingTarget(invitation);
             if (!target) return "";
             return `${target.points} Punkte / ${target.innings} Aufnahmen`;
@@ -4424,7 +4442,13 @@
             if (!currentInvitationDraft.selectedModeCode) {
                 currentInvitationDraft.selectedModeCode = getSportordnungModeCode(currentInvitationDraft);
             }
-            if (!currentInvitationDraft.playingTargetPoints || !currentInvitationDraft.playingTargetInnings) {
+            if (isVorgabepokalInvitation(currentInvitationDraft)) {
+                const currentComment = String(currentInvitationDraft.playingTargetPoints || "").trim();
+                if (!currentComment || /^\d+(?:[.,]\d+)?$/.test(currentComment)) {
+                    currentInvitationDraft.playingTargetPoints = VORGABEPOKAL_TARGET_COMMENT;
+                    currentInvitationDraft.playingTargetAuto = "";
+                }
+            } else if (!currentInvitationDraft.playingTargetPoints || !currentInvitationDraft.playingTargetInnings) {
                 applyInvitationPlayingTarget(getInvitationPlayingTarget(currentInvitationDraft));
             }
             renderInvitationEditor();
@@ -4512,22 +4536,26 @@
             const wrap = document.getElementById("invitationParticipantEditor");
             if (!wrap || !currentInvitationDraft) return;
             const participants = Array.isArray(currentInvitationDraft.participants) ? currentInvitationDraft.participants : [];
+            const isVorgabepokal = isVorgabepokalInvitation(currentInvitationDraft);
+            const rowClass = `participant-editor-row${isVorgabepokal ? " vorgabepokal" : ""}`;
             const header = `
-                <div class="participant-editor-row header">
+                <div class="${rowClass} header">
                     <span>Setz.</span>
                     <span>Pass-Nr.</span>
                     <span>Rang</span>
                     <span>GD</span>
+                    ${isVorgabepokal ? "<span>Ballzahl</span>" : ""}
                     <span>Name</span>
                     <span>Verein</span>
                     <span></span>
                 </div>`;
             const rows = participants.map((participant, index) => `
-                <div class="participant-editor-row">
+                <div class="${rowClass}">
                     <input type="text" value="${escapeHtml(participant.number || String(index + 1))}" onchange="updateInvitationParticipant(${index}, 'number', this.value)">
                     <input type="text" value="${escapeHtml(participant.passNo || "")}" onchange="updateInvitationParticipant(${index}, 'passNo', this.value)">
                     <input type="text" value="${escapeHtml(participant.seedRank || "")}" onchange="updateInvitationParticipant(${index}, 'seedRank', this.value)">
                     <input type="text" value="${escapeHtml(participant.seedGd || "")}" onchange="updateInvitationParticipant(${index}, 'seedGd', this.value)">
+                    ${isVorgabepokal ? `<input id="invitationParticipantBallCount-${index}" type="number" inputmode="numeric" min="1" value="${escapeHtml(participant.ballCount || "")}" placeholder="Ballzahl" onchange="updateInvitationParticipant(${index}, 'ballCount', this.value)">` : ""}
                     <input type="text" value="${escapeHtml(participant.name || "")}" onchange="updateInvitationParticipant(${index}, 'name', this.value)">
                     <input type="text" value="${escapeHtml(participant.club || "")}" onchange="updateInvitationParticipant(${index}, 'club', this.value)">
                     <div class="row-tools">
@@ -4560,6 +4588,18 @@
                 const el = document.getElementById(id);
                 if (el) el.value = value;
             });
+            const isVorgabepokal = isVorgabepokalInvitation(currentInvitationDraft);
+            const pointsLabel = document.getElementById("invitationEditorPlayingTargetPointsLabel");
+            const pointsInput = document.getElementById("invitationEditorPlayingTargetPoints");
+            if (pointsLabel) pointsLabel.textContent = isVorgabepokal ? "Kommentar zum Ausspielziel" : "Punkte";
+            if (pointsInput) {
+                pointsInput.type = isVorgabepokal ? "text" : "number";
+                pointsInput.inputMode = isVorgabepokal ? "text" : "numeric";
+                pointsInput.placeholder = isVorgabepokal ? VORGABEPOKAL_TARGET_COMMENT : "z. B. 20";
+                if (isVorgabepokal) pointsInput.removeAttribute("min");
+                else pointsInput.min = "1";
+                pointsInput.value = currentInvitationDraft.playingTargetPoints || "";
+            }
             renderInvitationModeSelect();
             renderInvitationParticipantEditor();
             renderInvitationSendRecipientSummary();
@@ -4569,6 +4609,10 @@
         function handleInvitationModeChange(modeCode) {
             if (!currentInvitationDraft) return;
             currentInvitationDraft.selectedModeCode = modeCode;
+            if (isVorgabepokalInvitation(currentInvitationDraft)) {
+                renderInvitationModeInfo();
+                return;
+            }
             const nextAutoTarget = getInvitationPlayingTarget({
                 ...currentInvitationDraft,
                 playingTarget: "",
@@ -4583,6 +4627,34 @@
                 if (inningsInput) inningsInput.value = currentInvitationDraft.playingTargetInnings || "";
             }
             renderInvitationModeInfo();
+        }
+
+        function getInvitationPlayingTargetValidation(invitation) {
+            const targetValue = String(invitation?.playingTargetPoints || "").trim();
+            const innings = String(invitation?.playingTargetInnings || "").trim();
+            const isVorgabepokal = isVorgabepokalInvitation(invitation);
+            if (!targetValue) {
+                return {
+                    valid: false,
+                    inputId: "invitationEditorPlayingTargetPoints",
+                    message: isVorgabepokal ? "Bitte einen Kommentar zum Ausspielziel eintragen." : "Bitte Punkte eintragen."
+                };
+            }
+            if (!innings) {
+                return { valid: false, inputId: "invitationEditorPlayingTargetInnings", message: "Bitte Aufnahmen eintragen." };
+            }
+            if (isVorgabepokal) {
+                const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
+                const missingBallCountIndex = participants.findIndex((participant) => !String(participant?.ballCount || "").trim());
+                if (missingBallCountIndex >= 0) {
+                    return {
+                        valid: false,
+                        inputId: `invitationParticipantBallCount-${missingBallCountIndex}`,
+                        message: `Bitte die Ballzahl für Teilnehmer ${missingBallCountIndex + 1} eintragen.`
+                    };
+                }
+            }
+            return { valid: true, inputId: "", message: "" };
         }
 
         function updateInvitationParticipant(index, field, value) {
@@ -5075,8 +5147,7 @@
             if (!currentInvitationDraft) return;
             const selected = currentInvitationDraft.selectedModeCode || getSportordnungModeCode(currentInvitationDraft);
             const participants = Array.isArray(currentInvitationDraft.participants) ? currentInvitationDraft.participants : [];
-            const targetPoints = String(currentInvitationDraft.playingTargetPoints || "").trim();
-            const targetInnings = String(currentInvitationDraft.playingTargetInnings || "").trim();
+            const targetValidation = getInvitationPlayingTargetValidation(currentInvitationDraft);
             const templateConfig = getResultWorkbookTemplateConfig(selected);
             if (!templateConfig) {
                 setModalMessage("invitationEditorMessage", `Für diesen Modus ist noch keine Excel-Vorlage hinterlegt. Verfügbar: ${getSupportedResultWorkbookTemplateLabels()}.`, "error");
@@ -5086,9 +5157,9 @@
                 setModalMessage("invitationEditorMessage", `Die Excel-Vorlage ${selected} erwartet ${templateConfig.participantCount} Teilnehmer. Aktuell sind ${participants.length} Teilnehmer eingetragen.`, "error");
                 return;
             }
-            if (!targetPoints || !targetInnings) {
-                setModalMessage("invitationEditorMessage", "Bitte Punkte und Aufnahmen eintragen, bevor das Excel-Formular erstellt wird.", "error");
-                const targetInput = document.getElementById(!targetPoints ? "invitationEditorPlayingTargetPoints" : "invitationEditorPlayingTargetInnings");
+            if (!targetValidation.valid) {
+                setModalMessage("invitationEditorMessage", `${targetValidation.message} Erst danach kann das Excel-Formular erstellt werden.`, "error");
+                const targetInput = document.getElementById(targetValidation.inputId);
                 if (targetInput) targetInput.focus();
                 return;
             }
@@ -5108,11 +5179,10 @@
 
         async function generateInvitationPdfFromEditor() {
             if (!currentInvitationDraft) return;
-            const targetPoints = String(currentInvitationDraft.playingTargetPoints || "").trim();
-            const targetInnings = String(currentInvitationDraft.playingTargetInnings || "").trim();
-            if (!targetPoints || !targetInnings) {
-                setModalMessage("invitationEditorMessage", "Bitte Punkte und Aufnahmen eintragen, bevor die PDF erstellt wird.", "error");
-                const targetInput = document.getElementById(!targetPoints ? "invitationEditorPlayingTargetPoints" : "invitationEditorPlayingTargetInnings");
+            const targetValidation = getInvitationPlayingTargetValidation(currentInvitationDraft);
+            if (!targetValidation.valid) {
+                setModalMessage("invitationEditorMessage", `${targetValidation.message} Erst danach kann die PDF erstellt werden.`, "error");
+                const targetInput = document.getElementById(targetValidation.inputId);
                 if (targetInput) targetInput.focus();
                 return;
             }
@@ -5127,11 +5197,10 @@
 
         async function sendInvitationPdfFromEditor() {
             if (!isCalendarAdmin || !supportsInvitationSending || !currentInvitationDraft) return;
-            const targetPoints = String(currentInvitationDraft.playingTargetPoints || "").trim();
-            const targetInnings = String(currentInvitationDraft.playingTargetInnings || "").trim();
-            if (!targetPoints || !targetInnings) {
-                setModalMessage("invitationEditorMessage", "Bitte Punkte und Aufnahmen eintragen, bevor die Einladung versendet wird.", "error");
-                const targetInput = document.getElementById(!targetPoints ? "invitationEditorPlayingTargetPoints" : "invitationEditorPlayingTargetInnings");
+            const targetValidation = getInvitationPlayingTargetValidation(currentInvitationDraft);
+            if (!targetValidation.valid) {
+                setModalMessage("invitationEditorMessage", `${targetValidation.message} Erst danach kann die Einladung versendet werden.`, "error");
+                const targetInput = document.getElementById(targetValidation.inputId);
                 if (targetInput) targetInput.focus();
                 return;
             }
