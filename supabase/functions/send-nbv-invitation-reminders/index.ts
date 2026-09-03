@@ -541,6 +541,7 @@ async function buildInvitationPdf(reminder: ReminderRow) {
   const details = await fetchInvitationDetails(reminder.link);
   const title = cleanText(details.tournament || reminder.title);
   const discipline = cleanText(details.discipline || "");
+  const showTechnicalCoordinatorSignature = !/dreiband|kegel/i.test(`${discipline} ${title}`);
   const seenTypeParts = new Set<string>();
   const typeParts = [details.tournamentType, details.category]
     .map(cleanText)
@@ -740,9 +741,15 @@ async function buildInvitationPdf(reminder: ReminderRow) {
     y -= Math.max(24, lines.length * 12 + 8);
   });
 
-  if (y >= 84) {
+  if (y >= (showTechnicalCoordinatorSignature ? 116 : 84)) {
     y -= 10;
     drawText("Mit sportlichem Gruß", 48, y, 10.5);
+    if (showTechnicalCoordinatorSignature) {
+      y -= 16;
+      drawText("Philipp Jüde", 48, y, 10.5);
+      y -= 13;
+      drawText("(Disziplinkoordinator Technik)", 48, y, 9.5);
+    }
   }
 
   drawFooter();

@@ -3432,7 +3432,7 @@
             doc.setFont("helvetica", "normal");
             doc.setFontSize(7.5);
             doc.setTextColor(32, 43, 54);
-            doc.text("Norddeutscher Billard-Verband e.V. (NBV)", 18, 278);
+            doc.text("Norddeutscher Billard Verband e.V. (NBV)", 18, 278);
             doc.text("www.nbv-billard.de", 105, 278, { align: "center" });
             doc.text(`Stand: ${formatPdfStandDate()}`, 192, 278, { align: "right" });
         }
@@ -3967,6 +3967,10 @@
             return /vorgabe[\s-]*pokal/i.test(getInvitationTextBlob(invitation));
         }
 
+        function shouldShowTechnicalCoordinatorSignature(invitation) {
+            return !/dreiband|kegel/i.test(getInvitationTextBlob(invitation));
+        }
+
         const VORGABEPOKAL_TARGET_COMMENT = 'siehe Spalte pro Spieler "Ballzahl"';
 
         function calculateVorgabepokalBallCount(gdValue, inningsValue) {
@@ -4332,7 +4336,8 @@
 
             drawParticipantTable(doc, invitation, state);
 
-            ensureInvitationPage(doc, invitation, state, 82);
+            const showTechnicalCoordinatorSignature = shouldShowTechnicalCoordinatorSignature(invitation);
+            ensureInvitationPage(doc, invitation, state, showTechnicalCoordinatorSignature ? 100 : 82);
             state.y = drawSectionTitle(doc, "Wichtiges", state.y);
             state.y = drawFieldRows(doc, [
                 ["Regeln", "Es gelten die Spielregeln und Spielregularien der DBU und die Bestimmungen der STO-BTK des NBV."],
@@ -4341,7 +4346,12 @@
                 ["Vorbehalte", "Die Einladung steht unter dem Vorbehalt von kurzfristigen Änderungen durch den Landessportwart bzw. die Turnierleitung gemäß STO-BTK."]
             ], state.y);
             state.y += 8;
-            drawWrappedText(doc, "Mit sportlichem Gruß", 24, state.y, 168, 5.5, "normal", 11);
+            state.y = drawWrappedText(doc, "Mit sportlichem Gruß", 24, state.y, 168, 5.5, "normal", 11);
+            if (showTechnicalCoordinatorSignature) {
+                state.y += 3;
+                state.y = drawWrappedText(doc, "Philipp Jüde", 24, state.y, 168, 5.5, "normal", 11);
+                drawWrappedText(doc, "(Disziplinkoordinator Technik)", 24, state.y, 168, 5.5, "normal", 10);
+            }
 
             drawInvitationFooter(doc, invitation);
             return doc;
