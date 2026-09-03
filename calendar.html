@@ -3973,7 +3973,7 @@
             const gd = Number.parseFloat(String(gdValue || "").trim().replace(",", "."));
             const innings = Number.parseInt(String(inningsValue || "").trim(), 10);
             if (!Number.isFinite(gd) || gd < 0 || !Number.isFinite(innings) || innings < 1) return "";
-            return String(Math.ceil(gd * innings));
+            return String(Math.floor(gd * innings));
         }
 
         function applyAutomaticVorgabepokalBallCounts(invitation, overwrite = false) {
@@ -4576,7 +4576,7 @@
                     <input type="text" value="${escapeHtml(participant.passNo || "")}" onchange="updateInvitationParticipant(${index}, 'passNo', this.value)">
                     <input type="text" value="${escapeHtml(participant.seedRank || "")}" onchange="updateInvitationParticipant(${index}, 'seedRank', this.value)">
                     <input type="text" value="${escapeHtml(participant.seedGd || "")}" onchange="updateInvitationParticipant(${index}, 'seedGd', this.value)">
-                    ${isVorgabepokal ? `<input id="invitationParticipantBallCount-${index}" type="number" inputmode="numeric" min="1" value="${escapeHtml(participant.ballCount || "")}" placeholder="automatisch" title="Aufgerundet aus GD × Aufnahmen; der Wert bleibt editierbar" onchange="updateInvitationParticipant(${index}, 'ballCount', this.value)">` : ""}
+                    ${isVorgabepokal ? `<input id="invitationParticipantBallCount-${index}" type="number" inputmode="numeric" min="1" value="${escapeHtml(participant.ballCount || "")}" placeholder="automatisch" title="Abgerundet aus GD × Aufnahmen; der Wert bleibt editierbar" onchange="updateInvitationParticipant(${index}, 'ballCount', this.value)">` : ""}
                     <input type="text" value="${escapeHtml(participant.name || "")}" onchange="updateInvitationParticipant(${index}, 'name', this.value)">
                     <input type="text" value="${escapeHtml(participant.club || "")}" onchange="updateInvitationParticipant(${index}, 'club', this.value)">
                     <div class="row-tools">
