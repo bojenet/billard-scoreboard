@@ -3969,6 +3969,22 @@
 
         const VORGABEPOKAL_TARGET_COMMENT = 'siehe Spalte pro Spieler "Ballzahl"';
 
+        function calculateVorgabepokalBallCount(gdValue, inningsValue) {
+            const gd = Number.parseFloat(String(gdValue || "").trim().replace(",", "."));
+            const innings = Number.parseInt(String(inningsValue || "").trim(), 10);
+            if (!Number.isFinite(gd) || gd < 0 || !Number.isFinite(innings) || innings < 1) return "";
+            return String(Math.ceil(gd * innings));
+        }
+
+        function applyAutomaticVorgabepokalBallCounts(invitation, overwrite = false) {
+            if (!isVorgabepokalInvitation(invitation) || !Array.isArray(invitation?.participants)) return;
+            invitation.participants.forEach((participant) => {
+                if (!participant || (!overwrite && String(participant.ballCount || "").trim())) return;
+                const calculated = calculateVorgabepokalBallCount(participant.seedGd, invitation.playingTargetInnings);
+                if (calculated) participant.ballCount = calculated;
+            });
+        }
+
         function getInvitationClassKey(invitation) {
             const text = getInvitationTextBlob(invitation);
             if (/\bkl\.?\s*(iii|3)\b/i.test(text)) return "3";
@@ -4448,6 +4464,7 @@
                     currentInvitationDraft.playingTargetPoints = VORGABEPOKAL_TARGET_COMMENT;
                     currentInvitationDraft.playingTargetAuto = "";
                 }
+                applyAutomaticVorgabepokalBallCounts(currentInvitationDraft);
             } else if (!currentInvitationDraft.playingTargetPoints || !currentInvitationDraft.playingTargetInnings) {
                 applyInvitationPlayingTarget(getInvitationPlayingTarget(currentInvitationDraft));
             }
@@ -4472,6 +4489,10 @@
             currentInvitationDraft[field] = value;
             if (field === "playingTargetPoints" || field === "playingTargetInnings") {
                 currentInvitationDraft.playingTargetAuto = "";
+            }
+            if (field === "playingTargetInnings" && isVorgabepokalInvitation(currentInvitationDraft)) {
+                applyAutomaticVorgabepokalBallCounts(currentInvitationDraft, true);
+                renderInvitationParticipantEditor();
             }
         }
 
@@ -4555,7 +4576,7 @@
                     <input type="text" value="${escapeHtml(participant.passNo || "")}" onchange="updateInvitationParticipant(${index}, 'passNo', this.value)">
                     <input type="text" value="${escapeHtml(participant.seedRank || "")}" onchange="updateInvitationParticipant(${index}, 'seedRank', this.value)">
                     <input type="text" value="${escapeHtml(participant.seedGd || "")}" onchange="updateInvitationParticipant(${index}, 'seedGd', this.value)">
-                    ${isVorgabepokal ? `<input id="invitationParticipantBallCount-${index}" type="number" inputmode="numeric" min="1" value="${escapeHtml(participant.ballCount || "")}" placeholder="Ballzahl" onchange="updateInvitationParticipant(${index}, 'ballCount', this.value)">` : ""}
+                    ${isVorgabepokal ? `<input id="invitationParticipantBallCount-${index}" type="number" inputmode="numeric" min="1" value="${escapeHtml(participant.ballCount || "")}" placeholder="automatisch" title="Aufgerundet aus GD × Aufnahmen; der Wert bleibt editierbar" onchange="updateInvitationParticipant(${index}, 'ballCount', this.value)">` : ""}
                     <input type="text" value="${escapeHtml(participant.name || "")}" onchange="updateInvitationParticipant(${index}, 'name', this.value)">
                     <input type="text" value="${escapeHtml(participant.club || "")}" onchange="updateInvitationParticipant(${index}, 'club', this.value)">
                     <div class="row-tools">
@@ -4661,6 +4682,13 @@
             if (!currentInvitationDraft || !Array.isArray(currentInvitationDraft.participants)) return;
             if (!currentInvitationDraft.participants[index]) return;
             currentInvitationDraft.participants[index][field] = value;
+            if (field === "seedGd" && isVorgabepokalInvitation(currentInvitationDraft)) {
+                currentInvitationDraft.participants[index].ballCount = calculateVorgabepokalBallCount(
+                    value,
+                    currentInvitationDraft.playingTargetInnings
+                );
+                renderInvitationParticipantEditor();
+            }
         }
 
         function moveInvitationParticipant(index, direction) {
@@ -4688,6 +4716,7 @@
                 passNo: "",
                 seedRank: "",
                 seedGd: "",
+                ballCount: "",
                 name: "",
                 club: ""
             });
