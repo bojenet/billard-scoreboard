@@ -4170,6 +4170,58 @@
             };
         }
 
+        function getInvitationModeGroups(invitation) {
+            const mode = getInvitationMode(invitation);
+            const groupText = String(mode?.groups || "").trim();
+            if (!groupText) return [];
+
+            const explicitlyNamedGroups = Array.from(groupText.matchAll(/Gruppe\s*(\d+)\s*:\s*([\d,\/\s]+)/gi));
+            if (explicitlyNamedGroups.length) {
+                return explicitlyNamedGroups.map((match) => ({
+                    label: `Gruppe ${match[1]}`,
+                    seeds: (match[2].match(/\d+/g) || []).map(Number)
+                })).filter((group) => group.seeds.length);
+            }
+
+            return groupText
+                .replace(/^Gruppen\s*:\s*/i, "")
+                .split(/\s*,\s*/)
+                .map((part, index) => ({
+                    label: `Gruppe ${index + 1}`,
+                    seeds: (part.match(/\d+/g) || []).map(Number)
+                }))
+                .filter((group) => group.seeds.length);
+        }
+
+        function getInvitationGroupRows(invitation) {
+            const participants = Array.isArray(invitation?.participants) ? invitation.participants : [];
+            return getInvitationModeGroups(invitation).map((group) => {
+                const playerLabels = group.seeds.map((seed) => {
+                    const participant = participants.find((item, index) => Number(item?.number || index + 1) === seed);
+                    if (!participant) return `Setzplatz ${seed}`;
+                    const name = getPdfText(participant.name || `Setzplatz ${seed}`);
+                    const club = getPdfText(participant.club || "");
+                    return `${seed}. ${name}${club ? ` (${club})` : ""}`;
+                });
+                return [group.label, playerLabels.join("; ")];
+            });
+        }
+
+        function drawInvitationGroups(doc, invitation, state) {
+            const groupRows = getInvitationGroupRows(invitation);
+            if (!groupRows.length) return;
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9.8);
+            const rowsHeight = groupRows.reduce((total, row) => {
+                const lines = doc.splitTextToSize(getPdfText(row[1]), 108);
+                return total + Math.max(10.8, lines.length * 4.5 + 5.4);
+            }, 0);
+            ensureInvitationPage(doc, invitation, state, 17 + rowsHeight);
+            state.y = drawSectionTitle(doc, "Gruppeneinteilung", state.y);
+            state.y = drawFieldRows(doc, groupRows, state.y);
+            state.y += 2;
+        }
+
         function getModeRowRound(row) {
             return Array.isArray(row) ? row[0] : row?.round || "";
         }
@@ -4335,6 +4387,8 @@
             drawTournamentMode(doc, invitation, state);
 
             drawParticipantTable(doc, invitation, state);
+
+            drawInvitationGroups(doc, invitation, state);
 
             const showTechnicalCoordinatorSignature = shouldShowTechnicalCoordinatorSignature(invitation);
             ensureInvitationPage(doc, invitation, state, showTechnicalCoordinatorSignature ? 100 : 82);
