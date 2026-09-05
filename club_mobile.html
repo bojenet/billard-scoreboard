@@ -474,10 +474,12 @@
                 <div class="field">
                     <label for="player1">Spieler 1</label>
                     <select id="player1"></select>
+                    <input id="temporaryPlayer1" type="text" autocomplete="off" placeholder="Temporärer Spielername (optional)">
                 </div>
                 <div class="field">
                     <label for="player2">Spieler 2</label>
                     <select id="player2"></select>
+                    <input id="temporaryPlayer2" type="text" autocomplete="off" placeholder="Temporärer Spielername (optional)">
                 </div>
             </div>
 
@@ -921,8 +923,16 @@
             setMessage("");
             const p1Id = document.getElementById("player1").value;
             const p2Id = document.getElementById("player2").value;
-            const p1 = players.find((x) => String(x.id) === String(p1Id));
-            const p2 = players.find((x) => String(x.id) === String(p2Id));
+            const temporaryPlayer1 = document.getElementById("temporaryPlayer1").value.trim();
+            const temporaryPlayer2 = document.getElementById("temporaryPlayer2").value.trim();
+            const selectedPlayer1 = players.find((x) => String(x.id) === String(p1Id));
+            const selectedPlayer2 = players.find((x) => String(x.id) === String(p2Id));
+            const p1 = temporaryPlayer1
+                ? { id: null, name: temporaryPlayer1, user_id: null }
+                : selectedPlayer1;
+            const p2 = temporaryPlayer2
+                ? { id: null, name: temporaryPlayer2, user_id: null }
+                : selectedPlayer2;
             const d1 = document.getElementById("discipline1").value;
             const d2 = document.getElementById("discipline2").value;
             const target1 = parseInt(document.getElementById("target1").value, 10);
@@ -930,7 +940,9 @@
             const maxInnings = parseInt(document.getElementById("maxInnings").value, 10);
             const displayTable = document.getElementById("displayTable").value;
 
-            if (!p1 || !p2 || p1.id === p2.id) return showSetupError("Bitte zwei unterschiedliche Spieler wählen.");
+            if (!p1 || !p2 || p1.name.trim().toLowerCase() === p2.name.trim().toLowerCase()) {
+                return showSetupError("Bitte zwei unterschiedliche Spieler wählen oder eingeben.");
+            }
             if (!d1 || !d2) return showSetupError("Bitte Disziplinen wählen.");
             if (!displayTable) return showSetupError("Bitte Tisch 1 oder Tisch 2 wählen.");
             if (!Number.isInteger(target1) || target1 < 1 || !Number.isInteger(target2) || target2 < 1) {
