@@ -62,6 +62,41 @@
             transition: opacity 280ms ease, visibility 0s linear 280ms;
         }
 
+        .idle-logo-screen,
+        .idle-black-screen {
+            position: fixed;
+            inset: 0;
+            background: #000000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 400ms ease, visibility 0s linear 400ms;
+            pointer-events: none;
+        }
+
+        .idle-logo-screen {
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .idle-logo-screen.visible,
+        .idle-black-screen.visible {
+            opacity: 1;
+            visibility: visible;
+            transition-delay: 0s;
+        }
+
+        .idle-logo-screen img {
+            width: min(52vw, 520px);
+            max-height: 72vh;
+            object-fit: contain;
+        }
+
+        .idle-black-screen {
+            z-index: 110;
+        }
+
         .table-label {
             font-size: clamp(48px, 8vw, 130px);
             font-weight: 800;
@@ -245,6 +280,11 @@
         </div>
     </div>
 
+    <div id="idleLogoScreen" class="idle-logo-screen" aria-hidden="true">
+        <img src="assets/club-mobile-icon-512.png" alt="Billard Gemeinschaft Hamburg">
+    </div>
+    <div id="idleBlackScreen" class="idle-black-screen" aria-hidden="true"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
 
@@ -274,8 +314,54 @@
         let channel = null;
         let pollTimer = null;
         let presenterTimeoutUndoHeld = false;
+        let idleStartedAtMs = 0;
+        let idleLogoTimer = null;
+        let idleBlackTimer = null;
+        const IDLE_LOGO_DELAY_MS = 10 * 60 * 1000;
+        const IDLE_BLACK_DELAY_MS = 20 * 60 * 1000;
 
         document.getElementById("tableLabel").innerText = tableLabel;
+
+        function setIdleOverlay(elementId, visible) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            element.classList.toggle("visible", visible);
+            element.setAttribute("aria-hidden", visible ? "false" : "true");
+        }
+
+        function clearIdleTimers() {
+            if (idleLogoTimer) clearTimeout(idleLogoTimer);
+            if (idleBlackTimer) clearTimeout(idleBlackTimer);
+            idleLogoTimer = null;
+            idleBlackTimer = null;
+        }
+
+        function updateIdlePhase() {
+            if (!idleStartedAtMs) return;
+            const elapsed = Date.now() - idleStartedAtMs;
+            setIdleOverlay("idleLogoScreen", elapsed >= IDLE_LOGO_DELAY_MS && elapsed < IDLE_BLACK_DELAY_MS);
+            setIdleOverlay("idleBlackScreen", elapsed >= IDLE_BLACK_DELAY_MS);
+        }
+
+        function startIdleSequence() {
+            if (!idleStartedAtMs) idleStartedAtMs = Date.now();
+            clearIdleTimers();
+            updateIdlePhase();
+            const elapsed = Date.now() - idleStartedAtMs;
+            if (elapsed < IDLE_LOGO_DELAY_MS) {
+                idleLogoTimer = setTimeout(updateIdlePhase, IDLE_LOGO_DELAY_MS - elapsed);
+            }
+            if (elapsed < IDLE_BLACK_DELAY_MS) {
+                idleBlackTimer = setTimeout(updateIdlePhase, IDLE_BLACK_DELAY_MS - elapsed);
+            }
+        }
+
+        function resetIdleSequence() {
+            idleStartedAtMs = 0;
+            clearIdleTimers();
+            setIdleOverlay("idleLogoScreen", false);
+            setIdleOverlay("idleBlackScreen", false);
+        }
 
         function showIdle(message, isError = false) {
             const frame = document.getElementById("displayFrame");
@@ -288,6 +374,8 @@
             idle.classList.remove("hidden");
             status.innerText = message || "Bereit für neues Match";
             status.classList.toggle("error", Boolean(isError));
+            if (isError) resetIdleSequence();
+            else startIdleSequence();
             currentMatchId = "";
             pendingFrameSrc = "";
             window.setTimeout(() => {
@@ -301,6 +389,7 @@
                 showIdle();
                 return;
             }
+            resetIdleSequence();
             const frame = document.getElementById("displayFrame");
             const idle = document.getElementById("idleScreen");
             const result = document.getElementById("resultScreen");
@@ -425,6 +514,7 @@
         async function showResult(matchId, knownMatch = null) {
             const id = String(matchId || "");
             if (!id) return;
+            resetIdleSequence();
 
             let match = knownMatch;
             if (!match || !Object.prototype.hasOwnProperty.call(match, "series_log1")) {
@@ -613,6 +703,7 @@
 
         window.addEventListener("beforeunload", () => {
             if (pollTimer) clearInterval(pollTimer);
+            clearIdleTimers();
             if (channel) supabaseClient.removeChannel(channel);
         });
     </script>
