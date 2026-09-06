@@ -2336,6 +2336,11 @@
             finished = 1;
             updateShotClock();
 
+            // In table-display mode the parent display.html owns the result view.
+            // Keeping the iframe on its scoreboard prevents the legacy end screen
+            // from flashing before the parent renders the mobile-app result table.
+            if (displayMode) return;
+
             let avg1 = inn1 > 0 ? (score1 / inn1).toFixed(3) : "0.000";
             let avg2 = inn2 > 0 ? (score2 / inn2).toFixed(3) : "0.000";
 
