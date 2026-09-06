@@ -1402,6 +1402,27 @@
             await updateMatchInDB();
         }
 
+        async function adjustActiveTimeout(delta) {
+            if (finished || !shotClockStorageAvailable) return;
+            if (!isThreeCushionDiscipline(getActiveDiscipline())) return;
+
+            const current = activePlayer === 1 ? timeoutsUsed1 : timeoutsUsed2;
+            const next = Math.max(0, Math.min(2, current + delta));
+            if (next === current) return;
+
+            if (activePlayer === 1) timeoutsUsed1 = next;
+            else timeoutsUsed2 = next;
+
+            if (delta > 0) {
+                shotClockRunning = true;
+                shotClockStartedAtMs = Date.now();
+                shotClockRemainingSeconds = SHOT_CLOCK_SECONDS;
+            }
+
+            updateUI();
+            await updateMatchInDB();
+        }
+
         function setShotClockFromMatch(row) {
             shotClockStorageAvailable =
                 Object.prototype.hasOwnProperty.call(row || {}, "shot_clock_running") &&
@@ -1970,6 +1991,8 @@
                 (event.shiftKey && (event.key === "F5" || event.code === "F5"))) return "switch-player";
             if (event.key === "F14" || event.code === "F14") return "point-plus-ten";
             if (event.key === "F15" || event.code === "F15") return "point-minus-ten";
+            if (event.key === "F16" || event.code === "F16") return "timeout-remove";
+            if (event.key === "F17" || event.code === "F17") return "timeout-use";
             if (event.key === "4" || (!event.ctrlKey && !event.altKey && !event.metaKey && String(event.key).toLowerCase() === "b")) return "toggle-timer";
             return null;
         }
@@ -2001,6 +2024,10 @@
                 addPoints(10);
             } else if (action === "point-minus-ten") {
                 addPoints(-10);
+            } else if (action === "timeout-remove") {
+                adjustActiveTimeout(-1);
+            } else if (action === "timeout-use") {
+                adjustActiveTimeout(1);
             } else if (action === "switch-player") {
                 switchTo(activePlayer === 1 ? 2 : 1);
             } else if (action === "toggle-timer") {

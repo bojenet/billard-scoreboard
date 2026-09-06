@@ -273,6 +273,7 @@
         let pendingFrameSrc = "";
         let channel = null;
         let pollTimer = null;
+        let presenterTimeoutUndoHeld = false;
 
         document.getElementById("tableLabel").innerText = tableLabel;
 
@@ -336,6 +337,8 @@
                 event.code === "NumpadMultiply" || event.code === "NumpadEnter" ||
                 event.key === "F14" || event.code === "F14" ||
                 event.key === "F15" || event.code === "F15" ||
+                event.key === "F16" || event.code === "F16" ||
+                event.key === "F17" || event.code === "F17" ||
                 event.key === "F13" || event.code === "F13" ||
                 (event.shiftKey && (event.key === "F5" || event.code === "F5")) ||
                 (!event.ctrlKey && !event.altKey && !event.metaKey && String(event.key).toLowerCase() === "b");
@@ -370,8 +373,19 @@
             event.preventDefault();
             event.stopPropagation();
             if (event.repeat) return;
+            if (event.key === "F16" || event.code === "F16") {
+                presenterTimeoutUndoHeld = true;
+            } else if ((event.key === "F17" || event.code === "F17") && presenterTimeoutUndoHeld) {
+                return;
+            }
             console.log("Fernbedienung/Presenter Taste im Display empfangen:", event.key);
             forwardRemoteKeyToScoreboard(event);
+        }
+
+        function handleRemoteKeyup(event) {
+            if (event.key === "F16" || event.code === "F16") {
+                presenterTimeoutUndoHeld = false;
+            }
         }
 
         if (window.__billardDisplayRemoteKeydownHandler) {
@@ -379,6 +393,7 @@
         }
         window.__billardDisplayRemoteKeydownHandler = handleRemoteKeydown;
         document.addEventListener("keydown", window.__billardDisplayRemoteKeydownHandler, true);
+        document.addEventListener("keyup", handleRemoteKeyup, true);
 
         function toSeriesArray(value) {
             if (Array.isArray(value)) return value.map((item) => Number(item || 0));

@@ -34,6 +34,8 @@ Bei einer Nullaufnahme direkt `#` druecken. Vor `#` die eingeblendete Zahl kontr
 | Einen Punkt abziehen | `2` oder `Page Up` |
 | Zehn Punkte ergaenzen | Seitliche `+`-Taste (`F14`) |
 | Zehn Punkte abziehen | Seitliche `-`-Taste (`F15`) |
+| Time-out zuruecknehmen | Erste Time-out-Taste (`F16`) |
+| Time-out setzen | Zweite Time-out-Taste (`F17`) |
 | Spieler/Aufnahme wechseln | `3` oder die konfigurierte Presenter-Taste (`F13`) |
 | Shot Clock starten oder pausieren | `4` oder `B` |
 
