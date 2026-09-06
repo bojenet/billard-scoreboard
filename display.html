@@ -334,6 +334,8 @@
             return ["1", "2", "3", "4", "PageUp", "PageDown"].includes(event.key) ||
                 /^Numpad[0-9]$/.test(String(event.code || "")) ||
                 event.code === "NumpadMultiply" || event.code === "NumpadEnter" ||
+                event.key === "F14" || event.code === "F14" ||
+                event.key === "F15" || event.code === "F15" ||
                 event.key === "F13" || event.code === "F13" ||
                 (event.shiftKey && (event.key === "F5" || event.code === "F5")) ||
                 (!event.ctrlKey && !event.altKey && !event.metaKey && String(event.key).toLowerCase() === "b");
