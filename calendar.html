@@ -3963,6 +3963,17 @@
             ].map((value) => String(value || "")).join(" ");
         }
 
+        function getInvitationStartEligibility(invitation) {
+            const text = getInvitationTextBlob(invitation);
+            if (/grand\s?prix/i.test(text)) {
+                return 'Der Grand Prix ist als Turnierserie vorgesehen für die Spieler der Klasse 6 Freie Partie. Alle NBV-Sportler/innen in der Klasse 6 Freie Partie kleinerer Tisch, die in der NBV-ClubCloud als "aktiv" gemeldet sind.';
+            }
+            if (/nord\s?cup/i.test(text)) {
+                return 'Der NordCup ist als Turnierserie vorgesehen für die Spieler der Klasse 1-5 Freie Partie. Alle NBV-Sportler/innen in der Klasse 1-5 Freie Partie kleinerer Tisch, die in der NBV-ClubCloud als "aktiv" gemeldet sind.';
+            }
+            return "Alle gemeldeten NBV-Sportler/innen, die in der Billard-Area als aktiv gemeldet sind.";
+        }
+
         function isVorgabepokalInvitation(invitation) {
             return /vorgabe[\s-]*pokal/i.test(getInvitationTextBlob(invitation));
         }
@@ -4363,7 +4374,7 @@
                 ["Verantwortlicher", "Landessportwart Karambolage/Kegel"],
                 ["Turnierleitung", "stellt der Ausrichter"],
                 ["Disziplin", invitation?.discipline],
-                ["Startberechtigt", "Alle gemeldeten NBV-Sportler/innen, die in der Billard-Area als aktiv gemeldet sind."],
+                ["Startberechtigt", getInvitationStartEligibility(invitation)],
                 ["Zusatzhinweise", invitation?.extraNotes]
             ], state.y);
 

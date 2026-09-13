@@ -667,7 +667,7 @@ async function buildInvitationPdf(reminder: ReminderRow) {
   const drawRows = (rows: string[][], startY: number) => {
     let currentY = startY;
     rows.forEach(([label, value]) => {
-      const lines = wrap(value, label === "Details" ? 62 : 58).slice(0, 4);
+      const lines = wrap(value, label === "Details" ? 62 : 58).slice(0, 5);
       const rowHeight = Math.max(27, lines.length * 13 + 9);
       page.drawLine({ start: { x: 48, y: currentY + 11 }, end: { x: 547, y: currentY + 11 }, thickness: 0.5, color: line });
       page.drawLine({ start: { x: 178, y: currentY + 11 }, end: { x: 178, y: currentY - rowHeight + 16 }, thickness: 0.5, color: line });
@@ -695,7 +695,7 @@ async function buildInvitationPdf(reminder: ReminderRow) {
     ["Turnierleitung", "Ausrichtender Verein"],
     ["Disziplin", discipline || "-"],
     ["Wettbewerb", typeParts.join(" / ") || "-"],
-    ["Startberechtigt", "Alle NBV-Sportler/innen, die in der NBV-ClubCloud als aktiv gemeldet sind."],
+    ["Startberechtigt", getStartEligibility(details, title)],
   ], y);
 
   y -= 22;
@@ -765,6 +765,19 @@ function buildDirectPdfFilename(invitation: NonNullable<RequestPayload["directIn
   const title = cleanFilenamePart(cleanText(invitation.title || "Turnier")) || "Turnier";
   const season = getSeasonFromDate(cleanText(invitation.eventDate || ""));
   return cleanText(invitation.pdfFilename || "") || ["Einladung", title, season].filter(Boolean).join(" - ") + ".pdf";
+}
+
+function getStartEligibility(details: InvitationDetails, title: string) {
+  const text = [title, details.tournament, details.discipline, details.category, details.tournamentType]
+    .map((value) => cleanText(value))
+    .join(" ");
+  if (/grand\s?prix/i.test(text)) {
+    return 'Der Grand Prix ist als Turnierserie vorgesehen für die Spieler der Klasse 6 Freie Partie. Alle NBV-Sportler/innen in der Klasse 6 Freie Partie kleinerer Tisch, die in der NBV-ClubCloud als "aktiv" gemeldet sind.';
+  }
+  if (/nord\s?cup/i.test(text)) {
+    return 'Der NordCup ist als Turnierserie vorgesehen für die Spieler der Klasse 1-5 Freie Partie. Alle NBV-Sportler/innen in der Klasse 1-5 Freie Partie kleinerer Tisch, die in der NBV-ClubCloud als "aktiv" gemeldet sind.';
+  }
+  return "Alle NBV-Sportler/innen, die in der NBV-ClubCloud als aktiv gemeldet sind.";
 }
 
 function buildHtml(reminder: ReminderRow) {
