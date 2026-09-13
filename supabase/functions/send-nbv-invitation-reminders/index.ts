@@ -772,10 +772,10 @@ function getStartEligibility(details: InvitationDetails, title: string) {
     .map((value) => cleanText(value))
     .join(" ");
   if (/grand\s?prix/i.test(text)) {
-    return 'Der Grand Prix ist als Turnierserie vorgesehen für die Spieler der Klasse 6 Freie Partie. Alle NBV-Sportler/innen in der Klasse 6 Freie Partie kleinerer Tisch, die in der NBV-ClubCloud als "aktiv" gemeldet sind.';
+    return 'Der Grand Prix ist als Turnierserie vorgesehen für die Spieler der Klasse 6 Freie Partie. Alle NBV-Sportler/innen in der Klasse 6 Freie Partie kleiner Tisch, die in der NBV-ClubCloud als "aktiv" gemeldet sind.';
   }
   if (/nord\s?cup/i.test(text)) {
-    return 'Der NordCup ist als Turnierserie vorgesehen für die Spieler der Klasse 1-5 Freie Partie. Alle NBV-Sportler/innen in der Klasse 1-5 Freie Partie kleinerer Tisch, die in der NBV-ClubCloud als "aktiv" gemeldet sind.';
+    return 'Der NordCup ist als Turnierserie vorgesehen für die Spieler der Klasse 1-5 Freie Partie. Alle NBV-Sportler/innen in der Klasse 1-5 Freie Partie kleiner Tisch, die in der NBV-ClubCloud als "aktiv" gemeldet sind.';
   }
   return "Alle NBV-Sportler/innen, die in der NBV-ClubCloud als aktiv gemeldet sind.";
 }
