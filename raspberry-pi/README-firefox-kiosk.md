@@ -14,14 +14,14 @@ sudo apt install -y git
 git clone https://github.com/bojenet/billard-scoreboard.git
 cd billard-scoreboard/raspberry-pi
 chmod +x install-firefox-kiosk.sh
-./install-firefox-kiosk.sh --table tisch1 --url "https://www.billard-studio.de/display.html?display=1"
+./install-firefox-kiosk.sh --table tisch1 --url "https://www.billard-studio.de/display.html?table=1"
 sudo reboot
 ```
 
 Das Script fragt das gemeinsame Keypad-Secret verdeckt ab. Fuer den zweiten Pi:
 
 ```bash
-./install-firefox-kiosk.sh --table tisch2 --url "https://www.billard-studio.de/display.html?display=2"
+./install-firefox-kiosk.sh --table tisch2 --url "https://www.billard-studio.de/display.html?table=2"
 ```
 
 Der Installer kann erneut ausgefuehrt werden, um die Konfiguration zu
@@ -64,7 +64,7 @@ nur fuer root lesbaren Rechten gespeichert.
 Den Installer erneut mit der neuen URL ausfuehren und neu starten:
 
 ```bash
-./install-firefox-kiosk.sh --table tisch1 --url "https://www.billard-studio.de/display.html?display=1"
+./install-firefox-kiosk.sh --table tisch1 --url "https://www.billard-studio.de/display.html?table=1"
 sudo reboot
 ```
 
