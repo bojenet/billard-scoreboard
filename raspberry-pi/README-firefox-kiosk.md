@@ -1,6 +1,8 @@
 # Raspberry Pi Firefox Kiosk
 
-Setup fuer einen Raspberry Pi, der nach dem Login automatisch Firefox im Kiosk-Modus startet.
+Komplettpaket fuer einen Raspberry Pi, der nach dem Login automatisch das
+Scoreboard in Firefox startet. Der Installer richtet gleichzeitig Firefox-Kiosk,
+Sharkoon-Presenter-Tasten und das serielle 3x4-Keypad ein.
 
 ## Installation
 
@@ -12,16 +14,19 @@ sudo apt install -y git
 git clone https://github.com/bojenet/billard-scoreboard.git
 cd billard-scoreboard/raspberry-pi
 chmod +x install-firefox-kiosk.sh
-./install-firefox-kiosk.sh "https://www.billard-studio.de/display.html"
+./install-firefox-kiosk.sh --table tisch1 --url "https://www.billard-studio.de/display.html?display=1"
 sudo reboot
 ```
 
-Fuer Display 1 oder 2 die passende URL einsetzen, zum Beispiel:
+Das Script fragt das gemeinsame Keypad-Secret verdeckt ab. Fuer den zweiten Pi:
 
 ```bash
-./install-firefox-kiosk.sh "https://www.billard-studio.de/display.html?display=1"
-./install-firefox-kiosk.sh "https://www.billard-studio.de/display.html?display=2"
+./install-firefox-kiosk.sh --table tisch2 --url "https://www.billard-studio.de/display.html?display=2"
 ```
+
+Der Installer kann erneut ausgefuehrt werden, um die Konfiguration zu
+aktualisieren. Ohne `--url` fragt er die URL ab. Das serielle Geraet laesst sich
+bei Bedarf mit `--serial /dev/ttyACM0` aendern.
 
 ## Was installiert wird
 
@@ -30,8 +35,9 @@ Fuer Display 1 oder 2 die passende URL einsetzen, zum Beispiel:
 - `x11-xserver-utils`
 - Autostart-Datei: `~/.config/autostart/billard-kiosk.desktop`
 - Startscript: `~/.local/bin/billard-kiosk.sh`
-- Optional: `90-sharkoon-presenter.hwdb`, wenn das Script aus diesem Ordner gestartet wird.
+- Presenter-Mapping: `/etc/udev/hwdb.d/90-sharkoon-presenter.hwdb`
 - Serieller Keypad-Dienst fuer `/dev/ttyUSB0` mit 115200 Baud
+- Zentrale Keypad-Konfiguration: `/etc/default/billard-keypad`
 
 ## 3x4-Keypad
 
@@ -49,35 +55,16 @@ systemctl status billard-keypad.service
 journalctl -u billard-keypad.service -f
 ```
 
-Vor dem ersten Start `/etc/default/billard-keypad` anlegen. Das Secret muss mit
-dem Supabase-Secret `BILLARD_KEYPAD_SECRET` uebereinstimmen:
-
-```bash
-sudo nano /etc/default/billard-keypad
-```
-
-Beispiel fuer Display 1:
-
-```text
-BILLARD_DISPLAY_TABLE=tisch1
-BILLARD_KEYPAD_SECRET=HIER_DAS_GEMEINSAME_SECRET
-```
-
-Danach:
-
-```bash
-sudo systemctl restart billard-keypad.service
-```
+Das Secret muss mit dem Supabase-Secret `BILLARD_KEYPAD_SECRET`
+uebereinstimmen. Es wird waehrend der Installation verdeckt abgefragt und mit
+nur fuer root lesbaren Rechten gespeichert.
 
 ## URL spaeter aendern
 
-```bash
-nano ~/.local/bin/billard-kiosk.sh
-```
-
-Dort die Zeile `URL="..."` anpassen und neu starten:
+Den Installer erneut mit der neuen URL ausfuehren und neu starten:
 
 ```bash
+./install-firefox-kiosk.sh --table tisch1 --url "https://www.billard-studio.de/display.html?display=1"
 sudo reboot
 ```
 

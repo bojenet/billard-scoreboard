@@ -12,8 +12,8 @@ import serial
 from evdev import UInput, ecodes
 
 
-SERIAL_DEVICE = "/dev/ttyUSB0"
-BAUD_RATE = 115200
+SERIAL_DEVICE = os.environ.get("BILLARD_SERIAL_DEVICE", "/dev/ttyUSB0")
+BAUD_RATE = int(os.environ.get("BILLARD_SERIAL_BAUD", "115200"))
 RECONNECT_DELAY_SECONDS = 2
 SUPABASE_URL = os.environ.get("BILLARD_SUPABASE_URL", "https://kstqhcaazuuxchqtnyfc.supabase.co").rstrip("/")
 SUPABASE_ANON_KEY = os.environ.get("BILLARD_SUPABASE_ANON_KEY", "sb_publishable_0C-Hj42NxQ1UCHMkadC-Pw_KWDg6o2r")

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -u
+
+URL="@@KIOSK_URL@@"
+
+if command -v xset >/dev/null 2>&1 && [[ -n "${DISPLAY:-}" ]]; then
+  xset s off || true
+  xset -dpms || true
+  xset s noblank || true
+fi
+
+if command -v unclutter >/dev/null 2>&1; then
+  unclutter -idle 0.5 -root >/dev/null 2>&1 &
+fi
+
+while true; do
+  firefox-esr --kiosk --private-window "$URL" || true
+  sleep 5
+done

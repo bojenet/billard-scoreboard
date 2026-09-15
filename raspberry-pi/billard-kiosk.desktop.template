@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Billard Studio Kiosk
+Exec=@@KIOSK_SCRIPT@@
+Terminal=false
+X-GNOME-Autostart-enabled=true
