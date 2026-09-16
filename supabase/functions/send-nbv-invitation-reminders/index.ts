@@ -76,6 +76,7 @@ type RequestPayload = {
     title?: string;
     location?: string;
     link?: string;
+    isUpdate?: boolean;
     pdfFilename?: string;
     pdfBase64?: string;
   };
@@ -766,7 +767,8 @@ function buildSubject(reminder: ReminderRow) {
 function buildDirectInvitationSubject(invitation: NonNullable<RequestPayload["directInvitation"]>) {
   const title = cleanText(invitation.title || "Turnier");
   const date = formatShortGermanDate(cleanText(invitation.eventDate || ""));
-  return `NBV-Einladung: ${title}${date && date !== "-" ? ` – ${date}` : ""}`;
+  const updatePrefix = invitation.isUpdate === true ? "UPDATE: " : "";
+  return `${updatePrefix}NBV-Einladung: ${title}${date && date !== "-" ? ` – ${date}` : ""}`;
 }
 
 function buildDirectPdfFilename(invitation: NonNullable<RequestPayload["directInvitation"]>) {

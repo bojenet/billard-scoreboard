@@ -1433,6 +1433,10 @@
                 </div>
                 <div class="editor-section">
                     <h3>E-Mail Versand</h3>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;">
+                        <input id="invitationEditorEmailUpdate" type="checkbox" style="width:auto;min-height:0;" onchange="updateInvitationDraftField('emailUpdate', this.checked)">
+                        <span>Als Update versenden – Betreff beginnt mit „UPDATE:“</span>
+                    </label>
                     <div id="invitationEditorRecipientSummary" class="modal-message">Empfänger werden geladen...</div>
                 </div>
             </div>
@@ -4737,6 +4741,8 @@
                 const el = document.getElementById(id);
                 if (el) el.value = value;
             });
+            const emailUpdateInput = document.getElementById("invitationEditorEmailUpdate");
+            if (emailUpdateInput) emailUpdateInput.checked = currentInvitationDraft.emailUpdate === true;
             const isVorgabepokal = isVorgabepokalInvitation(currentInvitationDraft);
             const pointsLabel = document.getElementById("invitationEditorPlayingTargetPointsLabel");
             const pointsInput = document.getElementById("invitationEditorPlayingTargetPoints");
@@ -5382,6 +5388,7 @@
                             title: invitation.title || "",
                             location: invitation.locationName || "",
                             link: invitation.sourceUrl || invitation.link || "",
+                            isUpdate: invitation.emailUpdate === true,
                             pdfFilename: getInvitationPdfFilename(invitation),
                             pdfBase64
                         }
@@ -5389,7 +5396,8 @@
                 });
                 if (error) throw error;
                 if (!data?.ok) throw new Error(data?.error || "Die Einladung konnte nicht versendet werden.");
-                setModalMessage("invitationEditorMessage", `Einladung wurde an ${data.recipientCount || recipientStats.activeCount} Empfänger versendet.`, "ok");
+                const sendLabel = invitation.emailUpdate === true ? "Update-Einladung" : "Einladung";
+                setModalMessage("invitationEditorMessage", `${sendLabel} wurde an ${data.recipientCount || recipientStats.activeCount} Empfänger versendet.`, "ok");
             } catch (error) {
                 console.warn("Einladung konnte nicht versendet werden:", error);
                 setModalMessage("invitationEditorMessage", `Einladung konnte nicht versendet werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
