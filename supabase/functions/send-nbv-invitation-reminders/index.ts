@@ -758,7 +758,15 @@ async function buildInvitationPdf(reminder: ReminderRow) {
 }
 
 function buildSubject(reminder: ReminderRow) {
-  return buildPdfFilename(reminder).replace(/\.pdf$/i, "");
+  const title = cleanText(reminder.title || "Turnier");
+  const date = formatShortGermanDate(reminder.event_date);
+  return `NBV-Ausschreibung: ${title}${date && date !== "-" ? ` – ${date}` : ""}`;
+}
+
+function buildDirectInvitationSubject(invitation: NonNullable<RequestPayload["directInvitation"]>) {
+  const title = cleanText(invitation.title || "Turnier");
+  const date = formatShortGermanDate(cleanText(invitation.eventDate || ""));
+  return `NBV-Einladung: ${title}${date && date !== "-" ? ` – ${date}` : ""}`;
 }
 
 function buildDirectPdfFilename(invitation: NonNullable<RequestPayload["directInvitation"]>) {
@@ -937,7 +945,7 @@ Deno.serve(async (request) => {
         message_text: "",
         status: "open",
       };
-      const subject = buildDirectPdfFilename(directInvitation).replace(/\.pdf$/i, "");
+      const subject = buildDirectInvitationSubject(directInvitation);
       const { error: directReminderError } = await adminClient
         .from("calendar_club_reminders")
         .upsert({
