@@ -77,6 +77,7 @@ type RequestPayload = {
     location?: string;
     link?: string;
     isUpdate?: boolean;
+    extraNotes?: string;
     pdfFilename?: string;
     pdfBase64?: string;
   };
@@ -815,6 +816,39 @@ function buildHtml(reminder: ReminderRow) {
   `;
 }
 
+function buildDirectInvitationHtml(
+  reminder: ReminderRow,
+  invitation: NonNullable<RequestPayload["directInvitation"]>,
+) {
+  const detailsLink = reminder.link
+    ? `<p><a href="${reminder.link}">Turnier in Club Cloud öffnen</a></p>`
+    : "";
+  const introduction = invitation.isUpdate === true
+    ? "Im Anhang befindet sich die aktualisierte Einladung zum folgenden Turnier:"
+    : "Im Anhang befindet sich die Einladung zum folgenden Turnier:";
+  const extraNotes = cleanText(invitation.extraNotes || "");
+  return `
+    <div style="font-family:Arial,sans-serif;color:#17202a;line-height:1.5">
+      <p>Liebe Billardfreunde,</p>
+      <p>${introduction}</p>
+      <p>
+        <strong>${cleanText(reminder.title)}</strong><br>
+        Termin: ${formatGermanDate(reminder.event_date)}<br>
+        ${reminder.location ? `Ort: ${cleanText(reminder.location)}<br>` : ""}
+        ${extraNotes ? `Zusatzhinweis: ${extraNotes}<br>` : ""}
+      </p>
+      ${detailsLink}
+      <p style="font-size:12px;line-height:1.25;margin:12px 0;">
+        Verteiler in BCC:<br>
+        --- Vereinssportwarte im NBV<br>
+        --- Funktionsträger der Karambolage-Vereine im NBV<br>
+        --- weitere interessierte NBV-Sportler
+      </p>
+      <p>Mit sportlichem Gruß<br>Norddeutscher Billard Verband e.V.</p>
+    </div>
+  `;
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -970,7 +1004,7 @@ Deno.serve(async (request) => {
         cc: effectiveCcEmails.length ? effectiveCcEmails : undefined,
         bcc: effectiveBccEmails.length ? effectiveBccEmails : undefined,
         subject,
-        html: buildHtml(reminder).replace(/Ausschreibung/g, "Einladung"),
+        html: buildDirectInvitationHtml(reminder, directInvitation),
         attachments: [{
           filename: buildDirectPdfFilename(directInvitation),
           content: directInvitation.pdfBase64,

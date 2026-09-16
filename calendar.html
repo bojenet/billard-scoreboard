@@ -5389,6 +5389,7 @@
                             location: invitation.locationName || "",
                             link: invitation.sourceUrl || invitation.link || "",
                             isUpdate: invitation.emailUpdate === true,
+                            extraNotes: invitation.extraNotes || "",
                             pdfFilename: getInvitationPdfFilename(invitation),
                             pdfBase64
                         }
