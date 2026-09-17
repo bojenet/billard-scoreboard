@@ -29,6 +29,12 @@ function isAdminUser(user) {
   return appRole === "admin" || userRole === "admin";
 }
 
+function isScoreboardTechnicalUser(user) {
+  if (!user) return false;
+  return user.user_metadata?.technical_account === true ||
+    String(user.email || "").trim().toLowerCase() === "scoreboard-app@billard-studio.de";
+}
+
 async function getUserRole(userId) {
   if (!userId) return null;
   const { data, error } = await supabaseClient

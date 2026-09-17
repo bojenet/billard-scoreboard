@@ -112,6 +112,10 @@
 
     const user = await getCurrentUser();
     if (!user) return;
+    const isScoreboardAccount =
+      (typeof window.isScoreboardTechnicalUser === 'function' && isScoreboardTechnicalUser(user)) ||
+      String(user.email || '').trim().toLowerCase() === 'scoreboard-app@billard-studio.de';
+    if (isScoreboardAccount) return;
 
     let role = 'member';
     if (typeof window.hasAdminAccess === 'function') {

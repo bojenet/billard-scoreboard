@@ -168,6 +168,10 @@
         async function loadAccount() {
             currentUser = await requireAuth();
             if (!currentUser) return;
+            if (typeof isScoreboardTechnicalUser === "function" && isScoreboardTechnicalUser(currentUser)) {
+                window.location.replace("/club_mobile.html");
+                return;
+            }
 
             document.getElementById("email").value = currentUser.email || "";
 
@@ -193,6 +197,7 @@
 
         async function saveAccount() {
             if (!currentUser) return;
+            if (typeof isScoreboardTechnicalUser === "function" && isScoreboardTechnicalUser(currentUser)) return;
             const firstName = String(document.getElementById("firstName").value || "").trim();
             const lastName = String(document.getElementById("lastName").value || "").trim();
             const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
@@ -242,6 +247,7 @@
 
         async function changePassword() {
             if (!currentUser) return;
+            if (typeof isScoreboardTechnicalUser === "function" && isScoreboardTechnicalUser(currentUser)) return;
 
             const newPassword = String(document.getElementById("newPassword").value || "");
             const confirmPassword = String(document.getElementById("confirmPassword").value || "");
