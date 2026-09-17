@@ -1030,8 +1030,9 @@
                 rows.forEach((match) => {
                     [match.player1, match.player2].forEach((player) => {
                         const name = String(player?.name || "").trim();
-                        if (!name) return;
-                        const current = tournamentPlayerMap.get(name) || {
+                        const playerKey = normalizePlayerLookupKey(name);
+                        if (!playerKey) return;
+                        const current = tournamentPlayerMap.get(playerKey) || {
                             name,
                             club: String(player?.club || "").trim(),
                             balls: 0,
@@ -1042,12 +1043,13 @@
                         current.balls += toNumber(player.balls);
                         current.innings += toNumber(player.innings);
                         current.hs = Math.max(current.hs, toNumber(player.hs));
-                        tournamentPlayerMap.set(name, current);
+                        tournamentPlayerMap.set(playerKey, current);
                     });
                 });
 
                 Array.from(tournamentPlayerMap.values()).forEach((entry) => {
-                    const playerSummary = playerMap.get(entry.name) || {
+                    const playerKey = normalizePlayerLookupKey(entry.name);
+                    const playerSummary = playerMap.get(playerKey) || {
                         name: entry.name,
                         club: entry.club || inferClubFromPlayerName(entry.name),
                         totalBalls: 0,
@@ -1071,7 +1073,7 @@
                             average: tournamentAverage,
                         });
                     }
-                    playerMap.set(entry.name, playerSummary);
+                    playerMap.set(playerKey, playerSummary);
                 });
             });
 
@@ -1292,20 +1294,30 @@
             const currentMap = createSeasonPlayerSummary(currentBundle?.tournaments || [], disciplineId, true);
             const previousMap1 = createSeasonPlayerSummary(previousBundle1?.tournaments || [], disciplineId, false);
             const previousMap2 = createSeasonPlayerSummary(previousBundle2?.tournaments || [], disciplineId, false);
-            const playerNames = new Set([
+            const playerKeys = new Set([
                 ...currentMap.keys(),
                 ...previousMap1.keys(),
                 ...previousMap2.keys(),
             ]);
-            btdByPlayer.forEach((entry) => {
-                const name = String(entry?.name || "").trim();
-                if (name) playerNames.add(name);
+            btdByPlayer.forEach((_entry, playerKey) => {
+                if (playerKey) playerKeys.add(playerKey);
             });
 
-            const ranking = Array.from(playerNames.values())
-                .map((name) => {
-                    const current = currentMap.get(name) || {
-                        club: btdByPlayer.get(normalizePlayerLookupKey(name))?.club || inferClubFromPlayerName(name),
+            const ranking = Array.from(playerKeys.values())
+                .map((playerKey) => {
+                    const currentEntry = currentMap.get(playerKey);
+                    const previousEntry1 = previousMap1.get(playerKey);
+                    const previousEntry2 = previousMap2.get(playerKey);
+                    const btdReference = btdByPlayer.get(playerKey);
+                    const name = String(
+                        currentEntry?.name
+                        || btdReference?.name
+                        || previousEntry1?.name
+                        || previousEntry2?.name
+                        || ""
+                    ).trim();
+                    const current = currentEntry || {
+                        club: btdReference?.club || inferClubFromPlayerName(name),
                         totalBalls: 0,
                         totalInnings: 0,
                         bestTournamentAverage: 0,
@@ -1313,14 +1325,14 @@
                         links: [],
                         earnedClass: "",
                     };
-                    const prev1 = previousMap1.get(name) || {
+                    const prev1 = previousEntry1 || {
                         club: "",
                         totalBalls: 0,
                         totalInnings: 0,
                         bestTournamentAverage: 0,
                         earnedClass: "",
                     };
-                    const prev2 = previousMap2.get(name) || {
+                    const prev2 = previousEntry2 || {
                         club: "",
                         totalBalls: 0,
                         totalInnings: 0,
@@ -1330,7 +1342,6 @@
                     const currentBestTournamentAverage = current.bestTournamentAverage || 0;
                     const previousBestTournamentAverage1 = prev1.bestTournamentAverage || 0;
                     const previousBestTournamentAverage2 = prev2.bestTournamentAverage || 0;
-                    const btdReference = btdByPlayer.get(normalizePlayerLookupKey(name));
                     const referenceTotalBalls = Number(btdReference?.totalBalls || 0);
                     const referenceTotalInnings = Number(btdReference?.totalInnings || 0);
                     const displayTotalBalls = referenceTotalBalls > 0 ? referenceTotalBalls : (current.totalBalls || 0);
@@ -1470,7 +1481,12 @@
             const selectedDisciplineId = String(disciplineId || getSelectedDisciplineId()).trim();
 
             const validSeasonBundles = Array.isArray(seasonBundles)
-                ? seasonBundles.filter((entry) => Array.isArray(entry?.tournaments) && entry.tournaments.length)
+                ? seasonBundles
+                    .filter((entry) => entry?.season)
+                    .map((entry) => ({
+                        ...entry,
+                        tournaments: Array.isArray(entry?.tournaments) ? entry.tournaments : [],
+                    }))
                 : [];
 
             if (!validSeasonBundles.length) {
