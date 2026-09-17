@@ -55,6 +55,12 @@
             min-height: 44px;
         }
 
+        .topbar-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
         h1 {
             margin: 0;
             font-size: 22px;
@@ -505,7 +511,10 @@
     <main id="scoreboardApp" class="app hidden">
         <div class="topbar">
             <h1>Scoreboard App</h1>
-            <button id="newMatchBtn" class="ghost hidden" type="button" onclick="newMatch()">Neu</button>
+            <div class="topbar-actions">
+                <button id="newMatchBtn" class="ghost hidden" type="button" onclick="newMatch()">Neu</button>
+                <button class="ghost" type="button" onclick="logoutScoreboardApp()">Abmelden</button>
+            </div>
         </div>
 
         <section id="setupView" class="panel grid">
@@ -772,6 +781,30 @@
             } catch (_) {
                 // Persönliche Sitzungen werden nicht als Scoreboard-Geräte erfasst.
             }
+        }
+
+        async function logoutScoreboardApp() {
+            try {
+                await invokeScoreboardAuth({
+                    action: "logout",
+                    deviceId: getScoreboardDeviceId()
+                });
+            } catch (_) {
+                // Auch persönliche Anmeldungen dürfen sich lokal abmelden.
+            }
+            await supabaseClient.auth.signOut({ scope: "local" });
+            if (pollId) clearInterval(pollId);
+            pollId = null;
+            if (channel) await supabaseClient.removeChannel(channel);
+            channel = null;
+            currentUserId = "";
+            isAdmin = false;
+            canUseAllScoreboardPlayers = false;
+            scoreboardAppInitialized = false;
+            matchId = "";
+            matchData = null;
+            showScoreboardPinGate();
+            setScoreboardPinMessage("Abgemeldet. Bitte den Vereins-PIN eingeben.", "");
         }
 
         function normalizeUuid(value) {

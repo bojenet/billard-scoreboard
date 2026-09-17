@@ -223,6 +223,23 @@ serve(async (request) => {
       return jsonResponse({ ok: true });
     }
 
+    if (action === "logout") {
+      const user = await getAuthenticatedUser();
+      const settings = await getSettings();
+      if (!user?.id || user.id !== settings?.auth_user_id) {
+        return jsonResponse({ error: "not-authorized" }, 403);
+      }
+      const deviceId = cleanText(payload.deviceId);
+      if (/^[0-9a-f-]{36}$/i.test(deviceId)) {
+        const { error } = await adminClient
+          .from("scoreboard_app_devices")
+          .update({ revoked_at: new Date().toISOString() })
+          .eq("device_id", deviceId);
+        if (error) throw error;
+      }
+      return jsonResponse({ ok: true });
+    }
+
     const admin = await requireAdmin();
     if (!admin) {
       return jsonResponse({ error: "admin-required", message: "Admin-Rechte erforderlich." }, 403);
