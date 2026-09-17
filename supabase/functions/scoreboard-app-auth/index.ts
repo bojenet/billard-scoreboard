@@ -29,8 +29,9 @@ function cleanText(value: unknown) {
 }
 
 function randomPassword() {
-  const bytes = crypto.getRandomValues(new Uint8Array(36));
-  return Array.from(bytes, (value) => value.toString(36).padStart(2, "0")).join("") + "!Aa9";
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const randomHex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+  return randomHex + "!Aa9";
 }
 
 function decodeJwtPayload(jwt: string) {
