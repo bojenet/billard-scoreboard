@@ -173,6 +173,56 @@
       font-weight: 800;
     }
 
+    .scoreboard-admin {
+      padding: 18px;
+      overflow: visible;
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .scoreboard-admin-grid {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .scoreboard-admin input {
+      width: 100%;
+      min-height: 42px;
+      box-sizing: border-box;
+      border: 1px solid #3659bb;
+      border-radius: 9px;
+      background: #0f2153;
+      color: white;
+      padding: 0 12px;
+      font-size: 20px;
+      letter-spacing: 7px;
+      text-align: center;
+    }
+
+    .scoreboard-admin-copy {
+      margin: 0 0 14px;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .scoreboard-status {
+      margin-top: 12px;
+      min-height: 20px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.76);
+    }
+
+    .scoreboard-status.ok { color: #b6f5c4; }
+    .scoreboard-status.err { color: #ffb6b6; }
+
+    .scoreboard-devices {
+      width: 100%;
+      margin-top: 14px;
+      border-collapse: collapse;
+    }
+
     select {
       background: #1c3380;
       color: white;
@@ -362,6 +412,10 @@
       .form-grid {
         grid-template-columns: 1fr;
       }
+
+      .scoreboard-admin-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -371,6 +425,24 @@
       <h1>Userverwaltung</h1>
       <button class="btn" onclick="window.location.href='index.html'">Zurück</button>
     </div>
+
+    <h2 class="section-title">Scoreboard App - Vereins-PIN</h2>
+    <section class="card scoreboard-admin">
+      <p class="scoreboard-admin-copy">Die Bediener öffnen die Scoreboard App mit diesem sechsstelligen PIN. Nach der ersten Eingabe bleibt das Gerät angemeldet.</p>
+      <div class="scoreboard-admin-grid">
+        <div class="form-field">
+          <label for="scoreboardAdminPin">Neuen Vereins-PIN festlegen</label>
+          <input id="scoreboardAdminPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="new-password" placeholder="••••••">
+        </div>
+        <button id="scoreboardSavePinBtn" class="save-btn" type="button" onclick="saveScoreboardPin()">PIN speichern</button>
+        <button id="scoreboardRevokeAllBtn" class="save-btn danger-btn" type="button" onclick="revokeAllScoreboardDevices()">Alle Geräte abmelden</button>
+      </div>
+      <div id="scoreboardAdminStatus" class="scoreboard-status">Status wird geladen...</div>
+      <table class="scoreboard-devices" id="scoreboardDevicesTable">
+        <tr><th>Gerät</th><th>Zuletzt verwendet</th><th>Status</th><th>Aktion</th></tr>
+      </table>
+    </section>
+
     <div class="toolbar">
       <button class="btn" type="button" onclick="openUserModal()">User erstellen</button>
     </div>
@@ -385,7 +457,7 @@
           <th>Training</th>
           <th>Turnier</th>
           <th>Kalender</th>
-          <th>Club</th>
+          <th>Scoreboard App</th>
           <th>OBS</th>
           <th>Letzter Login</th>
           <th>Aktion</th>
@@ -495,7 +567,7 @@
           </select>
         </div>
         <div class="form-field">
-          <label for="editClubMobileAccess">Club Mobile</label>
+          <label for="editClubMobileAccess">Scoreboard App</label>
           <select id="editClubMobileAccess">
             <option value="hidden">ausblenden</option>
             <option value="edit">erlauben</option>
@@ -541,6 +613,106 @@
   <script src="js/user_menu.js"></script>
   <script>
     let userRows = [];
+
+    function setScoreboardAdminStatus(text, type) {
+      const element = document.getElementById("scoreboardAdminStatus");
+      if (!element) return;
+      element.textContent = text || "";
+      element.className = "scoreboard-status " + (type || "");
+    }
+
+    async function invokeScoreboardAdmin(body) {
+      const { data, error } = await supabaseClient.functions.invoke("scoreboard-app-auth", { body });
+      if (error) throw new Error(await readFunctionError(error));
+      if (data?.error) throw new Error(data.message || data.error);
+      return data || {};
+    }
+
+    function renderScoreboardDevices(devices) {
+      const table = document.getElementById("scoreboardDevicesTable");
+      if (!table) return;
+      table.innerHTML = "<tr><th>Gerät</th><th>Zuletzt verwendet</th><th>Status</th><th>Aktion</th></tr>";
+      const rows = Array.isArray(devices) ? devices : [];
+      if (!rows.length) {
+        table.insertAdjacentHTML("beforeend", '<tr><td colspan="4" class="muted">Noch kein Gerät mit Vereins-PIN angemeldet.</td></tr>');
+        return;
+      }
+      rows.forEach((device) => {
+        const active = !device.revoked_at && device.session_id;
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${escapeHtml(device.device_name || "Scoreboard-Gerät")}</td>
+          <td>${escapeHtml(formatDateTime(device.last_seen_at))}</td>
+          <td>${active ? "aktiv" : "abgemeldet"}</td>
+          <td>${active ? `<button class="save-btn danger-btn" type="button" onclick="revokeScoreboardDevice('${escapeHtml(device.session_id)}')">Abmelden</button>` : "-"}</td>
+        `;
+        table.appendChild(row);
+      });
+    }
+
+    async function loadScoreboardAdminStatus() {
+      try {
+        const result = await invokeScoreboardAdmin({ action: "status" });
+        const updated = result.pinUpdatedAt ? ` · PIN geändert: ${formatDateTime(result.pinUpdatedAt)}` : "";
+        const locked = result.lockedUntil && new Date(result.lockedUntil) > new Date()
+          ? ` · nach Fehlversuchen gesperrt bis ${formatDateTime(result.lockedUntil)}`
+          : "";
+        setScoreboardAdminStatus(result.configured
+          ? `Vereins-PIN ist eingerichtet${updated}${locked}.`
+          : "Vereins-PIN ist noch nicht eingerichtet.", result.configured ? "ok" : "");
+        renderScoreboardDevices(result.devices);
+      } catch (error) {
+        setScoreboardAdminStatus("Scoreboard-Einstellungen konnten nicht geladen werden: " + String(error?.message || error), "err");
+      }
+    }
+
+    async function saveScoreboardPin() {
+      const input = document.getElementById("scoreboardAdminPin");
+      const button = document.getElementById("scoreboardSavePinBtn");
+      const pin = String(input?.value || "").replace(/\D/g, "").slice(0, 6);
+      if (input) input.value = pin;
+      if (!/^\d{6}$/.test(pin)) {
+        setScoreboardAdminStatus("Bitte einen PIN aus genau sechs Ziffern eingeben.", "err");
+        return;
+      }
+      if (button) button.disabled = true;
+      setScoreboardAdminStatus("Vereins-PIN wird gespeichert...", "");
+      try {
+        await invokeScoreboardAdmin({ action: "set-pin", pin });
+        if (input) input.value = "";
+        setScoreboardAdminStatus("Vereins-PIN wurde gespeichert.", "ok");
+        await Promise.all([loadScoreboardAdminStatus(), loadUsers()]);
+      } catch (error) {
+        setScoreboardAdminStatus("PIN konnte nicht gespeichert werden: " + String(error?.message || error), "err");
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    async function revokeAllScoreboardDevices() {
+      if (!confirm("Wirklich alle Geräte der Scoreboard App abmelden? Auf jedem Gerät muss anschließend der Vereins-PIN erneut eingegeben werden.")) return;
+      const button = document.getElementById("scoreboardRevokeAllBtn");
+      if (button) button.disabled = true;
+      try {
+        const result = await invokeScoreboardAdmin({ action: "revoke-all" });
+        setScoreboardAdminStatus(`${Number(result.revokedCount || 0)} Gerätesitzungen wurden beendet.`, "ok");
+        await loadScoreboardAdminStatus();
+      } catch (error) {
+        setScoreboardAdminStatus("Geräte konnten nicht abgemeldet werden: " + String(error?.message || error), "err");
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    async function revokeScoreboardDevice(sessionId) {
+      if (!sessionId || !confirm("Dieses Scoreboard-Gerät abmelden?")) return;
+      try {
+        await invokeScoreboardAdmin({ action: "revoke-device", sessionId });
+        await loadScoreboardAdminStatus();
+      } catch (error) {
+        setScoreboardAdminStatus("Gerät konnte nicht abgemeldet werden: " + String(error?.message || error), "err");
+      }
+    }
 
     function setMsg(text, type) {
       const el = document.getElementById("msg");
@@ -836,7 +1008,7 @@
           <th class="access-head">Training</th>
           <th class="access-head">Turnier</th>
           <th class="access-head">Kal.</th>
-          <th class="access-head">Club</th>
+          <th class="access-head" title="Scoreboard App">Score.</th>
           <th class="access-head">NBV Kal.</th>
           <th class="access-head">OBS</th>
           <th>Letzter Login</th>
@@ -1070,7 +1242,7 @@
       }
     }
 
-    loadUsers();
+    Promise.all([loadUsers(), loadScoreboardAdminStatus()]);
   </script>
 </body>
 </html>

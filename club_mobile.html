@@ -7,11 +7,11 @@
     <meta name="theme-color" content="#0b1024">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="BGH Scoreboard">
+    <meta name="apple-mobile-web-app-title" content="Scoreboard App">
     <link rel="manifest" href="/manifest-club.json">
     <link rel="icon" href="/assets/club-mobile-icon-192.png" type="image/png">
     <link rel="apple-touch-icon" href="/assets/club-mobile-icon-192.png">
-    <title>Scoreboard</title>
+    <title>Scoreboard App</title>
     <style>
         :root {
             color-scheme: dark;
@@ -82,6 +82,50 @@
 
         .hidden {
             display: none !important;
+        }
+
+        .pin-gate {
+            width: min(100%, 440px);
+            margin: 8vh auto 0;
+            text-align: center;
+        }
+
+        .pin-logo {
+            width: 92px;
+            height: 92px;
+            margin: 0 auto 16px;
+            border-radius: 20px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
+        }
+
+        .pin-gate h1 {
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+
+        .pin-gate p {
+            margin: 0 0 20px;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        .pin-input {
+            text-align: center;
+            letter-spacing: 12px;
+            font-size: 30px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .pin-submit {
+            width: 100%;
+            min-height: 56px;
+            margin-top: 12px;
+            border: 0;
+            border-radius: 12px;
+            background: var(--green);
+            color: #061a0e;
+            font-size: 18px;
+            font-weight: 900;
         }
 
         .grid {
@@ -449,9 +493,18 @@
 </head>
 
 <body>
-    <main class="app">
+    <section id="scoreboardPinGate" class="pin-gate panel">
+        <img class="pin-logo" src="/assets/club-mobile-icon-192.png" alt="Scoreboard App">
+        <h1>Scoreboard App</h1>
+        <p>Bitte den sechsstelligen Vereins-PIN eingeben.<br>Das Gerät bleibt anschließend angemeldet.</p>
+        <input id="scoreboardPinInput" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" aria-label="Vereins-PIN">
+        <button id="scoreboardPinButton" class="pin-submit" type="button" onclick="loginWithScoreboardPin()">Scoreboard App öffnen</button>
+        <div id="scoreboardPinMessage" class="message"></div>
+    </section>
+
+    <main id="scoreboardApp" class="app hidden">
         <div class="topbar">
-            <h1>Scoreboard</h1>
+            <h1>Scoreboard App</h1>
             <button id="newMatchBtn" class="ghost hidden" type="button" onclick="newMatch()">Neu</button>
         </div>
 
@@ -620,6 +673,106 @@
         let history = [];
         let resultEmailSending = false;
         let finishedAtIso = "";
+        let scoreboardAppInitialized = false;
+        let canUseAllScoreboardPlayers = false;
+
+        function getScoreboardDeviceId() {
+            const storageKey = "scoreboard_app_device_id";
+            let deviceId = localStorage.getItem(storageKey) || "";
+            if (!/^[0-9a-f-]{36}$/i.test(deviceId)) {
+                deviceId = typeof crypto.randomUUID === "function"
+                    ? crypto.randomUUID()
+                    : "10000000-1000-4000-8000-" + String(Date.now()).padStart(12, "0").slice(-12);
+                localStorage.setItem(storageKey, deviceId);
+            }
+            return deviceId;
+        }
+
+        function getScoreboardDeviceName() {
+            const platform = navigator.userAgent || "";
+            if (/ipad/i.test(platform)) return "iPad";
+            if (/iphone/i.test(platform)) return "iPhone";
+            if (/android/i.test(platform)) return "Android-Gerät";
+            return "Scoreboard-Gerät";
+        }
+
+        function setScoreboardPinMessage(text, type) {
+            const element = document.getElementById("scoreboardPinMessage");
+            if (!element) return;
+            element.textContent = text || "";
+            element.className = "message " + (type || "");
+        }
+
+        function showScoreboardPinGate() {
+            document.getElementById("scoreboardPinGate")?.classList.remove("hidden");
+            document.getElementById("scoreboardApp")?.classList.add("hidden");
+            setTimeout(() => document.getElementById("scoreboardPinInput")?.focus(), 0);
+        }
+
+        function showScoreboardApp() {
+            document.getElementById("scoreboardPinGate")?.classList.add("hidden");
+            document.getElementById("scoreboardApp")?.classList.remove("hidden");
+        }
+
+        async function invokeScoreboardAuth(body) {
+            const { data, error } = await supabaseClient.functions.invoke("scoreboard-app-auth", { body });
+            if (error) {
+                let message = error.message || "Anmeldung fehlgeschlagen.";
+                try {
+                    const responseBody = await error.context?.json?.();
+                    message = responseBody?.message || message;
+                } catch (_) {
+                    // Nicht jede Fehlermeldung enthält einen JSON-Body.
+                }
+                throw new Error(message);
+            }
+            if (data?.error) throw new Error(data.message || data.error);
+            return data || {};
+        }
+
+        async function loginWithScoreboardPin() {
+            const input = document.getElementById("scoreboardPinInput");
+            const button = document.getElementById("scoreboardPinButton");
+            const pin = String(input?.value || "").replace(/\D/g, "").slice(0, 6);
+            if (input) input.value = pin;
+            if (!/^\d{6}$/.test(pin)) {
+                setScoreboardPinMessage("Bitte alle sechs Ziffern eingeben.", "error");
+                return;
+            }
+            if (button) button.disabled = true;
+            setScoreboardPinMessage("PIN wird geprüft...", "");
+            try {
+                const result = await invokeScoreboardAuth({
+                    action: "login",
+                    pin,
+                    deviceId: getScoreboardDeviceId(),
+                    deviceName: getScoreboardDeviceName()
+                });
+                const { data, error } = await supabaseClient.auth.verifyOtp({
+                    token_hash: result.tokenHash,
+                    type: "magiclink"
+                });
+                if (error || !data?.user) throw error || new Error("Sitzung konnte nicht gestartet werden.");
+                if (input) input.value = "";
+                await initializeScoreboardApp(data.user);
+            } catch (error) {
+                setScoreboardPinMessage(String(error?.message || error || "Anmeldung fehlgeschlagen."), "error");
+            } finally {
+                if (button) button.disabled = false;
+            }
+        }
+
+        async function registerScoreboardDevice() {
+            try {
+                await invokeScoreboardAuth({
+                    action: "heartbeat",
+                    deviceId: getScoreboardDeviceId(),
+                    deviceName: getScoreboardDeviceName()
+                });
+            } catch (_) {
+                // Persönliche Sitzungen werden nicht als Scoreboard-Geräte erfasst.
+            }
+        }
 
         function normalizeUuid(value) {
             const raw = String(value || "").trim();
@@ -856,7 +1009,7 @@
                 .from("players")
                 .select("id,name,user_id")
                 .order("name", { ascending: true });
-            if (!isAdmin) query = query.eq("user_id", currentUserId);
+            if (!isAdmin && !canUseAllScoreboardPlayers) query = query.eq("user_id", currentUserId);
             let { data, error } = await query;
 
             if (error && String(error.message || "").toLowerCase().includes("user_id")) {
@@ -1462,16 +1615,20 @@
             showSetup();
         }
 
-        window.addEventListener("DOMContentLoaded", async () => {
-            const user = await requireAuth();
-            if (!user) return;
+        async function initializeScoreboardApp(user) {
+            if (scoreboardAppInitialized || !user) return;
             currentUserId = user.id;
             isAdmin = await hasAdminAccess(user);
             const clubAccess = await getClubMobileAccess(user);
             if (!isClubMobileVisible(clubAccess)) {
-                document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Zugriff auf Club Match.</div>";
+                setScoreboardPinMessage("Dieses Konto hat keinen Zugriff auf die Scoreboard App.", "error");
+                showScoreboardPinGate();
                 return;
             }
+            canUseAllScoreboardPlayers = true;
+            scoreboardAppInitialized = true;
+            showScoreboardApp();
+            void registerScoreboardDevice();
             loadDisciplines();
             await loadPlayers();
             await loadMatch();
@@ -1479,6 +1636,18 @@
                 pollMatch();
                 if (matchData && matchData.shot_clock_running) updateDisplay();
             }, 1000);
+        }
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            document.getElementById("scoreboardPinInput")?.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") loginWithScoreboardPin();
+            });
+            const user = await getCurrentUser();
+            if (!user) {
+                showScoreboardPinGate();
+                return;
+            }
+            await initializeScoreboardApp(user);
         });
 
         window.addEventListener("beforeunload", () => {

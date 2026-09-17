@@ -1,7 +1,7 @@
 {
-  "name": "BGH Scoreboard",
-  "short_name": "BGH Scoreboard",
-  "description": "Mobile Match-Erstellung und Bedienung fuer Clubtische.",
+  "name": "Scoreboard App",
+  "short_name": "Scoreboard",
+  "description": "Mobile Match-Erstellung und Bedienung für Clubtische.",
   "start_url": "/club_mobile.html",
   "scope": "/",
   "display": "standalone",
