@@ -8,10 +8,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Scoreboard App">
+    <link rel="canonical" href="https://www.billard-studio.de/club_mobile.html">
     <link rel="manifest" href="/manifest-club.json">
     <link rel="icon" href="/assets/club-mobile-icon-192.png" type="image/png">
     <link rel="apple-touch-icon" href="/assets/club-mobile-icon-192.png">
     <title>Scoreboard App</title>
+    <script>
+        if (window.location.hostname.endsWith(".vercel.app")) {
+            window.location.replace("https://www.billard-studio.de" + window.location.pathname + window.location.search + window.location.hash);
+        }
+    </script>
     <style>
         :root {
             color-scheme: dark;
