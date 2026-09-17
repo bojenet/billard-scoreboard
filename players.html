@@ -86,7 +86,7 @@ h1 {
 
 .add-grid {
     display:grid;
-    grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr) minmax(180px, 260px) auto auto;
+    grid-template-columns:minmax(160px, 1.1fr) minmax(160px, 1fr) 100px minmax(150px, 1fr) minmax(170px, 210px) auto;
     gap:12px;
     align-items:center;
 }
@@ -242,6 +242,8 @@ td {
         <div class="add-grid">
             <input type="text" id="newPlayer" placeholder="Neuer Spieler">
             <input type="email" id="newPlayerEmail" placeholder="E-Mail für Ergebnisversand">
+            <input type="text" id="newPlayerCountryCode" list="countryCodes" maxlength="2" placeholder="Land" title="Nationalität, z. B. DE für Deutschland">
+            <input type="text" id="newPlayerClub" placeholder="Verein">
             <select id="newPlayerOwner" class="admin-owner-field" title="Zuordnung"></select>
             <label class="checkbox-wrap" for="newPlayerSendEmail">
                 <input type="checkbox" id="newPlayerSendEmail">
@@ -265,10 +267,34 @@ td {
         <tr>
             <th>Name</th>
             <th>E-Mail</th>
+            <th>Land</th>
+            <th>Verein</th>
             <th>Ergebnis per Mail</th>
             <th>Aktion</th>
         </tr>
     </table>
+
+    <datalist id="countryCodes">
+        <option value="DE" label="Deutschland"></option>
+        <option value="AT" label="Österreich"></option>
+        <option value="CH" label="Schweiz"></option>
+        <option value="BE" label="Belgien"></option>
+        <option value="NL" label="Niederlande"></option>
+        <option value="DK" label="Dänemark"></option>
+        <option value="FR" label="Frankreich"></option>
+        <option value="IT" label="Italien"></option>
+        <option value="ES" label="Spanien"></option>
+        <option value="PT" label="Portugal"></option>
+        <option value="GB" label="Großbritannien"></option>
+        <option value="IE" label="Irland"></option>
+        <option value="PL" label="Polen"></option>
+        <option value="CZ" label="Tschechien"></option>
+        <option value="SE" label="Schweden"></option>
+        <option value="NO" label="Norwegen"></option>
+        <option value="FI" label="Finnland"></option>
+        <option value="US" label="USA"></option>
+        <option value="CA" label="Kanada"></option>
+    </datalist>
 
 </div>
 
@@ -304,7 +330,7 @@ function setNotice(text) {
 async function loadScopedPlayers() {
     let query = supabaseClient
         .from("players")
-        .select("id,name,email,send_match_result_email,user_id")
+        .select("id,name,email,country_code,club_name,send_match_result_email,user_id")
         .order("name", { ascending: true });
     if (!currentIsAdmin) {
         query = query.eq("user_id", currentUserId);
@@ -430,6 +456,8 @@ function renderPlayers() {
         <tr>
             <th>Name</th>
             <th>E-Mail</th>
+            <th>Land</th>
+            <th>Verein</th>
             <th>Ergebnis per Mail</th>
             ${currentIsAdmin ? "<th>Zuordnung</th>" : ""}
             <th>Aktion</th>
@@ -439,6 +467,8 @@ function renderPlayers() {
     data.forEach(p => {
         const name = String(p.name || "");
         const email = String(p.email || "");
+        const countryCode = String(p.country_code || "");
+        const clubName = String(p.club_name || "");
         const sendMail = Boolean(p.send_match_result_email);
 
         table.innerHTML += `
@@ -448,6 +478,12 @@ function renderPlayers() {
                 </td>
                 <td>
                     <input class="row-input" id="player-email-${p.id}" type="email" value="${escapeHtml(email)}" ${supportsEmailSettings ? "" : "disabled"} />
+                </td>
+                <td>
+                    <input class="row-input" id="player-country-${p.id}" list="countryCodes" maxlength="2" value="${escapeHtml(countryCode)}" placeholder="z. B. DE" />
+                </td>
+                <td>
+                    <input class="row-input" id="player-club-${p.id}" value="${escapeHtml(clubName)}" placeholder="Verein" />
                 </td>
                 <td>
                     <input class="row-check" id="player-send-${p.id}" type="checkbox" ${sendMail ? "checked" : ""} ${supportsEmailSettings ? "" : "disabled"} />
@@ -509,6 +545,14 @@ function escapeHtml(value) {
         .replace(/"/g, "&quot;");
 }
 
+function normalizeCountryCode(value) {
+    return String(value || "").trim().toUpperCase();
+}
+
+function isValidCountryCode(value) {
+    return !value || /^[A-Z]{2}$/.test(value);
+}
+
 async function addPlayer(){
     const user = await requireAuth();
     if (!user) return;
@@ -517,15 +561,21 @@ async function addPlayer(){
 
     const name = document.getElementById("newPlayer").value.trim();
     const email = document.getElementById("newPlayerEmail").value.trim().toLowerCase();
+    const countryCode = normalizeCountryCode(document.getElementById("newPlayerCountryCode").value);
+    const clubName = document.getElementById("newPlayerClub").value.trim();
     const sendMail = document.getElementById("newPlayerSendEmail").checked;
     const ownerId = currentIsAdmin
         ? (document.getElementById("newPlayerOwner")?.value || currentUserId)
         : currentUserId;
     if(!name) return;
+    if (!isValidCountryCode(countryCode)) {
+        alert("Bitte das Land als zweistelligen Code eingeben, z. B. DE für Deutschland.");
+        return;
+    }
 
     let { error } = await supabaseClient
         .from("players")
-        .insert([{ name, email: email || null, send_match_result_email: sendMail, user_id: ownerId }]);
+        .insert([{ name, email: email || null, country_code: countryCode || null, club_name: clubName || null, send_match_result_email: sendMail, user_id: ownerId }]);
 
     // Fallback für altes Schema ohne neue Felder oder user_id.
     const message = String(error?.message || "").toLowerCase();
@@ -543,6 +593,8 @@ async function addPlayer(){
 
     document.getElementById("newPlayer").value="";
     document.getElementById("newPlayerEmail").value="";
+    document.getElementById("newPlayerCountryCode").value="";
+    document.getElementById("newPlayerClub").value="";
     document.getElementById("newPlayerSendEmail").checked=false;
     loadPlayers();
 }
@@ -555,10 +607,16 @@ async function updatePlayer(id) {
 
     const name = document.getElementById(`player-name-${id}`)?.value.trim() || "";
     const email = document.getElementById(`player-email-${id}`)?.value.trim().toLowerCase() || "";
+    const countryCode = normalizeCountryCode(document.getElementById(`player-country-${id}`)?.value);
+    const clubName = document.getElementById(`player-club-${id}`)?.value.trim() || "";
     const sendMail = Boolean(document.getElementById(`player-send-${id}`)?.checked);
 
     if (!name) {
         alert("Bitte einen Spielernamen eintragen.");
+        return;
+    }
+    if (!isValidCountryCode(countryCode)) {
+        alert("Bitte das Land als zweistelligen Code eingeben, z. B. DE für Deutschland.");
         return;
     }
 
@@ -567,6 +625,8 @@ async function updatePlayer(id) {
         .update({
             name,
             email: email || null,
+            country_code: countryCode || null,
+            club_name: clubName || null,
             send_match_result_email: sendMail
         })
         .eq("id", id);

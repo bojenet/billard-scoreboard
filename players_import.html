@@ -162,7 +162,7 @@
         </div>
       </div>
       <div class="hint">
-        Erwartete Spalten: <strong>name</strong>. Optional: <strong>email</strong>, <strong>send_match_result_email</strong>.
+        Erwartete Spalten: <strong>name</strong>. Optional: <strong>email</strong>, <strong>send_match_result_email</strong>, <strong>country_code</strong> (z. B. DE) und <strong>club_name</strong>.
         Trennzeichen Komma oder Semikolon. Duplikate beim Ziel-User werden uebersprungen.
       </div>
       <div class="actions">
@@ -177,6 +177,8 @@
         <tr>
           <th>Name</th>
           <th>E-Mail</th>
+          <th>Land</th>
+          <th>Verein</th>
           <th>Mail</th>
           <th>Status</th>
         </tr>
@@ -229,7 +231,9 @@
     }
 
     function normalizeHeader(value) {
-      return String(value || "").trim().toLowerCase().replace(/\s+/g, "_");
+      return String(value || "").trim().toLowerCase()
+        .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+        .replace(/\s+/g, "_");
     }
 
     function parseBoolean(value) {
@@ -250,6 +254,8 @@
       const nameIndex = headers.indexOf("name");
       const emailIndex = headers.indexOf("email");
       const sendIndex = headers.indexOf("send_match_result_email");
+      const countryIndex = headers.findIndex((header) => ["country_code", "country", "land", "nationalitaet", "nationality"].includes(header));
+      const clubIndex = headers.findIndex((header) => ["club_name", "club", "verein"].includes(header));
       if (nameIndex < 0) throw new Error("CSV braucht eine Spalte 'name'.");
 
       return lines.slice(1)
@@ -257,8 +263,16 @@
         .map((cells) => ({
           name: String(cells[nameIndex] || "").trim(),
           email: emailIndex >= 0 ? String(cells[emailIndex] || "").trim().toLowerCase() : "",
+          country_code: countryIndex >= 0 ? String(cells[countryIndex] || "").trim().toUpperCase() : "",
+          club_name: clubIndex >= 0 ? String(cells[clubIndex] || "").trim() : "",
           send_match_result_email: sendIndex >= 0 ? parseBoolean(cells[sendIndex]) : false
         }))
+        .map((row) => {
+          if (row.country_code && !/^[A-Z]{2}$/.test(row.country_code)) {
+            throw new Error("Land muss als zweistelliger Code angegeben werden, z. B. DE für Deutschland.");
+          }
+          return row;
+        })
         .filter((row) => row.name);
     }
 
@@ -317,6 +331,8 @@
         <tr>
           <th>Name</th>
           <th>E-Mail</th>
+          <th>Land</th>
+          <th>Verein</th>
           <th>Mail</th>
           <th>Status</th>
         </tr>
@@ -327,6 +343,8 @@
           <tr>
             <td>${escapeHtml(row.name)}</td>
             <td>${escapeHtml(row.email || "-")}</td>
+            <td>${escapeHtml(row.country_code || "-")}</td>
+            <td>${escapeHtml(row.club_name || "-")}</td>
             <td>${row.send_match_result_email ? "ja" : "nein"}</td>
             <td class="${exists ? "status-skip" : "status-new"}">${exists ? "vorhanden" : "neu"}</td>
           </tr>
@@ -362,6 +380,8 @@
         .map((row) => ({
           name: row.name,
           email: row.email || null,
+          country_code: row.country_code || null,
+          club_name: row.club_name || null,
           send_match_result_email: row.send_match_result_email,
           user_id: userId
         }));
