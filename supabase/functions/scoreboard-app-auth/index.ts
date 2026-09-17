@@ -179,7 +179,7 @@ serve(async (request) => {
       const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
         type: "magiclink",
         email: userData.user.email,
-        options: { redirectTo: "https://www.billard-studio.de/club_mobile.html" },
+        options: { redirectTo: "https://www.billard-studio.de/scoreboard_app.html" },
       });
       if (linkError || !linkData?.properties?.hashed_token) throw linkError || new Error("Sitzung konnte nicht vorbereitet werden.");
 

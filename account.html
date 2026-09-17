@@ -169,7 +169,7 @@
             currentUser = await requireAuth();
             if (!currentUser) return;
             if (typeof isScoreboardTechnicalUser === "function" && isScoreboardTechnicalUser(currentUser)) {
-                window.location.replace("/club_mobile.html");
+                window.location.replace("/scoreboard_app.html");
                 return;
             }
 

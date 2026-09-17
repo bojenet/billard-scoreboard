@@ -2,7 +2,7 @@
   "name": "Scoreboard App",
   "short_name": "Scoreboard",
   "description": "Mobile Match-Erstellung und Bedienung für Clubtische.",
-  "start_url": "/club_mobile.html",
+  "start_url": "/scoreboard_app.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
