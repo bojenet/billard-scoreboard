@@ -81,20 +81,23 @@
         }
 
         .player-flag {
-            display: inline-block;
+            width: 1.34em;
+            height: 0.9em;
             margin-right: 0.28em;
-            font-size: 0.82em;
-            line-height: 1;
+            object-fit: cover;
+            border-radius: 2px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.32);
             vertical-align: 0.02em;
         }
 
-        .player-flag:empty {
+        .player-flag:not([src]) {
             display: none;
         }
 
         .player-sub {
-            font-size: clamp(12px, 1.4vw, 18px);
-            opacity: .7;
+            font-size: clamp(15px, 1.8vw, 25px);
+            font-weight: 600;
+            opacity: .84;
             margin-top: 4px;
         }
 
@@ -879,7 +882,7 @@
 
     <div class="topbar">
         <div>
-            <div class="player-name"><span class="player-flag" id="player1Flag"></span><span id="player1Name"></span></div>
+            <div class="player-name"><img class="player-flag" id="player1Flag" alt=""><span id="player1Name"></span></div>
             <div class="player-sub" id="player1Info"></div>
         </div>
 
@@ -890,7 +893,7 @@
         </div>
 
         <div style="text-align:right;">
-            <div class="player-name yellow"><span class="player-flag" id="player2Flag"></span><span id="player2Name"></span></div>
+            <div class="player-name yellow"><img class="player-flag" id="player2Flag" alt=""><span id="player2Name"></span></div>
             <div class="player-sub" id="player2Info"></div>
         </div>
     </div>
@@ -1222,10 +1225,17 @@
         let timeoutsUsed2 = 0;
         let keypadInput = "";
 
-        function countryCodeToFlag(countryCode) {
+        function setCountryFlag(elementId, countryCode) {
             const code = String(countryCode || "").trim().toUpperCase();
-            if (!/^[A-Z]{2}$/.test(code)) return "";
-            return String.fromCodePoint(...Array.from(code, (letter) => 127397 + letter.charCodeAt(0)));
+            const flag = document.getElementById(elementId);
+            if (!flag) return;
+            if (!/^[A-Z]{2}$/.test(code)) {
+                flag.removeAttribute("src");
+                flag.alt = "";
+                return;
+            }
+            flag.src = `https://flagcdn.com/${code.toLowerCase()}.svg`;
+            flag.alt = code;
         }
 
         function setPlayerPresentation(match) {
@@ -1238,8 +1248,8 @@
         function renderMatchMeta() {
             document.getElementById("player1Name").innerText = player1Label;
             document.getElementById("player2Name").innerText = player2Label;
-            document.getElementById("player1Flag").innerText = countryCodeToFlag(player1CountryCode);
-            document.getElementById("player2Flag").innerText = countryCodeToFlag(player2CountryCode);
+            setCountryFlag("player1Flag", player1CountryCode);
+            setCountryFlag("player2Flag", player2CountryCode);
             document.getElementById("player1Info").innerText = player1ClubName;
             document.getElementById("player2Info").innerText = player2ClubName;
             document.getElementById("discipline1Big").innerText =
