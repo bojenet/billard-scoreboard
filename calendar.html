@@ -6051,7 +6051,8 @@
             }
         }
 
-        async function refreshCalendar() {
+        async function refreshCalendar(options = {}) {
+            const reloadStoredEvents = options.reloadStoredEvents !== false;
             if (!isCalendarAdmin && !isPublicViewEnabled) {
                 importedEvents = [];
                 manualEvents = [];
@@ -6090,8 +6091,12 @@
                 setCalendarLoading(false);
             }
 
-            await loadManualEvents();
-            await loadPlanningEvents();
+            if (reloadStoredEvents) {
+                await Promise.all([
+                    loadManualEvents(),
+                    loadPlanningEvents()
+                ]);
+            }
             if (activeVenueFilter !== "all") {
                 const venueStillExists = getAllEvents().some((event) => getEventVenueLabel(event) === activeVenueFilter);
                 if (!venueStillExists) {
@@ -6414,22 +6419,33 @@
                 updateCalendarSeasonUi();
                 currentUser = await getCurrentUser();
                 isSystemAdmin = currentUser ? await hasAdminAccess(currentUser) : false;
-                hasAdminCenterAccessFlag = currentUser ? await getAdminCenterAccess(currentUser) : false;
+                if (isSystemAdmin) {
+                    hasAdminCenterAccessFlag = true;
+                    calendarAccessMode = "edit";
+                } else if (currentUser) {
+                    [hasAdminCenterAccessFlag, calendarAccessMode] = await Promise.all([
+                        getUserAdminCenterAccess(currentUser.id),
+                        getUserCalendarAccess(currentUser.id)
+                    ]);
+                } else {
+                    hasAdminCenterAccessFlag = false;
+                    calendarAccessMode = "hidden";
+                }
                 if (IS_ADMIN_CENTER_MODE && !hasAdminCenterAccessFlag) {
                     document.body.innerHTML = "<div style='padding:40px;font-family:Arial'>Kein Admin-Center-Zugriff.</div>";
                     return;
                 }
-                calendarAccessMode = currentUser ? await getCalendarAccess(currentUser) : "hidden";
                 isCalendarAdmin = isCalendarEditable(calendarAccessMode);
                 tournamentAccessMode = isCalendarAdmin ? "edit" : "read";
                 applyAccessUi();
                 document.body.classList.remove("calendar-loading");
 
-                await loadCalendarSettings();
-                await loadManualEvents();
-                await loadPlanningEvents();
-                await loadInvitationRecipients();
-                await loadInvitationTestReminders();
+                await Promise.all([
+                    loadCalendarSettings(),
+                    loadManualEvents(),
+                    loadPlanningEvents(),
+                    loadInvitationRecipients()
+                ]);
                 await migrateLegacyLocalManualEvents();
                 loadSavedFilter();
                 renderFilters();
@@ -6443,12 +6459,13 @@
                 applyAccessUi();
                 applyPublicViewState();
                 if (IS_ADMIN_CENTER_MODE) {
+                    void loadInvitationTestReminders();
                     return;
                 }
                 if (!isCalendarAdmin && !isPublicViewEnabled) {
                     return;
                 }
-                await refreshCalendar();
+                await refreshCalendar({ reloadStoredEvents: false });
             } finally {
                 document.body.classList.remove("calendar-loading");
             }
