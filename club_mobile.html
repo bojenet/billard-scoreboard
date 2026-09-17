@@ -1089,7 +1089,7 @@
         async function loadPlayers() {
             let query = supabaseClient
                 .from("players")
-                .select("id,name,user_id,club_name")
+                .select("id,name,user_id,country_code,club_name")
                 .order("name", { ascending: true });
             if (!isAdmin && !canUseAllScoreboardPlayers) query = query.eq("user_id", currentUserId);
             let { data, error } = await query;
@@ -1116,7 +1116,13 @@
                 const clubName = String(row.club_name || "").trim();
                 const key = `${name.toLowerCase()}|${clubName.toLocaleLowerCase("de")}`;
                 if (!byName.has(key) || (!byName.get(key).user_id && row.user_id)) {
-                    byName.set(key, { id: row.id, name, user_id: row.user_id || null, club_name: clubName });
+                    byName.set(key, {
+                        id: row.id,
+                        name,
+                        user_id: row.user_id || null,
+                        country_code: String(row.country_code || "").trim().toUpperCase(),
+                        club_name: clubName
+                    });
                 }
             });
             players = Array.from(byName.values()).sort(comparePlayerNames);
@@ -1223,6 +1229,10 @@
                 created_by: currentUserId,
                 player1_id: normalizeUuid(p1.user_id),
                 player2_id: normalizeUuid(p2.user_id),
+                player1_country_code: p1.country_code || null,
+                player2_country_code: p2.country_code || null,
+                player1_club_name: p1.club_name || null,
+                player2_club_name: p2.club_name || null,
                 shot_clock_running: false,
                 shot_clock_started_at: null,
                 shot_clock_remaining_seconds: 40,

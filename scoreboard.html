@@ -80,6 +80,18 @@
             color: #ffd84a;
         }
 
+        .player-flag {
+            display: inline-block;
+            margin-right: 0.28em;
+            font-size: 0.82em;
+            line-height: 1;
+            vertical-align: 0.02em;
+        }
+
+        .player-flag:empty {
+            display: none;
+        }
+
         .player-sub {
             font-size: clamp(12px, 1.4vw, 18px);
             opacity: .7;
@@ -867,7 +879,7 @@
 
     <div class="topbar">
         <div>
-            <div class="player-name" id="player1Name"></div>
+            <div class="player-name"><span class="player-flag" id="player1Flag"></span><span id="player1Name"></span></div>
             <div class="player-sub" id="player1Info"></div>
         </div>
 
@@ -878,7 +890,7 @@
         </div>
 
         <div style="text-align:right;">
-            <div class="player-name yellow" id="player2Name"></div>
+            <div class="player-name yellow"><span class="player-flag" id="player2Flag"></span><span id="player2Name"></span></div>
             <div class="player-sub" id="player2Info"></div>
         </div>
     </div>
@@ -1185,6 +1197,10 @@
         let discipline2Label = "";
         let player1Id = null;
         let player2Id = null;
+        let player1CountryCode = "";
+        let player2CountryCode = "";
+        let player1ClubName = "";
+        let player2ClubName = "";
         let timerInterval;
         let channel;
         let currentUserId = "";
@@ -1206,9 +1222,26 @@
         let timeoutsUsed2 = 0;
         let keypadInput = "";
 
+        function countryCodeToFlag(countryCode) {
+            const code = String(countryCode || "").trim().toUpperCase();
+            if (!/^[A-Z]{2}$/.test(code)) return "";
+            return String.fromCodePoint(...Array.from(code, (letter) => 127397 + letter.charCodeAt(0)));
+        }
+
+        function setPlayerPresentation(match) {
+            player1CountryCode = String(match?.player1_country_code || "").trim().toUpperCase();
+            player2CountryCode = String(match?.player2_country_code || "").trim().toUpperCase();
+            player1ClubName = String(match?.player1_club_name || "").trim();
+            player2ClubName = String(match?.player2_club_name || "").trim();
+        }
+
         function renderMatchMeta() {
             document.getElementById("player1Name").innerText = player1Label;
             document.getElementById("player2Name").innerText = player2Label;
+            document.getElementById("player1Flag").innerText = countryCodeToFlag(player1CountryCode);
+            document.getElementById("player2Flag").innerText = countryCodeToFlag(player2CountryCode);
+            document.getElementById("player1Info").innerText = player1ClubName;
+            document.getElementById("player2Info").innerText = player2ClubName;
             document.getElementById("discipline1Big").innerText =
                 discipline1Label + " – " + target1 + (maxInnings > 0 ? "/" + maxInnings : "");
             document.getElementById("discipline2Big").innerText =
@@ -1612,6 +1645,7 @@
             discipline2Label = String(d.discipline2 || "");
             player1Id = d.player1_id ?? null;
             player2Id = d.player2_id ?? null;
+            setPlayerPresentation(d);
             matchSeriesStorageAvailable =
                 Object.prototype.hasOwnProperty.call(d, "series_log1") &&
                 Object.prototype.hasOwnProperty.call(d, "series_log2");
@@ -2123,6 +2157,7 @@
             discipline2Label = String(d.discipline2 || "");
             player1Id = d.player1_id ?? null;
             player2Id = d.player2_id ?? null;
+            setPlayerPresentation(d);
             matchSeriesStorageAvailable =
                 Object.prototype.hasOwnProperty.call(d, "series_log1") &&
                 Object.prototype.hasOwnProperty.call(d, "series_log2");
@@ -2716,6 +2751,7 @@
                         discipline2Label = String(d.discipline2 || "");
                         player1Id = d.player1_id ?? null;
                         player2Id = d.player2_id ?? null;
+                        setPlayerPresentation(d);
                         setShotClockFromMatch(d);
                         target1 = Number(d.target1 || 0);
                         target2 = Number(d.target2 || 0);

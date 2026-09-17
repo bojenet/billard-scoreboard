@@ -927,7 +927,7 @@
 
                 let { data: players, error } = await supabaseClient
                     .from("players")
-                    .select("id,name,user_id")
+                    .select("id,name,user_id,country_code,club_name")
                     .eq("user_id", currentUserId)
                     .order("name", { ascending: true });
 
@@ -954,7 +954,9 @@
                         byName.set(key, {
                             id: row.id,
                             name: rawName,
-                            user_id: row.user_id || null
+                            user_id: row.user_id || null,
+                            country_code: String(row.country_code || "").trim().toUpperCase(),
+                            club_name: String(row.club_name || "").trim()
                         });
                         return;
                     }
@@ -964,7 +966,9 @@
                         byName.set(key, {
                             id: row.id,
                             name: rawName,
-                            user_id: row.user_id
+                            user_id: row.user_id,
+                            country_code: String(row.country_code || "").trim().toUpperCase(),
+                            club_name: String(row.club_name || "").trim()
                         });
                     }
                 });
@@ -1220,7 +1224,11 @@
                         ...basePayload,
                         created_by: currentUserId,
                         player1_id: player1Id,
-                        player2_id: player2Id
+                        player2_id: player2Id,
+                        player1_country_code: p1Row?.country_code || null,
+                        player2_country_code: p2Row?.country_code || null,
+                        player1_club_name: p1Row?.club_name || null,
+                        player2_club_name: p2Row?.club_name || null
                     };
                     const { display_table, ...legacyBasePayload } = basePayload;
 
