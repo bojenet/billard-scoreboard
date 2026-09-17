@@ -540,11 +540,15 @@
 
             <div class="grid two">
                 <div class="field">
+                    <label for="clubFilter1">Verein</label>
+                    <select id="clubFilter1" onchange="applyPlayerFilters()"></select>
                     <label for="player1">Spieler 1</label>
                     <select id="player1"></select>
                     <input id="temporaryPlayer1" type="text" autocomplete="off" placeholder="Temporärer Spielername (optional)">
                 </div>
                 <div class="field">
+                    <label for="clubFilter2">Verein</label>
+                    <select id="clubFilter2" onchange="applyPlayerFilters()"></select>
                     <label for="player2">Spieler 2</label>
                     <select id="player2"></select>
                     <input id="temporaryPlayer2" type="text" autocomplete="off" placeholder="Temporärer Spielername (optional)">
@@ -962,6 +966,45 @@
             values.forEach((value) => select.add(new Option(value.name || value, value.id || value)));
         }
 
+        function getClubFilterOptions() {
+            const clubs = new Map();
+            players.forEach((player) => {
+                const clubName = String(player.club_name || "").trim();
+                if (clubName) clubs.set(clubName.toLocaleLowerCase("de"), clubName);
+            });
+            if (!clubs.has("bg hamburg")) clubs.set("bg hamburg", "BG Hamburg");
+            return Array.from(clubs.values()).sort((left, right) => left.localeCompare(right, "de", { sensitivity: "base" }));
+        }
+
+        function populateClubFilter(selectId) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            const previous = select.value || "BG Hamburg";
+            select.innerHTML = "";
+            select.add(new Option("Alle Vereine", ""));
+            getClubFilterOptions().forEach((clubName) => select.add(new Option(clubName, clubName)));
+            select.value = Array.from(select.options).some((option) => option.value === previous)
+                ? previous
+                : "BG Hamburg";
+        }
+
+        function fillFilteredPlayerSelect(selectId, clubFilterId) {
+            const select = document.getElementById(selectId);
+            const clubFilter = String(document.getElementById(clubFilterId)?.value || "").trim().toLocaleLowerCase("de");
+            if (!select) return;
+            const previous = select.value;
+            const filteredPlayers = !clubFilter
+                ? players
+                : players.filter((player) => String(player.club_name || "").trim().toLocaleLowerCase("de") === clubFilter);
+            fillSelect(select, filteredPlayers, "Spieler wählen");
+            if (Array.from(select.options).some((option) => option.value === previous)) select.value = previous;
+        }
+
+        function applyPlayerFilters() {
+            fillFilteredPlayerSelect("player1", "clubFilter1");
+            fillFilteredPlayerSelect("player2", "clubFilter2");
+        }
+
         function comparePlayerNames(a, b) {
             return String(a?.name || "").trim().localeCompare(String(b?.name || "").trim(), "de", {
                 sensitivity: "base",
@@ -1046,12 +1089,12 @@
         async function loadPlayers() {
             let query = supabaseClient
                 .from("players")
-                .select("id,name,user_id")
+                .select("id,name,user_id,club_name")
                 .order("name", { ascending: true });
             if (!isAdmin && !canUseAllScoreboardPlayers) query = query.eq("user_id", currentUserId);
             let { data, error } = await query;
 
-            if (error && String(error.message || "").toLowerCase().includes("user_id")) {
+            if (error && (String(error.message || "").toLowerCase().includes("user_id") || String(error.message || "").toLowerCase().includes("club_name"))) {
                 const fallback = await supabaseClient
                     .from("players")
                     .select("id,name")
@@ -1070,14 +1113,16 @@
             (data || []).forEach((row) => {
                 const name = String(row.name || "").trim();
                 if (!name || name === "?") return;
-                const key = name.toLowerCase();
+                const clubName = String(row.club_name || "").trim();
+                const key = `${name.toLowerCase()}|${clubName.toLocaleLowerCase("de")}`;
                 if (!byName.has(key) || (!byName.get(key).user_id && row.user_id)) {
-                    byName.set(key, { id: row.id, name, user_id: row.user_id || null });
+                    byName.set(key, { id: row.id, name, user_id: row.user_id || null, club_name: clubName });
                 }
             });
             players = Array.from(byName.values()).sort(comparePlayerNames);
-            fillSelect(document.getElementById("player1"), players, "Spieler wählen");
-            fillSelect(document.getElementById("player2"), players, "Spieler wählen");
+            populateClubFilter("clubFilter1");
+            populateClubFilter("clubFilter2");
+            applyPlayerFilters();
         }
 
         function loadDisciplines() {
