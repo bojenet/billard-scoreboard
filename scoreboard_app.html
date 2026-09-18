@@ -1052,10 +1052,7 @@
 
         async function openExistingMatch(id) {
             if (!id) return;
-            matchId = id;
-            history = [];
-            window.history.replaceState(null, "", "/scoreboard_app.html?match=" + encodeURIComponent(matchId));
-            await loadMatch();
+            window.location.assign("/scoreboard_app.html?match=" + encodeURIComponent(id));
         }
 
         async function loadActiveTableMatches() {
@@ -1271,18 +1268,7 @@
                 return;
             }
 
-            matchId = data.id;
-            matchData = data;
-            history = [];
-            finishedAtIso = "";
-            window.history.replaceState(null, "", "/scoreboard_app.html?match=" + encodeURIComponent(matchId));
-            showControl();
-            updateDisplay();
-            try {
-                subscribe();
-            } catch (subscribeError) {
-                console.error("Live-Verbindung konnte nicht gestartet werden:", subscribeError);
-            }
+            window.location.assign("/scoreboard_app.html?match=" + encodeURIComponent(data.id));
         }
 
         async function loadMatch() {
