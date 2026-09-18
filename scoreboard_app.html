@@ -1276,9 +1276,13 @@
             history = [];
             finishedAtIso = "";
             window.history.replaceState(null, "", "/scoreboard_app.html?match=" + encodeURIComponent(matchId));
-            subscribe();
             showControl();
             updateDisplay();
+            try {
+                subscribe();
+            } catch (subscribeError) {
+                console.error("Live-Verbindung konnte nicht gestartet werden:", subscribeError);
+            }
         }
 
         async function loadMatch() {
