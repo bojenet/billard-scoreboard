@@ -217,6 +217,10 @@
             margin-bottom: 18px;
         }
 
+        .result-stats.compact {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
         .result-stat {
             color: rgba(255, 255, 255, 0.58);
             font-size: clamp(12px, 1vw, 18px);
@@ -232,22 +236,10 @@
         }
 
         .result-series {
-            display: flex;
-            flex-wrap: wrap;
-            align-content: flex-start;
-            gap: 8px;
-            max-height: 34vh;
-            overflow: hidden;
-        }
-
-        .series-chip {
-            min-width: 34px;
-            padding: 8px 10px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.12);
-            text-align: center;
-            font-size: clamp(13px, 1vw, 18px);
-            font-weight: 900;
+            color: rgba(255, 255, 255, 0.72);
+            font-size: clamp(14px, 1.2vw, 20px);
+            line-height: 1.55;
+            word-break: break-word;
         }
     </style>
 </head>
@@ -570,9 +562,7 @@
 
         function renderPlayerResult(name, discipline, score, innings, high, target, series) {
             const percent = Number(target || 0) > 0 ? ((Number(score || 0) / Number(target || 0)) * 100).toFixed(1) + " %" : "-";
-            const chips = series.length
-                ? series.map((value) => `<span class="series-chip">${Number(value || 0)}</span>`).join("")
-                : `<span class="series-chip">0</span>`;
+            const seriesList = series.length ? series.map((value) => Number(value || 0)).join(" · ") : "–";
             return `
                 <div class="result-name">${escapeHtml(name || "Spieler")}</div>
                 <div class="idle-sub" style="text-align:left;margin-top:6px;">${escapeHtml(discipline || "")}</div>
@@ -582,13 +572,11 @@
                     <div class="result-stat">DS<strong>${formatAverage(score, innings)}</strong></div>
                     <div class="result-stat">HR<strong>${Number(high || 0)}</strong></div>
                 </div>
-                <div class="result-stats">
+                <div class="result-stats compact">
                     <div class="result-stat">Ziel<strong>${Number(target || 0) || "-"}</strong></div>
                     <div class="result-stat">Prozent<strong>${percent}</strong></div>
-                    <div class="result-stat">Serien<strong>${series.length}</strong></div>
-                    <div class="result-stat">&nbsp;<strong>&nbsp;</strong></div>
                 </div>
-                <div class="result-series">${chips}</div>
+                <div class="result-series">Serien: ${seriesList}</div>
             `;
         }
 
