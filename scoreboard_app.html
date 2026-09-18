@@ -1586,7 +1586,7 @@
 
         async function confirmCloseMatch() {
             if (matchId) {
-                await supabaseClient
+                const { error } = await supabaseClient
                     .from("matches")
                     .update({
                         display_table: "",
@@ -1595,6 +1595,11 @@
                         shot_clock_started_at: null
                     })
                     .eq("id", matchId);
+                if (error) {
+                    console.error(error);
+                    setResultEmailStatus("Partie konnte nicht geschlossen werden: " + error.message, "error");
+                    return;
+                }
             }
             resetToSetup();
         }
@@ -1705,14 +1710,7 @@
         }
 
         function resetToSetup() {
-            matchId = "";
-            matchData = null;
-            history = [];
-            finishedAtIso = "";
-            if (channel) supabaseClient.removeChannel(channel);
-            channel = null;
-            window.history.replaceState(null, "", "/scoreboard_app.html");
-            showSetup();
+            window.location.assign("/scoreboard_app.html");
         }
 
         async function initializeScoreboardApp(user) {
