@@ -319,6 +319,7 @@
             gap: clamp(12px, 4.2vw, 80px);
             margin-top: clamp(8px, 2vw, 40px);
             align-items: center;
+            justify-content: center;
         }
 
         .stat-flat {
@@ -326,6 +327,10 @@
             flex-direction: column;
             align-items: center;
             font-weight: 600;
+        }
+
+        .stat-flat[hidden] {
+            display: none;
         }
 
         .stat-title {
@@ -955,7 +960,7 @@
                     <span id="hs1">0</span>
                 </div>
 
-                <div class="stat-flat" id="fourthStat1">
+                <div class="stat-flat" id="fourthStat1" hidden>
                     <span class="stat-mode" id="timeoutStat1">
                         <span class="stat-title">Time-Out</span>
                         <span class="timeout-icons" data-timeout-player="1" aria-label="2 Time-outs">
@@ -1022,7 +1027,7 @@
                     <span id="hs2">0</span>
                 </div>
 
-                <div class="stat-flat" id="fourthStat2">
+                <div class="stat-flat" id="fourthStat2" hidden>
                     <span class="stat-mode" id="timeoutStat2">
                         <span class="stat-title">Time-Out</span>
                         <span class="timeout-icons" data-timeout-player="2" aria-label="2 Time-outs">
@@ -1613,8 +1618,10 @@
                 const showTimeout = isThreeCushionDiscipline(entry.discipline);
                 const paceEl = document.getElementById("paceStat" + entry.player);
                 const timeoutEl = document.getElementById("timeoutStat" + entry.player);
+                const fourthStatEl = document.getElementById("fourthStat" + entry.player);
                 if (paceEl) paceEl.classList.toggle("visible", !showTimeout);
                 if (timeoutEl) timeoutEl.classList.toggle("visible", showTimeout);
+                if (fourthStatEl) fourthStatEl.hidden = !showTimeout;
             });
             updateTimeoutIcons();
         }
