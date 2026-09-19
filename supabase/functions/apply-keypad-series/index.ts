@@ -7,6 +7,30 @@ function seriesArray(value: unknown): number[] {
   return value.map((item) => Math.max(0, Number(item || 0)));
 }
 
+function undoState(match: Record<string, unknown>) {
+  return {
+    score1: Number(match.score1 || 0),
+    score2: Number(match.score2 || 0),
+    series1: Number(match.series1 || 0),
+    series2: Number(match.series2 || 0),
+    high1: Number(match.high1 || 0),
+    high2: Number(match.high2 || 0),
+    activePlayer: Number(match.activePlayer || 1),
+    inn1: Number(match.inn1 || 0),
+    inn2: Number(match.inn2 || 0),
+    totalInnings: Number(match.totalInnings || 1),
+    finished: Boolean(match.finished),
+    status: Number(match.status || 1),
+    series_log1: seriesArray(match.series_log1),
+    series_log2: seriesArray(match.series_log2),
+    shot_clock_running: Boolean(match.shot_clock_running),
+    shot_clock_started_at: match.shot_clock_started_at || null,
+    shot_clock_remaining_seconds: Number(match.shot_clock_remaining_seconds || 40),
+    shot_clock_timeouts1: Number(match.shot_clock_timeouts1 || 0),
+    shot_clock_timeouts2: Number(match.shot_clock_timeouts2 || 0),
+  };
+}
+
 function finishedAfter(state: Record<string, number>): boolean {
   const { score1, score2, inn1, inn2, target1, target2, maxInnings } = state;
   if (inn1 === inn2) {
@@ -101,6 +125,7 @@ Deno.serve(async (request) => {
       series2: 0,
       finished,
       last_keypad_request_id: requestId,
+      undo_state: undoState(match),
     };
     if (Object.prototype.hasOwnProperty.call(match, "series_log1")) {
       update.series_log1 = log1;

@@ -1388,17 +1388,46 @@
             });
         }
 
+        function createUndoState(state) {
+            if (!state) return null;
+            return {
+                score1: Number(state.score1 || 0),
+                score2: Number(state.score2 || 0),
+                series1: Number(state.series1 || 0),
+                series2: Number(state.series2 || 0),
+                high1: Number(state.high1 || 0),
+                high2: Number(state.high2 || 0),
+                activePlayer: Number(state.activePlayer || 1),
+                inn1: Number(state.inn1 || 0),
+                inn2: Number(state.inn2 || 0),
+                totalInnings: Number(state.totalInnings || 1),
+                finished: Boolean(state.finished),
+                status: Number(state.status || 1),
+                series_log1: toArray(state.series_log1),
+                series_log2: toArray(state.series_log2),
+                shot_clock_running: Boolean(state.shot_clock_running),
+                shot_clock_started_at: state.shot_clock_started_at || null,
+                shot_clock_remaining_seconds: Number(state.shot_clock_remaining_seconds || 40),
+                shot_clock_timeouts1: Number(state.shot_clock_timeouts1 || 0),
+                shot_clock_timeouts2: Number(state.shot_clock_timeouts2 || 0)
+            };
+        }
+
         async function updateMatch(update) {
             if (!matchId) return;
+            const payload = {
+                ...update,
+                undo_state: createUndoState(matchData)
+            };
             const { error } = await supabaseClient
                 .from("matches")
-                .update(update)
+                .update(payload)
                 .eq("id", matchId);
             if (error) {
                 console.error(error);
                 return;
             }
-            matchData = { ...matchData, ...update };
+            matchData = { ...matchData, ...payload };
             if (isFinished()) {
                 showEnd();
             } else {
@@ -1522,8 +1551,12 @@
         }
 
         async function undo() {
-            if (!matchData || !history.length) return;
-            const prev = history.pop();
+            if (!matchData) return;
+            const prev = history.pop() || createUndoState(matchData.undo_state);
+            if (!prev) {
+                setMessage("Keine Aktion zum Rückgängig machen.", "error");
+                return;
+            }
             await updateMatch(shotClockReset(prev));
         }
 
