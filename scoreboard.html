@@ -245,18 +245,19 @@
             position: absolute;
             top: clamp(16px, 2vw, 34px);
             left: clamp(16px, 2vw, 34px);
-            width: clamp(24px, 3vw, 48px);
+            width: clamp(30px, 3.5vw, 58px);
             aspect-ratio: 1;
             box-sizing: border-box;
+            border: clamp(1px, .14vw, 2px) solid rgba(20, 25, 38, 0.34);
             border-radius: 50%;
             opacity: 0;
             transform: scale(.72);
             transition: opacity .2s ease, transform .2s ease;
             pointer-events: none;
             box-shadow:
-                inset -3px -4px 7px rgba(0, 0, 0, 0.16),
-                inset 3px 3px 5px rgba(255, 255, 255, 0.72),
-                0 4px 8px rgba(0, 0, 0, 0.2);
+                inset -4px -5px 9px rgba(0, 0, 0, 0.22),
+                inset 3px 3px 6px rgba(255, 255, 255, 0.82),
+                0 6px 12px rgba(0, 0, 0, 0.3);
         }
 
         .player.active-white .turn-marker {
