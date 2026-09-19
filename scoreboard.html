@@ -228,6 +228,7 @@
         }
 
         .player {
+            position: relative;
             width: min(41vw, 650px);
             border-radius: clamp(14px, 2.2vw, 30px);
             padding: clamp(12px, 2.2vw, 40px) clamp(8px, 1.6vw, 20px);
@@ -238,6 +239,36 @@
             min-width: 0;
             background: transparent;
             box-shadow: none;
+        }
+
+        .turn-marker {
+            position: absolute;
+            top: clamp(16px, 2vw, 34px);
+            left: clamp(16px, 2vw, 34px);
+            width: clamp(24px, 3vw, 48px);
+            aspect-ratio: 1;
+            box-sizing: border-box;
+            border-radius: 50%;
+            opacity: 0;
+            transform: scale(.72);
+            transition: opacity .2s ease, transform .2s ease;
+            pointer-events: none;
+            box-shadow:
+                inset -3px -4px 7px rgba(0, 0, 0, 0.16),
+                inset 3px 3px 5px rgba(255, 255, 255, 0.72),
+                0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .player.active-white .turn-marker {
+            background: radial-gradient(circle at 34% 30%, #ffffff 0 22%, #f5f1e7 58%, #d8d2c5 100%);
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .player.active-yellow .turn-marker {
+            background: radial-gradient(circle at 34% 30%, #fff4a3 0 18%, #ffd84a 58%, #d8a900 100%);
+            opacity: 1;
+            transform: scale(1);
         }
 
         /* Aktiv Weiß */
@@ -906,6 +937,8 @@
             <!-- PLAYER 1 -->
             <div class="player active-white" id="p1" onclick="playerClick(1)">
 
+            <span class="turn-marker" aria-hidden="true"></span>
+
             <div class="discipline-big" id="discipline1Big"></div>
 
             <div class="score" id="score1">0</div>
@@ -974,6 +1007,8 @@
 
             <!-- PLAYER 2 -->
             <div class="player inactive" id="p2" onclick="playerClick(2)">
+
+            <span class="turn-marker" aria-hidden="true"></span>
 
             <div class="discipline-big" id="discipline2Big"></div>
 
