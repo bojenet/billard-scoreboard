@@ -82,6 +82,35 @@ h1 {
     accent-color: #d34a4a;
 }
 
+.pagination {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.pagination.visible {
+    display: flex;
+}
+
+.pagination .nav-btn {
+    min-width: 120px;
+    font-size: 15px;
+    padding: 8px 16px;
+}
+
+.pagination .nav-btn:disabled {
+    cursor: not-allowed;
+    opacity: .4;
+}
+
+#pageInfo {
+    min-width: 120px;
+    text-align: center;
+    color: #c7cede;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -192,6 +221,12 @@ tr.data-row:hover {
         </table>
     </div>
 
+    <div class="pagination" id="pagination">
+        <button class="nav-btn" id="previousPageBtn" type="button" onclick="changePage(-1)">Zur&uuml;ck</button>
+        <span id="pageInfo">Seite 1 von 1</span>
+        <button class="nav-btn" id="nextPageBtn" type="button" onclick="changePage(1)">Weiter</button>
+    </div>
+
     <div class="actions">
         <button class="nav-btn" onclick="window.location.href='/'">Zur&uuml;ck</button>
     </div>
@@ -206,6 +241,9 @@ tr.data-row:hover {
 <script>
 let archiveIsAdmin = false;
 const selectedMatchIds = new Set();
+const archivePageSize = 20;
+let archiveMatches = [];
+let archivePage = 1;
 
 async function loadArchive() {
     const user = await requireAuth();
@@ -218,6 +256,7 @@ async function loadArchive() {
     const isAdmin = await hasAdminAccess(user);
     archiveIsAdmin = isAdmin;
     selectedMatchIds.clear();
+    archivePage = 1;
     document.getElementById("bulkActions").classList.toggle("visible", isAdmin);
     updateBulkSelection();
     const ownedNames = await getOwnedPlayerNames(user.id);
@@ -234,10 +273,19 @@ async function loadArchive() {
         return;
     }
 
+    archiveMatches = isAdmin
+        ? (data || [])
+        : (data || []).filter((match) =>
+            isOwnedMatch(match, user.id, ownedNames)
+        );
+    renderArchivePage();
+}
+
+function renderArchivePage() {
     const table = document.getElementById("archiveTable");
     table.innerHTML = `
         <tr>
-            ${isAdmin ? `<th class="select-col"><input id="selectAllMatches" type="checkbox" aria-label="Alle Partien ausw&auml;hlen" onchange="toggleAllMatches(this.checked)"></th>` : ""}
+            ${archiveIsAdmin ? `<th class="select-col"><input id="selectAllMatches" type="checkbox" aria-label="Alle sichtbaren Partien ausw&auml;hlen" onchange="toggleAllMatches(this.checked)"></th>` : ""}
             <th>Datum</th>
             <th>Spieler</th>
             <th>Disziplinen</th>
@@ -247,20 +295,18 @@ async function loadArchive() {
         </tr>
     `;
 
-    const filtered = isAdmin
-        ? (data || [])
-        : (data || []).filter((match) =>
-            isOwnedMatch(match, user.id, ownedNames)
-        );
+    const pageCount = Math.max(1, Math.ceil(archiveMatches.length / archivePageSize));
+    archivePage = Math.min(Math.max(1, archivePage), pageCount);
+    const pageStart = (archivePage - 1) * archivePageSize;
+    const visibleMatches = archiveMatches.slice(pageStart, pageStart + archivePageSize);
 
-    if (!filtered || filtered.length === 0) {
+    if (archiveMatches.length === 0) {
         const row = document.createElement("tr");
-        row.innerHTML = `<td class="empty" colspan="${isAdmin ? 7 : 6}">Keine Partien gefunden</td>`;
+        row.innerHTML = `<td class="empty" colspan="${archiveIsAdmin ? 7 : 6}">Keine Partien gefunden</td>`;
         table.appendChild(row);
-        return;
     }
 
-    filtered.forEach((match) => {
+    visibleMatches.forEach((match) => {
         const row = document.createElement("tr");
         row.className = "data-row";
 
@@ -277,13 +323,13 @@ async function loadArchive() {
         );
 
         row.innerHTML = `
-            ${isAdmin ? `<td class="select-col"><input class="match-checkbox" type="checkbox" value="${match.id}" aria-label="Partie ausw&auml;hlen" onchange="toggleMatchSelection(event, '${match.id}', this.checked)"></td>` : ""}
+            ${archiveIsAdmin ? `<td class="select-col"><input class="match-checkbox" type="checkbox" value="${match.id}" aria-label="Partie ausw&auml;hlen" onchange="toggleMatchSelection(event, '${match.id}', this.checked)" ${selectedMatchIds.has(String(match.id)) ? "checked" : ""}></td>` : ""}
             <td>${date}</td>
             <td>${match.player1} vs ${match.player2}</td>
             <td>${disciplineText}</td>
             <td>${match.score1 ?? 0} : ${match.score2 ?? 0}</td>
             <td>${playedInnings > 0 ? playedInnings : "-"}</td>
-            <td>${isAdmin ? `<button class="delete-btn" onclick="deleteArchivedMatch(event, '${match.id}')">Löschen</button>` : ""}</td>
+            <td>${archiveIsAdmin ? `<button class="delete-btn" onclick="deleteArchivedMatch(event, '${match.id}')">Löschen</button>` : ""}</td>
         `;
 
         row.onclick = (event) => {
@@ -295,6 +341,22 @@ async function loadArchive() {
 
         table.appendChild(row);
     });
+
+    const pagination = document.getElementById("pagination");
+    pagination.classList.toggle("visible", archiveMatches.length > archivePageSize);
+    document.getElementById("pageInfo").innerText = `Seite ${archivePage} von ${pageCount}`;
+    document.getElementById("previousPageBtn").disabled = archivePage <= 1;
+    document.getElementById("nextPageBtn").disabled = archivePage >= pageCount;
+    updateBulkSelection();
+}
+
+function changePage(offset) {
+    const pageCount = Math.max(1, Math.ceil(archiveMatches.length / archivePageSize));
+    const nextPage = Math.min(pageCount, Math.max(1, archivePage + Number(offset || 0)));
+    if (nextPage === archivePage) return;
+    archivePage = nextPage;
+    renderArchivePage();
+    document.querySelector(".table-wrap").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function toggleMatchSelection(event, matchId, checked) {
