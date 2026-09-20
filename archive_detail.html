@@ -546,8 +546,9 @@
         }
 
         function buildRows(match) {
-            const seriesLeft = toSeries(match.series1);
-            const seriesRight = toSeries(match.series2);
+            const series = getSeriesSource(match);
+            const seriesLeft = series.series1;
+            const seriesRight = series.series2;
             const inn1 = Number(match.inn1 || 0);
             const inn2 = Number(match.inn2 || 0);
             const inningsByDB = Math.max(inn1, inn2);
