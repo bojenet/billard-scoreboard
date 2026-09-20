@@ -46,6 +46,42 @@ h1 {
     overflow: hidden;
 }
 
+.bulk-actions {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    background: #222431;
+    border: 1px solid #33384b;
+    border-radius: 10px;
+}
+
+.bulk-actions.visible {
+    display: flex;
+}
+
+.bulk-delete-btn:disabled {
+    cursor: not-allowed;
+    opacity: .45;
+}
+
+.select-col {
+    width: 44px;
+    padding-left: 14px;
+    padding-right: 6px;
+    text-align: center;
+}
+
+.match-checkbox,
+#selectAllMatches {
+    width: 19px;
+    height: 19px;
+    cursor: pointer;
+    accent-color: #d34a4a;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -138,6 +174,11 @@ tr.data-row:hover {
         <div style="width:122px"></div>
     </div>
 
+    <div class="bulk-actions" id="bulkActions">
+        <span id="selectionCount">0 Partien ausgew&auml;hlt</span>
+        <button class="delete-btn bulk-delete-btn" id="bulkDeleteBtn" type="button" onclick="deleteSelectedMatches()" disabled>Ausgew&auml;hlte l&ouml;schen</button>
+    </div>
+
     <div class="table-wrap">
         <table id="archiveTable">
             <tr>
@@ -163,6 +204,9 @@ tr.data-row:hover {
     <script src="js/user_menu.js"></script>
 
 <script>
+let archiveIsAdmin = false;
+const selectedMatchIds = new Set();
+
 async function loadArchive() {
     const user = await requireAuth();
     if (!user) return;
@@ -172,6 +216,10 @@ async function loadArchive() {
         return;
     }
     const isAdmin = await hasAdminAccess(user);
+    archiveIsAdmin = isAdmin;
+    selectedMatchIds.clear();
+    document.getElementById("bulkActions").classList.toggle("visible", isAdmin);
+    updateBulkSelection();
     const ownedNames = await getOwnedPlayerNames(user.id);
 
     const { data, error } = await supabaseClient
@@ -189,6 +237,7 @@ async function loadArchive() {
     const table = document.getElementById("archiveTable");
     table.innerHTML = `
         <tr>
+            ${isAdmin ? `<th class="select-col"><input id="selectAllMatches" type="checkbox" aria-label="Alle Partien ausw&auml;hlen" onchange="toggleAllMatches(this.checked)"></th>` : ""}
             <th>Datum</th>
             <th>Spieler</th>
             <th>Disziplinen</th>
@@ -206,7 +255,7 @@ async function loadArchive() {
 
     if (!filtered || filtered.length === 0) {
         const row = document.createElement("tr");
-        row.innerHTML = `<td class="empty" colspan="6">Keine Partien gefunden</td>`;
+        row.innerHTML = `<td class="empty" colspan="${isAdmin ? 7 : 6}">Keine Partien gefunden</td>`;
         table.appendChild(row);
         return;
     }
@@ -228,6 +277,7 @@ async function loadArchive() {
         );
 
         row.innerHTML = `
+            ${isAdmin ? `<td class="select-col"><input class="match-checkbox" type="checkbox" value="${match.id}" aria-label="Partie ausw&auml;hlen" onchange="toggleMatchSelection(event, '${match.id}', this.checked)"></td>` : ""}
             <td>${date}</td>
             <td>${match.player1} vs ${match.player2}</td>
             <td>${disciplineText}</td>
@@ -237,7 +287,7 @@ async function loadArchive() {
         `;
 
         row.onclick = (event) => {
-            if (event.target.closest(".delete-btn") || event.target.closest(".actions-col")) {
+            if (event.target.closest(".delete-btn") || event.target.closest(".actions-col") || event.target.closest(".select-col")) {
                 return;
             }
             window.location.href = "archive_detail.html?id=" + match.id;
@@ -245,6 +295,76 @@ async function loadArchive() {
 
         table.appendChild(row);
     });
+}
+
+function toggleMatchSelection(event, matchId, checked) {
+    event.stopPropagation();
+    if (checked) selectedMatchIds.add(String(matchId));
+    else selectedMatchIds.delete(String(matchId));
+    updateBulkSelection();
+}
+
+function toggleAllMatches(checked) {
+    document.querySelectorAll(".match-checkbox").forEach((checkbox) => {
+        checkbox.checked = checked;
+        if (checked) selectedMatchIds.add(String(checkbox.value));
+        else selectedMatchIds.delete(String(checkbox.value));
+    });
+    updateBulkSelection();
+}
+
+function updateBulkSelection() {
+    const count = selectedMatchIds.size;
+    const countEl = document.getElementById("selectionCount");
+    const deleteBtn = document.getElementById("bulkDeleteBtn");
+    if (countEl) countEl.innerText = count === 1 ? "1 Partie ausgewählt" : `${count} Partien ausgewählt`;
+    if (deleteBtn) deleteBtn.disabled = count === 0;
+
+    const checkboxes = [...document.querySelectorAll(".match-checkbox")];
+    const selectAll = document.getElementById("selectAllMatches");
+    if (selectAll) {
+        selectAll.checked = checkboxes.length > 0 && checkboxes.every((checkbox) => checkbox.checked);
+        selectAll.indeterminate = checkboxes.some((checkbox) => checkbox.checked) && !selectAll.checked;
+    }
+}
+
+async function deleteSelectedMatches() {
+    if (!archiveIsAdmin || selectedMatchIds.size === 0) return;
+    const user = await requireAdmin();
+    if (!user) return;
+
+    const ids = [...selectedMatchIds];
+    const label = ids.length === 1 ? "diese Partie" : `diese ${ids.length} Partien`;
+    if (!confirm(`${label} wirklich endgültig löschen?`)) return;
+
+    const button = document.getElementById("bulkDeleteBtn");
+    button.disabled = true;
+    button.innerText = "Wird gelöscht...";
+
+    const { error: matchDeleteError } = await supabaseClient
+        .from("matches")
+        .delete()
+        .in("id", ids);
+
+    if (matchDeleteError) {
+        console.error("Partien löschen fehlgeschlagen:", matchDeleteError);
+        alert("Löschen fehlgeschlagen. Bitte erneut versuchen.");
+        button.innerText = "Ausgewählte löschen";
+        updateBulkSelection();
+        return;
+    }
+
+    const { error: archiveDeleteError } = await supabaseClient
+        .from("archive")
+        .delete()
+        .in("matchId", ids);
+
+    if (archiveDeleteError) {
+        console.warn("Archiv-Aufräumen fehlgeschlagen:", archiveDeleteError);
+    }
+
+    button.innerText = "Ausgewählte löschen";
+    await loadArchive();
 }
 
 async function deleteArchivedMatch(event, matchId) {
