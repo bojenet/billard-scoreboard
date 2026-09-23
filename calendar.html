@@ -4343,6 +4343,13 @@
                 for (let column = 0; column < tableCount; column += 1) {
                     doc.text(`Tisch ${column + 1}`, tableX + roundWidth + tableColumnWidth * column + 3, state.y + 5.3);
                 }
+                doc.setDrawColor(109, 125, 145);
+                doc.setLineWidth(0.25);
+                doc.line(tableX + roundWidth, state.y, tableX + roundWidth, state.y + 8);
+                for (let column = 1; column < tableCount; column += 1) {
+                    const lineX = tableX + roundWidth + tableColumnWidth * column;
+                    doc.line(lineX, state.y, lineX, state.y + 8);
+                }
                 state.y += 8;
             };
             drawHeader();
@@ -4350,7 +4357,7 @@
             mode.rows.forEach((row, index) => {
                 const cells = getModeRowCells(row);
                 const tableLines = cells.map((cell) => (
-                    splitModeCellText(doc, cell.text, tableColumnWidth * cell.span - 6)
+                    splitModeCellText(doc, cell.text, tableColumnWidth - 6)
                 ));
                 const maxLines = Math.max(1, ...tableLines.map((lines) => lines.length));
                 const height = Math.max(9, maxLines * 4.3 + 4);
@@ -4364,19 +4371,15 @@
                 doc.setDrawColor(220, 226, 233);
                 doc.rect(tableX, state.y, tableWidth, height);
                 doc.line(tableX + roundWidth, state.y, tableX + roundWidth, state.y + height);
-                let columnOffset = 0;
-                cells.forEach((cell, column) => {
-                    if (column > 0) {
-                        const lineX = tableX + roundWidth + tableColumnWidth * columnOffset;
-                        doc.line(lineX, state.y, lineX, state.y + height);
-                    }
-                    columnOffset += cell.span;
-                });
+                for (let column = 1; column < tableCount; column += 1) {
+                    const lineX = tableX + roundWidth + tableColumnWidth * column;
+                    doc.line(lineX, state.y, lineX, state.y + height);
+                }
                 doc.setTextColor(20, 29, 38);
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(fontSize);
                 doc.text(getPdfText(getModeRowRound(row)), tableX + 4, state.y + 5.6);
-                columnOffset = 0;
+                let columnOffset = 0;
                 tableLines.forEach((lines, column) => {
                     doc.text(lines, tableX + roundWidth + tableColumnWidth * columnOffset + 3, state.y + 5.6);
                     columnOffset += cells[column]?.span || 1;
