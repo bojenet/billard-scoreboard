@@ -3767,6 +3767,21 @@
                     { round: "5.", cells: [{ text: "Finale, Platz 3-4\nAusrichter bestimmt Tische", span: 3 }] }
                 ]
             },
+            T10a: {
+                title: "2 Gruppen à 4 und 3, Halbfinale, Platzierungen, Finale",
+                details: "7 Teilnehmer, drei Billards, 5 Spielblöcke, 1 Turniertag",
+                scoringType: "groupKo",
+                groups: "Gruppe A: 1, 2, 3, 4. Gruppe B: 5, 6, 7.",
+                roundHeader: "Spielblock",
+                columns: ["Tisch 1", "Tisch 2", "Tisch 3", "Pause"],
+                rows: [
+                    ["1 - Gruppe", "A - B", "C - D", "E - F", "G"],
+                    ["2 - Gruppe", "A - C", "B - D", "E - G", "F"],
+                    ["3 - Gruppe", "A - D", "B - C", "F - G", "E"],
+                    ["4 - Finalrunde", "HF1: A1 - B2", "HF2: B1 - A2", "A3 - B3", "A4"],
+                    ["5 - Finalrunde", "Finale: Sieger HF1 - Sieger HF2", "Platz 3: Verlierer HF1 - Verlierer HF2", "A4 - B3", "A3"]
+                ]
+            },
             T11: {
                 title: "Jeder gegen jeden",
                 details: "7 Teilnehmer, drei Billards, 7 Spielrunden, 2 Turniertage",
@@ -4252,7 +4267,7 @@
             const groupText = String(mode?.groups || "").trim();
             if (!groupText) return [];
 
-            const explicitlyNamedGroups = Array.from(groupText.matchAll(/Gruppe\s*(\d+)\s*:\s*([\d,\/\s]+)/gi));
+            const explicitlyNamedGroups = Array.from(groupText.matchAll(/Gruppe\s*([a-z0-9]+)\s*:\s*([\d,\/\s]+)/gi));
             if (explicitlyNamedGroups.length) {
                 return explicitlyNamedGroups.map((match) => ({
                     label: `Gruppe ${match[1]}`,
@@ -4343,15 +4358,16 @@
             const tableCount = getModeTableCount(mode.rows);
             const tableColumnWidth = (tableWidth - roundWidth) / tableCount;
             const fontSize = tableCount >= 4 ? 7.7 : tableCount === 3 ? 8.4 : 9;
+            const columnLabels = Array.isArray(mode.columns) ? mode.columns : [];
             const drawHeader = () => {
                 doc.setFillColor(31, 43, 58);
                 doc.rect(tableX, state.y, tableWidth, 8, "F");
                 doc.setTextColor(255, 255, 255);
                 doc.setFont("helvetica", "bold");
                 doc.setFontSize(fontSize);
-                doc.text("Runde", tableX + 4, state.y + 5.3);
+                doc.text(getPdfText(mode.roundHeader || "Runde"), tableX + 4, state.y + 5.3);
                 for (let column = 0; column < tableCount; column += 1) {
-                    doc.text(`Tisch ${column + 1}`, tableX + roundWidth + tableColumnWidth * column + 3, state.y + 5.3);
+                    doc.text(getPdfText(columnLabels[column] || `Tisch ${column + 1}`), tableX + roundWidth + tableColumnWidth * column + 3, state.y + 5.3);
                 }
                 doc.setDrawColor(109, 125, 145);
                 doc.setLineWidth(0.25);
