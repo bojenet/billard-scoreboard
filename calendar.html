@@ -1438,6 +1438,16 @@
                         <span>Als Update versenden – Betreff beginnt mit „UPDATE:“</span>
                     </label>
                     <div id="invitationEditorRecipientSummary" class="modal-message">Empfänger werden geladen...</div>
+                    <div class="editor-grid" style="margin-top:10px;">
+                        <div>
+                            <label class="field-title" for="invitationEditorTestEmail">Test-E-Mail-Adresse</label>
+                            <input id="invitationEditorTestEmail" type="email" placeholder="name@example.de">
+                        </div>
+                    </div>
+                    <div class="button-row" style="margin-top:10px;">
+                        <button id="invitationEditorTestEmailButton" class="btn btn-secondary" type="button" onclick="sendInvitationTestEmailFromEditor()">Testmail senden</button>
+                    </div>
+                    <div class="admin-settings-meta">Die Testmail verwendet exakt dieselbe PDF und denselben E-Mail-Inhalt wie der spätere Einladungsversand. Empfänger- und Versandstatus bleiben unverändert.</div>
                 </div>
             </div>
             <div class="button-row">
@@ -5379,24 +5389,9 @@
             setModalMessage("invitationEditorMessage", "Einladung wird als PDF erstellt und per E-Mail versendet...", "ok");
             try {
                 const invitation = cloneInvitationDraft(currentInvitationDraft);
-                const doc = await buildInvitationPdfDocument(invitation);
-                const pdfBase64 = String(doc.output("datauristring") || "").split(",")[1] || "";
-                if (!pdfBase64) throw new Error("PDF konnte nicht für den Versand vorbereitet werden.");
+                const directInvitation = await buildDirectInvitationPayload(invitation);
                 const { data, error } = await supabaseClient.functions.invoke("send-nbv-invitation-reminders", {
-                    body: {
-                        directInvitation: {
-                            id: `direct-invitation-${String(invitation.eventId || invitation.title || Date.now()).replace(/[^a-zA-Z0-9_-]+/g, "-")}-${Date.now()}`,
-                            eventId: String(invitation.eventId || ""),
-                            eventDate: invitation.date || invitation.eventDate || "",
-                            title: invitation.title || "",
-                            location: invitation.locationName || "",
-                            link: invitation.sourceUrl || invitation.link || "",
-                            isUpdate: invitation.emailUpdate === true,
-                            extraNotes: invitation.extraNotes || "",
-                            pdfFilename: getInvitationPdfFilename(invitation),
-                            pdfBase64
-                        }
-                    }
+                    body: { directInvitation }
                 });
                 if (error) throw error;
                 if (!data?.ok) throw new Error(data?.error || "Die Einladung konnte nicht versendet werden.");
@@ -5405,6 +5400,61 @@
             } catch (error) {
                 console.warn("Einladung konnte nicht versendet werden:", error);
                 setModalMessage("invitationEditorMessage", `Einladung konnte nicht versendet werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            }
+        }
+
+        async function buildDirectInvitationPayload(invitation) {
+            const doc = await buildInvitationPdfDocument(invitation);
+            const pdfBase64 = String(doc.output("datauristring") || "").split(",")[1] || "";
+            if (!pdfBase64) throw new Error("PDF konnte nicht für den Versand vorbereitet werden.");
+            return {
+                id: `direct-invitation-${String(invitation.eventId || invitation.title || Date.now()).replace(/[^a-zA-Z0-9_-]+/g, "-")}-${Date.now()}`,
+                eventId: String(invitation.eventId || ""),
+                eventDate: invitation.date || invitation.eventDate || "",
+                title: invitation.title || "",
+                location: invitation.locationName || "",
+                link: invitation.sourceUrl || invitation.link || "",
+                isUpdate: invitation.emailUpdate === true,
+                extraNotes: invitation.extraNotes || "",
+                pdfFilename: getInvitationPdfFilename(invitation),
+                pdfBase64
+            };
+        }
+
+        async function sendInvitationTestEmailFromEditor() {
+            if (!isCalendarAdmin || !supportsInvitationSending || !currentInvitationDraft) return;
+            const input = document.getElementById("invitationEditorTestEmail");
+            const button = document.getElementById("invitationEditorTestEmailButton");
+            const testEmail = String(input?.value || "").trim().toLowerCase();
+            const targetValidation = getInvitationPlayingTargetValidation(currentInvitationDraft);
+            if (!targetValidation.valid) {
+                setModalMessage("invitationEditorMessage", `${targetValidation.message} Erst danach kann die Testmail erstellt werden.`, "error");
+                const targetInput = document.getElementById(targetValidation.inputId);
+                if (targetInput) targetInput.focus();
+                return;
+            }
+            if (!testEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testEmail)) {
+                setModalMessage("invitationEditorMessage", "Bitte eine gültige Test-E-Mail-Adresse eingeben.", "error");
+                if (input) input.focus();
+                return;
+            }
+
+            if (button) button.disabled = true;
+            setModalMessage("invitationEditorMessage", "Testmail wird mit der späteren Versand-PDF erstellt...", "ok");
+            try {
+                const invitation = cloneInvitationDraft(currentInvitationDraft);
+                const directInvitation = await buildDirectInvitationPayload(invitation);
+                const { data, error } = await supabaseClient.functions.invoke("send-nbv-invitation-reminders", {
+                    body: { testEmail, directInvitation }
+                });
+                if (error) throw error;
+                if (!data?.ok) throw new Error(data?.error || "Testmail konnte nicht gesendet werden.");
+                setModalMessage("invitationEditorMessage", `Testmail wurde ausschließlich an ${testEmail} gesendet. Die PDF ist identisch mit dem späteren Versand.`, "ok");
+            } catch (error) {
+                console.warn("Einladungs-Testmail konnte nicht gesendet werden:", error);
+                setModalMessage("invitationEditorMessage", `Testmail konnte nicht gesendet werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            } finally {
+                if (button) button.disabled = false;
             }
         }
 

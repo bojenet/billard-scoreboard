@@ -981,23 +981,25 @@ Deno.serve(async (request) => {
         message_text: "",
         status: "open",
       };
-      const subject = buildDirectInvitationSubject(directInvitation);
-      const { error: directReminderError } = await adminClient
-        .from("calendar_club_reminders")
-        .upsert({
-          id: reminder.id,
-          event_id: reminder.event_id || "",
-          event_date: reminder.event_date,
-          reminder_date: reminder.reminder_date,
-          days_before: 0,
-          title: reminder.title,
-          location: reminder.location,
-          link: reminder.link,
-          message_text: reminder.message_text,
-          status: "open",
-          updated_at: new Date().toISOString(),
-        });
-      if (directReminderError) throw directReminderError;
+      const subject = `${isTestEmail ? "[TEST] " : ""}${buildDirectInvitationSubject(directInvitation)}`;
+      if (!isTestEmail) {
+        const { error: directReminderError } = await adminClient
+          .from("calendar_club_reminders")
+          .upsert({
+            id: reminder.id,
+            event_id: reminder.event_id || "",
+            event_date: reminder.event_date,
+            reminder_date: reminder.reminder_date,
+            days_before: 0,
+            title: reminder.title,
+            location: reminder.location,
+            link: reminder.link,
+            message_text: reminder.message_text,
+            status: "open",
+            updated_at: new Date().toISOString(),
+          });
+        if (directReminderError) throw directReminderError;
+      }
       const info = await transporter.sendMail({
         from: mailFrom,
         to: effectiveToEmails.length ? effectiveToEmails : mailFrom,
@@ -1012,26 +1014,28 @@ Deno.serve(async (request) => {
           contentType: "application/pdf",
         }],
       });
-      await adminClient
-        .from("calendar_invitation_email_logs")
-        .insert({
-          reminder_id: reminder.id,
-          event_id: reminder.event_id || "",
-          subject,
-          recipient_count: uniqueEmails.length,
-          status: "sent",
-          message_id: info.messageId || "",
-        });
-      await adminClient
-        .from("calendar_club_reminders")
-        .update({
-          status: "sent",
-          sent_at: new Date().toISOString(),
-          sent_by_name: "Manueller E-Mail-Versand",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", reminder.id);
-      return jsonResponse({ ok: true, direct: true, recipientCount: uniqueEmails.length, messageId: info.messageId || "" });
+      if (!isTestEmail) {
+        await adminClient
+          .from("calendar_invitation_email_logs")
+          .insert({
+            reminder_id: reminder.id,
+            event_id: reminder.event_id || "",
+            subject,
+            recipient_count: uniqueEmails.length,
+            status: "sent",
+            message_id: info.messageId || "",
+          });
+        await adminClient
+          .from("calendar_club_reminders")
+          .update({
+            status: "sent",
+            sent_at: new Date().toISOString(),
+            sent_by_name: "Manueller E-Mail-Versand",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", reminder.id);
+      }
+      return jsonResponse({ ok: true, direct: true, testEmail: isTestEmail ? testEmail : undefined, recipientCount: uniqueEmails.length, messageId: info.messageId || "" });
     }
 
     let reminderQuery = adminClient
