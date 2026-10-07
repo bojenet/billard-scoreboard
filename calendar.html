@@ -810,6 +810,23 @@
             color: var(--muted);
         }
 
+        .invitation-group-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+            gap: 12px;
+        }
+
+        .invitation-group-card {
+            border: 1px solid #dce2e9;
+            border-radius: 8px;
+            padding: 14px;
+            overflow-wrap: anywhere;
+        }
+
+        .invitation-group-card h4 { margin: 0 0 10px; }
+        .invitation-group-card ul { list-style: none; margin: 0; padding: 0; }
+        .invitation-group-card li + li { margin-top: 8px; }
+
         .participant-editor-list {
             display: grid;
             gap: 8px;
@@ -1426,6 +1443,10 @@
                         <button class="btn btn-secondary" type="button" onclick="addInvitationParticipant()">Teilnehmer hinzufügen</button>
                         <button class="btn btn-secondary" type="button" onclick="renumberInvitationParticipants()">Neu nummerieren</button>
                     </div>
+                </div>
+                <div class="editor-section">
+                    <h3>Gruppeneinteilung – Vorschau</h3>
+                    <div id="invitationGroupPreview" class="invitation-group-preview" aria-live="polite"></div>
                 </div>
                 <div class="editor-section">
                     <h3>Zusatzhinweise</h3>
@@ -4757,6 +4778,26 @@
                 ? formatInvitationModeDisplayText(`${count} Teilnehmer: ${selected} - ${mode.details}.`)
                 : `${count} Teilnehmer: Kein Modus gewählt.`;
             el.className = "modal-message ok";
+            renderInvitationGroupPreview();
+        }
+
+        function renderInvitationGroupPreview() {
+            const wrap = document.getElementById("invitationGroupPreview");
+            if (!wrap || !currentInvitationDraft) return;
+            const groups = getInvitationGroupRows(currentInvitationDraft);
+            if (!groups.length) {
+                const mode = getInvitationMode(currentInvitationDraft);
+                wrap.textContent = mode.scoringType === "roundRobin"
+                    ? "Jeder gegen jeden – keine Gruppeneinteilung."
+                    : "Für den gewählten Modus ist keine Gruppeneinteilung vorgesehen.";
+                return;
+            }
+            wrap.innerHTML = groups.map(([label, players]) => `
+                <div class="invitation-group-card">
+                    <h4>${escapeHtml(label)}</h4>
+                    <ul>${players.map((player) => `<li>${escapeHtml(player)}</li>`).join("")}</ul>
+                </div>
+            `).join("");
         }
 
         function renderInvitationParticipantEditor() {
@@ -4793,6 +4834,7 @@
                 </div>
             `).join("");
             wrap.innerHTML = header + (rows || `<div class="empty-state">Noch keine Teilnehmerliste hinterlegt.</div>`);
+            renderInvitationGroupPreview();
         }
 
         function renderInvitationEditor() {
@@ -4897,6 +4939,7 @@
                 );
                 renderInvitationParticipantEditor();
             }
+            renderInvitationGroupPreview();
         }
 
         function moveInvitationParticipant(index, direction) {
