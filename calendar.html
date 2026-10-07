@@ -3888,6 +3888,25 @@
                     { round: "5.", cells: [{ text: "Finale, Platz 3-4\nPlatz 7-8 (1. Gruppendritter + Gewinner aus Spiel um Platz 8)\nAusrichter bestimmt Tische", span: 4 }] }
                 ]
             },
+            T16a: {
+                title: "2 Gruppen à 4 und 5, Halbfinale, Platzierungen, Finale",
+                details: "9 Teilnehmer, vier Billards, 7 Spielrunden, 1 Turniertag",
+                customMode: true,
+                scoringType: "groupKo",
+                groups: "Gruppe A: 1, 4, 5, 8. Gruppe B: 2, 3, 6, 7, 9.",
+                roundHeader: "Spielrunde",
+                columns: ["Tisch 1", "Tisch 2", "Tisch 3", "Tisch 4"],
+                adjustment: "Eigener Modus: Setzplätze im Schlangenprinzip. A/B mit Zahl bezeichnet die Position innerhalb der Gruppe; ab Runde 6 die Gruppenplatzierung. Der Fünfte aus Gruppe B belegt Platz 9.",
+                rows: [
+                    ["1.", "A1 - A4", "A2 - A3", "B2 - B4", "B1 - B5\nPause: B3"],
+                    ["2.", "A1 - A3", "A2 - A4", "B1 - B4", "B2 - B3\nPause: B5"],
+                    ["3.", "A1 - A2", "A3 - A4", "B2 - B5", "B3 - B4\nPause: B1"],
+                    ["4.", "Frei", "Frei", "B1 - B3", "B4 - B5\nPause: B2"],
+                    ["5.", "Frei", "Frei", "B3 - B5", "B1 - B2\nPause: B4"],
+                    ["6.", "HF1: A1 - B2", "HF2: B1 - A2", "Platz 5-6: A3 - B3", "Platz 7-8: A4 - B4\nB5 = Platz 9"],
+                    ["7.", "Finale: Sieger HF1 - Sieger HF2", "Platz 3-4: Verlierer HF1 - Verlierer HF2", "Frei", "Frei"]
+                ]
+            },
             T17: {
                 title: "Auffüllung auf 10 Teilnehmer, danach T19",
                 details: "9 Teilnehmer, 2 Turniertage",
@@ -4283,7 +4302,7 @@
             return {
                 ...mode,
                 code,
-                summary: `Turniermodus ${code} gemäß STO-BTK Anhang Turniermodi.`,
+                summary: mode.customMode ? `Turniermodus ${code}: ${mode.title}.` : `Turniermodus ${code} gemäß STO-BTK Anhang Turniermodi.`,
                 scoring: getScoringText(mode)
             };
         }
