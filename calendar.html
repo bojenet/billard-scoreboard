@@ -1451,7 +1451,8 @@
                 </div>
             </div>
             <div class="button-row">
-                <button class="btn btn-save" type="button" onclick="generateInvitationPdfFromEditor()">PDF erstellen</button>
+                <button id="invitationEditorSaveButton" class="btn btn-save" type="button" onclick="saveInvitationDraft()">Entwurf speichern</button>
+                <button class="btn btn-secondary" type="button" onclick="generateInvitationPdfFromEditor()">PDF erstellen</button>
                 <button class="btn btn-secondary" type="button" onclick="sendInvitationPdfFromEditor()">Einladung versenden</button>
                 <button class="btn btn-secondary" type="button" onclick="generateResultWorkbookFromEditor()">Excel Ergebnisformular</button>
                 <button class="btn btn-secondary" type="button" onclick="closeInvitationEditorModal()">Schließen</button>
@@ -4654,6 +4655,30 @@
             if (modal) modal.classList.add("open");
         }
 
+        async function saveInvitationDraft() {
+            if (!isCalendarAdmin || !currentInvitationDraft) return;
+            const draft = cloneInvitationDraft(currentInvitationDraft);
+            if (!draft.sourceUrl) {
+                setModalMessage("invitationEditorMessage", "Der Entwurf kann ohne zugehörigen Termin nicht gespeichert werden.", "error");
+                return;
+            }
+            const button = document.getElementById("invitationEditorSaveButton");
+            if (button) button.disabled = true;
+            try {
+                const { error } = await supabaseClient.from("calendar_invitation_drafts").upsert({
+                    source_url: draft.sourceUrl,
+                    invitation: draft,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: "source_url" });
+                if (error) throw error;
+                setModalMessage("invitationEditorMessage", "Entwurf gespeichert. Zum Weiterbearbeiten beim Termin erneut „Einladung vorbereiten“ öffnen.", "ok");
+            } catch (error) {
+                setModalMessage("invitationEditorMessage", `Entwurf konnte nicht gespeichert werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+            } finally {
+                if (button) button.disabled = false;
+            }
+        }
+
         function closeInvitationEditorModal() {
             const modal = document.getElementById("invitationEditorModal");
             if (modal) modal.classList.remove("open");
@@ -5504,6 +5529,19 @@
 
             showCalendarMessage("Einladung wird aus NBV-Seite, GD-Rangliste und STO-BTK vorbereitet...", "ok");
             try {
+                const { data: savedDraft, error: draftError } = await supabaseClient
+                    .from("calendar_invitation_drafts")
+                    .select("invitation, updated_at")
+                    .eq("source_url", event.link)
+                    .maybeSingle();
+                if (draftError) throw draftError;
+                if (savedDraft?.invitation) {
+                    openInvitationEditorModal({ ...savedDraft.invitation, eventId: event.id, sourceUrl: event.link });
+                    const savedAt = new Date(savedDraft.updated_at).toLocaleString("de-DE");
+                    setModalMessage("invitationEditorMessage", `Gespeicherter Entwurf vom ${savedAt} geladen.`, "ok");
+                    showCalendarMessage("Gespeicherter Einladungsentwurf wurde geöffnet.", "ok");
+                    return;
+                }
                 const rankingSeason = getPreviousSeasonText(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON);
                 const { data, error } = await supabaseClient.functions.invoke("get-nbv-tournament-invitation", {
                     body: {
