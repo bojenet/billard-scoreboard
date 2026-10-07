@@ -83,6 +83,6 @@
   { "name": "Dürr, Uwe", "passNo": "11880" },
   { "name": "Jaruschewski, Kurt", "passNo": "10481" },
   { "name": "Schiwek, Dieter", "passNo": "10361" },
-  { "name": "Schmid-Werter, Karl", "passNo": "10360" },
+  { "name": "Schmid-Werter, Karl", "passNo": "10360", "club": "TSV Neudorf" },
   { "name": "Simon, Franzel", "passNo": "10026" }
 ]

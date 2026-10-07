@@ -1565,6 +1565,7 @@
         let invitationRecipientDeliveryFilter = "all";
         let supportsInvitationRecipients = true;
         let playerPassNumberIndex = null;
+        let playerClubIndex = new Map();
         let playerPassNumberSortIndex = null;
         let playerPassNumberIndexPromise = null;
 
@@ -4619,6 +4620,7 @@
                             if (!sortIndex.has(passNo)) sortIndex.set(passNo, normalizePassLookupName(row?.name));
                             getPassLookupNameVariants(row?.name).forEach((key) => {
                                 if (key && !index.has(key)) index.set(key, passNo);
+                                if (key && row?.club) playerClubIndex.set(key, String(row.club).trim());
                             });
                         });
                         playerPassNumberIndex = index;
@@ -4640,8 +4642,12 @@
             if (!participants.length) return invitation;
             const index = await loadPlayerPassNumberIndex();
             participants.forEach((participant) => {
-                if (!participant || String(participant.passNo || "").trim()) return;
-                const passNo = index.get(normalizePassLookupName(participant.name));
+                if (!participant) return;
+                const nameKey = normalizePassLookupName(participant.name);
+                const club = playerClubIndex.get(nameKey);
+                if (club) participant.club = club;
+                if (String(participant.passNo || "").trim()) return;
+                const passNo = index.get(nameKey);
                 if (passNo) participant.passNo = passNo;
             });
             return invitation;
@@ -5613,7 +5619,8 @@
                         .maybeSingle();
                     if (draftError) throw draftError;
                     if (savedDraft?.invitation) {
-                        openInvitationEditorModal({ ...savedDraft.invitation, eventId: event.id, sourceUrl: event.link });
+                        await applyPlayerPassNumbers(savedDraft.invitation);
+                    openInvitationEditorModal({ ...savedDraft.invitation, eventId: event.id, sourceUrl: event.link });
                         const savedAt = new Date(savedDraft.updated_at).toLocaleString("de-DE");
                         setModalMessage("invitationEditorMessage", `Gespeicherter Entwurf vom ${savedAt} geladen.`, "ok");
                         showCalendarMessage("Gespeicherter Einladungsentwurf wurde geöffnet.", "ok");
