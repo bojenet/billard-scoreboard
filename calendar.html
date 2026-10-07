@@ -1472,6 +1472,7 @@
                 </div>
             </div>
             <div class="button-row">
+                <button id="invitationEditorReloadButton" class="btn btn-secondary" type="button" title="Liest Teilnehmer und Turnierdaten neu ein und ersetzt die geöffneten Angaben. Anschließend Entwurf speichern." onclick="reloadInvitationTournamentData()">Turnierdaten neu laden</button>
                 <button id="invitationEditorSaveButton" class="btn btn-save" type="button" onclick="saveInvitationDraft()">Entwurf speichern</button>
                 <button class="btn btn-secondary" type="button" onclick="generateInvitationPdfFromEditor()">PDF erstellen</button>
                 <button class="btn btn-secondary" type="button" onclick="sendInvitationPdfFromEditor()">Einladung versenden</button>
@@ -5581,7 +5582,20 @@
             }
         }
 
-        async function createNbvInvitationPdf(eventId) {
+        async function reloadInvitationTournamentData() {
+            if (!isCalendarAdmin || !currentInvitationDraft) return;
+            const button = document.getElementById("invitationEditorReloadButton");
+            if (button?.disabled) return;
+            if (button) button.disabled = true;
+            setModalMessage("invitationEditorMessage", "Aktuelle Teilnehmer und Turnierdaten werden geladen…", "ok");
+            try {
+                await createNbvInvitationPdf(currentInvitationDraft.eventId, true);
+            } finally {
+                if (button) button.disabled = false;
+            }
+        }
+
+        async function createNbvInvitationPdf(eventId, reloadFromTournament = false) {
             if (!isCalendarAdmin) return;
             const event = getCalendarEventById(eventId);
             if (!event?.link) {
@@ -5591,18 +5605,20 @@
 
             showCalendarMessage("Einladung wird aus NBV-Seite, GD-Rangliste und STO-BTK vorbereitet...", "ok");
             try {
-                const { data: savedDraft, error: draftError } = await supabaseClient
-                    .from("calendar_invitation_drafts")
-                    .select("invitation, updated_at")
-                    .eq("source_url", event.link)
-                    .maybeSingle();
-                if (draftError) throw draftError;
-                if (savedDraft?.invitation) {
-                    openInvitationEditorModal({ ...savedDraft.invitation, eventId: event.id, sourceUrl: event.link });
-                    const savedAt = new Date(savedDraft.updated_at).toLocaleString("de-DE");
-                    setModalMessage("invitationEditorMessage", `Gespeicherter Entwurf vom ${savedAt} geladen.`, "ok");
-                    showCalendarMessage("Gespeicherter Einladungsentwurf wurde geöffnet.", "ok");
-                    return;
+                if (!reloadFromTournament) {
+                    const { data: savedDraft, error: draftError } = await supabaseClient
+                        .from("calendar_invitation_drafts")
+                        .select("invitation, updated_at")
+                        .eq("source_url", event.link)
+                        .maybeSingle();
+                    if (draftError) throw draftError;
+                    if (savedDraft?.invitation) {
+                        openInvitationEditorModal({ ...savedDraft.invitation, eventId: event.id, sourceUrl: event.link });
+                        const savedAt = new Date(savedDraft.updated_at).toLocaleString("de-DE");
+                        setModalMessage("invitationEditorMessage", `Gespeicherter Entwurf vom ${savedAt} geladen.`, "ok");
+                        showCalendarMessage("Gespeicherter Einladungsentwurf wurde geöffnet.", "ok");
+                        return;
+                    }
                 }
                 const rankingSeason = getPreviousSeasonText(currentCalendarSeason || DEFAULT_NBV_CALENDAR_SEASON);
                 const { data, error } = await supabaseClient.functions.invoke("get-nbv-tournament-invitation", {
@@ -5626,10 +5642,16 @@
                 invitation.locationName = invitation.locationName || simplifyVenueName(event.location || "");
                 await applyPlayerPassNumbers(invitation);
                 openInvitationEditorModal(invitation);
+                if (reloadFromTournament) {
+                    setModalMessage("invitationEditorMessage", "Turnierdaten neu geladen. Zum Übernehmen des neuen Stands „Entwurf speichern“ wählen.", "ok");
+                }
                 showCalendarMessage("Einladung wurde vorbereitet und kann geprüft werden.", "ok");
             } catch (error) {
                 console.warn("NBV-Einladung konnte nicht erstellt werden:", error);
                 showCalendarMessage(`Einladung konnte nicht erstellt werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+                if (reloadFromTournament) {
+                    setModalMessage("invitationEditorMessage", `Turnierdaten konnten nicht geladen werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
+                }
             }
         }
 
