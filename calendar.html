@@ -3110,6 +3110,14 @@
                 titleCell: "D1",
                 dateCell: "S2"
             },
+            T16a: {
+                label: "T16a mit 9 Teilnehmern",
+                participantCount: 9,
+                url: "nbv_turniermodi_excel/T16a_9-Spieler-Kalender-Vorlage.xlsx",
+                titleCell: "B3",
+                dateCell: "G3",
+                participantDetailColumns: { club: "D", gd: "E", ballCount: "F" }
+            },
             T15: {
                 label: "T15 mit 8 Teilnehmern",
                 participantCount: 8,
@@ -5020,7 +5028,8 @@
                     passNo: String(participant?.passNo || 900001 + index),
                     name: getPdfText(participant?.name || `Spieler ${index + 1}`),
                     club: getPdfText(participant?.club || ""),
-                    gd: getPdfText(participant?.seedGd || "")
+                    gd: getPdfText(participant?.seedGd || ""),
+                    ballCount: getPdfText(participant?.ballCount || "")
                 }));
         }
 
@@ -5390,7 +5399,16 @@
                 throw new Error(`Die Excel-Vorlage konnte nicht geladen werden (${response.status}).`);
             }
             const buffer = await response.arrayBuffer();
-            return fflate.unzipSync(new Uint8Array(buffer));
+            const files = fflate.unzipSync(new Uint8Array(buffer));
+            const decoder = new TextDecoder();
+            const encoder = new TextEncoder();
+            Object.keys(files).filter((path) => /^xl\/worksheets\/sheet\d+\.xml$/.test(path)).forEach((path) => {
+                const xml = decoder.decode(files[path]);
+                if (xml.includes('<x:worksheet')) {
+                    files[path] = encoder.encode(xml.replace(/(<\/?)x:/g, "$1").replace('xmlns:x=', 'xmlns='));
+                }
+            });
+            return files;
         }
 
         async function buildResultWorkbookBytesFromTemplate(invitation, templateConfig) {
@@ -5410,6 +5428,12 @@
                 const row = index + 2;
                 participantsXml = replaceXlsxInlineStringCell(participantsXml, `B${row}`, participant.name || "");
                 participantsXml = replaceXlsxInlineStringCell(participantsXml, `C${row}`, participant.passNo || "");
+                Object.entries(templateConfig.participantDetailColumns || {}).forEach(([field, column]) => {
+                    const value = participant[field] || "";
+                    participantsXml = field === "club"
+                        ? replaceXlsxInlineStringCell(participantsXml, `${column}${row}`, value)
+                        : replaceXlsxNumberCell(participantsXml, `${column}${row}`, Number.parseFloat(String(value).replace(",", ".")) || "");
+                });
             });
             zipFiles[participantsPath] = encoder.encode(participantsXml);
 
