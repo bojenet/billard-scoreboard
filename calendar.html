@@ -3114,8 +3114,11 @@
                 label: "T16a mit 9 Teilnehmern",
                 participantCount: 9,
                 url: "nbv_turniermodi_excel/T16a_9-Spieler-Kalender-Vorlage.xlsx",
-                titleCell: "B3",
-                dateCell: "G3",
+                titleCell: "D1",
+                dateCell: "S2",
+                participantsPath: "xl/worksheets/sheet4.xml",
+                csvPath: "xl/worksheets/sheet5.xml",
+                additionalTitlePaths: ["xl/worksheets/sheet2.xml", "xl/worksheets/sheet3.xml"],
                 participantDetailColumns: { club: "D", gd: "E", ballCount: "F" }
             },
             T15: {
@@ -5416,8 +5419,8 @@
             const decoder = new TextDecoder();
             const encoder = new TextEncoder();
             const tableauPath = "xl/worksheets/sheet1.xml";
-            const participantsPath = "xl/worksheets/sheet2.xml";
-            const csvPath = "xl/worksheets/sheet3.xml";
+            const participantsPath = templateConfig.participantsPath || "xl/worksheets/sheet2.xml";
+            const csvPath = templateConfig.csvPath || "xl/worksheets/sheet3.xml";
             if (!zipFiles[tableauPath] || !zipFiles[participantsPath] || !zipFiles[csvPath]) {
                 throw new Error("Die Excel-Vorlage ist unvollstaendig. Erwartet werden die Blaetter Tableau, Teilnehmer und CSV Export.");
             }
@@ -5457,6 +5460,17 @@
                 zipFiles[tableauPath] = encoder.encode(tableauXml);
             }
 
+            (templateConfig.additionalTitlePaths || []).forEach((path) => {
+                if (!zipFiles[path]) throw new Error("Ein Gruppen- oder Finalblatt fehlt in der Excel-Vorlage.");
+                let sheetXml = decoder.decode(zipFiles[path]);
+                if (tournamentTitle && templateConfig.titleCell) {
+                    sheetXml = replaceXlsxInlineStringCell(sheetXml, templateConfig.titleCell, tournamentTitle);
+                }
+                if (dateSerial && templateConfig.dateCell) {
+                    sheetXml = replaceXlsxNumberCell(sheetXml, templateConfig.dateCell, dateSerial);
+                }
+                zipFiles[path] = encoder.encode(sheetXml);
+            });
             removeXlsxCalcChain(zipFiles, decoder, encoder);
             return fflate.zipSync(zipFiles, { level: 6 });
         }
