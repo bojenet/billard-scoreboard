@@ -577,6 +577,8 @@
                 </div>
             </div>
 
+            <button class="control-btn" type="button" onclick="swapSetupPlayers()">Spieler tauschen</button>
+
             <div class="grid two">
                 <div class="field">
                     <label for="discipline1">Disziplin 1</label>
@@ -1019,6 +1021,22 @@
             } finally {
                 button.disabled = false;
             }
+        }
+
+        function swapSetupPlayers() {
+            const fields = ["clubFilter", "player", "temporaryPlayer", "discipline", "target"];
+            const values = Object.fromEntries(fields.map((field) => [field, [
+                document.getElementById(field + "1").value,
+                document.getElementById(field + "2").value
+            ]]));
+            document.getElementById("clubFilter1").value = values.clubFilter[1];
+            document.getElementById("clubFilter2").value = values.clubFilter[0];
+            applyPlayerFilters();
+            fields.filter((field) => field !== "clubFilter").forEach((field) => {
+                document.getElementById(field + "1").value = values[field][1];
+                document.getElementById(field + "2").value = values[field][0];
+            });
+            setMessage("Spieler getauscht. Spieler 1 beginnt.", "success");
         }
 
         function setTargets(value) {
