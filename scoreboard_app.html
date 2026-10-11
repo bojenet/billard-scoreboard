@@ -1025,7 +1025,6 @@
                     document.getElementById(`target${number}`).value = data[`target${number}`] ?? "";
                 });
                 document.getElementById("maxInnings").value = data.maxInnings ?? "";
-                setMessage(`Letzte Einstellungen für ${tableLabel(table)} geladen.`, "success");
             } catch (error) {
                 console.error(error);
                 if (document.getElementById("displayTable").value === table) {
@@ -1049,7 +1048,7 @@
                 document.getElementById(field + "1").value = values[field][1];
                 document.getElementById(field + "2").value = values[field][0];
             });
-            setMessage("Spieler getauscht. Spieler 1 beginnt.", "success");
+            setMessage("");
         }
 
         function setTargets(value) {
