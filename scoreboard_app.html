@@ -599,6 +599,7 @@
                 <input id="maxInnings" type="number" inputmode="numeric" min="1" value="60">
             </div>
 
+            <button id="loadLastSettingsBtn" class="ghost" type="button" onclick="loadLastMatchSettings()">Letzte Einstellungen für Tisch 1 laden</button>
             <button id="startBtn" class="start-btn" type="button" onclick="startMatch()">Match starten</button>
             <div id="setupMessage" class="message"></div>
         </section>
@@ -954,9 +955,57 @@
 
         function selectDisplay(table) {
             document.getElementById("displayTable").value = table;
+            document.getElementById("loadLastSettingsBtn").textContent = `Letzte Einstellungen für ${tableLabel(table)} laden`;
+            setMessage("");
             document.querySelectorAll("#displayButtons button").forEach((btn) => {
                 btn.classList.toggle("active", btn.dataset.table === table);
             });
+        }
+
+        async function loadLastMatchSettings() {
+            const table = document.getElementById("displayTable").value;
+            const button = document.getElementById("loadLastSettingsBtn");
+            button.disabled = true;
+            setMessage("");
+            try {
+                const { data, error } = await supabaseClient
+                    .from("matches")
+                    .select("player1,player2,player1_id,player2_id,player1_club_name,player2_club_name,discipline1,discipline2,target1,target2,maxInnings")
+                    .eq("display_table", table)
+                    .order("started_at", { ascending: false, nullsFirst: false })
+                    .limit(1)
+                    .maybeSingle();
+                if (document.getElementById("displayTable").value !== table) return;
+                if (error) throw error;
+                if (!data) {
+                    setMessage(`Für ${tableLabel(table)} ist noch keine letzte Partie vorhanden.`, "");
+                    return;
+                }
+
+                [1, 2].forEach((number) => {
+                    const name = String(data[`player${number}`] || "").trim();
+                    const club = String(data[`player${number}_club_name`] || "").trim();
+                    const candidates = players.filter((player) => player.name === name && (!club || player.club_name === club));
+                    const player = candidates.find((item) => item.user_id && item.user_id === data[`player${number}_id`]) || candidates[0];
+                    const clubFilter = document.getElementById(`clubFilter${number}`);
+                    clubFilter.value = player?.club_name || "";
+                    if (clubFilter.selectedIndex < 0) clubFilter.value = "";
+                    fillFilteredPlayerSelect(`player${number}`, `clubFilter${number}`);
+                    document.getElementById(`player${number}`).value = player ? String(player.id) : "";
+                    document.getElementById(`temporaryPlayer${number}`).value = player ? "" : name;
+                    document.getElementById(`discipline${number}`).value = data[`discipline${number}`] || "";
+                    document.getElementById(`target${number}`).value = data[`target${number}`] ?? "";
+                });
+                document.getElementById("maxInnings").value = data.maxInnings ?? "";
+                setMessage(`Letzte Einstellungen für ${tableLabel(table)} geladen.`, "success");
+            } catch (error) {
+                console.error(error);
+                if (document.getElementById("displayTable").value === table) {
+                    setMessage("Letzte Einstellungen konnten nicht geladen werden. Bitte erneut versuchen.", "error");
+                }
+            } finally {
+                button.disabled = false;
+            }
         }
 
         function setTargets(value) {
