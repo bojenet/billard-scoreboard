@@ -186,6 +186,20 @@
             align-self: start;
         }
 
+        .swap-players-btn {
+            justify-self: center;
+            width: 44px;
+            height: 36px;
+            padding: 0;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text);
+            font-size: 28px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
         .segmented {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -576,7 +590,7 @@
                 </div>
             </div>
 
-            <button class="control-btn" type="button" onclick="swapSetupPlayers()">Spieler tauschen</button>
+            <button class="swap-players-btn" type="button" onclick="swapSetupPlayers()" aria-label="Spieler tauschen" title="Spieler tauschen">⇄</button>
 
             <div class="grid two">
                 <div class="field">
