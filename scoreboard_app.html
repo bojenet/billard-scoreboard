@@ -186,20 +186,10 @@
             align-self: start;
         }
 
-        .player-setup {
-            grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr);
-            gap: 6px;
-        }
-
-        .player-setup > .field {
-            min-width: 0;
-        }
-
         .swap-players-btn {
             justify-self: center;
-            align-self: center;
-            width: 32px;
-            height: 36px;
+            width: 44px;
+            height: 24px;
             padding: 0;
             border: 0;
             border-radius: 8px;
@@ -583,7 +573,7 @@
                 <input id="displayTable" type="hidden" value="tisch1">
             </div>
 
-            <div class="grid player-setup">
+            <div class="grid two">
                 <div class="field">
                     <label for="clubFilter1">Verein</label>
                     <select id="clubFilter1" onchange="applyPlayerFilters()"></select>
@@ -591,7 +581,6 @@
                     <select id="player1"></select>
                     <input id="temporaryPlayer1" type="text" autocomplete="off" placeholder="Name eingeben">
                 </div>
-                <button class="swap-players-btn" type="button" onclick="swapSetupPlayers()" aria-label="Spieler tauschen" title="Spieler tauschen">⇄</button>
                 <div class="field">
                     <label for="clubFilter2">Verein</label>
                     <select id="clubFilter2" onchange="applyPlayerFilters()"></select>
@@ -600,6 +589,8 @@
                     <input id="temporaryPlayer2" type="text" autocomplete="off" placeholder="Name eingeben">
                 </div>
             </div>
+
+            <button class="swap-players-btn" type="button" onclick="swapSetupPlayers()" aria-label="Spieler tauschen" title="Spieler tauschen">⇄</button>
 
             <div class="grid two">
                 <div class="field">
