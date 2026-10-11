@@ -734,7 +734,8 @@
             "Cadre 47/1",
             "Cadre 71/2",
             "Einband",
-            "Dreiband"
+            "Dreiband",
+            "Birilli"
         ];
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
         let currentUserId = "";
@@ -1258,6 +1259,14 @@
             fillSelect(document.getElementById("discipline2"), DISCIPLINES, "Disziplin wählen");
             document.getElementById("discipline1").value = "Dreiband";
             document.getElementById("discipline2").value = "Dreiband";
+            [1, 2].forEach((number) => {
+                document.getElementById(`discipline${number}`).onchange = (event) => {
+                    if (event.target.value === "Birilli") {
+                        document.getElementById(`target${number}`).value = 60;
+                        document.getElementById("maxInnings").value = 100;
+                    }
+                };
+            });
         }
 
         function showSetup() {

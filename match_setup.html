@@ -636,6 +636,7 @@
                         <option value="Cadre 71/2">Cadre 71/2</option>
                         <option value="Einband">Einband</option>
                         <option value="Dreiband">Dreiband</option>
+                        <option value="Birilli">Birilli</option>
                     </select>
                     <div id="touchDiscipline1" class="touch-select"></div>
                 </div>
@@ -698,6 +699,7 @@
                         <option value="Cadre 71/2">Cadre 71/2</option>
                         <option value="Einband">Einband</option>
                         <option value="Dreiband">Dreiband</option>
+                        <option value="Birilli">Birilli</option>
                     </select>
                     <div id="touchDiscipline2" class="touch-select"></div>
                 </div>
@@ -1035,6 +1037,10 @@
                     btn.innerText = option.text;
                     btn.onclick = () => {
                         select.value = option.value;
+                        if (option.value === "Birilli") {
+                            setTarget(selectId.replace("discipline", "target"), 60);
+                            syncMaxInnings(100);
+                        }
                         container.querySelectorAll(".touch-select-btn").forEach(x => x.classList.remove("active"));
                         btn.classList.add("active");
                     };
