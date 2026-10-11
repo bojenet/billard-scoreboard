@@ -1671,6 +1671,7 @@
 
         async function finishMatch() {
             if (!matchData || isFinished()) return;
+            if (!window.confirm("Wirklich beenden?")) return;
             saveHistory();
             finishedAtIso = new Date().toISOString();
             await updateMatch(buildFinalState());
