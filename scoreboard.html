@@ -1257,6 +1257,9 @@
         let shotClockRunning = false;
         let shotClockStartedAtMs = 0;
         let shotClockRemainingSeconds = SHOT_CLOCK_SECONDS;
+        let shotClockAudioContext = null;
+        let shotClockPreviousRemaining = null;
+        let shotClockWarningPlayed = false;
         let timeoutsUsed1 = 0;
         let timeoutsUsed2 = 0;
         let keypadInput = "";
@@ -1536,6 +1539,62 @@
             }
         }
 
+        function prepareShotClockAudio() {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return null;
+            try {
+                if (!shotClockAudioContext || shotClockAudioContext.state === "closed") {
+                    shotClockAudioContext = new AudioContextClass();
+                }
+                if (shotClockAudioContext.state === "suspended") {
+                    void shotClockAudioContext.resume().catch(() => {});
+                }
+                return shotClockAudioContext;
+            } catch (error) {
+                console.warn("Warnton konnte nicht vorbereitet werden:", error);
+                return null;
+            }
+        }
+
+        document.addEventListener("pointerdown", prepareShotClockAudio);
+        document.addEventListener("keydown", prepareShotClockAudio);
+
+        function playShotClockWarning() {
+            const context = prepareShotClockAudio();
+            if (!context || context.state !== "running") return;
+            const start = context.currentTime;
+            const oscillator = context.createOscillator();
+            const gain = context.createGain();
+            oscillator.type = "sine";
+            oscillator.frequency.setValueAtTime(880, start);
+            gain.gain.setValueAtTime(0, start);
+            gain.gain.linearRampToValueAtTime(0.35, start + 0.015);
+            gain.gain.setValueAtTime(0.35, start + 0.25);
+            gain.gain.linearRampToValueAtTime(0, start + 0.3);
+            oscillator.connect(gain);
+            gain.connect(context.destination);
+            oscillator.onended = () => {
+                oscillator.disconnect();
+                gain.disconnect();
+            };
+            oscillator.start(start);
+            oscillator.stop(start + 0.32);
+        }
+
+        function updateShotClockWarning(remaining) {
+            if (remaining > SHOT_CLOCK_WARNING_SECONDS) {
+                shotClockWarningPlayed = false;
+                prepareShotClockAudio();
+            }
+            if (shotClockRunning && !shotClockWarningPlayed &&
+                shotClockPreviousRemaining > SHOT_CLOCK_WARNING_SECONDS &&
+                remaining <= SHOT_CLOCK_WARNING_SECONDS && remaining > 0) {
+                shotClockWarningPlayed = true;
+                playShotClockWarning();
+            }
+            shotClockPreviousRemaining = remaining;
+        }
+
         function updateShotClock() {
             const clock = document.getElementById("shotClock");
             const blocks = document.getElementById("shotClockBlocks");
@@ -1545,6 +1604,8 @@
             renderShotClockBlocks();
 
             if (finished || !isThreeCushionDiscipline(getActiveDiscipline())) {
+                shotClockPreviousRemaining = null;
+                shotClockWarningPlayed = false;
                 clock.classList.remove("visible", "warning");
                 secondsEl.innerText = String(SHOT_CLOCK_SECONDS);
                 Array.from(blocks.children).forEach((block) => block.classList.remove("elapsed"));
@@ -1558,6 +1619,7 @@
                 ? Math.max(0, shotClockRemainingSeconds - runningElapsed)
                 : shotClockRemainingSeconds;
             const elapsedBlocks = Math.min(SHOT_CLOCK_SECONDS, SHOT_CLOCK_SECONDS - remaining);
+            updateShotClockWarning(remaining);
 
             clock.classList.add("visible");
             clock.classList.toggle("warning", remaining <= SHOT_CLOCK_WARNING_SECONDS);

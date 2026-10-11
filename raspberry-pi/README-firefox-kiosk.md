@@ -80,3 +80,22 @@ sudo reboot
 Das Script versucht per `xset`, Bildschirmschoner und DPMS zu deaktivieren. Falls der Monitor trotzdem schwarz wird, auf dem Pi zusaetzlich im Raspberry-Pi-Menue pruefen:
 
 `Preferences -> Raspberry Pi Configuration -> Display -> Screen Blanking -> Off`
+
+## Countdown-Warnton ueber HDMI
+
+Das Main Scoreboard spielt bei Dreiband einmal einen kurzen Warnton ab, wenn
+der laufende Countdown 10 Sekunden Restzeit erreicht. Ein neuer Countdown
+oder ein Time-out aktiviert den Warnton erneut.
+
+Auf jedem Pi einmal Firefox ausserhalb des Kioskmodus oeffnen und unter
+`Einstellungen -> Datenschutz & Sicherheit -> Berechtigungen -> Automatische
+Wiedergabe -> Einstellungen` die Vorgabe `Audio und Video erlauben` waehlen.
+Der Kiosk startet private Fenster; deshalb die Vorgabe einstellen, statt sich
+auf eine nur fuer die Website gespeicherte Ausnahme zu verlassen.
+
+In den Audioeinstellungen des Pi den angeschlossenen HDMI-Ausgang waehlen.
+TV und Pi duerfen nicht stummgeschaltet sein. Anschliessend Firefox im
+Kioskmodus neu starten und einen 40-Sekunden-Countdown bis 10 laufen lassen.
+Der Ton kommt vom Pi/TV, nicht von der steuernden App.
+
+Mozilla-Anleitung: https://support.mozilla.org/en-US/kb/block-autoplay
