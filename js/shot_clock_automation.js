@@ -13,7 +13,13 @@ function createShotClockAutomation({ getState, onExtended, playAlarm, client }) 
                 String(state.discipline || "").trim().toLowerCase() !== "dreiband") return;
             const started = Date.parse(state.startedAt);
             if (!Number.isFinite(started) || Date.now() < started + state.remaining * 1000 ||
-                pending || Date.now() < retryAt || alarmed.has(key(state))) return;
+                pending || Date.now() < retryAt) return;
+            // Sound at every zero crossing, before the restart changes the clock
+            // through realtime. A failed request may retry without repeating the tone.
+            if (!alarmed.has(key(state))) {
+                alarmed.add(key(state));
+                playAlarm();
+            }
             pending = true;
             retryAt = Date.now() + 1000;
             try {
@@ -26,11 +32,8 @@ function createShotClockAutomation({ getState, onExtended, playAlarm, client }) 
                 const current = getState();
                 // A point, pause, or turn change may have arrived during the request.
                 if (!current || current.finished || !current.running || key(current) !== key(state)) return;
-                if (data?.action === "extended") {
+                if ((data?.action === "extended" || data?.action === "expired") && data.clock) {
                     onExtended(data.clock);
-                } else if (data?.action === "expired") {
-                    alarmed.add(key(state));
-                    playAlarm();
                 }
             } catch (error) {
                 console.warn("Automatisches Timeout konnte nicht verarbeitet werden:", error);

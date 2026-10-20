@@ -1449,7 +1449,7 @@
 
         function getShotClockRemaining() {
             if (!matchData) return 40;
-            const base = Number(matchData.shot_clock_remaining_seconds || 40);
+            const base = Number(matchData.shot_clock_remaining_seconds ?? 40);
             if (!matchData.shot_clock_running || !matchData.shot_clock_started_at) return base;
             const elapsed = Math.floor((Date.now() - new Date(matchData.shot_clock_started_at).getTime()) / 1000);
             return Math.max(0, base - elapsed);
@@ -1801,6 +1801,8 @@
                 return;
             }
             const remaining = getShotClockRemaining();
+            const timeoutKey = Number(matchData.activePlayer || 1) === 1 ? "shot_clock_timeouts1" : "shot_clock_timeouts2";
+            if (remaining <= 0 && Number(matchData[timeoutKey] || 0) >= 2) return;
             await updateMatch({
                 shot_clock_running: true,
                 shot_clock_started_at: new Date().toISOString(),

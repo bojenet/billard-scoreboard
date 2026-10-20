@@ -87,12 +87,14 @@ Das Main Scoreboard spielt bei Dreiband einmal einen kurzen Warnton ab, wenn
 der laufende Countdown 10 Sekunden Restzeit erreicht. Ein neuer Countdown
 oder ein Time-out aktiviert den Warnton erneut.
 
-Bei 0 Sekunden startet das Pi-Scoreboard automatisch weitere 40 Sekunden und
-verbraucht ein noch verfuegbares Time-out des aktiven Spielers (maximal zwei).
-Nach Ablauf der letzten Verlaengerung ertoent einmal ein langer Warnton von
-etwa 1,8 Sekunden. Die App erhaelt den neuen Timerstand und Time-out-Verbrauch
+Bei jedem Erreichen von 0 ertoent ein langer Warnton von etwa 1,8 Sekunden.
+Der erste Ablauf verbraucht das erste Time-out und startet weitere 40 Sekunden.
+Der zweite Ablauf verbraucht das zweite Time-out; die Uhr bleibt bei 0 stehen
+und startet nicht erneut. Sind schon Time-outs verbraucht, gibt es entsprechend
+weniger Verlaengerungen. Die App erhaelt den neuen Timerstand und Time-out-Verbrauch
 automatisch. Die Turnierzentrale muss dafuer nicht geoeffnet sein.
-Voraussetzung ist die Migration `20261020100000_advance_expired_shot_clock.sql`.
+Voraussetzung sind die Migrationen `20261020100000_advance_expired_shot_clock.sql`
+und `20261020110000_limit_shot_clock_to_two_runs.sql`.
 
 Auf jedem Pi einmal Firefox ausserhalb des Kioskmodus oeffnen und unter
 `Einstellungen -> Datenschutz & Sicherheit -> Berechtigungen -> Automatische

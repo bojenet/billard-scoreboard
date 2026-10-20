@@ -1491,6 +1491,8 @@
                 shotClockStartedAtMs = 0;
             } else {
                 const remaining = getShotClockRemainingSeconds();
+                const used = activePlayer === 1 ? timeoutsUsed1 : timeoutsUsed2;
+                if (remaining <= 0 && used >= 2) return;
                 shotClockRunning = true;
                 shotClockStartedAtMs = Date.now();
                 shotClockRemainingSeconds = remaining > 0 ? remaining : SHOT_CLOCK_SECONDS;
