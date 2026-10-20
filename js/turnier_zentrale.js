@@ -94,6 +94,7 @@
         const selectTable = child.selectDisplay;
         child.selectDisplay = () => selectTable(table);
         child.selectDisplay();
+        attachTournamentResultSheet(child);
         const startMatch = child.startMatch;
         let starting = false;
         child.startMatch = async () => {
