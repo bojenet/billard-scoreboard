@@ -95,6 +95,7 @@
         child.selectDisplay = () => selectTable(table);
         child.selectDisplay();
         attachTournamentResultSheet(child);
+        attachTournamentShotClock(child, matchId);
         const startMatch = child.startMatch;
         let starting = false;
         child.startMatch = async () => {
