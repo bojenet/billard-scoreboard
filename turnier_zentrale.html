@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Turnier · Tischsteuerung</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #eef1f5; color: #1f2937; font-family: Arial, sans-serif; }
+        main { max-width: 1800px; margin: auto; padding: 24px; }
+        header { display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 22px; }
+        h1 { margin: 0 0 8px; color: #1e3a5f; }
+        p { margin: 0; line-height: 1.5; }
+        nav { display: flex; gap: 10px; flex-wrap: wrap; }
+        a, button { font: inherit; border: 1px solid #cfd6df; border-radius: 8px; background: white; color: #1e3a5f; padding: 11px 16px; text-decoration: none; cursor: pointer; }
+        a:hover, button:hover { background: #e5edf8; }
+        :focus-visible { outline: 3px solid #4585df; outline-offset: 3px; }
+        .tables { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+        article { background: white; border: 1px solid #cfd6df; border-radius: 12px; overflow: hidden; }
+        .table-heading { padding: 16px 20px; border-bottom: 1px solid #cfd6df; }
+        h2 { margin: 0 0 6px; color: #1e3a5f; }
+        .status { color: #526176; font-size: 14px; min-height: 21px; }
+        iframe { display: block; width: 100%; height: 1050px; border: 0; background: #0f1c3f; }
+        #message { margin-bottom: 16px; color: #a32e21; }
+        #message:empty { display: none; }
+        .subsection { margin-top: 24px; padding: 20px; background: white; border: 1px solid #cfd6df; border-radius: 12px; }
+        .subsection p { margin-bottom: 18px; color: #526176; }
+        .subsection a { display: inline-block; }
+        [hidden] { display: none !important; }
+        @media (max-width: 850px) { main { padding: 14px; } .tables { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<main>
+    <header>
+        <div><h1>Turnier</h1><p>Beide Tische bedienen: Partie anlegen, starten und zählen.</p></div>
+        <nav aria-label="Navigation"><a href="index.html">Hauptmenü</a><a href="#verwaltung">Turnierverwaltung</a><button id="refresh" type="button">Aktualisieren</button></nav>
+    </header>
+    <p id="message" role="status" aria-live="polite"></p>
+    <section id="tables" class="tables" aria-label="Tischsteuerung" hidden>
+        <article><div class="table-heading"><h2>Tisch 1</h2><p class="status" id="status-tisch1" aria-live="polite">Wird geladen …</p></div><iframe id="frame-tisch1" title="Partie an Tisch 1" hidden></iframe></article>
+        <article><div class="table-heading"><h2>Tisch 2</h2><p class="status" id="status-tisch2" aria-live="polite">Wird geladen …</p></div><iframe id="frame-tisch2" title="Partie an Tisch 2" hidden></iframe></article>
+    </section>
+    <section class="subsection" id="verwaltung"><h2>Turnierverwaltung</h2><p>Jeder gegen jeden, Teilnehmer, Spielplan und Tabelle.</p><a href="turnier.html">Turnierverwaltung öffnen</a></section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/tournament_access.js"></script>
+<script src="js/match_access.js"></script>
+<script src="js/turnier_zentrale.js"></script>
+</body>
+</html>
