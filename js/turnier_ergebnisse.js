@@ -3,7 +3,7 @@
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const params = new URLSearchParams(location.search);
     const eventId = params.get('turnier');
-    let event = null, view = 'A', selected = 'A1', dirty = false, busy = false;
+    let event = null, view = 'A', selected = 'A1', dirty = false, busy = false, pendingReload = null, reloadVersion = null;
     const player = seed => event?.snapshot.participants.find(p => p.seed === Number(seed));
     const name = seed => player(seed)?.name || 'Paarung noch offen';
     const gd = (points, innings) => (innings ? Math.trunc(points / innings * 1000) / 1000 : 0).toFixed(3).replace('.', ',');
@@ -23,8 +23,10 @@
     function render() {
         $('eventTitle').textContent = event.title;
         $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, 'T15 · 8 Spieler', `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
-        $('invitationNote').textContent = 'Teilnehmer und Spielziel stammen aus der versendeten Einladung. ' + (event.status === 'completed' ? (event.archived_ranking ? 'Dieses Turnier ist mit seiner bisherigen Wertung archiviert.' : 'Dieses Turnier ist abgeschlossen.') : 'Ergebnisse sind nur für die Turnierleitung und zugeordnete Personen sichtbar.');
+        $('invitationNote').textContent = 'Teilnehmer und Spielziel entsprechen dem gespeicherten Turnierstand. ' + (event.status === 'completed' ? (event.archived_ranking ? 'Dieses Turnier ist mit seiner bisherigen Wertung archiviert.' : 'Dieses Turnier ist abgeschlossen.') : 'Ergebnisse sind nur für die Turnierleitung und zugeordnete Personen sichtbar.');
         $('accessTab').hidden = !event.can_manage;
+        $('reloadClubCloudBtn').hidden = !event.can_reload;
+        if (!event.can_reload) { pendingReload=null; $('clubCloudPreview').hidden=true; }
         $('completeBtn').hidden = !event.can_manage || !!event.archived_ranking;
         $('completeBtn').textContent = event.status === 'completed' ? 'Für Korrektur wieder öffnen' : 'Turnier abschließen';
         $('progress').value = Object.keys(event.results).length;
@@ -153,6 +155,38 @@
         $('resultForm').onsubmit=e=>{e.preventDefault();const result={};for(const side of [1,2])for(const field of ['score','innings','high'])result[field+side]=Number($(field+side).value);if(!$('winnerField').hidden)result.winner=Number($('winnerSelect').value);submitResult(result);};
         $('deleteBtn').onclick=()=>{if(confirm('Dieses Ergebnis löschen?'))submitResult(null);};
         $('reloadBtn').onclick=async()=>{if(busy||!canLeave())return;try{await load();notice();}catch(error){failure(error);}};
+        $('reloadClubCloudBtn').onclick=async()=>{
+            if(busy || !event.can_reload || !canLeave())return;
+            busy=true;$('reloadClubCloudBtn').disabled=true;
+            try{
+                pendingReload=null;$('clubCloudPreview').hidden=true;
+                const saved=await rpc('get_t15_result_event',{p_id:eventId});
+                if(!saved.can_reload)throw new Error('Turnierdaten können nur vor der ersten Ergebniserfassung neu geladen werden.');
+                notice('Aktuelle ClubCloud-Daten werden geladen …');
+                const {data,error}=await supabaseClient.functions.invoke('get-nbv-tournament-invitation',{body:{sourceUrl:saved.source_url,disciplineId:saved.snapshot.disciplineId || '',disciplineLabel:saved.snapshot.discipline || '',rankingSeason:saved.snapshot.rankingSeason || ''}});
+                if(error)throw error;
+                if(data?.error)throw new Error(data.error);
+                const response=await fetch('data/player-pass-numbers.json',{cache:'no-cache'});
+                if(!response.ok)throw new Error('Die Passnummernliste konnte nicht geladen werden. Bitte erneut versuchen.');
+                pendingReload=T15ClubCloudReload.prepare(saved,data?.invitation,await response.json());reloadVersion=saved.version;
+                $('clubCloudMeta').textContent=[pendingReload.title,pendingReload.date,pendingReload.startTime,pendingReload.locationName,pendingReload.discipline].filter(Boolean).join(' · ');
+                $('clubCloudParticipants').innerHTML='<table><thead><tr><th>Setzplatz</th><th>Spieler</th><th>Verein</th><th>Pass-Nr.</th></tr></thead><tbody>'+pendingReload.participants.map(p=>`<tr><td>${p.seed}</td><td>${esc(p.name)}</td><td>${esc(p.club)}</td><td>${esc(p.passNo || 'Fehlt – CSV-Export erst mit Passnummer möglich')}</td></tr>`).join('')+'</tbody></table>';
+                $('reloadTarget').value=pendingReload.playingTargetPoints;$('reloadInnings').value=pendingReload.playingTargetInnings;
+                $('clubCloudPreview').hidden=false;notice('ClubCloud-Daten geladen. Bitte Setzliste und Spielziel prüfen und übernehmen.');
+            }catch(error){failure(error);}finally{busy=false;$('reloadClubCloudBtn').disabled=false;}
+        };
+        $('cancelClubCloudBtn').onclick=()=>{pendingReload=null;$('clubCloudPreview').hidden=true;notice();};
+        $('clubCloudForm').onsubmit=async e=>{
+            e.preventDefault();if(busy || !pendingReload)return;
+            if(!canLeave())return;
+            busy=true;$('applyClubCloudBtn').disabled=true;
+            try{
+                const invitation={...pendingReload,playingTargetPoints:$('reloadTarget').value,playingTargetInnings:$('reloadInnings').value};
+                await rpc('refresh_t15_event_data',{p_id:eventId,p_invitation:invitation,p_version:reloadVersion});
+                pendingReload=null;$('clubCloudPreview').hidden=true;
+                await load();notice('Aktuelle ClubCloud-Daten übernommen. Die versendete Einladung bleibt unverändert.');
+            }catch(error){failure(error);}finally{busy=false;$('applyClubCloudBtn').disabled=false;}
+        };
         $('exportCsvBtn').onclick=async()=>{
             if(busy)return;
             busy=true;$('exportCsvBtn').disabled=true;

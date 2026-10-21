@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict');
+const {prepare}=require('../js/t15_clubcloud_reload.js');
+const participants=Array.from({length:8},(_,i)=>({number:String(i+1),seed:i+1,name:'Spieler '+i,club:'Club',passNo:'00'+i}));
+const event={source_url:'https://example.invalid/t15',source_event_id:'original',event_date:'2026-10-21',snapshot:{participants,playingTargetPoints:'100',playingTargetInnings:'20',startTime:'10:00'}};
+const fresh={title:'Current',participants:participants.map(({passNo,...p})=>({...p})),sourceUrl:'unexpected',eventId:'unexpected'};
+fresh.participants[0].name='Neuer, Spieler';
+const next=prepare(event,fresh,[{name:'Spieler Neuer',passNo:'001234'}]);
+assert.equal(next.participants[0].passNo,'001234');assert.equal(next.participants[1].passNo,'001');assert.equal(next.sourceUrl,event.source_url);assert.equal(next.eventId,'original');assert.equal(next.selectedModeCode,'T15');assert.equal(next.startTime,'10:00');assert.equal(next.playingTargetPoints,'100');assert.equal(event.snapshot.participants[0].name,'Spieler 0');
+assert.throws(()=>prepare(event,{...fresh,participants:[]},[]),/acht/);
+const duplicate=structuredClone(fresh);duplicate.participants[0].number='2';assert.throws(()=>prepare(event,duplicate,[]),/doppelte/);
+const ambiguous=prepare(event,fresh,[{name:'Neuer, Spieler',passNo:'1'},{name:'Neuer, Spieler',passNo:'2'}]);assert.equal(ambiguous.participants[0].passNo,'');
+console.log('PASS: T15 reload preparation, refreshed roster, safe pass lookup, stable source/mode/targets, no snapshot mutation, invalid seeds');

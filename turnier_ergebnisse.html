@@ -15,6 +15,8 @@
 <div class="breadcrumb"><a href="turnier_ergebnisse.html">Meine Turniere</a> / Ergebniserfassung</div>
 <div class="page-heading"><div><h1 id="eventTitle"></h1><p id="eventMeta"></p></div><span class="badge">Privat · Nicht veröffentlicht</span></div>
 <p id="invitationNote" class="muted"></p>
+<button id="reloadClubCloudBtn" type="button" hidden>Daten neu aus ClubCloud laden</button>
+<section id="clubCloudPreview" class="panel" hidden><div class="panel-heading"><h2>Aktuelle ClubCloud-Daten prüfen</h2></div><form id="clubCloudForm" class="form-content"><p id="clubCloudMeta"></p><div id="clubCloudParticipants" class="table-wrap"></div><p class="muted">Modus T15 bleibt bestehen. Spielziel und Aufnahmenbegrenzung werden aus der bisherigen Erfassung vorbelegt und können hier angepasst werden. Die versendete Einladung wird nicht geändert.</p><div class="fields"><label>Punkte<input id="reloadTarget" type="number" min="1" max="1000000" step="1" required></label><label>Max. Aufnahmen<input id="reloadInnings" type="number" min="1" max="1000000" step="1" required></label></div><div class="actions"><button id="applyClubCloudBtn" type="submit" class="primary">Daten übernehmen</button><button id="cancelClubCloudBtn" type="button">Abbrechen</button></div></form></section>
 <div class="toolbar"><div class="tabs" role="group" aria-label="Ansicht"><button data-view="A" aria-pressed="true">Gruppe A</button><button data-view="B" aria-pressed="false">Gruppe B</button><button data-view="final" aria-pressed="false">Platzierung & Finale</button><button data-view="standings" aria-pressed="false">Tabellen</button><button data-view="access" id="accessTab" aria-pressed="false" hidden>Zugänge</button><button data-view="history" aria-pressed="false">Verlauf</button></div><button id="reloadBtn" type="button">Neu laden</button></div>
 <div id="entryView" class="entry-layout">
 <section class="panel"><div class="panel-heading"><h2 id="matchListHeading">Gruppe A</h2></div><div id="matchList"></div></section>
@@ -30,6 +32,7 @@
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script><script src="js/auth.js"></script><script src="js/user_menu.js"></script>
+<script src="js/t15_clubcloud_reload.js"></script>
 <script src="js/t15_csv_export.js"></script>
 <script src="js/turnier_ergebnisse.js"></script>
 </body></html>
