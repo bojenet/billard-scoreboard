@@ -16,15 +16,15 @@ do $$declare context jsonb:=public.result_entry_context();begin
  if not (context->>'result_only')::boolean or jsonb_array_length(context->'events')<>1 or context->'events'->0->>'title'<>'Invited event' then raise exception 'Assigned read-only account has wrong start/list: %',context;end if;
 end $$;
 reset role;
-update public.user_roles set tournament_access='edit',match_access='read' where user_id='f3150000-0000-4000-8000-000000000032';
-do $$begin if not (public.result_entry_context()->>'result_only')::boolean then raise exception 'Assigned account with read-only table access should get clean entry';end if;end $$;
+update public.user_roles set tournament_access='edit',match_access='edit',calendar_access='edit' where user_id='f3150000-0000-4000-8000-000000000032';
+do $$begin if not (public.result_entry_context()->>'result_only')::boolean then raise exception 'Explicit assignment must override generic module edit permissions';end if;end $$;
 select set_config('request.jwt.claim.sub','f3150000-0000-4000-8000-000000000033',true);
 do $$declare context jsonb:=public.result_entry_context();begin
  if not (context->>'result_only')::boolean or context->'events'<>'[]' then raise exception 'Invited account without assignments should get empty list';end if;
 end $$;
 select set_config('request.jwt.claim.sub','f3150000-0000-4000-8000-000000000031',true);
 do $$declare context jsonb:=public.result_entry_context();begin
- if (context->>'result_only')::boolean then raise exception 'Tournament manager incorrectly restricted';end if;
+ if (context->>'result_only')::boolean or not (context->>'can_manage')::boolean then raise exception 'Tournament manager incorrectly restricted';end if;
 end $$;
 update public.user_roles set role='admin' where user_id='f3150000-0000-4000-8000-000000000033';
 select set_config('request.jwt.claim.sub','f3150000-0000-4000-8000-000000000033',true);

@@ -170,15 +170,16 @@
     async function init() {
         const user = await requireAuth(); if (!user) return;
         const resultContext=await getResultEntryContext();
-        document.querySelectorAll('[data-full-navigation]').forEach(link=>link.hidden=resultContext.result_only);
-        $('resultListHelp').hidden=resultContext.result_only;
-        $('resultListDescription').hidden=resultContext.result_only;
-        if(resultContext.result_only){$('resultsBrand').textContent='Turnierergebnisse';$('resultListTitle').textContent='Meine Turniere';document.title='Meine Turniere · Billard Studio';}
+        const restricted=resultContext.result_only || resultContext.can_manage!==true;
+        document.querySelectorAll('[data-full-navigation]').forEach(link=>link.hidden=restricted);
+        $('resultListHelp').hidden=restricted;
+        $('resultListDescription').hidden=restricted;
+        if(restricted){$('resultsBrand').textContent='Turnierergebnisse';$('resultListTitle').textContent='Meine Turniere';document.title='Meine Turniere · Billard Studio';}
         if (params.get('zugang') === '1') $('passwordSection').hidden = false;
         if (!eventId) {
             $('listView').hidden=false;
             let events;
-            if(resultContext.result_only)events=resultContext.events;
+            if(restricted)events=resultContext.events;
             else {
                 const {data,error}=await supabaseClient.from('result_events').select('id,title,event_date,status,updated_at,snapshot').order('updated_at',{ascending:false});
                 if(error)throw error;
