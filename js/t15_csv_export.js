@@ -34,7 +34,7 @@
             }
             const values = ['score1','score2','innings1','innings2','high1','high2'].map(field => result[field]);
             if (values.some(v => !Number.isInteger(v) || v < 0)) throw new Error(`${match.label}: Die Ergebnisdaten sind unvollständig oder ungültig.`);
-            lines.push([match.stage === 'A' || match.stage === 'B' ? `Gruppe ${match.stage}` : rounds[match.key],index+1,1,String(players[0].passNo).trim(),String(players[1].passNo).trim(),...values,exportDate,time]);
+            lines.push([match.roundLabel || (match.stage === 'A' || match.stage === 'B' ? `Gruppe ${match.stage}` : rounds[match.key]),index+1,1,String(players[0].passNo).trim(),String(players[1].passNo).trim(),...values,exportDate,time]);
         });
         if (lines.length === 0) throw new Error('Es sind noch keine gespeicherten Partien zum Exportieren vorhanden.');
         return lines.map(row => row.map(cell).join(';')).join('\r\n') + '\r\n';

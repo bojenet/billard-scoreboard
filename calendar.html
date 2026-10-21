@@ -1477,7 +1477,7 @@
                 <button class="btn btn-secondary" type="button" onclick="generateInvitationPdfFromEditor()">PDF erstellen</button>
                 <button class="btn btn-secondary" type="button" onclick="sendInvitationPdfFromEditor()">Einladung versenden</button>
                 <button class="btn btn-secondary" type="button" onclick="generateResultWorkbookFromEditor()">Excel Ergebnisformular</button>
-                <button class="btn btn-secondary" type="button" onclick="openCalendarResultEntry()">Ergebnisse erfassen (T15)</button>
+                <button class="btn btn-secondary" type="button" onclick="openCalendarResultEntry()">Ergebnisse erfassen</button>
                 <button class="btn btn-secondary" type="button" onclick="closeInvitationEditorModal()">Schließen</button>
             </div>
             <div id="invitationEditorMessage" class="modal-message"></div>
@@ -1494,6 +1494,7 @@
     <script src="js/admin_center_access.js"></script>
     <script src="js/tournament_access.js"></script>
     <script src="js/user_menu.js"></script>
+    <script src="js/result_modes.js"></script>
     <script src="js/calendar_results.js"></script>
     <script>
         const CALENDAR_MANUAL_STORAGE_KEY = "standalone_calendar_manual_v1";
@@ -5569,12 +5570,12 @@
                 if (!data?.ok) throw new Error(data?.error || "Die Einladung konnte nicht versendet werden.");
                 const sendLabel = invitation.emailUpdate === true ? "Update-Einladung" : "Einladung";
                 setModalMessage("invitationEditorMessage", `${sendLabel} wurde an ${data.recipientCount || recipientStats.activeCount} Empfänger versendet.`, "ok");
-                if (invitation.selectedModeCode === "T15") {
+                if (ResultModes.supports(invitation.selectedModeCode)) {
                     try {
                         await ensureT15ResultEvent(invitation);
-                        setModalMessage("invitationEditorMessage", `${sendLabel} versendet. Die private T15-Erfassungsseite ist bereit – „Ergebnisse erfassen (T15)“ öffnen.`, "ok");
+                        setModalMessage("invitationEditorMessage", `${sendLabel} versendet. Die private Erfassungsseite ist bereit – „Ergebnisse erfassen“ öffnen.`, "ok");
                     } catch (resultError) {
-                        setModalMessage("invitationEditorMessage", `${sendLabel} wurde versendet. Die Ergebniserfassung konnte noch nicht angelegt werden: ${getErrorMessage(resultError, "Unbekannter Fehler")}. Bitte „Ergebnisse erfassen (T15)“ erneut versuchen; die Einladung nicht erneut versenden.`, "error");
+                        setModalMessage("invitationEditorMessage", `${sendLabel} wurde versendet. Die Ergebniserfassung konnte noch nicht angelegt werden: ${getErrorMessage(resultError, "Unbekannter Fehler")}. Bitte „Ergebnisse erfassen“ erneut versuchen; die Einladung nicht erneut versenden.`, "error");
                     }
                 }
             } catch (error) {

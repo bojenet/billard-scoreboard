@@ -23,3 +23,5 @@ assert.throws(()=>build({...event,event_date:'2026-02-30'}),/datum/);
 const blank=structuredClone(event);blank.event_date='';blank.snapshot.startTime='';assert.ok(build(blank).split('\r\n')[0].endsWith(';;'));
 const quoted=structuredClone(event);quoted.snapshot.participants[0].passNo='ab;"cd';assert.ok(build(quoted).includes('"ab;""cd"'));
 console.log('PASS: CSV data only without header, 13 columns, 18 games, UTF-8 without BOM, CRLF, pass numbers, archived pairings, partial/zero results, dates, quoting and missing-data validation');
+
+const rr=structuredClone(event);rr.schedule=[{...rr.schedule[0],roundLabel:'Hauptrunde'}];rr.results={A1:rr.results.A1};assert.ok(build(rr).startsWith('Hauptrunde;1;1;'));console.log('PASS: round-robin CSV round label without header');

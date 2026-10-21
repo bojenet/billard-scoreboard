@@ -6,6 +6,9 @@
     let event = null, view = 'A', selected = 'A1', dirty = false, busy = false, pendingReload = null, reloadVersion = null;
     const player = seed => event?.snapshot.participants.find(p => p.seed === Number(seed));
     const name = seed => player(seed)?.name || 'Paarung noch offen';
+    const mode = () => ResultModes.get(event.snapshot.selectedModeCode);
+    const roundRobin = () => mode().kind === 'roundRobin';
+    const groups = () => roundRobin() ? ['A'] : ['A','B'];
     const gd = (points, innings) => (innings ? Math.trunc(points / innings * 1000) / 1000 : 0).toFixed(3).replace('.', ',');
     function notice(text = '', error = false) { $('message').textContent = text; $('message').classList.toggle('error', error); }
     async function rpc(fn, args) { const { data, error } = await supabaseClient.rpc(fn, args); if (error) throw error; return data; }
@@ -22,14 +25,19 @@
     }
     function render() {
         $('eventTitle').textContent = event.title;
-        $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, 'T15 · 8 Spieler', `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
+        $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, `${event.snapshot.selectedModeCode} · ${event.snapshot.participants.length} Spieler`, `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
         $('accessTab').hidden = !event.can_manage;
         $('reloadClubCloudBtn').hidden = !event.can_reload;
         if (!event.can_reload) { pendingReload=null; $('clubCloudPreview').hidden=true; }
         $('completeBtn').hidden = !event.can_manage || !!event.archived_ranking;
         $('completeBtn').textContent = event.status === 'completed' ? 'Für Korrektur wieder öffnen' : 'Turnier abschließen';
+        if(roundRobin() && ['B','final'].includes(view))view='A';
+        document.querySelector('[data-view="A"]').textContent=roundRobin() ? 'Partien' : 'Gruppe A';
+        document.querySelector('[data-view="B"]').hidden=roundRobin();
+        document.querySelector('[data-view="final"]').hidden=roundRobin();
+        $('progress').max=event.schedule.length;
         $('progress').value = Object.keys(event.results).length;
-        $('progressLabel').textContent = `${Object.keys(event.results).length} von 18 Partien erfasst`;
+        $('progressLabel').textContent = `${Object.keys(event.results).length} von ${event.schedule.length} Partien erfasst`;
         document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === view));
         $('entryView').hidden = !['A', 'B', 'final'].includes(view);
         $('standingsView').hidden = view !== 'standings'; $('accessView').hidden = view !== 'access'; $('historyView').hidden = view !== 'history';
@@ -39,8 +47,8 @@
     }
     function renderMatches() {
         const games = event.schedule.filter(m => m.stage === view);
-        if (!games.some(m => m.key === selected)) selected = games[0].key;
-        $('matchListHeading').textContent = view === 'final' ? 'Platzierung & Finale' : `Gruppe ${view}`;
+        if (!games.some(m => m.key === selected)) selected = games[0]?.key;
+        $('matchListHeading').textContent = view === 'final' ? 'Platzierung & Finale' : roundRobin() ? 'Jeder gegen jeden' : `Gruppe ${view}`;
         $('matchList').innerHTML = games.map(m => {
             const r = event.results[m.key];
             const winner = !r ? 0 : m.stage === 'final' && r.winner ? Number(r.winner) : r.score1 > r.score2 ? 1 : r.score2 > r.score1 ? 2 : 0;
@@ -100,34 +108,52 @@
         } catch (error) { failure(error, 'entryMessage'); }
         finally { busy = false; $('saveBtn').disabled = event.status === 'completed'; $('deleteBtn').disabled = false; $('resultForm').querySelectorAll('input,select').forEach(input => input.disabled = event.status === 'completed'); }
     }
-    function tableHTML(group) {
-        return `<div class="table-wrap"><table class="standings-table"><colgroup><col class="col-rank"><col class="col-player"><col class="col-played"><col class="col-points"><col class="col-balls"><col class="col-innings"><col class="col-gd"><col class="col-high"></colgroup><thead><tr><th>Pl.</th><th>Spieler</th><th class="number">Sp.</th><th class="number">PP</th><th class="number">Bälle</th><th class="number">Aufn.</th><th class="number">GD</th><th class="number">HS</th></tr></thead><tbody>${event.standings[group].map(r => `<tr><td>${r.rank}${!event.archived_ranking && r.tied && r.played === 3 ? '*' : ''}</td><td>${esc(name(r.seed))}</td><td class="number">${r.played}</td><td class="number">${r.points}</td><td class="number">${r.balls}</td><td class="number">${r.innings}</td><td class="number">${gd(r.balls,r.innings)}</td><td class="number">${r.high}</td></tr>`).join('')}</tbody></table></div>`;
+    function statsTable(rows) {
+        return `<div class="table-wrap"><table class="standings-table"><colgroup><col class="col-rank"><col class="col-player"><col class="col-played"><col class="col-points"><col class="col-balls"><col class="col-innings"><col class="col-gd"><col class="col-high"></colgroup><thead><tr><th>Pl.</th><th>Spieler</th><th class="number">Sp.</th><th class="number">PP</th><th class="number">Bälle</th><th class="number">Aufn.</th><th class="number">GD</th><th class="number">HS</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.rank}${r.tied ? '*' : ''}</td><td>${esc(name(r.seed))}</td><td class="number">${r.played}</td><td class="number">${r.points}</td><td class="number">${r.balls}</td><td class="number">${r.innings}</td><td class="number">${gd(r.balls,r.innings)}</td><td class="number">${r.high}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+    function groupRows(group) {
+        const stats=event.standings[group];
+        return stats.map(r=>({...r,tied:!event.archived_ranking && r.tied && r.played===stats.length-1}));
     }
     function renderStandings() {
-        $('groupStandings').innerHTML = ['A','B'].map(group => {
-            const stats = event.standings[group];
-            const fullTie = !event.archived_ranking && stats.every(s => s.played === 3) && stats.some(s => s.tied);
-            return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2></div>${tableHTML(group)}${fullTie ? '<p class="form-content muted">* Partiepunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
+        $('finalRoundPanel').hidden=roundRobin();
+        $('finalStandingsHeading').textContent=roundRobin() ? 'Tabelle' : 'Endplatzierungen';
+        if(roundRobin()) {
+            $('groupStandings').innerHTML='';
+            $('finalStandings').innerHTML=statsTable(groupRows('A'));
+            return;
+        }
+        $('groupStandings').innerHTML=groups().map(group=>{
+            const rows=groupRows(group);
+            const fullTie=rows.some(r=>r.tied) && rows.every(r=>r.played===rows.length-1);
+            return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2></div>${statsTable(rows)}${fullTie ? '<p class="form-content muted">* Partiepunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
         }).join('');
-        const totals = new Map(event.snapshot.participants.map(p => [p.seed,{points:0,innings:0,high:0,played:0,matchPoints:0}]));
-        const finalRoundTotals = new Map(event.snapshot.participants.map(p => [p.seed,{points:0,innings:0,high:0,played:0,matchPoints:0}]));
-        for (const match of event.schedule) {
-            const r=event.results[match.key]; if (!r || !match.ready) continue;
-            for (const side of [1,2]) { const t=totals.get(match[`seed${side}`]); t.played++;t.matchPoints+=match.stage==='final' ? (Number(r.winner)===side ? 2 : 0) : (r.score1===r.score2 ? 1 : ((r.score1>r.score2)===(side===1) ? 2 : 0));t.points+=r[`score${side}`];t.innings+=r[`innings${side}`];t.high=Math.max(t.high,r[`high${side}`]);
-                if(match.stage==='final') { const f=finalRoundTotals.get(match[`seed${side}`]);f.played++;f.matchPoints+=Number(r.winner)===side ? 2 : 0;f.points+=r[`score${side}`];f.innings+=r[`innings${side}`];f.high=Math.max(f.high,r[`high${side}`]); }
+        const empty=()=>({points:0,balls:0,innings:0,high:0,played:0});
+        const totals=new Map(event.snapshot.participants.map(p=>[p.seed,empty()]));
+        const finalTotals=new Map(event.snapshot.participants.map(p=>[p.seed,empty()]));
+        for(const match of event.schedule) {
+            const r=event.results[match.key];if(!r || !match.ready)continue;
+            for(const side of [1,2]) {
+                const pp=match.stage==='final' ? (Number(r.winner)===side ? 2 : 0) : (r.score1===r.score2 ? 1 : ((r.score1>r.score2)===(side===1) ? 2 : 0));
+                for(const map of (match.stage==='final' ? [totals,finalTotals] : [totals])) {
+                    const t=map.get(match[`seed${side}`]);t.played++;t.points+=pp;t.balls+=r[`score${side}`];t.innings+=r[`innings${side}`];t.high=Math.max(t.high,r[`high${side}`]);
+                }
             }
         }
-        const ranks = [];
-        for (const [key,first] of [['F',1],['P3',3],['P5',5],['P7',7]]) {
+        const ranks=[];
+        for(const [key,first] of [['F',1],['P3',3],['P5',5],['P7',7]]) {
             const match=event.schedule.find(m=>m.key===key),r=event.results[key];
-            if(r && match.ready){ranks.push({rank:first,seed:match[`seed${r.winner}`]},{rank:first+1,seed:match[`seed${r.winner===1?2:1}`]});}
+            if(r && match?.ready)ranks.push({rank:first,seed:match[`seed${r.winner}`]},{rank:first+1,seed:match[`seed${Number(r.winner)===1?2:1}`]});
+        }
+        if(event.snapshot.selectedModeCode==='T10' && event.schedule.find(m=>m.key==='HF1')?.ready) {
+            ranks.push({rank:7,seed:event.standings.B[3].seed});
         }
         ranks.sort((a,b)=>a.rank-b.rank);
-        const finalRoundSeeds = new Set(event.schedule.filter(m=>m.stage==='final' && m.ready).flatMap(m=>[m.seed1,m.seed2]));
-        const finalRoundPlayers = [...finalRoundSeeds].map(seed=>({seed,rank:ranks.find(r=>r.seed===seed)?.rank ?? '—'}))
+        const finalSeeds=new Set(event.schedule.filter(m=>m.stage==='final' && m.ready).flatMap(m=>[m.seed1,m.seed2]));
+        const finalRows=[...finalSeeds].map(seed=>({seed,rank:ranks.find(r=>r.seed===seed)?.rank ?? '—',...finalTotals.get(seed)}))
             .sort((a,b)=>(typeof a.rank==='number' ? a.rank : 99)-(typeof b.rank==='number' ? b.rank : 99) || a.seed-b.seed);
-        $('finalRoundStandings').innerHTML = finalRoundPlayers.length ? `<div class="table-wrap"><table class="standings-table"><colgroup><col class="col-rank"><col class="col-player"><col class="col-played"><col class="col-points"><col class="col-balls"><col class="col-innings"><col class="col-gd"><col class="col-high"></colgroup><thead><tr><th>Pl.</th><th>Spieler</th><th class="number">Sp.</th><th class="number">PP</th><th class="number">Bälle</th><th class="number">Aufn.</th><th class="number">GD</th><th class="number">HS</th></tr></thead><tbody>${finalRoundPlayers.map(r=>{const t=finalRoundTotals.get(r.seed);return `<tr><td>${r.rank}</td><td>${esc(name(r.seed))}</td><td class="number">${t.played}</td><td class="number">${t.matchPoints}</td><td class="number">${t.points}</td><td class="number">${t.innings}</td><td class="number">${gd(t.points,t.innings)}</td><td class="number">${t.high}</td></tr>`;}).join('')}</tbody></table></div>` : '<p class="form-content">Die Endrunde steht nach Abschluss der Gruppenspiele fest.</p>';
-        $('finalStandings').innerHTML = ranks.length ? `<div class="table-wrap"><table class="standings-table"><colgroup><col class="col-rank"><col class="col-player"><col class="col-played"><col class="col-points"><col class="col-balls"><col class="col-innings"><col class="col-gd"><col class="col-high"></colgroup><thead><tr><th>Pl.</th><th>Spieler</th><th class="number">Sp.</th><th class="number">PP</th><th class="number">Bälle</th><th class="number">Aufn.</th><th class="number">GD</th><th class="number">HS</th></tr></thead><tbody>${ranks.map(r=>{const t=totals.get(r.seed);return `<tr><td>${r.rank}</td><td>${esc(name(r.seed))}</td><td class="number">${t.played}</td><td class="number">${t.matchPoints}</td><td class="number">${t.points}</td><td class="number">${t.innings}</td><td class="number">${gd(t.points,t.innings)}</td><td class="number">${t.high}</td></tr>`;}).join('')}</tbody></table></div>` : '<p class="form-content">Die Endplatzierungen stehen nach den jeweiligen Final- und Platzierungsspielen fest.</p>';
+        $('finalRoundStandings').innerHTML=finalRows.length ? statsTable(finalRows) : '<p class="form-content">Die Endrunde steht nach Abschluss der Gruppenspiele fest.</p>';
+        $('finalStandings').innerHTML=ranks.length ? statsTable(ranks.map(r=>({...r,...totals.get(r.seed)}))) : '<p class="form-content">Die Endplatzierungen stehen nach den jeweiligen Final- und Platzierungsspielen fest.</p>';
     }
     function renderMembers() {
         $('membersList').innerHTML = event.members.length ? event.members.map(m=>`<div class="member-row"><span>${esc(m.email)}</span><button type="button" data-revoke="${esc(m.user_id)}">Zugang entziehen</button></div>`).join('') : '<p class="muted">Noch keine weiteren Personen zugeordnet.</p>';
@@ -146,9 +172,9 @@
         if (params.get('zugang') === '1') $('passwordSection').hidden = false;
         if (!eventId) {
             $('listView').hidden=false;
-            const {data,error}=await supabaseClient.from('result_events').select('id,title,event_date,status,updated_at').order('updated_at',{ascending:false});
+            const {data,error}=await supabaseClient.from('result_events').select('id,title,event_date,status,updated_at,snapshot').order('updated_at',{ascending:false});
             if(error)throw error;
-            $('eventList').innerHTML=(data||[]).map(e=>`<a class="event-link" href="turnier_ergebnisse.html?turnier=${encodeURIComponent(e.id)}"><strong>${esc(e.title)}</strong><span>${esc(e.event_date)} · T15 · ${e.status==='completed'?'Abgeschlossen':'Erfassung offen'}</span></a>`).join('')||'<p>Für dein Konto ist noch kein Turnier freigegeben.</p>';
+            $('eventList').innerHTML=(data||[]).map(e=>`<a class="event-link" href="turnier_ergebnisse.html?turnier=${encodeURIComponent(e.id)}"><strong>${esc(e.title)}</strong><span>${esc(e.event_date)} · ${esc(e.snapshot.selectedModeCode)} · ${e.status==='completed'?'Abgeschlossen':'Erfassung offen'}</span></a>`).join('')||'<p>Für dein Konto ist noch kein Turnier freigegeben.</p>';
             return;
         }
         await load(); $('eventView').hidden=false;
@@ -199,7 +225,7 @@
                 const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
                 const link=document.createElement('a');
                 link.href=url;
-                link.download=`${(saved.title || 'T15').replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g,'_')}_Ergebnisse.csv`;
+                link.download=`${(saved.title || 'Turnier').replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g,'_')}_Ergebnisse.csv`;
                 document.body.appendChild(link);link.click();link.remove();
                 setTimeout(()=>URL.revokeObjectURL(url),1000);
                 notice(`CSV mit ${Object.keys(saved.results).length} gespeicherten Partien exportiert.${dirty ? ' Deine ungespeicherte Eingabe ist nicht enthalten.' : ''}`);

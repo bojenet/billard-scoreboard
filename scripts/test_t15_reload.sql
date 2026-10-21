@@ -19,7 +19,7 @@ do $$declare invitation jsonb;eid uuid;v integer:=1;state jsonb;begin
  if state->>'title'<>'After' or state->'snapshot'->'participants'->0->>'name'<>'Replacement' or state->>'version'<>'2' then raise exception 'Snapshot not refreshed';end if;
  perform pg_temp.expect_reload_error(format('select public.refresh_t15_event_data(%L,%L,1)',eid,invitation),'VERSION_CONFLICT');
  perform pg_temp.expect_reload_error(format('select public.refresh_t15_event_data(%L,%L,%s)',eid,jsonb_set(invitation,'{sourceUrl}','"https://example.invalid/other"'),v),'Quelle');
- perform pg_temp.expect_reload_error(format('select public.refresh_t15_event_data(%L,%L,%s)',eid,jsonb_set(invitation,'{participants}','[]'),v),'acht');
+ perform pg_temp.expect_reload_error(format('select public.refresh_t15_event_data(%L,%L,%s)',eid,jsonb_set(invitation,'{participants}','[]'),v),'8 Teilnehmer');
  perform public.grant_t15_access(eid,'t15-reload-editor@example.invalid');
  perform set_config('request.jwt.claim.sub','f3150000-0000-4000-8000-000000000012',true);
  perform pg_temp.expect_reload_error(format('select public.refresh_t15_event_data(%L,%L,%s)',eid,invitation,v),'Turnierleitung');

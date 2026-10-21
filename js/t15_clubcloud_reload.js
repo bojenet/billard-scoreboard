@@ -1,8 +1,11 @@
 (function(root){
     'use strict';
+    const modes=typeof module!=='undefined' && module.exports ? require('./result_modes.js') : root.ResultModes;
     const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').replace(/\bdr\.\s*/gi,'').replace(/[^a-z0-9]+/gi,' ').trim().toLowerCase();
     function prepare(event, fresh, passNumbers) {
-        if (!fresh?.title || !Array.isArray(fresh.participants) || fresh.participants.length !== 8) throw new Error('Die ClubCloud muss genau acht Teilnehmer für T15 liefern.');
+        const code=event.snapshot.selectedModeCode || 'T15',mode=modes.get(code);
+        if(!mode)throw new Error('Dieser Turniermodus wird noch nicht unterstützt.');
+        if (!fresh?.title || !Array.isArray(fresh.participants) || fresh.participants.length !== mode.count) throw new Error(`Die ClubCloud muss genau ${mode.count} Teilnehmer für ${code} liefern.`);
         const variants = name => {
             const parts=String(name || '').split(',');
             return [normalize(name), ...(parts.length===2 ? [normalize(`${parts[1]} ${parts[0]}`)] : [])];
@@ -15,7 +18,7 @@
         const seeds=new Set();
         const participants=fresh.participants.map((p,i)=>{
             const seed=Number(p.number || i+1);
-            if(!Number.isInteger(seed) || seed<1 || seed>8 || seeds.has(seed) || !String(p.name || '').trim())throw new Error('Die geladene Setzliste ist unvollständig oder enthält doppelte Plätze.');
+            if(!Number.isInteger(seed) || seed<1 || seed>mode.count || seeds.has(seed) || !String(p.name || '').trim())throw new Error('Die geladene Setzliste ist unvollständig oder enthält doppelte Plätze.');
             seeds.add(seed);
             const old=event.snapshot.participants.filter(previous=>normalize(previous.name)===normalize(p.name) && normalize(previous.club)===normalize(p.club));
             const matches=new Set(variants(p.name).flatMap(key=>[...(index.get(key) || [])]));
@@ -24,7 +27,7 @@
         }).sort((a,b)=>a.seed-b.seed);
         return {...event.snapshot,...fresh,sourceUrl:event.source_url,eventId:event.source_event_id,
             date:fresh.date || event.event_date,startTime:fresh.startTime || event.snapshot.startTime || '',
-            selectedModeCode:'T15',playingTargetPoints:event.snapshot.playingTargetPoints,playingTargetInnings:event.snapshot.playingTargetInnings,participants};
+            selectedModeCode:code,playingTargetPoints:event.snapshot.playingTargetPoints,playingTargetInnings:event.snapshot.playingTargetInnings,participants};
     }
     if(typeof module!=='undefined' && module.exports)module.exports={prepare};else root.T15ClubCloudReload={prepare};
 })(typeof globalThis!=='undefined' ? globalThis : this);

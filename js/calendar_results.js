@@ -1,18 +1,19 @@
-// Calendar integration for the private T15 result area only.
+// Calendar integration for the private tournament result area.
 function validateT15ResultInvitation(invitation) {
-    if (invitation?.selectedModeCode !== 'T15') return;
-    if (!Array.isArray(invitation.participants) || invitation.participants.length !== 8 || invitation.participants.some(p => !String(p.name || '').trim())) {
-        throw new Error('Für T15 müssen acht Teilnehmer mit Namen feststehen.');
+    if (!ResultModes.supports(invitation?.selectedModeCode)) return;
+    const mode=ResultModes.get(invitation.selectedModeCode);
+    if (!Array.isArray(invitation.participants) || invitation.participants.length !== mode.count || invitation.participants.some(p => !String(p.name || '').trim())) {
+        throw new Error(`Für ${invitation.selectedModeCode} müssen ${mode.count} Teilnehmer mit Namen feststehen.`);
     }
     for (const field of ['playingTargetPoints','playingTargetInnings']) {
-        if (!/^\d+$/.test(String(invitation[field] || '')) || Number(invitation[field]) < 1) throw new Error('Für die T15-Erfassung werden Punkte und Aufnahmen als positive ganze Zahlen benötigt.');
+        if (!/^\d+$/.test(String(invitation[field] || '')) || Number(invitation[field]) < 1) throw new Error('Für die Ergebniserfassung werden Punkte und Aufnahmen als positive ganze Zahlen benötigt.');
     }
     const seeds = invitation.participants.map((p,i) => Number(p.number || i + 1));
-    if (new Set(seeds).size !== 8 || seeds.some(n => !Number.isInteger(n) || n < 1 || n > 8)) throw new Error('Die T15-Setzliste benötigt die Plätze 1 bis 8 genau einmal.');
+    if (new Set(seeds).size !== mode.count || seeds.some(n => !Number.isInteger(n) || n < 1 || n > mode.count)) throw new Error(`Die Setzliste benötigt die Plätze 1 bis ${mode.count} genau einmal.`);
 }
 
 async function persistInvitationForResults(invitation) {
-    if (invitation?.selectedModeCode !== 'T15') return;
+    if (!ResultModes.supports(invitation?.selectedModeCode)) return;
     validateT15ResultInvitation(invitation);
     const { error } = await supabaseClient.from('calendar_invitation_drafts').upsert({
         source_url: invitation.sourceUrl,
@@ -24,7 +25,7 @@ async function persistInvitationForResults(invitation) {
 }
 
 async function ensureT15ResultEvent(invitation) {
-    if (invitation?.selectedModeCode !== 'T15') return null;
+    if (!ResultModes.supports(invitation?.selectedModeCode)) return null;
     const { data, error } = await supabaseClient.rpc('create_t15_result_event', { p_invitation: invitation });
     if (error) throw error;
     return data;
@@ -46,7 +47,7 @@ async function openCalendarResultEntry(eventId) {
                 invitation = draft?.invitation;
             }
             if (!invitation) throw new Error('Bitte zuerst die Einladung vorbereiten und versenden.');
-            if (invitation.selectedModeCode !== 'T15') throw new Error('Die private Ergebniserfassung ist zunächst für Modus T15 verfügbar.');
+            if (!ResultModes.supports(invitation.selectedModeCode)) throw new Error('Ergebniserfassung verfügbar für T3, T4/T5, T7/T8, T11/T12, T10 und T15.');
             validateT15ResultInvitation(invitation);
             id = await ensureT15ResultEvent(invitation);
         }
