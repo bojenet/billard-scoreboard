@@ -64,7 +64,7 @@
         if (!match.ready) return;
         $('playerInputs').innerHTML = [1,2].map(side => {
             const p = player(match[`seed${side}`]);
-            return `<div class="player-input"><div class="player-name">${esc(p.name)}</div><div class="player-club">${esc(p.club || '')}${p.passNo ? ` · Pass-Nr. ${esc(p.passNo)}` : ''}</div><div class="fields">${[['score','Bälle',0,event.snapshot.playingTargetPoints],['innings','Aufnahmen',1,event.snapshot.playingTargetInnings],['high','HS',0,event.snapshot.playingTargetPoints]].map(([key,label,min,max]) => `<label for="${key}${side}">${label}<input id="${key}${side}" type="number" inputmode="numeric" min="${min}" max="${Number(max)}" step="1" required value="${result?.[key + side] ?? ''}" ${event.status === 'completed' ? 'disabled' : ''}></label>`).join('')}</div></div>`;
+            return `<div class="player-input"><div class="player-name">${esc(p.name)}</div><div class="fields">${[['score','Bälle',0,event.snapshot.playingTargetPoints],['innings','Aufnahmen',1,event.snapshot.playingTargetInnings],['high','HS',0,event.snapshot.playingTargetPoints]].map(([key,label,min,max]) => `<label for="${key}${side}">${label}<input id="${key}${side}" type="number" inputmode="numeric" min="${min}" max="${Number(max)}" step="1" required value="${result?.[key + side] ?? ''}" ${event.status === 'completed' ? 'disabled' : ''}></label>`).join('')}</div></div>`;
         }).join('');
         $('winnerSelect').innerHTML = '<option value="">Sieger nach Entscheid wählen</option>' + [1,2].map(side => `<option value="${side}">${esc(name(match[`seed${side}`]))}</option>`).join('');
         $('winnerSelect').value = result?.winner || '';
