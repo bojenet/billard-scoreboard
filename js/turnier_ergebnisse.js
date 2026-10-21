@@ -110,10 +110,10 @@
             const fullTie = !event.archived_ranking && stats.every(s => s.played === 3) && stats.some(s => s.tied);
             return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2><span class="muted">${event.archived_ranking ? 'Archivierte bisherige Wertung' : 'Matchpunkte → GD → HS'}</span></div>${tableHTML(group)}${fullTie ? '<p class="form-content muted">* Matchpunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
         }).join('');
-        const totals = new Map(event.snapshot.participants.map(p => [p.seed,{points:0,innings:0,high:0}]));
+        const totals = new Map(event.snapshot.participants.map(p => [p.seed,{points:0,innings:0,high:0,played:0,matchPoints:0}]));
         for (const match of event.schedule) {
             const r=event.results[match.key]; if (!r || !match.ready) continue;
-            for (const side of [1,2]) { const t=totals.get(match[`seed${side}`]); t.points+=r[`score${side}`];t.innings+=r[`innings${side}`];t.high=Math.max(t.high,r[`high${side}`]); }
+            for (const side of [1,2]) { const t=totals.get(match[`seed${side}`]); t.played++;t.matchPoints+=match.stage==='final' ? (Number(r.winner)===side ? 2 : 0) : (r.score1===r.score2 ? 1 : ((r.score1>r.score2)===(side===1) ? 2 : 0));t.points+=r[`score${side}`];t.innings+=r[`innings${side}`];t.high=Math.max(t.high,r[`high${side}`]); }
         }
         const ranks = [];
         for (const [key,first] of [['F',1],['P3',3],['P5',5],['P7',7]]) {
@@ -121,7 +121,7 @@
             if(r && match.ready){ranks.push({rank:first,seed:match[`seed${r.winner}`]},{rank:first+1,seed:match[`seed${r.winner===1?2:1}`]});}
         }
         ranks.sort((a,b)=>a.rank-b.rank);
-        $('finalStandings').innerHTML = ranks.length ? `<div class="table-wrap"><table><thead><tr><th>Platz</th><th>Spieler</th><th>Pass-Nr.</th><th class="number">Bälle</th><th class="number">Aufn.</th><th class="number">GD</th><th class="number">HS</th></tr></thead><tbody>${ranks.map(r=>{const t=totals.get(r.seed);return `<tr><td>${r.rank}</td><td>${esc(name(r.seed))}</td><td>${esc(player(r.seed).passNo || '')}</td><td class="number">${t.points}</td><td class="number">${t.innings}</td><td class="number">${gd(t.points,t.innings)}</td><td class="number">${t.high}</td></tr>`;}).join('')}</tbody></table></div>` : '<p>Die Endplatzierungen stehen nach den jeweiligen Final- und Platzierungsspielen fest.</p>';
+        $('finalStandings').innerHTML = ranks.length ? `<div class="table-wrap"><table><thead><tr><th>Pl.</th><th>Spieler</th><th class="number">Sp.</th><th class="number">PP</th><th class="number">Bälle</th><th class="number">Aufn.</th><th class="number">GD</th><th class="number">HS</th></tr></thead><tbody>${ranks.map(r=>{const t=totals.get(r.seed);return `<tr><td>${r.rank}</td><td>${esc(name(r.seed))}</td><td class="number">${t.played}</td><td class="number">${t.matchPoints}</td><td class="number">${t.points}</td><td class="number">${t.innings}</td><td class="number">${gd(t.points,t.innings)}</td><td class="number">${t.high}</td></tr>`;}).join('')}</tbody></table></div>` : '<p>Die Endplatzierungen stehen nach den jeweiligen Final- und Platzierungsspielen fest.</p>';
     }
     function renderMembers() {
         $('membersList').innerHTML = event.members.length ? event.members.map(m=>`<div class="member-row"><span>${esc(m.email)}</span><button type="button" data-revoke="${esc(m.user_id)}">Zugang entziehen</button></div>`).join('') : '<p class="muted">Noch keine weiteren Personen zugeordnet.</p>';
