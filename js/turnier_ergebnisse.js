@@ -159,7 +159,6 @@
         $('resultForm').oninput=()=>{dirty=true;updateWinnerSelection();};
         $('resultForm').onsubmit=e=>{e.preventDefault();const result={};for(const side of [1,2])for(const field of ['score','innings','high'])result[field+side]=Number($(field+side).value);if(!$('winnerField').hidden)result.winner=Number($('winnerSelect').value);submitResult(result);};
         $('deleteBtn').onclick=()=>{if(confirm('Dieses Ergebnis löschen?'))submitResult(null);};
-        $('reloadBtn').onclick=async()=>{if(busy||!canLeave())return;try{await load();notice();}catch(error){failure(error);}};
         $('reloadClubCloudBtn').onclick=async()=>{
             if(busy || !event.can_reload || !canLeave())return;
             busy=true;$('reloadClubCloudBtn').disabled=true;
