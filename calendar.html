@@ -1455,6 +1455,12 @@
                 <div class="editor-section">
                     <h3>E-Mail Versand</h3>
                     <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;">
+                        <input id="invitationEditorResultEntry" type="checkbox" style="width:auto;min-height:0;" onchange="updateInvitationDraftField('enableResultEntry', this.checked)">
+                        <span>Turnier zur Ergebniserfassung anlegen</span>
+                    </label>
+                    <p id="invitationResultModeHint" class="admin-settings-meta" hidden>Ergebniserfassung für diesen Modus noch nicht verfügbar.</p>
+                    <p id="invitationResultLink" class="admin-settings-meta" hidden></p>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;">
                         <input id="invitationEditorEmailUpdate" type="checkbox" style="width:auto;min-height:0;" onchange="updateInvitationDraftField('emailUpdate', this.checked)">
                         <span>Als Update versenden – Betreff beginnt mit „UPDATE:“</span>
                     </label>
@@ -1476,8 +1482,6 @@
                 <button id="invitationEditorSaveButton" class="btn btn-save" type="button" onclick="saveInvitationDraft()">Entwurf speichern</button>
                 <button class="btn btn-secondary" type="button" onclick="generateInvitationPdfFromEditor()">PDF erstellen</button>
                 <button class="btn btn-secondary" type="button" onclick="sendInvitationPdfFromEditor()">Einladung versenden</button>
-                <button class="btn btn-secondary" type="button" onclick="generateResultWorkbookFromEditor()">Excel Ergebnisformular</button>
-                <button class="btn btn-secondary" type="button" onclick="openCalendarResultEntry()">Ergebnisse erfassen</button>
                 <button class="btn btn-secondary" type="button" onclick="closeInvitationEditorModal()">Schließen</button>
             </div>
             <div id="invitationEditorMessage" class="modal-message"></div>
@@ -1495,7 +1499,7 @@
     <script src="js/tournament_access.js"></script>
     <script src="js/user_menu.js"></script>
     <script src="js/result_modes.js"></script>
-    <script src="js/calendar_results.js"></script>
+    <script src="js/calendar_results.js?v=20261021-invitation"></script>
     <script>
         const CALENDAR_MANUAL_STORAGE_KEY = "standalone_calendar_manual_v1";
         const CALENDAR_FILTER_STORAGE_KEY = "standalone_calendar_filter_v1";
@@ -4712,6 +4716,7 @@
                 applyInvitationPlayingTarget(getInvitationPlayingTarget(currentInvitationDraft));
             }
             renderInvitationEditor();
+            void renderInvitationResultEntry(currentInvitationDraft);
             const modal = document.getElementById("invitationEditorModal");
             if (modal) modal.classList.add("open");
         }
@@ -4807,6 +4812,7 @@
                 return `<option value="${escapeHtml(code)}"${code === selected ? " selected" : ""}>${escapeHtml(formatInvitationModeDisplayText(`${code} - ${mode.title}${participantLabel}`))}</option>`;
             }).join("");
             renderInvitationModeInfo();
+            updateInvitationResultOption();
         }
 
         function renderInvitationModeInfo() {
@@ -5570,13 +5576,11 @@
                 if (!data?.ok) throw new Error(data?.error || "Die Einladung konnte nicht versendet werden.");
                 const sendLabel = invitation.emailUpdate === true ? "Update-Einladung" : "Einladung";
                 setModalMessage("invitationEditorMessage", `${sendLabel} wurde an ${data.recipientCount || recipientStats.activeCount} Empfänger versendet.`, "ok");
-                if (ResultModes.supports(invitation.selectedModeCode)) {
-                    try {
-                        await ensureT15ResultEvent(invitation);
-                        setModalMessage("invitationEditorMessage", `${sendLabel} versendet. Die private Erfassungsseite ist bereit – „Ergebnisse erfassen“ öffnen.`, "ok");
-                    } catch (resultError) {
-                        setModalMessage("invitationEditorMessage", `${sendLabel} wurde versendet. Die Ergebniserfassung konnte noch nicht angelegt werden: ${getErrorMessage(resultError, "Unbekannter Fehler")}. Bitte „Ergebnisse erfassen“ erneut versuchen; die Einladung nicht erneut versenden.`, "error");
-                    }
+                const resultOutcome=await readInvitationResultOutcome(directInvitation.id);
+                await renderInvitationResultEntry(currentInvitationDraft);
+                if(invitation.enableResultEntry===true){
+                    if(resultOutcome?.status==='created' || resultOutcome?.status==='updated')setModalMessage('invitationEditorMessage',`${sendLabel} versendet. Turnier zur Ergebniserfassung ${resultOutcome.status==='created'?'angelegt':'aktualisiert'}. Der Link steht im Entwurf.`,'ok');
+                    else setModalMessage('invitationEditorMessage',`${sendLabel} wurde versendet. ${resultOutcome?.message || 'Die Anlage der Ergebniserfassung konnte noch nicht bestätigt werden. Bitte den Stand prüfen; die Einladung nicht erneut versenden.'}`,'error');
                 }
             } catch (error) {
                 console.warn("Einladung konnte nicht versendet werden:", error);
@@ -5597,6 +5601,7 @@
                 link: invitation.sourceUrl || invitation.link || "",
                 isUpdate: invitation.emailUpdate === true,
                 extraNotes: invitation.extraNotes || "",
+                resultInvitation: invitation,
                 pdfFilename: getInvitationPdfFilename(invitation),
                 pdfBase64
             };
@@ -5692,6 +5697,7 @@
                 if (!invitation?.title) {
                     throw new Error("Die NBV-Seite konnte nicht als Turniereinladung gelesen werden.");
                 }
+                if(reloadFromTournament)invitation.enableResultEntry=currentInvitationDraft?.enableResultEntry===true;
                 invitation.eventId = event.id || "";
                 invitation.sourceUrl = event.link || "";
                 invitation.link = event.link || "";

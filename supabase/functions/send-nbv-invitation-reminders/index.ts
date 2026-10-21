@@ -80,6 +80,7 @@ type RequestPayload = {
     extraNotes?: string;
     pdfFilename?: string;
     pdfBase64?: string;
+    resultInvitation?: Record<string, unknown>;
   };
 };
 
@@ -996,6 +997,8 @@ Deno.serve(async (request) => {
             link: reminder.link,
             message_text: reminder.message_text,
             status: "open",
+            result_invitation_snapshot: directInvitation.resultInvitation || null,
+            result_sync_outcome: null,
             updated_at: new Date().toISOString(),
           });
         if (directReminderError) throw directReminderError;
@@ -1025,7 +1028,7 @@ Deno.serve(async (request) => {
             status: "sent",
             message_id: info.messageId || "",
           });
-        await adminClient
+        const {error: sentStatusError}=await adminClient
           .from("calendar_club_reminders")
           .update({
             status: "sent",
@@ -1034,6 +1037,7 @@ Deno.serve(async (request) => {
             updated_at: new Date().toISOString(),
           })
           .eq("id", reminder.id);
+        if(sentStatusError)return jsonResponse({ok:true,direct:true,recipientCount:uniqueEmails.length,messageId:info.messageId || "",resultSyncWarning:"E-Mail versendet; Versandstatus konnte nicht gespeichert werden."});
       }
       return jsonResponse({ ok: true, direct: true, testEmail: isTestEmail ? testEmail : undefined, recipientCount: uniqueEmails.length, messageId: info.messageId || "" });
     }
@@ -1070,6 +1074,9 @@ Deno.serve(async (request) => {
     for (const reminder of reminders) {
       const subject = `${isTestEmail ? "[TEST] " : ""}${buildSubject(reminder)}`;
       try {
+        const {data: resultDraft,error: resultDraftError}=await adminClient.from("calendar_invitation_drafts").select("invitation").eq("source_url",reminder.link || "").maybeSingle();
+        if(resultDraftError)throw resultDraftError;
+        const resultSnapshot=resultDraft?.invitation || null;
         const pdfBytes = await buildInvitationPdf(reminder);
         const info = await transporter.sendMail({
           from: mailFrom,
@@ -1104,6 +1111,8 @@ Deno.serve(async (request) => {
               status: "sent",
               sent_at: new Date().toISOString(),
               sent_by_name: "Automatischer E-Mail-Versand",
+              result_invitation_snapshot: resultSnapshot,
+              result_sync_outcome: null,
               updated_at: new Date().toISOString(),
             })
             .eq("id", reminder.id);

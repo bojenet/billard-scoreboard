@@ -16,7 +16,7 @@ select set_config('request.jwt.claim.sub','f3150000-0000-4000-8000-000000000001'
 do $$
 declare invitation jsonb; eid uuid; g jsonb; r jsonb; v integer:=1; state jsonb;
 begin
- select jsonb_build_object('selectedModeCode','T15','sourceUrl','https://example.invalid/t15-test','eventId','t15-test','title','T15 Test','discipline','Dreiband','playingTargetPoints','25','playingTargetInnings','40','participants',jsonb_agg(jsonb_build_object('number',i::text,'name','Spieler '||i,'passNo','test-'||i,'club','Testverein'))) into invitation from generate_series(1,8) i;
+ select jsonb_build_object('selectedModeCode','T15','enableResultEntry',true,'sourceUrl','https://example.invalid/t15-test','eventId','t15-test','title','T15 Test','discipline','Dreiband','playingTargetPoints','25','playingTargetInnings','40','participants',jsonb_agg(jsonb_build_object('number',i::text,'name','Spieler '||i,'passNo','test-'||i,'club','Testverein'))) into invitation from generate_series(1,8) i;
  perform pg_temp.expect_t15_error(format('select public.create_t15_result_event(%L::jsonb)',invitation),'zuerst die Einladung');
  eid:=public.result_create_internal(invitation,auth.uid());insert into test_t15_ids values(eid);
  if public.result_create_internal(invitation,auth.uid())<>eid then raise exception 'Duplicate event';end if;
@@ -51,22 +51,22 @@ begin
  if (select count(*) from public.result_event_history where event_id=eid)<20 then raise exception 'Missing audit history';end if;
  perform public.grant_t15_access(eid,'t15-editor@example.invalid');
 end $$;
--- A successful invitation send creates one frozen result event, never duplicates.
+-- A checked successful invitation send creates one result event; sent updates refresh it before entry.
 do $$
 declare invitation jsonb; eid uuid; frozen jsonb;
 begin
  select snapshot||jsonb_build_object('sourceUrl','https://example.invalid/t15-send-test','eventId','t15-send-test') into invitation from public.result_events where source_url='https://example.invalid/t15-test';
  insert into public.calendar_invitation_drafts(source_url,invitation,updated_by) values('https://example.invalid/t15-send-test',invitation,'f3150000-0000-4000-8000-000000000003');
  if (select updated_by from public.calendar_invitation_drafts where source_url='https://example.invalid/t15-send-test')<>auth.uid() then raise exception 'Spoofed invitation owner accepted';end if;
- insert into public.calendar_club_reminders(id,event_id,event_date,reminder_date,days_before,title,link,status) values('t15-send-test','t15-send-test',current_date,current_date,0,'Test','https://example.invalid/t15-send-test','open');
+ insert into public.calendar_club_reminders(id,event_id,event_date,reminder_date,days_before,title,link,status,result_invitation_snapshot) values('t15-send-test','t15-send-test',current_date,current_date,0,'Test','https://example.invalid/t15-send-test','open',invitation);
  if exists(select 1 from public.result_events where source_url='https://example.invalid/t15-send-test') then raise exception 'Created before send';end if;
  update public.calendar_club_reminders set status='sent' where id='t15-send-test';
  select id,snapshot into eid,frozen from public.result_events where source_url='https://example.invalid/t15-send-test';
  if eid is null then raise exception 'Invitation send did not create T15 event';end if;
  if public.create_t15_result_event(invitation)<>eid then raise exception 'Invitation created duplicate';end if;
  update public.calendar_invitation_drafts d set invitation=jsonb_set(d.invitation,'{title}','"Changed draft"') where source_url='https://example.invalid/t15-send-test';
- update public.calendar_club_reminders set status='open' where id='t15-send-test';update public.calendar_club_reminders set status='sent' where id='t15-send-test';
- if (select snapshot from public.result_events where id=eid)<>frozen then raise exception 'Sent snapshot changed';end if;
+ update public.calendar_club_reminders set status='open',result_invitation_snapshot=(select d.invitation from public.calendar_invitation_drafts d where d.source_url='https://example.invalid/t15-send-test') where id='t15-send-test';update public.calendar_club_reminders set status='sent' where id='t15-send-test';
+ if (select snapshot->>'title' from public.result_events where id=eid)<>'Changed draft' then raise exception 'Sent update not applied';end if;
 end $$;
 insert into auth.users(id,email,raw_user_meta_data,raw_app_meta_data,created_at,updated_at) values('f3150000-0000-4000-8000-000000000004','t15-invited@example.invalid','{"result_only":true}','{}',now(),now());
 do $$begin if exists(select 1 from public.user_roles where user_id='f3150000-0000-4000-8000-000000000004' and (calendar_access<>'hidden' or tournament_access<>'hidden' or match_access<>'hidden' or role<>'member')) then raise exception 'Invited account got unrelated access';end if;end $$;

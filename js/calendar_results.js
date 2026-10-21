@@ -13,8 +13,10 @@ function validateT15ResultInvitation(invitation) {
 }
 
 async function persistInvitationForResults(invitation) {
-    if (!ResultModes.supports(invitation?.selectedModeCode)) return;
-    validateT15ResultInvitation(invitation);
+    if (invitation.enableResultEntry===true){
+        if(!ResultModes.supports(invitation.selectedModeCode))throw new Error('Ergebniserfassung für diesen Modus noch nicht verfügbar.');
+        validateT15ResultInvitation(invitation);
+    }
     const { error } = await supabaseClient.from('calendar_invitation_drafts').upsert({
         source_url: invitation.sourceUrl,
         invitation,
@@ -57,4 +59,38 @@ async function openCalendarResultEntry(eventId) {
         if (modal) setModalMessage('invitationEditorMessage', message, 'error');
         else showCalendarMessage(message, 'error');
     }
+}
+
+
+function updateInvitationResultOption() {
+    if(!currentInvitationDraft)return;
+    const input=document.getElementById('invitationEditorResultEntry');
+    if(!input)return;
+    const supported=ResultModes.supports(currentInvitationDraft.selectedModeCode);
+    input.disabled=!supported;
+    if(!supported)currentInvitationDraft.enableResultEntry=false;
+    input.checked=currentInvitationDraft.enableResultEntry===true;
+    document.getElementById('invitationResultModeHint').hidden=supported;
+}
+async function renderInvitationResultEntry(invitation) {
+    const link=document.getElementById('invitationResultLink');
+    if(!link)return;
+    link.hidden=true;link.textContent='';
+    updateInvitationResultOption();
+    const source=invitation?.sourceUrl;if(!source)return;
+    try {
+        const {data,error}=await supabaseClient.from('result_events').select('id').eq('source_url',source).maybeSingle();
+        if(currentInvitationDraft?.sourceUrl!==source)return;
+        if(error)throw error;
+        if(!data)return;
+        const anchor=document.createElement('a');anchor.href=`turnier_ergebnisse.html?turnier=${encodeURIComponent(data.id)}`;anchor.textContent='Zum angelegten Turnier · Ergebnisse erfassen';
+        link.replaceChildren(anchor);link.hidden=false;
+        if(invitation.enableResultEntry===undefined){invitation.enableResultEntry=true;updateInvitationResultOption();}
+    }catch(error){link.textContent='Verknüpfung zur Ergebniserfassung konnte nicht geladen werden.';link.hidden=false;}
+}
+async function readInvitationResultOutcome(reminderId) {
+    try {
+        const {data,error}=await supabaseClient.from('calendar_club_reminders').select('result_sync_outcome').eq('id',reminderId).maybeSingle();
+        if(error)throw error;return data?.result_sync_outcome;
+    }catch(error){return {status:'error',message:'Der Versand war erfolgreich; der Stand der Ergebniserfassung konnte nicht geladen werden.'};}
 }

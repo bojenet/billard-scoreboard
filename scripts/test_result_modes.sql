@@ -5,10 +5,10 @@ select set_config('request.jwt.claim.sub','f3150000-0000-4000-8000-000000000021'
 do $$declare code text;cfg jsonb;n integer;expected integer;invitation jsonb;eid uuid;v integer;schedule jsonb;g jsonb;state jsonb;r jsonb;group_count integer;pair_count integer;begin
  foreach code in array array['T3','T4','T5','T7','T8','T11','T12','T10','T15'] loop
   cfg:=public.result_mode(code);n:=(cfg->>'count')::integer;expected:=case when code='T10' then 14 when code='T15' then 18 else n*(n-1)/2 end;
-  select jsonb_build_object('sourceUrl','https://example.invalid/results-mode-'||code,'selectedModeCode',code,'title',code||' Test','date','2026-10-21','playingTargetPoints','100','playingTargetInnings','20','participants',jsonb_agg(jsonb_build_object('number',i,'name','Spieler '||i,'passNo','00'||i))) into invitation from generate_series(1,n) i;
+  select jsonb_build_object('sourceUrl','https://example.invalid/results-mode-'||code,'selectedModeCode',code,'enableResultEntry',true,'title',code||' Test','date','2026-10-21','playingTargetPoints','100','playingTargetInnings','20','participants',jsonb_agg(jsonb_build_object('number',i,'name','Spieler '||i,'passNo','00'||i))) into invitation from generate_series(1,n) i;
   insert into public.calendar_invitation_drafts(source_url,invitation,updated_by) values(invitation->>'sourceUrl',invitation,auth.uid());
-  insert into public.calendar_club_reminders(id,event_id,event_date,reminder_date,days_before,title,link,status)
-  values('mode-test-'||code,'mode-test-'||code,current_date,current_date,0,code,invitation->>'sourceUrl','sent');
+  insert into public.calendar_club_reminders(id,event_id,event_date,reminder_date,days_before,title,link,status,result_invitation_snapshot)
+  values('mode-test-'||code,'mode-test-'||code,current_date,current_date,0,code,invitation->>'sourceUrl','sent',invitation);
   select id into eid from public.result_events where source_url=invitation->>'sourceUrl';
   if eid is null then raise exception '%: sent invitation did not create result event',code;end if;
   if public.result_create_internal(invitation,auth.uid())<>eid then raise exception 'Duplicate event';end if;v:=1;
