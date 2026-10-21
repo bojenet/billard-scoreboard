@@ -42,7 +42,13 @@
         $('matchListHeading').textContent = view === 'final' ? 'Platzierung & Finale' : `Gruppe ${view}`;
         $('matchList').innerHTML = games.map(m => {
             const r = event.results[m.key];
-            return `<button class="match" type="button" data-key="${m.key}" aria-pressed="${selected === m.key}"><span class="match-meta"><span>${esc(m.label)}</span><span class="${r ? 'saved' : ''}">${r ? 'Erfasst' : m.ready ? 'Offen' : 'Paarung offen'}</span></span><span class="match-pair"><span>${esc(name(m.seed1))}<br>${esc(name(m.seed2))}</span><span class="score">${r ? `${r.score1} : ${r.score2}` : '— : —'}</span></span></button>`;
+            const winner = !r ? 0 : m.stage === 'final' && r.winner ? Number(r.winner) : r.score1 > r.score2 ? 1 : r.score2 > r.score1 ? 2 : 0;
+            const rows = [1,2].map(side => {
+                const won = winner === side;
+                const points = !r ? '—' : winner ? (won ? 2 : 0) : 1;
+                return `<span class="match-player${won ? ' winner' : ''}"><span class="match-player-name">${won ? `<strong>${esc(name(m[`seed${side}`]))}</strong>` : esc(name(m[`seed${side}`]))}${won ? '<span class="result-sr-only"> · Sieger</span>' : ''}</span><span class="match-number" aria-label="Matchpunkte">${points}</span><span class="match-number" aria-label="Bälle">${r?.[`score${side}`] ?? '—'}</span><span class="match-number" aria-label="Aufnahmen">${r?.[`innings${side}`] ?? '—'}</span><span class="match-number" aria-label="Höchstserie">${r?.[`high${side}`] ?? '—'}</span></span>`;
+            }).join('');
+            return `<button class="match" type="button" data-key="${m.key}" aria-pressed="${selected === m.key}"><span class="match-meta"><span>${esc(m.label)}</span><span class="${r ? 'saved' : ''}">${r ? 'Erfasst' : m.ready ? 'Offen' : 'Paarung offen'}</span></span><span class="match-player-head" aria-hidden="true"><span>Spieler</span><abbr title="Matchpunkte">MP</abbr><span>Bälle</span><abbr title="Aufnahmen">Aufn.</abbr><abbr title="Höchstserie">HS</abbr></span>${rows}</button>`;
         }).join('');
         $('matchList').querySelectorAll('[data-key]').forEach(b => b.onclick = () => { if (busy || !canLeave()) return; dirty = false; selected = b.dataset.key; renderMatches(); if (matchMedia('(max-width:760px)').matches) $('entryPanel').scrollIntoView({ block: 'start', behavior: 'smooth' }); });
         renderEntry();
@@ -56,7 +62,7 @@
         if (!match.ready) return;
         $('playerInputs').innerHTML = [1,2].map(side => {
             const p = player(match[`seed${side}`]);
-            return `<div class="player-input"><div class="player-name">${esc(p.name)}</div><div class="player-club">${esc(p.club || '')}${p.passNo ? ` · Pass-Nr. ${esc(p.passNo)}` : ''}</div><div class="fields">${[['score','Punkte',0,event.snapshot.playingTargetPoints],['innings','Aufnahmen',1,event.snapshot.playingTargetInnings],['high','HS',0,event.snapshot.playingTargetPoints]].map(([key,label,min,max]) => `<label for="${key}${side}">${label}<input id="${key}${side}" type="number" inputmode="numeric" min="${min}" max="${Number(max)}" step="1" required value="${result?.[key + side] ?? ''}" ${event.status === 'completed' ? 'disabled' : ''}></label>`).join('')}</div></div>`;
+            return `<div class="player-input"><div class="player-name">${esc(p.name)}</div><div class="player-club">${esc(p.club || '')}${p.passNo ? ` · Pass-Nr. ${esc(p.passNo)}` : ''}</div><div class="fields">${[['score','Bälle',0,event.snapshot.playingTargetPoints],['innings','Aufnahmen',1,event.snapshot.playingTargetInnings],['high','HS',0,event.snapshot.playingTargetPoints]].map(([key,label,min,max]) => `<label for="${key}${side}">${label}<input id="${key}${side}" type="number" inputmode="numeric" min="${min}" max="${Number(max)}" step="1" required value="${result?.[key + side] ?? ''}" ${event.status === 'completed' ? 'disabled' : ''}></label>`).join('')}</div></div>`;
         }).join('');
         $('winnerSelect').innerHTML = '<option value="">Sieger nach Entscheid wählen</option>' + [1,2].map(side => `<option value="${side}">${esc(name(match[`seed${side}`]))}</option>`).join('');
         $('winnerSelect').value = result?.winner || '';
