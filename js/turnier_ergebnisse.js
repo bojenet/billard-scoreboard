@@ -153,6 +153,21 @@
         $('resultForm').onsubmit=e=>{e.preventDefault();const result={};for(const side of [1,2])for(const field of ['score','innings','high'])result[field+side]=Number($(field+side).value);if(!$('winnerField').hidden)result.winner=Number($('winnerSelect').value);submitResult(result);};
         $('deleteBtn').onclick=()=>{if(confirm('Dieses Ergebnis löschen?'))submitResult(null);};
         $('reloadBtn').onclick=async()=>{if(busy||!canLeave())return;try{await load();notice();}catch(error){failure(error);}};
+        $('exportCsvBtn').onclick=async()=>{
+            if(busy)return;
+            busy=true;$('exportCsvBtn').disabled=true;
+            try{
+                const saved=await rpc('get_t15_result_event',{p_id:eventId});
+                const csv=T15CsvExport.build(saved);
+                const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+                const link=document.createElement('a');
+                link.href=url;
+                link.download=`${(saved.title || 'T15').replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g,'_')}_Ergebnisse.csv`;
+                document.body.appendChild(link);link.click();link.remove();
+                setTimeout(()=>URL.revokeObjectURL(url),1000);
+                notice(`CSV mit ${Object.keys(saved.results).length} gespeicherten Partien exportiert.${dirty ? ' Deine ungespeicherte Eingabe ist nicht enthalten.' : ''}`);
+            }catch(error){failure(error);}finally{busy=false;$('exportCsvBtn').disabled=false;}
+        };
         $('completeBtn').onclick=async()=>{
             if(busy||!canLeave()||!confirm(event.status==='open'?'Turnier mit allen Ergebnissen abschließen?':'Turnier für Korrekturen wieder öffnen?'))return;busy=true;
             try{await rpc('set_t15_status',{p_id:eventId,p_status:event.status==='open'?'completed':'open',p_version:event.version});await load();notice('Turnierstatus gespeichert.');}catch(error){failure(error);}finally{busy=false;}
