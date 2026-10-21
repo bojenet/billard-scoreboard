@@ -1477,6 +1477,7 @@
                 <button class="btn btn-secondary" type="button" onclick="generateInvitationPdfFromEditor()">PDF erstellen</button>
                 <button class="btn btn-secondary" type="button" onclick="sendInvitationPdfFromEditor()">Einladung versenden</button>
                 <button class="btn btn-secondary" type="button" onclick="generateResultWorkbookFromEditor()">Excel Ergebnisformular</button>
+                <button class="btn btn-secondary" type="button" onclick="openCalendarResultEntry()">Ergebnisse erfassen (T15)</button>
                 <button class="btn btn-secondary" type="button" onclick="closeInvitationEditorModal()">Schließen</button>
             </div>
             <div id="invitationEditorMessage" class="modal-message"></div>
@@ -1493,6 +1494,7 @@
     <script src="js/admin_center_access.js"></script>
     <script src="js/tournament_access.js"></script>
     <script src="js/user_menu.js"></script>
+    <script src="js/calendar_results.js"></script>
     <script>
         const CALENDAR_MANUAL_STORAGE_KEY = "standalone_calendar_manual_v1";
         const CALENDAR_FILTER_STORAGE_KEY = "standalone_calendar_filter_v1";
@@ -4726,6 +4728,7 @@
                 const { error } = await supabaseClient.from("calendar_invitation_drafts").upsert({
                     source_url: draft.sourceUrl,
                     invitation: draft,
+                    updated_by: currentUser.id,
                     updated_at: new Date().toISOString()
                 }, { onConflict: "source_url" });
                 if (error) throw error;
@@ -5557,6 +5560,7 @@
             setModalMessage("invitationEditorMessage", "Einladung wird als PDF erstellt und per E-Mail versendet...", "ok");
             try {
                 const invitation = cloneInvitationDraft(currentInvitationDraft);
+                await persistInvitationForResults(invitation);
                 const directInvitation = await buildDirectInvitationPayload(invitation);
                 const { data, error } = await supabaseClient.functions.invoke("send-nbv-invitation-reminders", {
                     body: { directInvitation }
@@ -5565,6 +5569,14 @@
                 if (!data?.ok) throw new Error(data?.error || "Die Einladung konnte nicht versendet werden.");
                 const sendLabel = invitation.emailUpdate === true ? "Update-Einladung" : "Einladung";
                 setModalMessage("invitationEditorMessage", `${sendLabel} wurde an ${data.recipientCount || recipientStats.activeCount} Empfänger versendet.`, "ok");
+                if (invitation.selectedModeCode === "T15") {
+                    try {
+                        await ensureT15ResultEvent(invitation);
+                        setModalMessage("invitationEditorMessage", `${sendLabel} versendet. Die private T15-Erfassungsseite ist bereit – „Ergebnisse erfassen (T15)“ öffnen.`, "ok");
+                    } catch (resultError) {
+                        setModalMessage("invitationEditorMessage", `${sendLabel} wurde versendet. Die Ergebniserfassung konnte noch nicht angelegt werden: ${getErrorMessage(resultError, "Unbekannter Fehler")}. Bitte „Ergebnisse erfassen (T15)“ erneut versuchen; die Einladung nicht erneut versenden.`, "error");
+                    }
+                }
             } catch (error) {
                 console.warn("Einladung konnte nicht versendet werden:", error);
                 setModalMessage("invitationEditorMessage", `Einladung konnte nicht versendet werden: ${getErrorMessage(error, "Unbekannter Fehler")}`, "error");
@@ -5987,6 +5999,7 @@
                                                             ` : isCalendarAdmin && event.link && event.source !== "manual" && event.source !== "planning" ? `
                                                                 <div class="event-actions">
                                                                     <button class="mini-btn pdf" type="button" onclick="createNbvInvitationPdf('${escapeHtml(event.id)}')">Einladung vorbereiten</button>
+                                                                    <button class="mini-btn" type="button" data-event-id="${escapeHtml(event.id)}" onclick="openCalendarResultEntry(this.dataset.eventId)">Ergebnisse erfassen</button>
                                                                     <button class="mini-btn" type="button" onclick="sendNbvInvitationEmail('${escapeHtml(event.id)}')">Ausschreibung versenden</button>
                                                                 </div>
                                                             ` : ""}

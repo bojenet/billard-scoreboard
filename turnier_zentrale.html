@@ -34,9 +34,10 @@
 <main>
     <header>
         <div><h1>Turnier</h1><p>Beide Tische bedienen: Partie anlegen, starten und zählen.</p></div>
-        <nav aria-label="Navigation"><a href="index.html">Hauptmenü</a><a href="#verwaltung">Turnierverwaltung</a><button id="refresh" type="button">Aktualisieren</button></nav>
+        <nav aria-label="Navigation"><a href="index.html">Hauptmenü</a><a href="turnier_ergebnisse.html">Turnierergebnisse</a><a href="#verwaltung">Turnierverwaltung</a><button id="refresh" type="button">Aktualisieren</button></nav>
     </header>
     <p id="message" role="status" aria-live="polite"></p>
+    <section class="subsection" id="ergebnisse"><h2>Turnierergebnisse</h2><p>Private T15-Erfassung aus der versendeten Einladung. Gruppenspiele, Finalrunde und persönliche Zugänge verwalten.</p><a href="turnier_ergebnisse.html">Meine Turnierergebnisse öffnen</a> <a href="calendar.html">Zum Kalender</a></section>
     <section id="tables" class="tables" aria-label="Tischsteuerung" hidden>
         <article><div class="table-heading"><h2>Tisch 1</h2><p class="status" id="status-tisch1" aria-live="polite">Wird geladen …</p></div><iframe id="frame-tisch1" title="Partie an Tisch 1" hidden></iframe></article>
         <article><div class="table-heading"><h2>Tisch 2</h2><p class="status" id="status-tisch2" aria-live="polite">Wird geladen …</p></div><iframe id="frame-tisch2" title="Partie an Tisch 2" hidden></iframe></article>

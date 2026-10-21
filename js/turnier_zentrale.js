@@ -124,6 +124,15 @@
         if (!user) return;
         const access = await getTournamentAccess(user);
         if (!isTournamentVisible(access)) {
+            const { data: assigned, error } = await supabaseClient.from("result_events").select("id").limit(1);
+            if (!error && assigned?.length) {
+                // A personal result invitation does not grant access to table controls.
+                document.getElementById("verwaltung").hidden = true;
+                document.getElementById("refresh").hidden = true;
+                document.querySelector('a[href="#verwaltung"]').hidden = true;
+                document.querySelector("header p").textContent = "Private Ergebniserfassung für deine freigegebenen Turniere.";
+                return;
+            }
             document.querySelector("main").textContent = "Kein Zugriff auf Turnier.";
             return;
         }
