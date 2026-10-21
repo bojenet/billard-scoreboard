@@ -27,6 +27,9 @@
         $('eventTitle').textContent = event.title;
         $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, `${event.snapshot.selectedModeCode} · ${event.snapshot.participants.length} Spieler`, `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
         $('accessTab').hidden = !event.can_manage;
+        document.querySelector('[data-view="history"]').hidden=!event.can_manage;
+        $('exportCsvBtn').hidden=!event.can_manage;
+        if(!event.can_manage && ['history','access'].includes(view))view='A';
         $('reloadClubCloudBtn').hidden = !event.can_reload;
         if (!event.can_reload) { pendingReload=null; $('clubCloudPreview').hidden=true; }
         $('completeBtn').hidden = !event.can_manage || !!event.archived_ranking;
@@ -163,6 +166,7 @@
         });
     }
     async function history() {
+        if(!event?.can_manage)return;
         const {data,error}=await supabaseClient.from('result_event_history').select('id,action,created_at,before_state,after_state').eq('event_id',eventId).order('created_at',{ascending:false}).limit(100);
         if(error)throw error;
         $('historyList').innerHTML=(data||[]).map(h=>`<div class="history-row"><strong>${esc(h.action)}</strong> · ${new Date(h.created_at).toLocaleString('de-DE')}<details><summary>Gespeicherte Änderung ansehen</summary><pre>${esc(JSON.stringify({vorher:h.before_state,nachher:h.after_state},null,2))}</pre></details></div>`).join('')||'<p>Noch keine Ergebnisse geändert.</p>';
@@ -190,7 +194,7 @@
         }
         await load(); $('eventView').hidden=false;
         document.querySelectorAll('[data-view]').forEach(b=>b.onclick=async()=>{
-            if(busy||!canLeave())return;dirty=false;view=b.dataset.view;render();if(view==='history'){try{await history();}catch(error){failure(error);}}
+            if(busy||!canLeave()||(!event.can_manage && ['history','access'].includes(b.dataset.view)))return;dirty=false;view=b.dataset.view;render();if(view==='history'){try{await history();}catch(error){failure(error);}}
         });
         $('resultForm').oninput=()=>{dirty=true;updateWinnerSelection();};
         $('resultForm').onsubmit=e=>{e.preventDefault();const result={};for(const side of [1,2])for(const field of ['score','innings','high'])result[field+side]=Number($(field+side).value);if(!$('winnerField').hidden)result.winner=Number($('winnerSelect').value);submitResult(result);};
@@ -228,10 +232,11 @@
             }catch(error){failure(error);}finally{busy=false;$('applyClubCloudBtn').disabled=false;}
         };
         $('exportCsvBtn').onclick=async()=>{
-            if(busy)return;
+            if(busy || !event?.can_manage)return;
             busy=true;$('exportCsvBtn').disabled=true;
             try{
                 const saved=await rpc('get_t15_result_event',{p_id:eventId});
+                if(!saved.can_manage)throw new Error('Nur die Turnierleitung darf CSV exportieren.');
                 const csv=T15CsvExport.build(saved);
                 const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
                 const link=document.createElement('a');
