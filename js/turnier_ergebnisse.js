@@ -108,7 +108,7 @@
         $('groupStandings').innerHTML = ['A','B'].map(group => {
             const stats = event.standings[group];
             const fullTie = !event.archived_ranking && stats.every(s => s.played === 3) && stats.some(s => s.tied);
-            return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2><span class="muted">${event.archived_ranking ? 'Archivierte bisherige Wertung' : 'Partiepunkte → GD → HS'}</span></div>${tableHTML(group)}${fullTie ? '<p class="form-content muted">* Partiepunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
+            return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2></div>${tableHTML(group)}${fullTie ? '<p class="form-content muted">* Partiepunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
         }).join('');
         const totals = new Map(event.snapshot.participants.map(p => [p.seed,{points:0,innings:0,high:0,played:0,matchPoints:0}]));
         for (const match of event.schedule) {
