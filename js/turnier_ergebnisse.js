@@ -71,12 +71,10 @@
         $('winnerSelect').disabled = event.status === 'completed';
         $('saveBtn').disabled = event.status === 'completed';
         $('deleteBtn').hidden = !result || event.status === 'completed';
-        updateAverages();
+        updateWinnerSelection();
     }
-    function updateAverages() {
+    function updateWinnerSelection() {
         if ($('resultForm').hidden) return;
-        const values = [1,2].map(s => gd(Number($(`score${s}`).value), Number($(`innings${s}`).value)));
-        $('averages').textContent = `GD: ${values[0]} / ${values[1]}`;
         const match = event.schedule.find(m => m.key === selected);
         const tie = $('score1').value !== '' && $('score2').value !== '' && Number($('score1').value) === Number($('score2').value);
         $('winnerField').hidden = match.stage !== 'final' || !tie;
@@ -151,7 +149,7 @@
         document.querySelectorAll('[data-view]').forEach(b=>b.onclick=async()=>{
             if(busy||!canLeave())return;dirty=false;view=b.dataset.view;render();if(view==='history'){try{await history();}catch(error){failure(error);}}
         });
-        $('resultForm').oninput=()=>{dirty=true;updateAverages();};
+        $('resultForm').oninput=()=>{dirty=true;updateWinnerSelection();};
         $('resultForm').onsubmit=e=>{e.preventDefault();const result={};for(const side of [1,2])for(const field of ['score','innings','high'])result[field+side]=Number($(field+side).value);if(!$('winnerField').hidden)result.winner=Number($('winnerSelect').value);submitResult(result);};
         $('deleteBtn').onclick=()=>{if(confirm('Dieses Ergebnis löschen?'))submitResult(null);};
         $('reloadBtn').onclick=async()=>{if(busy||!canLeave())return;try{await load();notice();}catch(error){failure(error);}};
