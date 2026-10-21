@@ -169,12 +169,22 @@
     }
     async function init() {
         const user = await requireAuth(); if (!user) return;
+        const resultContext=await getResultEntryContext();
+        document.querySelectorAll('[data-full-navigation]').forEach(link=>link.hidden=resultContext.result_only);
+        $('resultListHelp').hidden=resultContext.result_only;
+        $('resultListDescription').hidden=resultContext.result_only;
+        if(resultContext.result_only){$('resultsBrand').textContent='Turnierergebnisse';$('resultListTitle').textContent='Meine Turniere';document.title='Meine Turniere · Billard Studio';}
         if (params.get('zugang') === '1') $('passwordSection').hidden = false;
         if (!eventId) {
             $('listView').hidden=false;
-            const {data,error}=await supabaseClient.from('result_events').select('id,title,event_date,status,updated_at,snapshot').order('updated_at',{ascending:false});
-            if(error)throw error;
-            $('eventList').innerHTML=(data||[]).map(e=>`<a class="event-link" href="turnier_ergebnisse.html?turnier=${encodeURIComponent(e.id)}"><strong>${esc(e.title)}</strong><span>${esc(e.event_date)} · ${esc(e.snapshot.selectedModeCode)} · ${e.status==='completed'?'Abgeschlossen':'Erfassung offen'}</span></a>`).join('')||'<p>Für dein Konto ist noch kein Turnier freigegeben.</p>';
+            let events;
+            if(resultContext.result_only)events=resultContext.events;
+            else {
+                const {data,error}=await supabaseClient.from('result_events').select('id,title,event_date,status,updated_at,snapshot').order('updated_at',{ascending:false});
+                if(error)throw error;
+                events=(data||[]).map(e=>({...e,mode:e.snapshot.selectedModeCode,location:e.snapshot.locationName}));
+            }
+            $('eventList').innerHTML=events.map(e=>`<a class="event-link" href="turnier_ergebnisse.html?turnier=${encodeURIComponent(e.id)}"><strong>${esc(e.title)}</strong><span>${esc(e.event_date)} · ${esc(e.mode)}${e.location ? ` · ${esc(e.location)}` : ''} · ${e.status==='completed'?'Abgeschlossen':'Erfassung offen'}</span></a>`).join('')||'<p>Für dein Konto ist noch kein Turnier freigegeben.</p>';
             return;
         }
         await load(); $('eventView').hidden=false;

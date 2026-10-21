@@ -6,11 +6,11 @@
 <link rel="stylesheet" href="assets/turnier_ergebnisse.css">
 </head>
 <body>
-<header class="topbar"><a class="brand" href="turnier_zentrale.html">Billard Studio <span>/ Turnierergebnisse</span></a><nav><a href="turnier_ergebnisse.html">Meine Turniere</a><a href="calendar.html">Kalender</a><a href="turnier_zentrale.html">Turnierzentrale</a><button id="logoutBtn" type="button">Abmelden</button></nav></header>
+<header class="topbar"><a id="resultsBrand" class="brand" href="turnier_ergebnisse.html">Billard Studio <span>/ Turnierergebnisse</span></a><nav><a href="turnier_ergebnisse.html">Meine Turniere</a><a data-full-navigation href="calendar.html" hidden>Kalender</a><a data-full-navigation href="turnier_zentrale.html" hidden>Turnierzentrale</a><button id="logoutBtn" type="button">Abmelden</button></nav></header>
 <main>
 <div id="message" role="status" aria-live="polite"></div>
 <section id="passwordSection" class="panel" hidden><h2>Persönlichen Zugang einrichten</h2><p>Lege ein Passwort für deinen Turnierzugang fest.</p><form id="passwordForm"><label>Neues Passwort<input id="newPassword" type="password" autocomplete="new-password" minlength="10" required></label><label>Passwort wiederholen<input id="confirmPassword" type="password" autocomplete="new-password" minlength="10" required></label><button class="primary" type="submit">Passwort speichern</button></form></section>
-<section id="listView" hidden><div class="page-heading"><div><h1>Meine Turnierergebnisse</h1><p>Private Ergebniserfassung · Nur ausdrücklich freigegebene Turniere</p></div></div><div id="eventList"></div><p class="muted">Die Turnierleitung legt Turniere im Kalender aus der versendeten Einladung an.</p></section>
+<section id="listView" hidden><div class="page-heading"><div><h1 id="resultListTitle">Meine Turnierergebnisse</h1><p id="resultListDescription" hidden>Private Ergebniserfassung · Nur ausdrücklich freigegebene Turniere</p></div></div><div id="eventList"></div><p id="resultListHelp" class="muted" hidden>Die Turnierleitung legt Turniere im Kalender aus der versendeten Einladung an.</p></section>
 <section id="eventView" hidden>
 <div class="breadcrumb"><a href="turnier_ergebnisse.html">Meine Turniere</a> / Ergebniserfassung</div>
 <div class="page-heading"><div><h1 id="eventTitle"></h1><p id="eventMeta"></p></div><span class="badge">Privat · Nicht veröffentlicht</span></div>
@@ -28,7 +28,8 @@
 </section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase.js"></script><script src="js/auth.js"></script><script src="js/user_menu.js"></script>
+<script src="js/supabase.js"></script><script src="js/auth.js"></script>
+<script src="js/result_entry_access.js"></script><script src="js/user_menu.js"></script>
 <script src="js/result_modes.js"></script>
 <script src="js/t15_clubcloud_reload.js"></script>
 <script src="js/t15_csv_export.js"></script>

@@ -122,15 +122,14 @@
     async function init() {
         user = await requireAuth();
         if (!user) return;
+        const resultContext=await getResultEntryContext();
+        if(resultContext.result_only){window.location.replace('/turnier_ergebnisse.html');return;}
+        document.querySelector('main').hidden=false;
         const access = await getTournamentAccess(user);
         if (!isTournamentVisible(access)) {
             const { data: assigned, error } = await supabaseClient.from("result_events").select("id").limit(1);
             if (!error && assigned?.length) {
-                // A personal result invitation does not grant access to table controls.
-                document.getElementById("verwaltung").hidden = true;
-                document.getElementById("refresh").hidden = true;
-                document.querySelector('a[href="#verwaltung"]').hidden = true;
-                document.querySelector("header p").textContent = "Private Ergebniserfassung für deine freigegebenen Turniere.";
+                window.location.replace('/turnier_ergebnisse.html');
                 return;
             }
             document.querySelector("main").textContent = "Kein Zugriff auf Turnier.";
@@ -157,6 +156,7 @@
 
     init().catch(error => {
         console.error(error);
-        message.textContent = "Tischsteuerung konnte nicht geladen werden. Bitte Seite neu laden.";
+        const main=document.querySelector('main');main.hidden=false;
+        main.textContent='Turnierzugang konnte nicht geladen werden. Bitte Seite neu laden.';
     });
 })();
