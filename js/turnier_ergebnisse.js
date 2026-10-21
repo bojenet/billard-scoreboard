@@ -111,9 +111,12 @@
             return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2></div>${tableHTML(group)}${fullTie ? '<p class="form-content muted">* Partiepunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
         }).join('');
         const totals = new Map(event.snapshot.participants.map(p => [p.seed,{points:0,innings:0,high:0,played:0,matchPoints:0}]));
+        const finalRoundTotals = new Map(event.snapshot.participants.map(p => [p.seed,{points:0,innings:0,high:0,played:0,matchPoints:0}]));
         for (const match of event.schedule) {
             const r=event.results[match.key]; if (!r || !match.ready) continue;
-            for (const side of [1,2]) { const t=totals.get(match[`seed${side}`]); t.played++;t.matchPoints+=match.stage==='final' ? (Number(r.winner)===side ? 2 : 0) : (r.score1===r.score2 ? 1 : ((r.score1>r.score2)===(side===1) ? 2 : 0));t.points+=r[`score${side}`];t.innings+=r[`innings${side}`];t.high=Math.max(t.high,r[`high${side}`]); }
+            for (const side of [1,2]) { const t=totals.get(match[`seed${side}`]); t.played++;t.matchPoints+=match.stage==='final' ? (Number(r.winner)===side ? 2 : 0) : (r.score1===r.score2 ? 1 : ((r.score1>r.score2)===(side===1) ? 2 : 0));t.points+=r[`score${side}`];t.innings+=r[`innings${side}`];t.high=Math.max(t.high,r[`high${side}`]);
+                if(match.stage==='final') { const f=finalRoundTotals.get(match[`seed${side}`]);f.played++;f.matchPoints+=Number(r.winner)===side ? 2 : 0;f.points+=r[`score${side}`];f.innings+=r[`innings${side}`];f.high=Math.max(f.high,r[`high${side}`]); }
+            }
         }
         const ranks = [];
         for (const [key,first] of [['F',1],['P3',3],['P5',5],['P7',7]]) {
@@ -121,6 +124,10 @@
             if(r && match.ready){ranks.push({rank:first,seed:match[`seed${r.winner}`]},{rank:first+1,seed:match[`seed${r.winner===1?2:1}`]});}
         }
         ranks.sort((a,b)=>a.rank-b.rank);
+        const finalRoundSeeds = new Set(event.schedule.filter(m=>m.stage==='final' && m.ready).flatMap(m=>[m.seed1,m.seed2]));
+        const finalRoundPlayers = [...finalRoundSeeds].map(seed=>({seed,rank:ranks.find(r=>r.seed===seed)?.rank ?? '—'}))
+            .sort((a,b)=>(typeof a.rank==='number' ? a.rank : 99)-(typeof b.rank==='number' ? b.rank : 99) || a.seed-b.seed);
+        $('finalRoundStandings').innerHTML = finalRoundPlayers.length ? `<div class="table-wrap"><table class="standings-table"><colgroup><col class="col-rank"><col class="col-player"><col class="col-played"><col class="col-points"><col class="col-balls"><col class="col-innings"><col class="col-gd"><col class="col-high"></colgroup><thead><tr><th>Pl.</th><th>Spieler</th><th class="number">Sp.</th><th class="number">PP</th><th class="number">Bälle</th><th class="number">Aufn.</th><th class="number">GD</th><th class="number">HS</th></tr></thead><tbody>${finalRoundPlayers.map(r=>{const t=finalRoundTotals.get(r.seed);return `<tr><td>${r.rank}</td><td>${esc(name(r.seed))}</td><td class="number">${t.played}</td><td class="number">${t.matchPoints}</td><td class="number">${t.points}</td><td class="number">${t.innings}</td><td class="number">${gd(t.points,t.innings)}</td><td class="number">${t.high}</td></tr>`;}).join('')}</tbody></table></div>` : '<p class="form-content">Die Endrunde steht nach Abschluss der Gruppenspiele fest.</p>';
         $('finalStandings').innerHTML = ranks.length ? `<div class="table-wrap"><table class="standings-table"><colgroup><col class="col-rank"><col class="col-player"><col class="col-played"><col class="col-points"><col class="col-balls"><col class="col-innings"><col class="col-gd"><col class="col-high"></colgroup><thead><tr><th>Pl.</th><th>Spieler</th><th class="number">Sp.</th><th class="number">PP</th><th class="number">Bälle</th><th class="number">Aufn.</th><th class="number">GD</th><th class="number">HS</th></tr></thead><tbody>${ranks.map(r=>{const t=totals.get(r.seed);return `<tr><td>${r.rank}</td><td>${esc(name(r.seed))}</td><td class="number">${t.played}</td><td class="number">${t.matchPoints}</td><td class="number">${t.points}</td><td class="number">${t.innings}</td><td class="number">${gd(t.points,t.innings)}</td><td class="number">${t.high}</td></tr>`;}).join('')}</tbody></table></div>` : '<p class="form-content">Die Endplatzierungen stehen nach den jeweiligen Final- und Platzierungsspielen fest.</p>';
     }
     function renderMembers() {
