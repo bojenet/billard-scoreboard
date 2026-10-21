@@ -1,0 +1,11 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const context={window:{}};vm.createContext(context);vm.runInContext(fs.readFileSync('js/warmup_timer.js','utf8'),context);
+const timer=context.window.WarmupTimer,now=Date.parse('2026-10-21T12:00:00Z');
+const state={duration_seconds:300,remaining_seconds:300,running:true,active:true,started_at:new Date(now).toISOString()};
+assert.equal(timer.format(timer.remaining(state,now)),'5:00');assert.equal(timer.format(timer.remaining(state,now+1000)),'4:59');assert.equal(timer.remaining(state,now+240000),60);assert.equal(timer.remaining(state,now+600000),0);
+assert.equal(timer.remaining({...state,running:false,remaining_seconds:123},now+100000),123);
+assert.equal(timer.remaining({...state,duration_seconds:600,remaining_seconds:600},now+540000),60);
+assert.equal((timer.ringMarkup().match(/class="warmup-segment"/g)||[]).length,5);
+for(const file of ['scoreboard_app.html','display.html'])for(const script of fs.readFileSync(file,'utf8').matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))new vm.Script(script[1]);
+assert.equal(fs.readFileSync('scoreboard_app.html','utf8').includes('onclick="setTargets('),false);
+console.log('PASS: 5/10 minute wall-clock countdown, zero clamp, paused state, five segments, removed distance presets, app/display syntax');

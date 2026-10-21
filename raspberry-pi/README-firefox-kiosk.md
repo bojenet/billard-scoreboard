@@ -81,6 +81,19 @@ Das Script versucht per `xset`, Bildschirmschoner und DPMS zu deaktivieren. Fall
 
 `Preferences -> Raspberry Pi Configuration -> Display -> Screen Blanking -> Off`
 
+## Einspielzeit aus der App
+
+In der Partieanlage kann fuer Tisch 1 oder Tisch 2 eine Einspielzeit von 5 oder
+10 Minuten gestartet, pausiert, fortgesetzt oder zurueckgesetzt werden. Der Pi
+zeigt denselben Countdown gross mit fuenf Kreissegmenten. In der letzten Minute
+wird die verbleibende Segmentlinie rot. Bei 0 bleibt die Anzeige bis zum
+Zuruecksetzen oder zum Start einer Partie sichtbar. Ein Matchstart blendet sie
+automatisch aus. Ein Neuladen setzt den gemeinsamen Timer nicht zurueck.
+
+Voraussetzung: Migration `20261021120000_table_warmup_timers.sql` ausfuehren und
+App sowie Pi-Display einmal neu laden. Eine Anpassung der Kiosk-Installation
+ist nicht erforderlich.
+
 ## Countdown-Warnton ueber HDMI
 
 Das Main Scoreboard spielt bei Dreiband einmal einen kurzen Warnton ab, wenn

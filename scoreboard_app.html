@@ -13,6 +13,7 @@
     <link rel="icon" href="/assets/club-mobile-icon-192.png" type="image/png">
     <link rel="apple-touch-icon" href="/assets/club-mobile-icon-192.png">
     <title>Scoreboard App</title>
+    <link rel="stylesheet" href="assets/warmup_timer.css">
     <script>
         if (window.location.hostname.endsWith(".vercel.app")) {
             window.location.replace("https://www.billard-studio.de" + window.location.pathname + window.location.search + window.location.hash);
@@ -207,7 +208,6 @@
         }
 
         .segmented button,
-        .quick button,
         .start-btn,
         .control-btn {
             border: 0;
@@ -240,18 +240,6 @@
         .segmented button.active {
             background: var(--yellow);
             color: #101010;
-        }
-
-        .quick {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 8px;
-        }
-
-        .quick button {
-            min-height: 42px;
-            font-size: 14px;
-            background: var(--panel-2);
         }
 
         .start-btn {
@@ -631,12 +619,7 @@
                 </div>
             </div>
 
-            <div class="quick">
-                <button type="button" onclick="setTargets(30)">30</button>
-                <button type="button" onclick="setTargets(40)">40</button>
-                <button type="button" onclick="setTargets(50)">50</button>
-                <button type="button" onclick="setTargets(100)">100</button>
-            </div>
+            <section id="warmupPanel" class="warmup-widget" aria-label="Einspielzeit"></section>
 
             <div class="field">
                 <label for="maxInnings">Maximale Aufnahmen</label>
@@ -723,6 +706,7 @@
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/club_mobile_access.js"></script>
+    <script src="js/warmup_timer.js"></script>
 
     <script>
         const DISCIPLINES = [
@@ -750,6 +734,7 @@
         let finishedAtIso = "";
         let scoreboardAppInitialized = false;
         let canUseAllScoreboardPlayers = false;
+        let warmupController = null;
 
         function getScoreboardDeviceId() {
             const storageKey = "scoreboard_app_device_id";
@@ -858,6 +843,8 @@
         }
 
         async function logoutScoreboardApp() {
+            warmupController?.destroy();
+            warmupController = null;
             try {
                 await invokeScoreboardAuth({
                     action: "logout",
@@ -1002,6 +989,7 @@
 
         function selectDisplay(table) {
             document.getElementById("displayTable").value = table;
+            warmupController?.setTable(table);
             setMessage("");
             document.querySelectorAll("#displayButtons button").forEach((btn) => {
                 btn.classList.toggle("active", btn.dataset.table === table);
@@ -1067,11 +1055,6 @@
                 document.getElementById(field + "2").value = values[field][0];
             });
             setMessage("");
-        }
-
-        function setTargets(value) {
-            document.getElementById("target1").value = value;
-            document.getElementById("target2").value = value;
         }
 
         function tableLabel(table) {
@@ -1406,6 +1389,7 @@
                 return;
             }
             matchData = data;
+            if (data.display_table) selectDisplay(data.display_table);
             history = [];
             finishedAtIso = data.updated_at || "";
             if (isFinished()) {
@@ -1880,6 +1864,8 @@
             canUseAllScoreboardPlayers = true;
             scoreboardAppInitialized = true;
             showScoreboardApp();
+            warmupController = WarmupTimer.mountControls(document.getElementById("warmupPanel"), supabaseClient);
+            await warmupController.setTable(document.getElementById("displayTable").value);
             void registerScoreboardDevice();
             loadDisciplines();
             await loadPlayers();
@@ -1912,6 +1898,7 @@
         });
 
         window.addEventListener("beforeunload", () => {
+            warmupController?.destroy();
             if (pollId) clearInterval(pollId);
             if (channel) supabaseClient.removeChannel(channel);
         });

@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tisch Display</title>
+    <link rel="stylesheet" href="assets/warmup_timer.css">
     <style>
         html,
         body {
@@ -242,6 +243,7 @@
 
 <body>
     <iframe id="displayFrame" class="display-frame" title="Scoreboard Anzeige"></iframe>
+    <section id="warmupScreen" class="warmup-display" aria-label="Einspielzeit" aria-hidden="true" hidden></section>
 
     <div id="idleScreen" class="idle">
         <div id="tableLabel" class="table-label">Tisch</div>
@@ -275,6 +277,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
+    <script src="js/warmup_timer.js"></script>
 
     <script>
         const params = new URLSearchParams(window.location.search);
@@ -678,9 +681,17 @@
             pollTimer = setInterval(checkCurrentMatchRelease, 10000);
         }
 
+        let warmupVisible = false;
+        const warmupDisplay = WarmupTimer.mountDisplay(document.getElementById("warmupScreen"), supabaseClient, displayTableId, visible => {
+            if (warmupVisible === visible) return;
+            warmupVisible = visible;
+            resetIdleSequence();
+            if (!visible && !currentMatchId) startIdleSequence();
+        });
         initDisplay();
 
         window.addEventListener("beforeunload", () => {
+            warmupDisplay.destroy();
             if (pollTimer) clearInterval(pollTimer);
             clearIdleTimers();
             if (channel) supabaseClient.removeChannel(channel);
