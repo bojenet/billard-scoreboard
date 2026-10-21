@@ -59,14 +59,14 @@ window.WarmupTimer = (() => {
         };
     }
     function mountControls(root, client) {
-        root.innerHTML=`${ringMarkup()}<div class="warmup-controls"><h3>Einspielzeit</h3><div class="warmup-durations" role="group" aria-label="Einspielzeit auswählen"><button type="button" data-duration="300" aria-pressed="true">5 Min.</button><button type="button" data-duration="600" aria-pressed="false">10 Min.</button></div><div class="warmup-actions"><button type="button" data-toggle>Start</button><button type="button" data-reset aria-label="Einspielzeit zurücksetzen">Zurücksetzen</button></div><p class="warmup-status" aria-live="polite">Timer wird geladen …</p></div>`;
+        root.innerHTML=`<div class="warmup-controls"><div class="warmup-heading"><h3>Einspielzeit</h3><span class="warmup-digits" role="timer" aria-live="off">5:00</span></div><div class="warmup-toolbar" role="group" aria-label="Einspielzeit steuern"><button type="button" data-duration="300" aria-pressed="true">5 Min.</button><button type="button" data-duration="600" aria-pressed="false">10 Min.</button><button type="button" data-toggle>Start</button><button type="button" data-reset aria-label="Einspielzeit zurücksetzen">Reset</button></div><p class="warmup-status" aria-live="polite">Timer wird geladen …</p></div>`;
         let state=null,busy=false,loadError='',selectedTable='';
         function render(){
             const seconds=renderRing(root,state);
             root.querySelectorAll('[data-duration]').forEach(b=>{b.setAttribute('aria-pressed',Number(b.dataset.duration)===(state?.duration_seconds||300));b.disabled=busy||!state;});
-            const toggle=root.querySelector('[data-toggle]');toggle.disabled=busy||!state;toggle.textContent=seconds===0?'Erneut starten':state?.running?'Pause':state?.active?'Fortsetzen':'Start';
+            const toggle=root.querySelector('[data-toggle]');toggle.disabled=busy||!state;toggle.textContent=state?.running&&seconds>0?'Pause':state?.active&&seconds>0?'Weiter':'Start';toggle.setAttribute('aria-label',seconds===0?'Einspielzeit erneut starten':state?.running?'Einspielzeit pausieren':state?.active?'Einspielzeit fortsetzen':'Einspielzeit starten');
             root.querySelector('[data-reset]').disabled=busy||!state;
-            const status=loadError||(!state?'Timer wird geladen …':seconds===0&&state.active?'Einspielzeit beendet':state.running?(seconds<=60?'Letzte Minute':'Einspielzeit läuft'):state.active?'Einspielzeit pausiert':'Bereit zur Einspielzeit');
+            const status=loadError||(!state?'Timer wird geladen …':seconds===0&&state.active?'Einspielzeit beendet':state.running?(seconds<=60?'Letzte Minute':''):state.active?'Pausiert':'');
             const statusElement=root.querySelector('.warmup-status');if(statusElement.textContent!==status)statusElement.textContent=status;
         }
         const connection=connect(client,row=>{state=row;loadError='';render();},error=>{loadError=error.message||'Timer konnte nicht geladen werden.';render();});
