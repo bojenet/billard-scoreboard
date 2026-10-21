@@ -23,7 +23,6 @@
     function render() {
         $('eventTitle').textContent = event.title;
         $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, 'T15 · 8 Spieler', `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
-        $('invitationNote').textContent = 'Teilnehmer und Spielziel entsprechen dem gespeicherten Turnierstand. ' + (event.status === 'completed' ? (event.archived_ranking ? 'Dieses Turnier ist mit seiner bisherigen Wertung archiviert.' : 'Dieses Turnier ist abgeschlossen.') : 'Ergebnisse sind nur für die Turnierleitung und zugeordnete Personen sichtbar.');
         $('accessTab').hidden = !event.can_manage;
         $('reloadClubCloudBtn').hidden = !event.can_reload;
         if (!event.can_reload) { pendingReload=null; $('clubCloudPreview').hidden=true; }
