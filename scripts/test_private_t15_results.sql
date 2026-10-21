@@ -88,7 +88,19 @@ do $$declare eid uuid;begin
  perform pg_temp.expect_t15_error(format('update public.result_events set title=%L where id=%L','bad',eid),'permission denied');
 end $$;
 reset role;
--- Full ties require an explicit decision, then release the final round.
+-- Equal points and GD: HS wins even with fewer balls. GD and points precede HS.
+do $$declare r jsonb; rows jsonb;begin
+ r:='{"A1":{"score1":10,"score2":5,"innings1":10,"innings2":10,"high1":2,"high2":2},"A2":{"score1":20,"score2":5,"innings1":20,"innings2":10,"high1":3,"high2":2}}';
+ rows:=public.t15_group_stats(r,'A');
+ if rows->0->>'seed'<>'4' or rows->1->>'seed'<>'1' or (rows->0->>'tied')::boolean then raise exception 'HS must break equal points/GD';end if;
+ r:=jsonb_set(r,'{A1,high1}','4');rows:=public.t15_group_stats(r,'A');
+ if rows->0->>'seed'<>'1' then raise exception 'Balls incorrectly precede HS';end if;
+ r:=jsonb_set(r,'{A2,innings1}','10');rows:=public.t15_group_stats(r,'A');
+ if rows->0->>'seed'<>'4' then raise exception 'GD must precede HS';end if;
+ r:=jsonb_set(r,'{A1,score2}','10');r:=jsonb_set(r,'{A1,high2}','10');rows:=public.t15_group_stats(r,'A');
+ if rows->0->>'seed'<>'4' then raise exception 'Match points must precede GD/HS';end if;
+end $$;
+-- Full equality stays a shared rank; former manual orders cannot release finals.
 select set_config('request.jwt.claim.sub','f3150000-0000-4000-8000-000000000001',true);
 do $$declare eid uuid;g jsonb;v integer;state jsonb;begin
  select id into eid from test_t15_ids;select version into v from public.result_events where id=eid;
@@ -97,10 +109,8 @@ do $$declare eid uuid;g jsonb;v integer;state jsonb;begin
  end loop;
  state:=public.get_t15_result_event(eid);
  if exists(select 1 from jsonb_array_elements(state->'schedule') where value->>'stage'='final' and (value->>'ready')::boolean) then raise exception 'Unresolved ties released final round';end if;
- v:=public.set_t15_group_order(eid,'A','[8,5,4,1]',v);v:=public.set_t15_group_order(eid,'B','[7,6,3,2]',v);
- state:=public.get_t15_result_event(eid);
- select value into g from jsonb_array_elements(state->'schedule') where value->>'key'='HF1';
- if g->>'seed1'<>'8' or g->>'seed2'<>'6' then raise exception 'Tie decision ignored';end if;
+ if state->'standings'->'A'->0->>'rank'<>'1' or state->'standings'->'A'->3->>'rank'<>'1' then raise exception 'Equal players must share their rank';end if;
+ if exists(select 1 from jsonb_array_elements(public.t15_schedule(state->'results','{"A":[8,5,4,1],"B":[7,6,3,2]}')) where value->>'stage'='final' and (value->>'ready')::boolean) then raise exception 'Legacy manual order still releases finals';end if;
  perform public.revoke_t15_access(eid,'f3150000-0000-4000-8000-000000000002');
 end $$;
 select set_config('request.jwt.claim.sub','f3150000-0000-4000-8000-000000000002',true);
@@ -111,5 +121,5 @@ set local role anon;
 select pg_temp.expect_t15_error('select * from public.result_events','permission denied');
 select pg_temp.expect_t15_error('select public.get_t15_result_event(''00000000-0000-0000-0000-000000000000'')','permission denied');
 reset role;
-select 'PASS: T15 seeds, all 18 games, statistics, tie decisions, knockout winners, completion/reopening, dependent resets, audit trail, concurrency, editor/outsider/anonymous/revoked permissions' as result;
+select 'PASS: T15 seeds, all 18 games, statistics, shared ranks, knockout winners, completion/reopening, dependent resets, audit trail, concurrency, editor/outsider/anonymous/revoked permissions' as result;
 rollback;

@@ -23,9 +23,9 @@
     function render() {
         $('eventTitle').textContent = event.title;
         $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, 'T15 · 8 Spieler', `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
-        $('invitationNote').textContent = 'Teilnehmer und Spielziel stammen aus der versendeten Einladung. ' + (event.status === 'completed' ? 'Dieses Turnier ist abgeschlossen.' : 'Ergebnisse sind nur für die Turnierleitung und zugeordnete Personen sichtbar.');
+        $('invitationNote').textContent = 'Teilnehmer und Spielziel stammen aus der versendeten Einladung. ' + (event.status === 'completed' ? (event.archived_ranking ? 'Dieses Turnier ist mit seiner bisherigen Wertung archiviert.' : 'Dieses Turnier ist abgeschlossen.') : 'Ergebnisse sind nur für die Turnierleitung und zugeordnete Personen sichtbar.');
         $('accessTab').hidden = !event.can_manage;
-        $('completeBtn').hidden = !event.can_manage;
+        $('completeBtn').hidden = !event.can_manage || !!event.archived_ranking;
         $('completeBtn').textContent = event.status === 'completed' ? 'Für Korrektur wieder öffnen' : 'Turnier abschließen';
         $('progress').value = Object.keys(event.results).length;
         $('progressLabel').textContent = `${Object.keys(event.results).length} von 18 Partien erfasst`;
@@ -57,7 +57,7 @@
         const match = event.schedule.find(m => m.key === selected), result = event.results[selected];
         $('entryTitle').textContent = result ? 'Ergebnis bearbeiten' : 'Ergebnis erfassen'; $('entryMeta').textContent = match.label;
         $('resultForm').hidden = !match.ready; $('notReady').hidden = match.ready;
-        $('notReady').textContent = selected === 'F' || selected === 'P3' ? 'Zuerst beide Halbfinalspiele erfassen.' : 'Zuerst alle Gruppenpartien erfassen und gegebenenfalls vollständige Gleichstände unter „Tabellen“ auflösen.';
+        $('notReady').textContent = selected === 'F' || selected === 'P3' ? 'Zuerst beide Halbfinalspiele erfassen.' : 'Zuerst alle Gruppenpartien erfassen. Bei identischen Matchpunkten, GD und HS bleiben die betroffenen Plätze geteilt.';
         $('entryMessage').textContent = ''; $('entryMessage').className = '';
         if (!match.ready) return;
         $('playerInputs').innerHTML = [1,2].map(side => {
@@ -102,22 +102,14 @@
         finally { busy = false; $('saveBtn').disabled = event.status === 'completed'; $('deleteBtn').disabled = false; $('resultForm').querySelectorAll('input,select').forEach(input => input.disabled = event.status === 'completed'); }
     }
     function tableHTML(group) {
-        return `<div class="table-wrap"><table><thead><tr><th>Pl.</th><th>Spieler</th><th>Sp.</th><th>PP</th><th>Bälle</th><th>Aufn.</th><th>GD</th><th>HS</th></tr></thead><tbody>${event.standings[group].map(r => `<tr><td>${r.rank}${r.tied && !event.group_order[group] ? '*' : ''}</td><td>${esc(name(r.seed))}</td><td class="number">${r.played}</td><td class="number">${r.points}</td><td class="number">${r.balls}</td><td class="number">${r.innings}</td><td class="number">${gd(r.balls,r.innings)}</td><td class="number">${r.high}</td></tr>`).join('')}</tbody></table></div>`;
+        return `<div class="table-wrap"><table><thead><tr><th>Pl.</th><th>Spieler</th><th>Sp.</th><th>PP</th><th>Bälle</th><th>Aufn.</th><th>GD</th><th>HS</th></tr></thead><tbody>${event.standings[group].map(r => `<tr><td>${r.rank}${!event.archived_ranking && r.tied && r.played === 3 ? '*' : ''}</td><td>${esc(name(r.seed))}</td><td class="number">${r.played}</td><td class="number">${r.points}</td><td class="number">${r.balls}</td><td class="number">${r.innings}</td><td class="number">${gd(r.balls,r.innings)}</td><td class="number">${r.high}</td></tr>`).join('')}</tbody></table></div>`;
     }
     function renderStandings() {
         $('groupStandings').innerHTML = ['A','B'].map(group => {
-            const stats = event.standings[group], complete = stats.every(s => s.played === 3), tie = stats.some(s => s.tied);
-            const order = complete && tie ? `<form data-order="${group}" class="form-content"><p>${event.group_order[group] ? 'Gruppenentscheid gespeichert.' : '* Vollständiger Gleichstand: Reihenfolge nach Entscheid festlegen.'}</p><div class="order-fields">${stats.map((row,i) => `<label>Platz ${i+1}<select name="rank${i}">${stats.map(s => `<option value="${s.seed}" ${s.seed === row.seed ? 'selected' : ''}>${esc(name(s.seed))}</option>`).join('')}</select></label>`).join('')}</div><button type="submit" ${event.status !== 'open' ? 'disabled' : ''}>Gruppenentscheid speichern</button></form>` : '';
-            return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2><span class="muted">PP → GD (3 Stellen) → Bälle</span></div>${tableHTML(group)}${order}</section>`;
+            const stats = event.standings[group];
+            const fullTie = !event.archived_ranking && stats.every(s => s.played === 3) && stats.some(s => s.tied);
+            return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2><span class="muted">${event.archived_ranking ? 'Archivierte bisherige Wertung' : 'Matchpunkte → GD → HS'}</span></div>${tableHTML(group)}${fullTie ? '<p class="form-content muted">* Matchpunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
         }).join('');
-        $('groupStandings').querySelectorAll('[data-order]').forEach(form => form.onsubmit = async e => {
-            e.preventDefault(); if (busy) return; busy = true;
-            try {
-                const seeds = [...form.querySelectorAll('select')].map(s => Number(s.value));
-                const saved = await withDependencyConfirmation(reset => rpc('set_t15_group_order', { p_id:eventId,p_group:form.dataset.order,p_seeds:seeds,p_version:event.version,p_reset_dependents:reset }));
-                if (saved !== false) { await load(); notice('Gruppenentscheid gespeichert.'); }
-            } catch(error) { failure(error); } finally { busy = false; }
-        });
         const totals = new Map(event.snapshot.participants.map(p => [p.seed,{points:0,innings:0,high:0}]));
         for (const match of event.schedule) {
             const r=event.results[match.key]; if (!r || !match.ready) continue;
