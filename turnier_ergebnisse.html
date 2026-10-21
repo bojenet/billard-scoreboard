@@ -26,8 +26,6 @@
 <section id="accessView" class="panel" hidden><div class="panel-heading"><h2>Persönliche Zugänge</h2></div><div class="form-content"><p>Nur zugeordnete Personen und die Turnierleitung können die Ergebnisse sehen und bearbeiten.</p><form id="accessForm"><label>E-Mail-Adresse<input id="accessEmail" type="email" autocomplete="email" required></label><label class="checkbox"><input id="inviteNewUser" type="checkbox"> Falls noch kein Konto vorhanden ist: persönliche Zugangseinladung per E-Mail senden.</label><button class="primary" type="submit" id="grantBtn">Zugang erteilen</button></form><p id="accessMessage" aria-live="polite"></p><div id="membersList"></div><button id="copyLinkBtn" type="button">Link zur Eingabeseite kopieren</button><p class="muted">Ein Link allein gewährt keinen Zugriff. Bestehende Benutzer melden sich mit ihrem bisherigen Konto an.</p></div></section>
 <section id="historyView" class="panel" hidden><div class="panel-heading"><h2>Änderungsverlauf</h2></div><div id="historyList" class="form-content"></div></section>
 <div class="completion"><span id="progressLabel"></span><progress id="progress" max="18" value="0"></progress><button id="exportCsvBtn" type="button">CSV exportieren</button><button id="completeBtn" class="primary" type="button" hidden>Turnier abschließen</button></div>
-<p class="muted">CSV: Gespeicherte Partien, UTF-8 ohne BOM. Datum und Uhrzeit stammen aus der Einladung (Turnierbeginn). Fehlende Angaben bleiben leer.</p>
-<p class="muted">Ergebnisse werden erst mit „Ergebnis speichern“ übernommen. Änderungen an bestehenden Ergebnissen bleiben nachvollziehbar.</p>
 </section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
