@@ -48,9 +48,9 @@
             const rows = [1,2].map(side => {
                 const won = winner === side;
                 const points = !r ? '—' : winner ? (won ? 2 : 0) : 1;
-                return `<span class="match-player${won ? ' winner' : ''}"><span class="match-player-name">${won ? `<strong>${esc(name(m[`seed${side}`]))}</strong>` : esc(name(m[`seed${side}`]))}${won ? '<span class="result-sr-only"> · Sieger</span>' : ''}</span><span class="match-number" aria-label="Matchpunkte">${points}</span><span class="match-number" aria-label="Bälle">${r?.[`score${side}`] ?? '—'}</span><span class="match-number" aria-label="Aufnahmen">${r?.[`innings${side}`] ?? '—'}</span><span class="match-number" aria-label="GD">${r ? gd(r[`score${side}`], r[`innings${side}`]) : '—'}</span><span class="match-number" aria-label="Höchstserie">${r?.[`high${side}`] ?? '—'}</span></span>`;
+                return `<span class="match-player${won ? ' winner' : ''}"><span class="match-player-name">${won ? `<strong>${esc(name(m[`seed${side}`]))}</strong>` : esc(name(m[`seed${side}`]))}${won ? '<span class="result-sr-only"> · Sieger</span>' : ''}</span><span class="match-number" aria-label="Partiepunkte">${points}</span><span class="match-number" aria-label="Bälle">${r?.[`score${side}`] ?? '—'}</span><span class="match-number" aria-label="Aufnahmen">${r?.[`innings${side}`] ?? '—'}</span><span class="match-number" aria-label="GD">${r ? gd(r[`score${side}`], r[`innings${side}`]) : '—'}</span><span class="match-number" aria-label="Höchstserie">${r?.[`high${side}`] ?? '—'}</span></span>`;
             }).join('');
-            return `<button class="match" type="button" data-key="${m.key}" aria-pressed="${selected === m.key}"><span class="match-meta"><span>${esc(m.label)}</span><span class="${r ? 'saved' : ''}">${r ? 'Erfasst' : m.ready ? 'Offen' : 'Paarung offen'}</span></span><span class="match-player-head" aria-hidden="true"><span>Spieler</span><abbr title="Matchpunkte">MP</abbr><span>Bälle</span><abbr title="Aufnahmen">Aufn.</abbr><abbr title="Generaldurchschnitt">GD</abbr><abbr title="Höchstserie">HS</abbr></span>${rows}</button>`;
+            return `<button class="match" type="button" data-key="${m.key}" aria-pressed="${selected === m.key}"><span class="match-meta"><span>${esc(m.label)}</span><span class="${r ? 'saved' : ''}">${r ? 'Erfasst' : m.ready ? 'Offen' : 'Paarung offen'}</span></span><span class="match-player-head" aria-hidden="true"><span>Spieler</span><abbr title="Partiepunkte">PP</abbr><span>Bälle</span><abbr title="Aufnahmen">Aufn.</abbr><abbr title="Generaldurchschnitt">GD</abbr><abbr title="Höchstserie">HS</abbr></span>${rows}</button>`;
         }).join('');
         $('matchList').querySelectorAll('[data-key]').forEach(b => b.onclick = () => { if (busy || !canLeave()) return; dirty = false; selected = b.dataset.key; renderMatches(); if (matchMedia('(max-width:760px)').matches) $('entryPanel').scrollIntoView({ block: 'start', behavior: 'smooth' }); });
         renderEntry();
@@ -59,7 +59,7 @@
         const match = event.schedule.find(m => m.key === selected), result = event.results[selected];
         $('entryTitle').textContent = result ? 'Ergebnis bearbeiten' : 'Ergebnis erfassen'; $('entryMeta').textContent = match.label;
         $('resultForm').hidden = !match.ready; $('notReady').hidden = match.ready;
-        $('notReady').textContent = selected === 'F' || selected === 'P3' ? 'Zuerst beide Halbfinalspiele erfassen.' : 'Zuerst alle Gruppenpartien erfassen. Bei identischen Matchpunkten, GD und HS bleiben die betroffenen Plätze geteilt.';
+        $('notReady').textContent = selected === 'F' || selected === 'P3' ? 'Zuerst beide Halbfinalspiele erfassen.' : 'Zuerst alle Gruppenpartien erfassen. Bei identischen Partiepunkten, GD und HS bleiben die betroffenen Plätze geteilt.';
         $('entryMessage').textContent = ''; $('entryMessage').className = '';
         if (!match.ready) return;
         $('playerInputs').innerHTML = [1,2].map(side => {
@@ -108,7 +108,7 @@
         $('groupStandings').innerHTML = ['A','B'].map(group => {
             const stats = event.standings[group];
             const fullTie = !event.archived_ranking && stats.every(s => s.played === 3) && stats.some(s => s.tied);
-            return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2><span class="muted">${event.archived_ranking ? 'Archivierte bisherige Wertung' : 'Matchpunkte → GD → HS'}</span></div>${tableHTML(group)}${fullTie ? '<p class="form-content muted">* Matchpunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
+            return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2><span class="muted">${event.archived_ranking ? 'Archivierte bisherige Wertung' : 'Partiepunkte → GD → HS'}</span></div>${tableHTML(group)}${fullTie ? '<p class="form-content muted">* Partiepunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
         }).join('');
         const totals = new Map(event.snapshot.participants.map(p => [p.seed,{points:0,innings:0,high:0,played:0,matchPoints:0}]));
         for (const match of event.schedule) {
