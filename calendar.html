@@ -1455,6 +1455,7 @@
                 <div class="editor-section">
                     <h3>Ergebniserfassung</h3>
                     <button id="invitationEditorResultEntry" class="btn btn-secondary" type="button" onclick="createInvitationResultTournament()">Turnier zur Ergebniserfassung anlegen</button>
+                    <button id="invitationEditorResultUpdate" class="btn btn-secondary" type="button" onclick="updateInvitationResultTournament()" hidden>Turnierdaten aktualisieren</button>
                     <p id="invitationResultModeHint" class="admin-settings-meta" hidden>Ergebniserfassung für diesen Modus noch nicht verfügbar.</p>
                     <p id="invitationResultLink" class="admin-settings-meta" hidden></p>
                     <p id="invitationResultMessage" class="modal-message" hidden></p>
@@ -1500,7 +1501,7 @@
     <script src="js/tournament_access.js"></script>
     <script src="js/user_menu.js"></script>
     <script src="js/result_modes.js"></script>
-    <script src="js/calendar_results.js?v=20261022-manual"></script>
+    <script src="js/calendar_results.js?v=20261022-update"></script>
     <script>
         const CALENDAR_MANUAL_STORAGE_KEY = "standalone_calendar_manual_v1";
         const CALENDAR_FILTER_STORAGE_KEY = "standalone_calendar_filter_v1";
@@ -4930,6 +4931,7 @@
         function handleInvitationModeChange(modeCode) {
             if (!currentInvitationDraft) return;
             currentInvitationDraft.selectedModeCode = modeCode;
+            updateInvitationResultOption();
             if (isVorgabepokalInvitation(currentInvitationDraft)) {
                 renderInvitationModeInfo();
                 return;
