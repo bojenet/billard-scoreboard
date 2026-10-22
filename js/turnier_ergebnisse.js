@@ -27,6 +27,7 @@
         $('eventTitle').textContent = event.title;
         $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, `${event.snapshot.selectedModeCode} · ${event.snapshot.participants.length} Spieler`, `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
         $('accessTab').hidden = !event.can_manage;
+        $('deleteTournamentBtn').hidden=event.can_delete!==true;
         document.querySelector('[data-view="history"]').hidden=!event.can_manage;
         $('exportCsvBtn').hidden=!event.can_manage;
         if(!event.can_manage && ['history','access'].includes(view))view='A';
@@ -246,6 +247,19 @@
                 setTimeout(()=>URL.revokeObjectURL(url),1000);
                 notice(`CSV mit ${Object.keys(saved.results).length} gespeicherten Partien exportiert.${dirty ? ' Deine ungespeicherte Eingabe ist nicht enthalten.' : ''}`);
             }catch(error){failure(error);}finally{busy=false;$('exportCsvBtn').disabled=false;}
+        };
+        $('deleteTournamentBtn').onclick=async()=>{
+            if(busy || event.can_delete!==true)return;
+            const confirmation=window.prompt(`Turnier „${event.title}“ endgültig löschen? Alle Ergebnisse, Turnierzugänge und Verlaufseinträge werden gelöscht. Der Einladungsentwurf bleibt erhalten.
+
+Zur Bestätigung bitte den vollständigen Turniernamen eingeben:`);
+            if(confirmation===null)return;
+            if(confirmation!==event.title){notice('Der Turniername stimmt nicht überein. Das Turnier wurde nicht gelöscht.',true);return;}
+            busy=true;$('deleteTournamentBtn').disabled=true;
+            try {
+                await rpc('delete_result_tournament',{p_id:eventId,p_version:event.version,p_confirmation:confirmation});
+                dirty=false;window.location.replace('turnier_ergebnisse.html');
+            }catch(error){failure(error);}finally{busy=false;$('deleteTournamentBtn').disabled=false;}
         };
         $('completeBtn').onclick=async()=>{
             if(busy||!canLeave()||!confirm(event.status==='open'?'Turnier mit allen Ergebnissen abschließen?':'Turnier für Korrekturen wieder öffnen?'))return;busy=true;

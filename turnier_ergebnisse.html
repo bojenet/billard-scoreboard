@@ -24,7 +24,7 @@
 <section id="standingsView" hidden><div id="groupStandings"></div><section class="panel" id="finalRoundPanel"><div class="panel-heading"><h2>Endrunde</h2></div><div id="finalRoundStandings"></div></section><section class="panel"><div class="panel-heading"><h2 id="finalStandingsHeading">Endplatzierungen</h2></div><div id="finalStandings"></div></section></section>
 <section id="accessView" class="panel" hidden><div class="panel-heading"><h2>Persönliche Zugänge</h2></div><div class="form-content"><p>Nur zugeordnete Personen und die Turnierleitung können die Ergebnisse sehen und bearbeiten.</p><form id="accessForm"><label>E-Mail-Adresse<input id="accessEmail" type="email" autocomplete="email" required></label><label class="checkbox"><input id="inviteNewUser" type="checkbox"> Falls noch kein Konto vorhanden ist: persönliche Zugangseinladung per E-Mail senden.</label><button class="primary" type="submit" id="grantBtn">Zugang erteilen</button></form><p id="accessMessage" aria-live="polite"></p><div id="membersList"></div><button id="copyLinkBtn" type="button">Link zur Eingabeseite kopieren</button><p class="muted">Ein Link allein gewährt keinen Zugriff. Bestehende Benutzer melden sich mit ihrem bisherigen Konto an.</p></div></section>
 <section id="historyView" class="panel" hidden><div class="panel-heading"><h2>Änderungsverlauf</h2></div><div id="historyList" class="form-content"></div></section>
-<div class="completion"><span id="progressLabel"></span><progress id="progress" max="18" value="0"></progress><button id="exportCsvBtn" type="button" hidden>CSV exportieren</button><button id="completeBtn" class="primary" type="button" hidden>Turnier abschließen</button></div>
+<div class="completion"><span id="progressLabel"></span><progress id="progress" max="18" value="0"></progress><button id="exportCsvBtn" type="button" hidden>CSV exportieren</button><button id="deleteTournamentBtn" type="button" hidden>Turnier löschen</button><button id="completeBtn" class="primary" type="button" hidden>Turnier abschließen</button></div>
 </section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -33,5 +33,5 @@
 <script src="js/result_modes.js"></script>
 <script src="js/t15_clubcloud_reload.js"></script>
 <script src="js/t15_csv_export.js"></script>
-<script src="js/turnier_ergebnisse.js?v=20261021-2"></script>
+<script src="js/turnier_ergebnisse.js?v=20261022-admin-delete"></script>
 </body></html>
