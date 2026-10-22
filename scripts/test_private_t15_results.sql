@@ -17,7 +17,7 @@ do $$
 declare invitation jsonb; eid uuid; g jsonb; r jsonb; v integer:=1; state jsonb;
 begin
  select jsonb_build_object('selectedModeCode','T15','enableResultEntry',true,'sourceUrl','https://example.invalid/t15-test','eventId','t15-test','title','T15 Test','discipline','Dreiband','playingTargetPoints','25','playingTargetInnings','40','participants',jsonb_agg(jsonb_build_object('number',i::text,'name','Spieler '||i,'passNo','test-'||i,'club','Testverein'))) into invitation from generate_series(1,8) i;
- perform pg_temp.expect_t15_error(format('select public.create_t15_result_event(%L::jsonb)',invitation),'zuerst die Einladung');
+ if public.create_t15_result_event(invitation) is null then raise exception 'Manual creation before sending failed';end if;
  eid:=public.result_create_internal(invitation,auth.uid());insert into test_t15_ids values(eid);
  if public.result_create_internal(invitation,auth.uid())<>eid then raise exception 'Duplicate event';end if;
  if jsonb_array_length(public.t15_schedule('{}'))<>18 then raise exception 'Wrong match count';end if;
@@ -51,7 +51,7 @@ begin
  if (select count(*) from public.result_event_history where event_id=eid)<20 then raise exception 'Missing audit history';end if;
  perform public.grant_t15_access(eid,'t15-editor@example.invalid');
 end $$;
--- A checked successful invitation send creates one result event; sent updates refresh it before entry.
+-- Manual creation is separate; sent updates refresh the existing event before entry.
 do $$
 declare invitation jsonb; eid uuid; frozen jsonb;
 begin
@@ -59,7 +59,8 @@ begin
  insert into public.calendar_invitation_drafts(source_url,invitation,updated_by) values('https://example.invalid/t15-send-test',invitation,'f3150000-0000-4000-8000-000000000003');
  if (select updated_by from public.calendar_invitation_drafts where source_url='https://example.invalid/t15-send-test')<>auth.uid() then raise exception 'Spoofed invitation owner accepted';end if;
  insert into public.calendar_club_reminders(id,event_id,event_date,reminder_date,days_before,title,link,status,result_invitation_snapshot) values('t15-send-test','t15-send-test',current_date,current_date,0,'Test','https://example.invalid/t15-send-test','open',invitation);
- if exists(select 1 from public.result_events where source_url='https://example.invalid/t15-send-test') then raise exception 'Created before send';end if;
+ eid:=public.create_t15_result_event(invitation);
+ if eid is null then raise exception 'Manual creation failed';end if;
  update public.calendar_club_reminders set status='sent' where id='t15-send-test';
  select id,snapshot into eid,frozen from public.result_events where source_url='https://example.invalid/t15-send-test';
  if eid is null then raise exception 'Invitation send did not create T15 event';end if;

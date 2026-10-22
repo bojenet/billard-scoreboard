@@ -10,7 +10,8 @@ do $$declare code text;cfg jsonb;n integer;expected integer;invitation jsonb;eid
   insert into public.calendar_club_reminders(id,event_id,event_date,reminder_date,days_before,title,link,status,result_invitation_snapshot)
   values('mode-test-'||code,'mode-test-'||code,current_date,current_date,0,code,invitation->>'sourceUrl','sent',invitation);
   select id into eid from public.result_events where source_url=invitation->>'sourceUrl';
-  if eid is null then raise exception '%: sent invitation did not create result event',code;end if;
+  if eid is not null then raise exception '%: sending must not create result event',code;end if;
+  eid:=public.create_t15_result_event(invitation);
   if public.result_create_internal(invitation,auth.uid())<>eid then raise exception 'Duplicate event';end if;v:=1;
   -- The same mode can reload its correct roster before first capture.
   v:=public.refresh_t15_event_data(eid,invitation,v);

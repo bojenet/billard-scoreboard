@@ -1453,13 +1453,14 @@
                     <textarea id="invitationEditorExtraNotes" placeholder="Optionaler Hinweis für die Einladung" oninput="updateInvitationDraftField('extraNotes', this.value)"></textarea>
                 </div>
                 <div class="editor-section">
-                    <h3>E-Mail Versand</h3>
-                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;">
-                        <input id="invitationEditorResultEntry" type="checkbox" style="width:auto;min-height:0;" onchange="updateInvitationDraftField('enableResultEntry', this.checked)">
-                        <span>Turnier zur Ergebniserfassung anlegen</span>
-                    </label>
+                    <h3>Ergebniserfassung</h3>
+                    <button id="invitationEditorResultEntry" class="btn btn-secondary" type="button" onclick="createInvitationResultTournament()">Turnier zur Ergebniserfassung anlegen</button>
                     <p id="invitationResultModeHint" class="admin-settings-meta" hidden>Ergebniserfassung für diesen Modus noch nicht verfügbar.</p>
                     <p id="invitationResultLink" class="admin-settings-meta" hidden></p>
+                    <p id="invitationResultMessage" class="modal-message" hidden></p>
+                </div>
+                <div class="editor-section">
+                    <h3>E-Mail Versand</h3>
                     <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;">
                         <input id="invitationEditorEmailUpdate" type="checkbox" style="width:auto;min-height:0;" onchange="updateInvitationDraftField('emailUpdate', this.checked)">
                         <span>Als Update versenden – Betreff beginnt mit „UPDATE:“</span>
@@ -1499,7 +1500,7 @@
     <script src="js/tournament_access.js"></script>
     <script src="js/user_menu.js"></script>
     <script src="js/result_modes.js"></script>
-    <script src="js/calendar_results.js?v=20261021-invitation"></script>
+    <script src="js/calendar_results.js?v=20261022-manual"></script>
     <script>
         const CALENDAR_MANUAL_STORAGE_KEY = "standalone_calendar_manual_v1";
         const CALENDAR_FILTER_STORAGE_KEY = "standalone_calendar_filter_v1";
@@ -4702,6 +4703,8 @@
 
         function openInvitationEditorModal(invitation) {
             currentInvitationDraft = cloneInvitationDraft(invitation);
+            const resultMessage=document.getElementById("invitationResultMessage");
+            if(resultMessage){resultMessage.hidden=true;resultMessage.textContent="";}
             if (!currentInvitationDraft.selectedModeCode) {
                 currentInvitationDraft.selectedModeCode = getSportordnungModeCode(currentInvitationDraft);
             }
@@ -5578,9 +5581,9 @@
                 setModalMessage("invitationEditorMessage", `${sendLabel} wurde an ${data.recipientCount || recipientStats.activeCount} Empfänger versendet.`, "ok");
                 const resultOutcome=await readInvitationResultOutcome(directInvitation.id);
                 await renderInvitationResultEntry(currentInvitationDraft);
-                if(invitation.enableResultEntry===true){
-                    if(resultOutcome?.status==='created' || resultOutcome?.status==='updated')setModalMessage('invitationEditorMessage',`${sendLabel} versendet. Turnier zur Ergebniserfassung ${resultOutcome.status==='created'?'angelegt':'aktualisiert'}. Der Link steht im Entwurf.`,'ok');
-                    else setModalMessage('invitationEditorMessage',`${sendLabel} wurde versendet. ${resultOutcome?.message || 'Die Anlage der Ergebniserfassung konnte noch nicht bestätigt werden. Bitte den Stand prüfen; die Einladung nicht erneut versenden.'}`,'error');
+                if(resultOutcome?.status==='updated' || resultOutcome?.status==='blocked' || resultOutcome?.status==='error'){
+                    if(resultOutcome?.status==='updated')setModalMessage('invitationEditorMessage',`${sendLabel} versendet. Turnier zur Ergebniserfassung aktualisiert. Der Link steht im Entwurf.`,'ok');
+                    else setModalMessage('invitationEditorMessage',`${sendLabel} wurde versendet. ${resultOutcome?.message || 'Die Aktualisierung der Ergebniserfassung konnte nicht bestätigt werden. Bitte den Stand prüfen; die Einladung nicht erneut versenden.'}`,'error');
                 }
             } catch (error) {
                 console.warn("Einladung konnte nicht versendet werden:", error);
@@ -5697,7 +5700,6 @@
                 if (!invitation?.title) {
                     throw new Error("Die NBV-Seite konnte nicht als Turniereinladung gelesen werden.");
                 }
-                if(reloadFromTournament)invitation.enableResultEntry=currentInvitationDraft?.enableResultEntry===true;
                 invitation.eventId = event.id || "";
                 invitation.sourceUrl = event.link || "";
                 invitation.link = event.link || "";

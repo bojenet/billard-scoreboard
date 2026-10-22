@@ -14,9 +14,12 @@ do $$declare inv jsonb;eid uuid;v integer;outcome jsonb;begin
  if exists(select 1 from public.result_events where source_url=inv->>'sourceUrl') then raise exception 'Draft or pending send created tournament';end if;
  update public.calendar_club_reminders set status='sent' where id='inv-sync-on';
  select id,version into eid,v from public.result_events where source_url=inv->>'sourceUrl';
- if eid is null then raise exception 'Checked sent invitation did not create tournament';end if;
+ if eid is not null then raise exception 'Sending created a tournament without button action';end if;
+ perform public.create_t15_result_event(inv||jsonb_build_object('sourceUrl','https://example.invalid/manual-before-any-send'));
+ eid:=public.create_t15_result_event(inv);select version into v from public.result_events where id=eid;
+ if public.create_t15_result_event(inv)<>eid then raise exception 'Manual creation duplicated event';end if;
  select result_sync_outcome into outcome from public.calendar_club_reminders where id='inv-sync-on';
- if outcome->>'status'<>'created' or outcome->>'event_id'<>eid::text then raise exception 'Missing creation outcome';end if;
+ if outcome->>'status'<>'not_created' then raise exception 'Sending should report no existing tournament';end if;
  perform public.grant_t15_access(eid,'invitation-sync-editor@example.invalid');
  -- The exact sent payload wins over a draft that was edited in the meantime.
  update public.calendar_invitation_drafts set invitation=inv||'{"title":"New unsent draft"}' where source_url=inv->>'sourceUrl';
@@ -28,20 +31,23 @@ do $$declare inv jsonb;eid uuid;v integer;outcome jsonb;begin
  select version into v from public.result_events where id=eid;
  update public.calendar_club_reminders set status='sent' where id='inv-sync-update';
  if (select version from public.result_events where id=eid)<>v then raise exception 'Duplicate update';end if;
- -- Explicitly unchecked payload overrides a checked draft.
+ -- Existing tournaments update on send independently of the removed checkbox.
  insert into public.calendar_club_reminders(id,event_id,event_date,reminder_date,days_before,title,link,status,result_invitation_snapshot) values('inv-sync-disabled','inv-sync',current_date,current_date,0,'Disabled',inv->>'sourceUrl','sent',inv||'{"enableResultEntry":false,"title":"Do not apply"}');
- if (select title from public.result_events where id=eid)<>'Sent update' then raise exception 'Unchecked update applied';end if;
+ if (select title from public.result_events where id=eid)<>'Do not apply' then raise exception 'Existing tournament did not update';end if;
+ select version into v from public.result_events where id=eid;
  v:=public.save_t15_result(eid,'R1','{"score1":100,"score2":50,"innings1":20,"innings2":20,"high1":20,"high2":10}',v);
  insert into public.calendar_club_reminders(id,event_id,event_date,reminder_date,days_before,title,link,status,result_invitation_snapshot) values('inv-sync-blocked','inv-sync',current_date,current_date,0,'Blocked',inv->>'sourceUrl','sent',inv||'{"title":"Blocked change"}');
- if (select title from public.result_events where id=eid)<>'Sent update' or (select result_sync_outcome->>'status' from public.calendar_club_reminders where id='inv-sync-blocked')<>'blocked' then raise exception 'Captured data changed or warning missing';end if;
+ if (select title from public.result_events where id=eid)<>'Do not apply' or (select result_sync_outcome->>'status' from public.calendar_club_reminders where id='inv-sync-blocked')<>'blocked' then raise exception 'Captured data changed or warning missing';end if;
  v:=public.save_t15_result(eid,'R1',null,v);
  insert into public.calendar_club_reminders(id,event_id,event_date,reminder_date,days_before,title,link,status,result_invitation_snapshot) values('inv-sync-after-delete','inv-sync',current_date,current_date,0,'Blocked',inv->>'sourceUrl','sent',inv||'{"title":"Still blocked"}');
  if (select result_sync_outcome->>'status' from public.calendar_club_reminders where id='inv-sync-after-delete')<>'blocked' then raise exception 'Deleting results bypassed first-entry gate';end if;
  -- An invalid opted-in invitation records a sync error without undoing successful email status.
- inv:=inv||'{"sourceUrl":"https://example.invalid/invitation-sync-invalid","participants":[]}';
+ inv:=inv||'{"sourceUrl":"https://example.invalid/invitation-sync-invalid"}';
+ perform public.create_t15_result_event(inv);
+ inv:=inv||'{"participants":[]}';
  insert into public.calendar_invitation_drafts(source_url,invitation,updated_by) values(inv->>'sourceUrl',inv,auth.uid());
  insert into public.calendar_club_reminders(id,event_id,event_date,reminder_date,days_before,title,link,status,result_invitation_snapshot) values('inv-sync-invalid','inv-sync-invalid',current_date,current_date,0,'Invalid',inv->>'sourceUrl','sent',inv);
  if (select result_sync_outcome->>'status' from public.calendar_club_reminders where id='inv-sync-invalid')<>'error' then raise exception 'Missing sync error';end if;
 end $$;
-select 'PASS: explicit opt-in, no creation on draft/pending send, exact sent snapshot, automatic update, stable access, idempotent send status, unchecked update, first-entry/deleted-result lock, persisted sync warning/error' as result;
+select 'PASS: explicit button creation, no creation on draft or email send, idempotent creation, exact sent updates, stable access, first-entry/deleted-result lock, persisted warning/error' as result;
 rollback;
