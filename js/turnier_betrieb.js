@@ -11,7 +11,14 @@
  if(kiosk&&!ids.includes(table)){message.textContent='Ungültiger Tisch. Erlaubt: '+ids.join(', ');return;}
  if(!await requireAdmin())return;
  if(kiosk)document.getElementById('table').textContent=table.toUpperCase();
- const selected=new Set();
+ let events=[];
+ const selectEvent=document.getElementById("event");
+ function showAssigned(){
+  const event=events.find(e=>e.id===selectEvent.value);
+  document.getElementById("assigned-tables").textContent=event?.tableIds?.length ? "Tische: "+event.tableIds.map(t=>t.toUpperCase()).join(", ") : "Tische zuerst in der Einladung festlegen und Turnierdaten aktualisieren.";
+  document.getElementById("start").disabled=!event?.tableIds?.length;
+ }
+ if(!kiosk)selectEvent.addEventListener("change",showAssigned);
  async function refresh(action='state'){
   if(busy)return;busy=true;
   try{
@@ -27,13 +34,13 @@
    }else{
     const select=document.getElementById('event');
     if(action==='stop'&&!confirm('Tischbetrieb beenden? Gespeicherte Ergebnisse bleiben erhalten.'))return;
-    const data=await rpc({p_action:action,p_event:select.value||null,p_tables:[...selected]});
+    const data=await rpc({p_action:action,p_event:select.value||null});
+    events=data.events;
     const previous=select.value;select.replaceChildren(node('option','Turnier wählen …'));select.firstChild.value='';
-    for(const event of data.events){const o=node('option',event.title+(event.status==='completed'?' · abgeschlossen':''));o.value=event.id;select.append(o);}select.value=previous;
+    for(const event of data.events){const o=node('option',event.title+(event.status==='completed'?' · abgeschlossen':''));o.value=event.id;select.append(o);}select.value=previous;showAssigned();
     const container=document.getElementById('tables');container.replaceChildren();
     for(const t of data.tables){
-     const card=node('article',''),label=node('label',''),check=document.createElement('input');check.type='checkbox';check.checked=selected.has(t.id);check.disabled=!!t.event_id;
-     check.addEventListener('change',()=>check.checked?selected.add(t.id):selected.delete(t.id));label.append(check,node('span',t.id.toUpperCase()));
+     const card=node('article',''),label=node('h2',t.id.toUpperCase());
      const online=Date.now()-Date.parse(t.last_seen)<30000;const status=node('p',online?'Verbunden':'Offline');status.className=online?'online':'offline';
      const event=data.events.find(e=>e.id===t.event_id);
      const link=node('a','Tischdisplay öffnen');link.href='turnier_tisch.html?tisch='+t.id;link.target='_blank';link.rel='noopener';

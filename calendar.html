@@ -1415,6 +1415,9 @@
                     </div>
                 </div>
                 <div class="editor-section">
+                    <h3>Tische für den Turnierbetrieb</h3>
+                    <div id="invitationTableSelection" class="button-row"><label><input type="checkbox" value="tb01" onchange="updateInvitationTables()"> TB01</label> <label><input type="checkbox" value="tb02" onchange="updateInvitationTables()"> TB02</label> <label><input type="checkbox" value="tb03" onchange="updateInvitationTables()"> TB03</label> <label><input type="checkbox" value="tb04" onchange="updateInvitationTables()"> TB04</label> <label><input type="checkbox" value="mb01" onchange="updateInvitationTables()"> MB01</label> <label><input type="checkbox" value="mb02" onchange="updateInvitationTables()"> MB02</label> </div></div>
+                <div class="editor-section">
                     <h3>Modus</h3>
                     <div class="editor-grid">
                         <div>
@@ -4561,6 +4564,7 @@
             state.y = drawSectionTitle(doc, "Spielort / Dresscode", state.y);
             state.y = drawFieldRows(doc, [
                 ["Spielort", [invitation?.locationName, ...(Array.isArray(invitation?.locationAddress) ? invitation.locationAddress : [])]],
+                ["Tische", (invitation?.tableIds || []).map(id => id.toUpperCase()).join(", ")],
                 ["Kleidung", "gem. Pkt. 1.3 Spielkleidung der STO-BT Karambolage des NBV"]
             ], state.y);
 
@@ -4761,6 +4765,11 @@
             }
         }
 
+        function updateInvitationTables() {
+            if (!currentInvitationDraft) return;
+            currentInvitationDraft.tableIds = Array.from(document.querySelectorAll('#invitationTableSelection input:checked'), input => input.value);
+        }
+
         function updateInvitationDraftField(field, value) {
             if (!currentInvitationDraft) return;
             currentInvitationDraft[field] = value;
@@ -4907,6 +4916,9 @@
             Object.entries(fields).forEach(([id, value]) => {
                 const el = document.getElementById(id);
                 if (el) el.value = value;
+            });
+            document.querySelectorAll('#invitationTableSelection input').forEach(input => {
+                input.checked = (currentInvitationDraft.tableIds || []).includes(input.value);
             });
             const emailUpdateInput = document.getElementById("invitationEditorEmailUpdate");
             if (emailUpdateInput) emailUpdateInput.checked = currentInvitationDraft.emailUpdate === true;
