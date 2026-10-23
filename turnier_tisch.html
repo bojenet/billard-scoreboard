@@ -1,1 +1,1077 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Turniertisch</title><link rel="stylesheet" href="assets/turnier_betrieb.css"></head><body><main id="kiosk"><h1 id="table">Turniertisch</h1><p id="message" role="status">Verbindung wird hergestellt …</p><h2 id="title"></h2><div id="players"></div><p id="state"></p></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/supabase.js"></script><script src="js/auth.js"></script><script src="js/turnier_betrieb.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Turnier · Tischscoreboard</title>
+
+    <style>
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(180deg, #0f1c3f, #0a122b);
+            color: white;
+        }
+
+        /* ================= TOPBAR ================= */
+
+        .topbar {
+            min-height: 96px;
+            background: linear-gradient(180deg, #162b66, #0f1c3f);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px clamp(14px, 4vw, 80px);
+            gap: clamp(8px, 2vw, 20px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .topbar > div {
+            min-width: 0;
+        }
+
+        .topbar > div:first-child,
+        .topbar > div:last-child {
+            width: calc(50% - clamp(90px, 12vw, 180px));
+            flex: 0 1 auto;
+        }
+
+        .fullscreen-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1200;
+            width: 34px;
+            height: 34px;
+            border: 1px solid #3458b8;
+            border-radius: 10px;
+            background: rgba(28, 51, 128, 0.92);
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+        }
+
+        .player-name {
+            font-size: clamp(26px, 4.8vw, 70px);
+            font-weight: 600;
+            letter-spacing: 1px;
+            line-height: 1.05;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .player-name.yellow {
+            color: #ffd84a;
+        }
+
+        .player-flag {
+            width: 1.07em;
+            height: 0.72em;
+            margin-right: 0.28em;
+            object-fit: cover;
+            border-radius: 2px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.32);
+            vertical-align: 0.02em;
+        }
+
+        .player-flag:not([src]) {
+            display: none;
+        }
+
+        .player-sub {
+            font-size: clamp(15px, 1.8vw, 25px);
+            font-weight: 600;
+            opacity: .84;
+            margin-top: 4px;
+        }
+
+        .player-sub.remaining {
+            color: #ff6b6b;
+            opacity: 1;
+            font-weight: 700;
+        }
+
+        .remaining-label {
+            position: absolute;
+            top: 258px;
+            width: 100%;
+            text-align: center;
+            font-size: 42px;
+            font-weight: 700;
+            color: #ff6b6b;
+            display: none;
+            z-index: 20;
+        }
+
+        .top-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            min-width: clamp(120px, 16vw, 260px);
+            pointer-events: none;
+        }
+
+        .game-label {
+            font-size: clamp(10px, 1vw, 13px);
+            letter-spacing: clamp(1px, 0.3vw, 3px);
+            opacity: .5;
+        }
+
+        .game-time {
+            font-size: clamp(18px, 2.2vw, 30px);
+            font-weight: 700;
+            margin-top: 5px;
+        }
+
+        .discipline-info {
+            font-size: clamp(12px, 1.3vw, 18px);
+            margin-top: 6px;
+            opacity: .6;
+        }
+
+        /* ================= MAIN ================= */
+
+        .score-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 0;
+        }
+
+        .main {
+            width: min(100%, calc((2 * min(41vw, 650px)) + clamp(84px, 15vw, 240px) + (2 * clamp(10px, 3vw, 80px))));
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(10px, 3vw, 80px);
+            padding: clamp(8px, 1.5vw, 20px) clamp(8px, 2.5vw, 40px);
+            min-height: 0;
+        }
+
+        body.remote-viewer .score-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: clamp(28px, 3.6vh, 48px);
+            padding: clamp(14px, 2vh, 28px) 0 clamp(24px, 3vh, 44px);
+            box-sizing: border-box;
+        }
+
+        body.remote-viewer .main {
+            width: min(94vw, 1760px);
+            flex: none;
+            height: auto;
+            gap: clamp(24px, 4vw, 92px);
+            padding: 0;
+        }
+
+        body.remote-viewer .player {
+            width: min(38vw, 690px);
+            min-height: clamp(360px, 52vh, 620px);
+            justify-content: space-between;
+        }
+
+        body.remote-viewer .score {
+            font-size: min(clamp(96px, 19vw, 340px), 32vh);
+        }
+
+        body.remote-viewer .center-wrapper {
+            width: clamp(110px, 15vw, 260px);
+            height: auto;
+            min-height: clamp(230px, 24vw, 390px);
+            flex-direction: column;
+            gap: clamp(12px, 1.5vw, 28px);
+        }
+
+        body.remote-viewer .center-box {
+            width: clamp(110px, 15vw, 260px);
+            height: clamp(110px, 15vw, 260px);
+        }
+
+        body.remote-viewer #totalInnings {
+            font-size: min(clamp(56px, 8vw, 140px), 20vh);
+        }
+
+        body.remote-viewer .series-display {
+            position: static;
+            width: 100%;
+            min-height: clamp(56px, 7vw, 120px);
+            font-size: clamp(48px, 7vw, 120px);
+            line-height: 1;
+            transform: none;
+        }
+
+        body.remote-viewer .shot-clock {
+            width: min(94vw, 1760px);
+            margin: 0;
+        }
+
+        .player {
+            position: relative;
+            width: min(41vw, 650px);
+            border-radius: clamp(14px, 2.2vw, 30px);
+            padding: clamp(12px, 2.2vw, 40px) clamp(8px, 1.6vw, 20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: .25s ease;
+            min-width: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .turn-marker {
+            position: absolute;
+            top: clamp(16px, 2vw, 34px);
+            left: clamp(16px, 2vw, 34px);
+            width: clamp(30px, 3.5vw, 58px);
+            aspect-ratio: 1;
+            box-sizing: border-box;
+            border: clamp(1px, .14vw, 2px) solid rgba(20, 25, 38, 0.34);
+            border-radius: 50%;
+            opacity: 0;
+            transform: scale(.72);
+            transition: opacity .2s ease, transform .2s ease;
+            pointer-events: none;
+            box-shadow:
+                inset -4px -5px 9px rgba(0, 0, 0, 0.22),
+                inset 3px 3px 6px rgba(255, 255, 255, 0.82),
+                0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .player.active-white .turn-marker,
+        .player.active-yellow .turn-marker {
+            background: radial-gradient(circle at 34% 30%, #ff8a78 0 16%, #e92d1c 56%, #9f1008 100%);
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Aktiv Weiß */
+        .player.active-white {
+            background: #ffffff;
+            color: #111;
+            box-shadow: 0 25px 70px rgba(255, 255, 255, 0.15);
+        }
+
+        /* Aktiv Gelb */
+        .player.active-yellow {
+            background: #ffd84a;
+            color: #111;
+            box-shadow: 0 25px 70px rgba(255, 216, 74, 0.25);
+        }
+
+        /* Inaktiv */
+        .player.inactive-white {
+            background: #122252;
+            color: #ffffff;
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.18);
+        }
+
+        .player.inactive-yellow {
+            background: #122252;
+            color: #ffd84a;
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.18);
+        }
+
+        /* SCORE */
+
+        .score {
+            font-size: clamp(88px, 21vw, 360px);
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .discipline-big {
+            font-size: clamp(14px, 2vw, 30px);
+            font-weight: 700;
+            margin-bottom: clamp(8px, 1.6vw, 25px);
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        /* STATS */
+
+        /* ================= FLAT STATS ================= */
+
+        .stats-flat {
+            display: flex;
+            gap: clamp(12px, 4.2vw, 80px);
+            margin-top: clamp(8px, 2vw, 40px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-flat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-weight: 600;
+        }
+
+        .stat-flat[hidden] {
+            display: none;
+        }
+
+        .stat-title {
+            font-size: clamp(11px, 1.2vw, 20px);
+            letter-spacing: clamp(0px, 0.2vw, 2px);
+            opacity: .6;
+            margin-bottom: 4px;
+        }
+
+        .stat-flat span:last-child {
+            font-size: clamp(22px, 3vw, 48px);
+        }
+
+        .stats-flat > .stat-flat:nth-child(-n+3) .stat-title {
+            font-size: clamp(15.125px, 1.65vw, 27.5px);
+        }
+
+        .stats-flat > .stat-flat:nth-child(-n+3) > span:last-child {
+            font-size: clamp(30.25px, 4.125vw, 66px);
+        }
+
+        .timeout-icons {
+            display: flex;
+            gap: clamp(6px, .9vw, 14px);
+            align-items: center;
+            justify-content: center;
+            min-height: clamp(22px, 3vw, 48px);
+        }
+
+        .timeout-icon {
+            position: relative;
+            width: clamp(18px, 2.4vw, 38px);
+            aspect-ratio: 1;
+            border: clamp(2px, .25vw, 4px) solid currentColor;
+            border-radius: 50%;
+            box-sizing: border-box;
+            opacity: .95;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.24));
+        }
+
+        .timeout-icon::before,
+        .timeout-icon::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: 50%;
+            width: clamp(2px, .22vw, 4px);
+            border-radius: 999px;
+            background: currentColor;
+            transform-origin: bottom center;
+        }
+
+        .timeout-icon::before {
+            height: 34%;
+            transform: translateX(-50%) rotate(0deg);
+        }
+
+        .timeout-icon::after {
+            height: 28%;
+            transform: translateX(-50%) rotate(92deg);
+        }
+
+        .timeout-icon.used {
+            opacity: .22;
+            filter: grayscale(1);
+        }
+
+        .stat-mode {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-mode.visible {
+            display: flex;
+        }
+
+        /* ================= CENTER ================= */
+
+
+
+        .center-wrapper {
+            position: relative;
+            width: clamp(84px, 15vw, 240px);
+            height: clamp(126px, 22vw, 340px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .center-box {
+            width: clamp(84px, 15vw, 240px);
+            height: clamp(84px, 15vw, 240px);
+            border-radius: clamp(12px, 2vw, 30px);
+            background: linear-gradient(145deg, #1c3380, #162b66);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .series-display {
+            position: absolute;
+            top: clamp(108px, 20.5vw, 320px);
+            width: 100%;
+            text-align: center;
+            font-size: clamp(44px, 8vw, 130px);
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #totalInnings {
+            font-size: clamp(44px, 9vw, 150px);
+            font-weight: 700;
+        }
+
+        /* ================= BUTTONS ================= */
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: clamp(8px, 1.6vw, 20px) clamp(8px, 1.2vw, 16px) clamp(10px, 2.4vw, 40px) clamp(8px, 1.2vw, 16px);
+        }
+
+        .shot-clock {
+            display: none;
+            width: min(100%, calc((2 * min(41vw, 650px)) + clamp(84px, 15vw, 240px) + (2 * clamp(10px, 3vw, 80px))));
+            height: clamp(56px, 5.4vw, 84px);
+            position: relative;
+            padding: clamp(5px, .55vw, 8px);
+            box-sizing: border-box;
+            background: linear-gradient(180deg, rgba(28, 51, 128, 0.82), rgba(14, 27, 67, 0.94));
+            border: 1px solid rgba(91, 124, 220, 0.34);
+            border-radius: clamp(8px, .9vw, 14px);
+            overflow: hidden;
+            flex-shrink: 0;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                inset 0 -10px 18px rgba(0, 0, 0, 0.18),
+                0 14px 34px rgba(0, 0, 0, 0.26);
+        }
+
+        .shot-clock.visible {
+            display: grid;
+            align-items: stretch;
+        }
+
+        .shot-clock.warning {
+            background: linear-gradient(180deg, rgba(98, 39, 62, 0.82), rgba(55, 22, 45, 0.94));
+            border-color: rgba(255, 112, 112, 0.28);
+        }
+
+        .shot-clock-blocks {
+            display: grid;
+            grid-template-columns: repeat(40, minmax(0, 1fr));
+            gap: clamp(2px, .22vw, 4px);
+            width: 100%;
+            height: 100%;
+        }
+
+        .shot-clock-block {
+            border-radius: 4px;
+            background: linear-gradient(180deg, #78e69b 0%, #39b96a 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.26),
+                inset 0 -5px 10px rgba(0, 0, 0, 0.16);
+            transition: background-color .18s ease, opacity .18s ease, box-shadow .18s ease;
+        }
+
+        .shot-clock-block.elapsed {
+            background: rgba(127, 189, 151, 0.18);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+            opacity: .66;
+        }
+
+        .shot-clock.warning .shot-clock-block:not(.elapsed) {
+            background: linear-gradient(180deg, #ff7777 0%, #d93838 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.24),
+                inset 0 -5px 10px rgba(0, 0, 0, 0.18);
+        }
+
+        .shot-clock.warning .shot-clock-block.elapsed {
+            background: rgba(255, 112, 112, 0.2);
+        }
+
+        .shot-clock-seconds {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: clamp(48px, 5vw, 76px);
+            height: calc(100% - clamp(8px, .9vw, 12px));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(26.91px, 3.1395vw, 44.85px);
+            font-weight: 900;
+            line-height: 1;
+            color: #ffffff;
+            background: rgba(12, 24, 58, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 9px;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.38);
+            text-shadow:
+                0 2px 4px rgba(0, 0, 0, 0.72);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .button-row button {
+            background: #1c3380;
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(10px, 1.8vw, 28px) clamp(12px, 2.4vw, 48px);
+            font-size: clamp(16px, 1.8vw, 28px);
+            line-height: 1;
+            font-weight: 600;
+            border-radius: clamp(12px, 1.6vw, 22px);
+            cursor: pointer;
+            transition: .2s ease;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5);
+            min-width: clamp(72px, 10vw, 120px);
+        }
+
+        .button-row {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: clamp(6px, 1vw, 14px);
+            width: min(1100px, 96vw);
+        }
+
+        .swap-btn {
+            font-size: clamp(22px, 2.2vw, 34px);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .button-row button:hover {
+            background: #2f4fe0;
+            transform: translateY(-3px);
+        }
+
+        .button-row button:active {
+            transform: translateY(2px);
+        }
+
+
+
+        /* ================= END OVERLAY ================= */
+
+        .end-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(6, 15, 40, .9);
+            backdrop-filter: blur(12px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .end-box {
+            width: 80%;
+            max-width: 1400px;
+            max-height: 90vh;
+            overflow: auto;
+            background: linear-gradient(180deg, #162b66, #0f1c3f);
+            padding: 60px 80px;
+            border-radius: 40px;
+            box-shadow: 0 40px 120px rgba(0, 0, 0, .7);
+        }
+
+        .end-box h1 {
+            font-size: 56px;
+            margin-bottom: 50px;
+        }
+
+        #endScreen .end-box h1 {
+            font-size: clamp(22px, 2.2vw, 32px);
+            line-height: 1.05;
+            margin: 0;
+            text-align: left;
+        }
+
+        /* Spieler Zusammenfassung */
+
+        .end-summary {
+            display: grid;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .end-summary-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 24px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, .14);
+        }
+
+        .end-stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .end-player {
+            display: grid;
+            grid-template-columns: 1fr;
+            align-items: center;
+            gap: 8px;
+            background: rgba(5, 14, 40, .3);
+            border: 1px solid rgba(255, 255, 255, .1);
+            border-radius: 14px;
+            padding: 10px 16px;
+        }
+
+        .end-player h2 {
+            font-size: 22px;
+            margin: 0 0 2px;
+        }
+
+        .end-player-stats {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 6px;
+            margin: 0;
+        }
+
+        .end-player .end-stat {
+            display: grid;
+            gap: 3px;
+            margin: 0;
+            font-size: 13px;
+            color: rgba(255, 255, 255, .68);
+        }
+
+        .end-stat strong {
+            color: #fff;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        /* Meta Infos */
+
+        .end-meta {
+            text-align: center;
+            margin-bottom: 60px;
+            font-size: 20px;
+            opacity: .8;
+        }
+
+        .end-meta-top {
+            display: flex;
+            justify-content: flex-end;
+            white-space: nowrap;
+            margin: 0;
+            font-size: 16px;
+            opacity: .85;
+        }
+
+        .end-discipline {
+            font-size: 14px;
+            opacity: .7;
+            margin-bottom: 0;
+            letter-spacing: 1px;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 0;
+        }
+
+        /* Serien Tabellen */
+
+        .series-tables {
+            display: flex;
+            justify-content: center;
+            gap: 80px;
+            margin-bottom: 60px;
+            flex-wrap: wrap;
+        }
+
+        .series-block {
+            background: #0c1a45;
+            padding: 30px;
+            border-radius: 25px;
+            min-width: 350px;
+        }
+
+        .series-block h3 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .series-block table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 16px;
+        }
+
+        .series-block th {
+            background: #1c3380;
+            padding: 10px;
+        }
+
+        .series-block td {
+            padding: 8px;
+        }
+
+        .series-block th,
+        .series-block td {
+            border: 1px solid #2c4fc7;
+            text-align: center;
+        }
+
+        /* Buttons */
+
+        .end-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 20px;
+        }
+
+        body.remote-viewer #endScreen .end-buttons {
+            display: none;
+        }
+
+        .end-buttons button {
+            padding: 20px 50px;
+            font-size: 22px;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        .save-btn {
+            background: #3c5eff;
+            color: white;
+        }
+
+        .save-btn:hover {
+            background: #5675ff;
+        }
+
+        .discard-btn {
+            background: #2a2a2a;
+            color: white;
+        }
+
+        .discard-btn:hover {
+            background: #444;
+        }
+
+        .series-white {
+            color: #ffffff;
+        }
+
+        .series-yellow {
+            color: #ffd84a;
+        }
+
+        @keyframes flash {
+            0% {
+                transform: scale(1);
+            }
+
+            40% {
+                transform: scale(1.5);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .flash {
+            animation: flash .35s ease;
+        }
+
+        @media (max-width: 1200px) {
+            .topbar {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            .player {
+                width: min(44vw, 520px);
+            }
+        }
+
+        @media (max-width: 900px) {
+            html,
+            body {
+                overflow: auto;
+                height: auto;
+                min-height: 100%;
+            }
+
+            .topbar {
+                flex-wrap: wrap;
+                justify-content: center;
+                text-align: center;
+            }
+
+            .main {
+                align-items: stretch;
+            }
+
+            .player {
+                width: min(46vw, 380px);
+                padding-left: 6px;
+                padding-right: 6px;
+            }
+
+            .button-row {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .end-box {
+                width: 94%;
+                padding: 24px 18px;
+                border-radius: 20px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .main {
+                gap: 6px;
+                padding-left: 4px;
+                padding-right: 4px;
+            }
+
+            .player {
+                width: calc(50vw - 8px);
+                border-radius: 10px;
+            }
+
+            .stats-flat {
+                gap: 8px;
+            }
+
+            .series-display {
+                font-size: clamp(28px, 7vw, 52px);
+            }
+
+            .button-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                width: 98vw;
+            }
+
+            .end-stats {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .end-summary-head {
+                align-items: center;
+            }
+
+            .end-player {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .end-player-stats {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .end-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+<style>
+[hidden]{display:none!important}
+.player{cursor:default!important}
+#table-status{flex:none;text-align:center;padding:12px;background:#101e42;color:#ffd84a;font-size:clamp(16px,2vw,24px)}
+#waiting{position:fixed;inset:0;z-index:1300;background:linear-gradient(180deg,#0f1c3f,#0a122b);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;box-sizing:border-box}
+#waiting h1{font-size:clamp(38px,8vw,90px);margin:0 0 24px}
+#message{font-size:clamp(20px,3vw,36px);color:#ffd84a}
+#waiting small{font-size:18px;color:#bcc8e0}
+#p1,#p2{cursor:default}.turn-marker{display:none!important}
+</style></head>
+
+<body>
+<!-- Independent copy of scoreboard.html layout; tournament controller only. -->
+    <!-- ================= TOPBAR ================= -->
+
+    <div class="topbar">
+        <div>
+            <div class="player-name"><img class="player-flag" id="player1Flag" alt=""><span id="player1Name"></span></div>
+            <div class="player-sub" id="player1Info"></div>
+        </div>
+
+        <div class="top-center">
+            <div class="game-label">TURNIER</div>
+            <div class="game-time" id="gameTime">Tisch</div>
+            <div class="discipline-info" id="disciplineInfo"></div>
+        </div>
+
+        <div style="text-align:right;">
+            <div class="player-name yellow"><img class="player-flag" id="player2Flag" alt=""><span id="player2Name"></span></div>
+            <div class="player-sub" id="player2Info"></div>
+        </div>
+    </div>
+
+    <!-- ================= MAIN ================= -->
+
+    <div class="score-area">
+        <div class="main">
+
+            <!-- PLAYER 1 -->
+            <div class="player active-white" id="p1">
+
+            <span class="turn-marker" aria-hidden="true"></span>
+
+            <div class="discipline-big" id="discipline1Big"></div>
+
+            <div class="score" id="score1">0</div>
+
+            <div class="stats-flat">
+                <div class="stat-flat">
+                    <span class="stat-title">A</span>
+                    <span id="inn1Display">0</span>
+                </div>
+
+                <div class="stat-flat">
+                    <span class="stat-title">DS</span>
+                    <span id="avg1">0.000</span>
+                </div>
+
+                <div class="stat-flat">
+                    <span class="stat-title">HS</span>
+                    <span id="hs1">0</span>
+                </div>
+
+                <div class="stat-flat" id="fourthStat1" hidden>
+                    <span class="stat-mode" id="timeoutStat1">
+                        <span class="stat-title">Time-Out</span>
+                        <span class="timeout-icons" data-timeout-player="1" aria-label="2 Time-outs">
+                            <span class="timeout-icon" aria-hidden="true"></span>
+                            <span class="timeout-icon" aria-hidden="true"></span>
+                        </span>
+                    </span>
+                </div>
+            </div>
+
+            <div id="list1" style="margin-top:15px;"></div>
+            </div>
+
+
+            <!-- CENTER -->
+
+            <div id="remainingLabel" class="remaining-label"></div>
+
+        <div id="nachstossLabel" style="
+    position:absolute;
+    top: 250px;
+    width:100%;
+    text-align:center;
+    font-size:28px;
+    font-weight:600;
+    color:#ffd84a;
+    display:none;">
+            Nachstoß
+        </div>
+
+            <div class="center-wrapper">
+
+            <div class="center-box">
+                <div class="center-number" id="totalInnings">0</div>
+            </div>
+
+            <div id="currentSeries" class="series-display"></div>
+
+            </div>
+
+
+            <!-- PLAYER 2 -->
+            <div class="player inactive" id="p2">
+
+            <span class="turn-marker" aria-hidden="true"></span>
+
+            <div class="discipline-big" id="discipline2Big"></div>
+
+            <div class="score" id="score2">0</div>
+
+            <div class="stats-flat">
+                <div class="stat-flat">
+                    <span class="stat-title">A</span>
+                    <span id="inn2Display">0</span>
+                </div>
+
+                <div class="stat-flat">
+                    <span class="stat-title">DS</span>
+                    <span id="avg2">0.000</span>
+                </div>
+
+                <div class="stat-flat">
+                    <span class="stat-title">HS</span>
+                    <span id="hs2">0</span>
+                </div>
+
+                <div class="stat-flat" id="fourthStat2" hidden>
+                    <span class="stat-mode" id="timeoutStat2">
+                        <span class="stat-title">Time-Out</span>
+                        <span class="timeout-icons" data-timeout-player="2" aria-label="2 Time-outs">
+                            <span class="timeout-icon" aria-hidden="true"></span>
+                            <span class="timeout-icon" aria-hidden="true"></span>
+                        </span>
+                    </span>
+                </div>
+            </div>
+
+            <div id="list2" style="margin-top:15px;"></div>
+            </div>
+
+        </div>
+
+        <div id="shotClock" class="shot-clock" aria-hidden="true">
+            <div id="shotClockBlocks" class="shot-clock-blocks"></div>
+            <div id="shotClockSeconds" class="shot-clock-seconds">40</div>
+        </div>
+    </div>
+
+<div id="table-status" role="status" aria-live="polite"></div>
+<section id="waiting" role="status"><h1 id="table-name">Turniertisch</h1><p id="message">Verbindung wird hergestellt …</p><small id="waiting-title"></small></section>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/turnier_tisch.js?v=20261023-scoreboard"></script>
+</body></html>
