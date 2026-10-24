@@ -12,7 +12,7 @@
         return data;
     };
     function openMatch(key) {
-        window.dispatchEvent(new CustomEvent('tournament-open-match', { detail: { key, event } }));
+        window.location.href = `turnier_ergebnisse.html?turnier=${encodeURIComponent(event.id)}&partie=${encodeURIComponent(key)}`;
     }
     function savedTables() {
         return (event.snapshot.tableIds || []).filter(id => tableIds.includes(id));
@@ -58,7 +58,7 @@
         $('dashboardSchedule').innerHTML = event.schedule.map(m => {
             const t = assignmentFor(m.key), r = event.results[m.key];
             const state = r ? `${r.score1} : ${r.score2}` : t ? (t.paused ? 'Pausiert' : 'Zugewiesen') : m.ready ? 'Offen' : 'Paarung offen';
-            return `<tr><td>${esc(m.roundLabel)}<br><small>${esc(m.label)}</small></td><td>${esc(name(m.seed1))}<br>${esc(name(m.seed2))}</td><td>${esc(t?.id.toUpperCase() || '—')}</td><td>${esc(state)}</td><td><button type="button" data-game="${esc(m.key)}">${r ? 'Ergebnis ansehen' : 'Ergebnis erfassen'}</button></td></tr>`;
+            return `<tr><td>${esc(m.roundLabel)}<br><small>${esc(m.label)}</small></td><td>${esc(name(m.seed1))}<br>${esc(name(m.seed2))}</td><td>${esc(t?.id.toUpperCase() || '—')}</td><td>${esc(state)}</td><td><button type="button" data-game="${esc(m.key)}">${r ? 'Manuell korrigieren' : 'Manuell erfassen'}</button></td></tr>`;
         }).join('');
         $('dashboardParticipants').innerHTML = event.snapshot.participants.map(p => `<span><b>${esc(p.seed)}.</b> ${esc(p.name)}</span>`).join('');
         for (const button of $('dashboardOverview').querySelectorAll('[data-game]')) button.onclick = () => openMatch(button.dataset.game);
@@ -125,7 +125,7 @@
             overview = view === 'overview';
             document.body.classList.add('tournament-dashboard-page');
             $('tournamentDashboard').hidden = false;
-            document.title = next.title + ' · Turnierzentrale';
+            document.title = next.title + ' · Displaybetrieb';
             render();
             if (!timer) { timer = setInterval(poll, 5000); poll(); }
         }

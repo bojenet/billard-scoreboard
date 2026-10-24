@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Turnier · Displaybetrieb</title><link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261021-2"><link rel="stylesheet" href="assets/turnier_dashboard.css?v=20261024-light-compact"></head><body class="tournament-dashboard-page">
+<header class="topbar"><a class="brand" href="turnier_displaybetrieb.html">Billard Studio <span>/ Displaybetrieb</span></a><nav><a href="turnier_displaybetrieb.html">Display-Turniere</a><a href="turnier_ergebnisse.html">Manuelle Ergebniserfassung</a><a href="turnier_zentrale.html">Turnierzentrale</a><button id="logoutBtn" type="button">Abmelden</button></nav></header>
+<main><p id="message" role="status" aria-live="polite">Zugriff wird geprüft …</p><section id="automaticList" hidden><h1>Turnierbetrieb mit Displays</h1><div id="automaticEvents"></div></section><section id="automaticEvent" hidden><div class="breadcrumb"><a href="turnier_displaybetrieb.html">Display-Turniere</a> / Automatischer Betrieb</div><div class="page-heading"><div><h1 id="eventTitle"></h1><p id="eventMeta"></p></div><a id="manualEntryLink">Manuelle Erfassung / Korrektur öffnen →</a></div>
+<section id="tournamentDashboard" aria-label="Turniersteuerung" hidden>
+<div class="dashboard-command">
+<div><span class="dashboard-eyebrow">TURNIERLEITUNG</span><h2 id="operationStatus">Tischstatus wird geladen …</h2><p id="operationTables"></p></div>
+<div class="dashboard-buttons"><button id="operationStart" class="primary" type="button" disabled>Turnier starten</button><button id="operationPause" type="button" hidden>Pausieren</button><button id="operationResume" type="button" hidden>Fortsetzen</button><button id="operationStop" type="button" hidden>Tischbetrieb beenden</button></div>
+</div>
+<p id="operationMessage" role="status" aria-live="polite"></p>
+<div id="dashboardTables" class="dashboard-tables"></div>
+<div id="dashboardOverview">
+<div class="dashboard-overview-grid"><section class="panel"><div class="panel-heading"><h2>Nächste Paarungen</h2></div><div id="dashboardNext"></div></section><section class="panel"><div class="panel-heading"><h2>Tabellenstand</h2></div><div id="dashboardStandings"></div></section></div>
+<section class="panel"><div class="panel-heading"><h2>Gesamter Spielplan</h2><span id="dashboardProgress"></span></div><div class="table-wrap"><table class="dashboard-plan"><thead><tr><th>Runde / Partie</th><th>Spieler</th><th>Tisch</th><th>Stand</th><th></th></tr></thead><tbody id="dashboardSchedule"></tbody></table></div></section>
+<section class="panel"><div class="panel-heading"><h2>Teilnehmer</h2></div><div id="dashboardParticipants" class="dashboard-participants"></div></section>
+</div>
+</section>
+
+</section></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/supabase.js"></script><script src="js/auth.js"></script><script src="js/result_modes.js"></script><script src="js/turnier_dashboard.js?v=20261024-separated"></script><script src="js/turnier_displaybetrieb.js?v=20261024-separated"></script></body></html>
