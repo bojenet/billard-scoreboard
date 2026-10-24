@@ -62,7 +62,7 @@
             const delta = Number(button.dataset.points);
             button.disabled = disabled || done || delta > remaining || (delta < 0 && Number(s['series' + active] || 0) < -delta);
         }
-        el('input-turn').disabled = disabled || done;text('input-turn', 'Aufnahme beenden → ' + (active === 1 ? 'Gelb' : 'Weiß'));
+        el('input-turn').disabled = disabled || done;text('input-turn', 'Wechsel');
         el('input-undo').disabled = disabled || !device.can_undo;
         el('input-completion').hidden = saved || !done;
         text('input-completion-message', a.stage === 'final' && s.score1 === s.score2 ? 'Gleichstand – Sieger nach Entscheid auswählen.' : 'Ergebnis wird automatisch gespeichert.');
