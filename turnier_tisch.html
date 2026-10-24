@@ -925,7 +925,8 @@
 #message{font-size:clamp(20px,3vw,36px);color:#ffd84a}
 #waiting small{font-size:18px;color:#bcc8e0}
 #p1,#p2{cursor:default}.turn-marker{display:none!important}
-</style></head>
+</style><link rel="stylesheet" href="assets/turnier_tisch_eingabe.css?v=20261024-1">
+</head>
 
 <body>
 <!-- Independent copy of scoreboard.html layout; tournament controller only. -->
@@ -1068,10 +1069,17 @@
         </div>
     </div>
 
+<section id="table-input" aria-label="Punkteingabe" hidden>
+<div id="input-active" aria-live="polite"></div>
+<div class="table-input-buttons"><button type="button" data-points="1">+1</button><button type="button" data-points="5">+5</button><button type="button" data-points="10">+10</button><button type="button" data-points="-1">−1</button><button id="input-undo" type="button">Rückgängig</button><button id="input-turn" class="input-primary" type="button">Aufnahme beenden</button></div>
+<form id="input-form"><label for="input-points">Punkte hinzufügen</label><input id="input-points" type="number" inputmode="numeric" min="1" max="1000000" step="1" required autocomplete="off"><button id="input-add" type="submit">Übernehmen</button></form>
+<div id="input-completion" hidden><span>Partie beendet – Ergebnis prüfen.</span><label id="input-winner-label" hidden>Sieger nach Entscheid <select id="input-winner"><option value="0">Bitte wählen</option><option value="1">Weiß</option><option value="2">Gelb</option></select></label><button id="input-finish" class="input-primary" type="button">Ergebnis im Turnier speichern</button></div>
+<p id="input-error" role="alert"></p>
+</section>
 <div id="table-status" role="status" aria-live="polite"></div>
 <section id="waiting" role="status"><h1 id="table-name">Turniertisch</h1><p id="message">Verbindung wird hergestellt …</p><small id="waiting-title"></small></section>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/turnier_tisch.js?v=20261023-scoreboard"></script>
+<script src="js/turnier_tisch.js?v=20261024-input"></script>
 </body></html>

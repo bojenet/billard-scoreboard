@@ -1,0 +1,25 @@
+html,body{overflow:auto}body{min-height:100dvh;height:100dvh}
+.topbar{min-height:78px;padding:8px clamp(14px,3vw,40px)}.player-name{font-size:clamp(20px,4vw,56px)}.player-sub{font-size:clamp(13px,1.6vw,20px)}
+.main{padding:8px;gap:clamp(8px,2vw,32px)}.score-area{min-height:270px}.score{font-size:clamp(60px,min(18vw,25vh),240px)}.player{padding:14px 8px}.stats-flat{gap:clamp(8px,2vw,30px);margin-top:12px}.stat-flat span:last-child{font-size:clamp(22px,3.5vw,46px)}.stat-title{font-size:clamp(11px,1.5vw,18px)}.discipline-big{margin-bottom:10px}
+.turn-marker{display:block!important;width:20px;top:10px;left:10px}.center-box{padding:12px}.series-display{font-size:clamp(26px,4vw,52px)}
+#table-status{font-size:clamp(12px,1.6vw,19px);padding:8px;flex-shrink:0}
+#table-input{padding:8px 14px 12px;flex-shrink:0;background:#102047;text-align:center;border-top:1px solid #334e88}
+#input-active{font-size:17px;font-weight:700;margin-bottom:8px;color:#ffd84a}.table-input-buttons{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+#table-input button{font:600 18px Arial,sans-serif;border:1px solid #526bb2;border-radius:8px;min-width:65px;min-height:46px;padding:9px 16px;color:#fff;background:#213a77;cursor:pointer}
+#table-input .input-primary{background:#ffd84a;color:#101d3d;border-color:#ffd84a}#table-input button:disabled{opacity:.4;cursor:default}
+#input-form{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:8px}#input-form label{font-size:14px}#input-points,#input-winner{font:20px Arial,sans-serif;background:#fff;color:#13234a;border-radius:7px;border:1px solid #8497c5;padding:8px;min-height:44px;width:110px}
+#input-completion{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px}#input-winner-label{font-size:15px}#input-winner{width:145px;font-size:16px}#input-error{color:#ffb7a7;font-size:15px;margin:8px 0 0}#input-error:empty{display:none}
+:focus-visible{outline:3px solid #ffd84a;outline-offset:3px}
+@media(max-width:600px){.topbar{min-height:90px}.topbar>div:first-child,.topbar>div:last-child{width:39%}.top-center{top:8px;min-width:70px}.game-label{font-size:8px}.game-time{font-size:16px}.discipline-info{max-width:95px;font-size:10px}.player-name{font-size:19px;white-space:normal}.player-sub{font-size:12px}.main{gap:5px}.center-wrapper{width:54px;min-width:54px}.center-box{padding:8px}#totalInnings{font-size:34px}.stats-flat{gap:7px}.stat-flat span:last-child{font-size:21px}.stat-title{font-size:10px}.discipline-big{font-size:12px}.turn-marker{width:12px;left:5px;top:5px}#table-input button{font-size:16px;min-height:44px;padding:8px 12px}#input-form{flex-wrap:wrap}#input-active{font-size:15px}.score-area{min-height:250px}}
+/* The Nachstoß notice is included in the active-player line, without covering scores. */
+#nachstossLabel{visibility:hidden}
+@media(max-width:600px){
+ .topbar{display:grid;grid-template-columns:minmax(0,1fr) 78px minmax(0,1fr);gap:6px;justify-content:initial;flex-wrap:nowrap;text-align:left;padding:8px 10px}
+ .topbar>div:first-child,.topbar>div:last-child{width:auto;min-width:0}.top-center{position:static;transform:none;min-width:0;text-align:center}.discipline-info{max-width:78px}.player-name{font-size:17px}.player-sub{font-size:11px}
+ .main{display:grid;grid-template-columns:minmax(0,1fr) 52px minmax(0,1fr);width:100%;align-items:center;gap:5px;padding:6px}
+ .player{width:auto;min-width:0;align-self:center}.stats-flat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:2px}.stat-flat{min-width:0}.stat-flat span:last-child{font-size:16px}.stat-title{font-size:9px;letter-spacing:0}
+ .center-wrapper{width:52px;height:120px}.center-box{width:52px;height:70px;padding:4px}.series-display{top:95px;font-size:22px}
+}
+.stats-flat > .stat-flat:nth-child(-n+3) > span:last-child{font-size:clamp(22px,3.5vw,46px)}
+.stats-flat > .stat-flat:nth-child(-n+3) .stat-title{font-size:clamp(11px,1.5vw,18px)}
+@media(max-width:600px){.stats-flat > .stat-flat:nth-child(-n+3) > span:last-child{font-size:14px}.stats-flat > .stat-flat:nth-child(-n+3) .stat-title{font-size:9px;letter-spacing:0}}

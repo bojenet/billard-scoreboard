@@ -1,0 +1,64 @@
+begin;
+insert into auth.users(id,email,raw_user_meta_data,raw_app_meta_data,created_at,updated_at) values ('f3150000-0000-4000-8000-000000000091','table-score@example.invalid','{}','{}',now(),now());
+select set_config('request.jwt.claim.sub','f3150000-0000-4000-8000-000000000091',true);
+do $$declare inv jsonb;eid uuid;d jsonb;s jsonb;key text;v integer;begin
+ begin perform public.tournament_table_input('tb01','00000000-0000-0000-0000-000000000000','R1',0,'points',1);raise exception 'Non-admin input allowed';exception when others then if position('freigeschaltete' in sqlerrm)=0 then raise;end if;end;
+ update public.user_roles set role='admin' where user_id=auth.uid();
+ select jsonb_build_object('sourceUrl','https://example.invalid/scoring-test','selectedModeCode','T3','tableIds',jsonb_build_array('tb01','tb02'),'title','Scoring test','playingTargetPoints','10','playingTargetInnings','2','participants',jsonb_agg(jsonb_build_object('number',i,'name','Spieler '||i))) into inv from generate_series(1,4) i;
+ eid:=public.create_t15_result_event(inv);
+ update public.tournament_operation_tables set event_id=null,assignment=null,last_seen=now();
+ perform public.tournament_operation('start',null,eid);
+ d:=public.tournament_table_state('tb01');key:=d->'assignment'->>'key';
+ d:=public.tournament_table_input('tb01',eid,key,0,'points',5);
+ if d->'live_state'->>'score1'<>'5' or not(d->>'can_undo')::boolean then raise exception 'Points not persisted';end if;
+ begin perform public.tournament_table_input('tb01',eid,key,0,'points',5);raise exception 'Stale input applied twice';exception when others then if position('VERSION_CONFLICT' in sqlerrm)=0 then raise;end if;end;
+ begin perform public.tournament_table_input('tb01',eid,'wrong',1,'points',1);raise exception 'Wrong match accepted';exception when others then if position('Tischzuordnung' in sqlerrm)=0 then raise;end if;end;
+ begin perform public.tournament_table_input('tb01',eid,key,1,'points',6);raise exception 'Target exceeded';exception when others then if position('Spielziel' in sqlerrm)=0 then raise;end if;end;
+ d:=public.tournament_table_input('tb01',eid,key,1,'undo');
+ if d->'live_state'->>'score1'<>'0' then raise exception 'Undo failed';end if;
+ d:=public.tournament_table_input('tb01',eid,key,2,'points',10);
+ perform public.tournament_operation('pause',null,eid);
+ begin perform public.tournament_table_input('tb01',eid,key,3,'turn');raise exception 'Paused input accepted';exception when others then if position('pausiert' in sqlerrm)=0 then raise;end if;end;
+ perform public.tournament_operation('resume',null,eid);
+ perform public.tournament_operation('stop',null,eid);
+ begin update public.result_events set snapshot=jsonb_set(snapshot,'{participants,0,name}','"Changed player"') where id=eid;raise exception 'Live score applied to changed roster';exception when others then if position('Punkteerfassung' in sqlerrm)=0 then raise;end if;end;
+ perform public.tournament_operation('start',null,eid);
+ d:=public.tournament_table_state('tb01');if d->'live_state'->>'score1'<>'10' then raise exception 'Restart lost points';end if;
+ d:=public.tournament_table_input('tb01',eid,key,3,'turn');
+ if (d->'live_state'->>'done')::boolean or d->'live_state'->>'active'<>'2' then raise exception 'Nachstoss lost';end if;
+ d:=public.tournament_table_input('tb01',eid,key,4,'points',7);d:=public.tournament_table_input('tb01',eid,key,5,'turn');
+ if not(d->'live_state'->>'done')::boolean then raise exception 'End not detected';end if;
+ d:=public.tournament_table_input('tb01',eid,key,6,'finish');
+ s:=(select results->key from public.result_events where id=eid);
+ if s->>'score1'<>'10' or s->>'score2'<>'7' or s->>'innings1'<>'1' or s->>'innings2'<>'1' or s->>'high1'<>'10' or s->>'high2'<>'7' then raise exception 'Wrong saved result: %',s;end if;
+ if not exists(select 1 from public.result_event_history where event_id=eid and action='Ergebnis '||key) then raise exception 'History missing';end if;
+ begin perform public.tournament_table_input('tb01',eid,key,7,'points',1);raise exception 'Saved match altered';exception when others then if position('bereits gespeichert' in sqlerrm)=0 then raise;end if;end;
+ -- Other table remains independent despite event version changing on save.
+ d:=public.tournament_table_state('tb02');key:=d->'assignment'->>'key';
+ for v in 0..3 loop d:=public.tournament_table_input('tb02',eid,key,v,'turn');end loop;
+ if not(d->'live_state'->>'done')::boolean or d->'live_state'->>'innings1'<>'2' or d->'live_state'->>'innings2'<>'2' then raise exception 'Innings end detection failed';end if;
+ d:=public.tournament_table_input('tb02',eid,key,4,'finish');
+ if (select count(*) from jsonb_object_keys((select results from public.result_events where id=eid)))<>2 then raise exception 'Parallel table overwrote result';end if;
+end $$;
+do $$declare inv jsonb;eid uuid;d jsonb;g jsonb;r jsonb:='{}';key text;begin
+ select jsonb_build_object('sourceUrl','https://example.invalid/scoring-knockout','selectedModeCode','T15','tableIds',jsonb_build_array('mb01','mb02'),'title','Knockout scoring test','playingTargetPoints','2','playingTargetInnings','1','participants',jsonb_agg(jsonb_build_object('number',i,'name','Spieler '||i))) into inv from generate_series(1,8) i;
+ eid:=public.create_t15_result_event(inv);
+ for g in select value from jsonb_array_elements(public.result_schedule((select snapshot from public.result_events where id=eid),'{}','{}')) where value->>'stage' in ('A','B') loop
+  r:=jsonb_set(r,array[g->>'key'],jsonb_build_object('score1',case when (g->>'seed1')::integer<(g->>'seed2')::integer then 2 else 0 end,'score2',case when (g->>'seed1')::integer<(g->>'seed2')::integer then 0 else 2 end,'innings1',1,'innings2',1,'high1',0,'high2',0));
+ end loop;
+ update public.result_events set results=r where id=eid;
+ perform public.tournament_operation('start',null,eid);
+ d:=public.tournament_table_state('mb01');key:=d->'assignment'->>'key';
+ if d->'assignment'->>'stage'<>'final' then raise exception 'Expected knockout fixture';end if;
+ d:=public.tournament_table_input('mb01',eid,key,0,'turn');d:=public.tournament_table_input('mb01',eid,key,1,'turn');
+ begin perform public.tournament_table_input('mb01',eid,key,2,'finish',0);raise exception 'Knockout draw accepted without winner';exception when others then if position('Sieger' in sqlerrm)=0 then raise;end if;end;
+ d:=public.tournament_table_input('mb01',eid,key,2,'finish',1);
+ if (select results->key->>'winner' from public.result_events where id=eid)<>'1' then raise exception 'Knockout winner missing';end if;
+end $$;
+set local role anon;
+do $$begin
+ begin perform public.tournament_table_input('tb01',null,'R1',0,'points',1);exception when insufficient_privilege then return;end;raise exception 'Anonymous input allowed';
+end $$;
+reset role;
+select 'PASS: admin gate, points/undo, target limit, stale inputs, assignment/pause guards, persisted restart, Nachstoss, HS, result/history, innings limit, independent tables, anonymous denied' result;
+rollback;
