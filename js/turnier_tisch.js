@@ -41,15 +41,12 @@
         text('disciplineInfo', 'Max. ' + snapshot.playingTargetInnings + ' Aufnahmen');
         const reply = !saved && !done && active === 2 && (Number(s.score1 || 0) >= Number(snapshot.playingTargetPoints) || Number(s.innings1 || 0) >= Number(snapshot.playingTargetInnings));
         el('nachstossLabel').style.display = reply ? 'block' : 'none';
-        text('table-status', [a.title, a.roundLabel, a.label, writing ? 'Speichert …' : device.paused ? 'PAUSIERT' : saved ? 'Ergebnis gespeichert' : done ? 'Partie beendet · Ergebnis prüfen' : 'Spielstand gespeichert'].filter(Boolean).join(' · '));
         text('input-active', device.paused ? 'Turnier pausiert' : saved ? 'Ergebnis gespeichert · Korrekturen über die Turnierleitung' : done ? 'Partie beendet' : playerName(active) + ' am Spiel' + (reply ? ' · Nachstoß' : ''));
         const remaining = Number(snapshot.playingTargetPoints) - Number(s['score' + active] || 0);
         for (const button of document.querySelectorAll('[data-points]')) {
             const delta = Number(button.dataset.points);
             button.disabled = disabled || done || delta > remaining || (delta < 0 && Number(s['series' + active] || 0) < -delta);
         }
-        el('input-points').disabled = disabled || done || remaining <= 0;el('input-add').disabled = disabled || done || remaining <= 0;
-        el('input-points').max = Math.max(1, remaining);
         el('input-turn').disabled = disabled || done;text('input-turn', 'Aufnahme beenden → ' + (active === 1 ? 'Gelb' : 'Weiß'));
         el('input-undo').disabled = disabled || !device.can_undo;
         el('input-completion').hidden = saved || !done;
@@ -66,7 +63,7 @@
             const next = await rpc('tournament_operation', { p_action: 'heartbeat', p_table: table });
             const nextEvent = next.event_id && next.assignment ? await rpc('get_t15_result_event', { p_id: next.event_id }) : null;
             if (revision !== generation) return;
-            if (next.assignment?.key !== device?.assignment?.key || next.event_id !== device?.event_id) { el('input-points').value = '';el('input-winner').value = '0';text('input-error', ''); }
+            if (next.assignment?.key !== device?.assignment?.key || next.event_id !== device?.event_id) { el('input-winner').value = '0';text('input-error', ''); }
             device = next;event = nextEvent;connected = true;render();
         } catch (error) {
             if (revision === generation) { connected = false;wait('Verbindung unterbrochen · erneuter Versuch …', error.message); }
@@ -78,7 +75,6 @@
         writing = true;generation++;text('input-error', '');render();
         try {
             device = await rpc('tournament_table_input', { p_table: table, p_event: device.event_id, p_key: device.assignment.key, p_version: device.live_version || 0, p_action: action, p_value: value });
-            if (action === 'points') el('input-points').value = '';
             if (action === 'finish') event = await rpc('get_t15_result_event', { p_id: device.event_id });
             connected = true;
         } catch (error) {
@@ -89,6 +85,5 @@
     for (const button of document.querySelectorAll('[data-points]')) button.onclick = () => input('points', Number(button.dataset.points));
     el('input-turn').onclick = () => input('turn');el('input-undo').onclick = () => input('undo');
     el('input-finish').onclick = () => input('finish', Number(el('input-winner').value));
-    el('input-form').onsubmit = e => { e.preventDefault();const value = Number(el('input-points').value);if (Number.isInteger(value) && value > 0) input('points', value); };
     await refresh();setInterval(refresh, 3000);
 })();
