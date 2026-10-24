@@ -25,25 +25,25 @@ html,body{overflow:auto}body{min-height:100dvh;height:100dvh}
 
 .free-play .player-name,.free-play .player-sub,.free-play .discipline-info,.free-play .discipline-big{display:none}
 .free-play .topbar{min-height:64px}.free-play .game-time{margin-top:2px}
-/* Free play uses the whole screen for scores and large touch targets. */
+/* Spacious free-play layout with comfortable touch targets. */
 body.free-play{display:grid;grid-template-rows:minmax(0,1fr) auto;height:100dvh;min-height:100dvh}
 .free-play .topbar{display:none}
 .free-play .score-area{min-height:0;width:100%}
-.free-play .main{display:grid;grid-template-columns:minmax(0,1fr) clamp(52px,12vw,180px) minmax(0,1fr);align-items:stretch;width:100%;height:100%;gap:12px;padding:12px;box-sizing:border-box}
+.free-play .main{display:grid;grid-template-columns:minmax(0,1fr) clamp(52px,12vw,180px) minmax(0,1fr);align-items:stretch;width:96%;max-width:1500px;height:88%;flex:none;margin:auto;gap:16px;padding:12px;box-sizing:border-box}
 .free-play .player{width:auto;height:100%;min-height:0;align-self:stretch;padding:20px 12px;gap:14px;justify-content:center;box-sizing:border-box}
-.free-play .score{display:flex;align-items:center;justify-content:center;flex:1;min-height:0;width:100%;font-size:min(calc(64vw / var(--score-digits,2)),max(60px,calc((100dvh - 280px)*.8)),460px)}
+.free-play .score{display:flex;align-items:center;justify-content:center;flex:1;min-height:0;width:100%;font-size:min(calc(52vw / var(--score-digits,2)),max(52px,calc((100dvh - 280px)*.62)),340px)}
 .free-play .stats-flat{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) minmax(0,1fr);gap:6px;width:100%;margin:0;flex-shrink:0}
-.free-play .stats-flat>.stat-flat:nth-child(-n+3)>span:last-child{font-size:clamp(18px,4vw,58px)}
+.free-play .stats-flat>.stat-flat:nth-child(-n+3)>span:last-child{font-size:clamp(18px,3.3vw,46px)}
 .free-play .stats-flat>.stat-flat:nth-child(-n+3) .stat-title{font-size:clamp(11px,1.6vw,22px)}
 .free-play .center-wrapper{width:100%;height:100%;min-width:0;flex-direction:column;gap:16px}
-.free-play .center-box{width:100%;height:clamp(70px,20vh,170px);box-sizing:border-box}
-.free-play #totalInnings{font-size:clamp(34px,8vw,110px)}
+.free-play .center-box{width:100%;height:clamp(64px,17vh,140px);box-sizing:border-box}
+.free-play #totalInnings{font-size:clamp(32px,6.5vw,90px)}
 .free-play .series-display{position:static;min-height:36px;font-size:clamp(22px,4vw,60px)}
 .free-play #table-input{padding:10px 12px 12px}
 .free-play #input-active{font-size:20px;margin-bottom:9px}
-.free-play .table-input-buttons{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;width:100%}
-.free-play #table-input button{min-width:0;min-height:84px;padding:12px 8px;font-size:clamp(22px,2.3vw,30px);border-radius:12px;touch-action:manipulation}
-.free-play #table-input button[data-points]{font-size:clamp(30px,3vw,44px)}
-@media(max-width:1000px){.free-play .table-input-buttons{grid-template-columns:repeat(12,minmax(0,1fr));gap:8px}.free-play #table-input button{grid-column:span 4;min-height:72px;font-size:22px}.free-play #table-input button[data-points]{grid-column:span 3;font-size:32px}}
-@media(max-width:600px){.free-play .main{gap:6px;padding:6px}.free-play .player{padding:14px 6px;gap:8px}.free-play #table-input{padding:8px}.free-play #table-input button{min-height:68px;font-size:18px;padding:10px 5px}.free-play #table-input button[data-points]{font-size:28px}.free-play .table-input-buttons{gap:6px}.free-play #input-active{font-size:16px;margin-bottom:6px}.free-play .stats-flat>.stat-flat:nth-child(-n+3)>span:last-child{font-size:16px}.free-play .stats-flat>.stat-flat:nth-child(-n+3) .stat-title{font-size:10px}}
+.free-play .table-input-buttons{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:9px;width:100%;max-width:1140px;margin:auto}
+.free-play #table-input button{min-width:0;min-height:64px;padding:10px 8px;font-size:clamp(20px,1.9vw,24px);border-radius:12px;touch-action:manipulation}
+.free-play #table-input button[data-points]{font-size:clamp(26px,2.5vw,34px)}
+@media(max-width:1000px){.free-play .table-input-buttons{grid-template-columns:repeat(12,minmax(0,1fr));gap:8px}.free-play #table-input button{grid-column:span 4;min-height:60px;font-size:20px}.free-play #table-input button[data-points]{grid-column:span 3;font-size:28px}}
+@media(max-width:600px){.free-play .main{gap:6px;padding:6px}.free-play .player{padding:14px 6px;gap:8px}.free-play #table-input{padding:8px}.free-play #table-input button{min-height:56px;font-size:18px;padding:10px 5px}.free-play #table-input button[data-points]{font-size:28px}.free-play .table-input-buttons{gap:6px}.free-play #input-active{font-size:16px;margin-bottom:6px}.free-play .stats-flat>.stat-flat:nth-child(-n+3)>span:last-child{font-size:16px}.free-play .stats-flat>.stat-flat:nth-child(-n+3) .stat-title{font-size:10px}}
 @media(max-height:550px) and (min-width:650px){.free-play .table-input-buttons{grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}.free-play #table-input{padding:8px}.free-play #input-active{font-size:16px;margin-bottom:6px}.free-play #table-input button,.free-play #table-input button[data-points]{grid-column:auto;min-height:60px;padding:8px;font-size:18px}.free-play #table-input button[data-points]{font-size:28px}.free-play .player{padding:10px 8px;gap:8px}.free-play .score{font-size:min(calc(64vw / var(--score-digits,2)),max(60px,calc((100dvh - 160px)*.8)),460px)}.free-play .stats-flat>.stat-flat:nth-child(-n+3)>span:last-child{font-size:24px}.free-play .stats-flat>.stat-flat:nth-child(-n+3) .stat-title{font-size:11px}}
