@@ -46,6 +46,7 @@
         for (const side of [1, 2]) {
             text('player' + side + 'Name', free ? '' : playerName(side));text('player' + side + 'Info', free ? '' : 'Ziel ' + snapshot.playingTargetPoints);
             text('score' + side, s['score' + side] ?? 0);
+            el('score' + side).style.setProperty('--score-digits', Math.max(2, String(s['score' + side] ?? 0).length));
             const innings = Number(s['innings' + side] ?? 0), score = Number(s['score' + side] ?? 0);
             text('inn' + side + 'Display', innings);
             text('hs' + side, Math.max(Number(s['high' + side] || 0), Number(s['series' + side] || 0)));
