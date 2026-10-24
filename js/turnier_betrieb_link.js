@@ -1,6 +1,9 @@
 (async () => {
  try {
   const user=await getCurrentUser();
-  if(user && await hasAdminAccess(user))document.getElementById('operation-link').hidden=false;
+  if(user && await hasAdminAccess(user)) {
+   const link=document.getElementById('operation-link');
+   link.href='turnier_ergebnisse.html';link.textContent='Turniere steuern';link.hidden=false;
+  }
  }catch(error){console.warn('Tischbetrieb-Zugriff konnte nicht geprüft werden.',error);}
 })();

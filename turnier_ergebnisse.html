@@ -4,6 +4,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Turnierergebnisse · Billard Studio</title>
 <link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261021-2">
+<link rel="stylesheet" href="assets/turnier_dashboard.css?v=20261024-1">
 </head>
 <body>
 <header class="topbar"><a id="resultsBrand" class="brand" href="turnier_ergebnisse.html">Billard Studio <span>/ Turnierergebnisse</span></a><nav><a href="turnier_ergebnisse.html">Meine Turniere</a><a data-full-navigation href="calendar.html" hidden>Kalender</a><a data-full-navigation href="turnier_zentrale.html" hidden>Turnierzentrale</a><button id="logoutBtn" type="button">Abmelden</button></nav></header>
@@ -12,11 +13,25 @@
 <section id="passwordSection" class="panel" hidden><h2>Persönlichen Zugang einrichten</h2><p>Lege ein Passwort für deinen Turnierzugang fest.</p><form id="passwordForm"><label>Neues Passwort<input id="newPassword" type="password" autocomplete="new-password" minlength="10" required></label><label>Passwort wiederholen<input id="confirmPassword" type="password" autocomplete="new-password" minlength="10" required></label><button class="primary" type="submit">Passwort speichern</button></form></section>
 <section id="listView" hidden><div class="page-heading"><div><h1 id="resultListTitle">Meine Turnierergebnisse</h1><p id="resultListDescription" hidden>Private Ergebniserfassung · Nur ausdrücklich freigegebene Turniere</p></div></div><div id="eventList"></div><p id="resultListHelp" class="muted" hidden>Die Turnierleitung legt Turniere im Kalender aus der versendeten Einladung an.</p></section>
 <section id="eventView" hidden>
-<div class="breadcrumb"><a href="turnier_ergebnisse.html">Meine Turniere</a> / Ergebniserfassung</div>
+<div class="breadcrumb"><a href="turnier_ergebnisse.html">Meine Turniere</a> / <span id="eventBreadcrumb">Ergebniserfassung</span></div>
 <div class="page-heading"><div><h1 id="eventTitle"></h1><p id="eventMeta"></p></div></div>
+<div class="toolbar"><div class="tabs" role="group" aria-label="Ansicht"><button data-view="overview" id="overviewTab" aria-pressed="false" hidden>Übersicht</button><button data-view="A" aria-pressed="true">Gruppe A</button><button data-view="B" aria-pressed="false">Gruppe B</button><button data-view="final" aria-pressed="false">Platzierung & Finale</button><button data-view="standings" aria-pressed="false">Tabellen</button><button data-view="access" id="accessTab" aria-pressed="false" hidden>Zugänge</button><button data-view="history" aria-pressed="false" hidden>Verlauf</button></div></div>
+<section id="tournamentDashboard" aria-label="Turniersteuerung" hidden>
+<div class="dashboard-command">
+<div><span class="dashboard-eyebrow">TURNIERLEITUNG</span><h2 id="operationStatus">Tischstatus wird geladen …</h2><p id="operationTables"></p></div>
+<div class="dashboard-buttons"><button id="operationStart" class="primary" type="button" disabled>Turnier starten</button><button id="operationPause" type="button" hidden>Pausieren</button><button id="operationResume" type="button" hidden>Fortsetzen</button><button id="operationStop" type="button" hidden>Tischbetrieb beenden</button></div>
+</div>
+<p id="operationMessage" role="status" aria-live="polite"></p>
+<div id="dashboardTables" class="dashboard-tables"></div>
+<div id="dashboardOverview">
+<div class="dashboard-overview-grid"><section class="panel"><div class="panel-heading"><h2>Nächste Paarungen</h2></div><div id="dashboardNext"></div></section><section class="panel"><div class="panel-heading"><h2>Tabellenstand</h2></div><div id="dashboardStandings"></div></section></div>
+<section class="panel"><div class="panel-heading"><h2>Gesamter Spielplan</h2><span id="dashboardProgress"></span></div><div class="table-wrap"><table class="dashboard-plan"><thead><tr><th>Runde / Partie</th><th>Spieler</th><th>Tisch</th><th>Stand</th><th></th></tr></thead><tbody id="dashboardSchedule"></tbody></table></div></section>
+<section class="panel"><div class="panel-heading"><h2>Teilnehmer</h2></div><div id="dashboardParticipants" class="dashboard-participants"></div></section>
+</div>
+</section>
 <button id="reloadClubCloudBtn" type="button" hidden>Daten neu aus ClubCloud laden</button>
 <section id="clubCloudPreview" class="panel" hidden><div class="panel-heading"><h2>Aktuelle ClubCloud-Daten prüfen</h2></div><form id="clubCloudForm" class="form-content"><p id="clubCloudMeta"></p><div id="clubCloudParticipants" class="table-wrap"></div><p class="muted">Der Turniermodus bleibt bestehen. Spielziel und Aufnahmenbegrenzung werden aus der bisherigen Erfassung vorbelegt und können hier angepasst werden. Die versendete Einladung wird nicht geändert.</p><div class="fields"><label>Punkte<input id="reloadTarget" type="number" min="1" max="1000000" step="1" required></label><label>Max. Aufnahmen<input id="reloadInnings" type="number" min="1" max="1000000" step="1" required></label></div><div class="actions"><button id="applyClubCloudBtn" type="submit" class="primary">Daten übernehmen</button><button id="cancelClubCloudBtn" type="button">Abbrechen</button></div></form></section>
-<div class="toolbar"><div class="tabs" role="group" aria-label="Ansicht"><button data-view="A" aria-pressed="true">Gruppe A</button><button data-view="B" aria-pressed="false">Gruppe B</button><button data-view="final" aria-pressed="false">Platzierung & Finale</button><button data-view="standings" aria-pressed="false">Tabellen</button><button data-view="access" id="accessTab" aria-pressed="false" hidden>Zugänge</button><button data-view="history" aria-pressed="false" hidden>Verlauf</button></div></div>
+
 <div id="entryView" class="entry-layout">
 <section class="panel"><div class="panel-heading"><h2 id="matchListHeading">Gruppe A</h2></div><div id="matchList"></div></section>
 <section class="panel" id="entryPanel"><div class="panel-heading"><h2 id="entryTitle">Ergebnis erfassen</h2><span id="entryMeta" class="muted"></span></div><p id="notReady" class="form-content" hidden></p><form id="resultForm" class="form-content" hidden><div id="playerInputs"></div><label id="winnerField" hidden>Sieger nach Entscheid<select id="winnerSelect"><option value="">Bitte auswählen</option></select></label><div class="actions"><button class="primary" id="saveBtn" type="submit">Ergebnis speichern</button><button id="deleteBtn" type="button" hidden>Ergebnis löschen</button></div><p id="entryMessage" aria-live="polite"></p></form></section>
@@ -33,5 +48,6 @@
 <script src="js/result_modes.js"></script>
 <script src="js/t15_clubcloud_reload.js"></script>
 <script src="js/t15_csv_export.js"></script>
-<script src="js/turnier_ergebnisse.js?v=20261022-admin-delete"></script>
+<script src="js/turnier_dashboard.js?v=20261024-1"></script>
+<script src="js/turnier_ergebnisse.js?v=20261024-dashboard"></script>
 </body></html>

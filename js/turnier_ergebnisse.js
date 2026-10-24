@@ -3,7 +3,7 @@
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const params = new URLSearchParams(location.search);
     const eventId = params.get('turnier');
-    let event = null, view = 'A', selected = 'A1', dirty = false, busy = false, pendingReload = null, reloadVersion = null;
+    let event = null, view = 'A', selected = 'A1', dirty = false, busy = false, pendingReload = null, reloadVersion = null, initialView = true;
     const player = seed => event?.snapshot.participants.find(p => p.seed === Number(seed));
     const name = seed => player(seed)?.name || 'Paarung noch offen';
     const mode = () => ResultModes.get(event.snapshot.selectedModeCode);
@@ -24,6 +24,11 @@
         if (view === 'history') await history();
     }
     function render() {
+        if (initialView) { if (event.can_delete === true) view = 'overview'; initialView = false; }
+        if (view === 'overview' && event.can_delete !== true) view = 'A';
+        $('overviewTab').hidden = event.can_delete !== true;
+        $('eventBreadcrumb').textContent = event.can_delete === true ? 'Turnierzentrale' : 'Ergebniserfassung';
+        window.TournamentDashboard?.update(event, view);
         $('eventTitle').textContent = event.title;
         $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, `${event.snapshot.selectedModeCode} · ${event.snapshot.participants.length} Spieler`, `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
         $('accessTab').hidden = !event.can_manage;
@@ -195,7 +200,16 @@
         }
         await load(); $('eventView').hidden=false;
         document.querySelectorAll('[data-view]').forEach(b=>b.onclick=async()=>{
-            if(busy||!canLeave()||(!event.can_manage && ['history','access'].includes(b.dataset.view)))return;dirty=false;view=b.dataset.view;render();if(view==='history'){try{await history();}catch(error){failure(error);}}
+            if(busy||!canLeave()||(b.dataset.view==='overview' && event.can_delete!==true)||(!event.can_manage && ['history','access'].includes(b.dataset.view)))return;dirty=false;const latest=window.TournamentDashboard?.current();if(latest?.id===event.id && latest.version>=event.version)event=latest;view=b.dataset.view;render();if(view==='history'){try{await history();}catch(error){failure(error);}}
+        });
+        window.addEventListener('tournament-open-match', e => {
+            if (busy || !canLeave()) return;
+            const latest = e.detail?.event;
+            if (latest?.id === event.id && latest.version >= event.version) event = latest;
+            const match = event.schedule.find(m => m.key === e.detail?.key);
+            if (!match) return;
+            dirty = false; selected = match.key; view = match.stage; render();
+            $('entryPanel').scrollIntoView({ block: 'start', behavior: 'smooth' });
         });
         $('resultForm').oninput=()=>{dirty=true;updateWinnerSelection();};
         $('resultForm').onsubmit=e=>{e.preventDefault();const result={};for(const side of [1,2])for(const field of ['score','innings','high'])result[field+side]=Number($(field+side).value);if(!$('winnerField').hidden)result.winner=Number($('winnerSelect').value);submitResult(result);};

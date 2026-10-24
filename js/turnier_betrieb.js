@@ -17,6 +17,8 @@
   const event=events.find(e=>e.id===selectEvent.value);
   document.getElementById("assigned-tables").textContent=event?.tableIds?.length ? "Tische: "+event.tableIds.map(t=>t.toUpperCase()).join(", ") : "Tische zuerst in der Einladung festlegen und Turnierdaten aktualisieren.";
   document.getElementById("start").disabled=!event?.tableIds?.length;
+  const link=document.getElementById('openTournament');
+  if(link){link.hidden=!event;link.href='turnier_ergebnisse.html?turnier='+encodeURIComponent(selectEvent.value);}
  }
  if(!kiosk)selectEvent.addEventListener("change",showAssigned);
  async function refresh(action='state'){
