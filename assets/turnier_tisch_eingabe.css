@@ -22,3 +22,6 @@ html,body{overflow:auto}body{min-height:100dvh;height:100dvh}
 .stats-flat > .stat-flat:nth-child(-n+3) > span:last-child{font-size:clamp(22px,3.5vw,46px)}
 .stats-flat > .stat-flat:nth-child(-n+3) .stat-title{font-size:clamp(11px,1.5vw,18px)}
 @media(max-width:600px){.stats-flat > .stat-flat:nth-child(-n+3) > span:last-child{font-size:14px}.stats-flat > .stat-flat:nth-child(-n+3) .stat-title{font-size:9px;letter-spacing:0}}
+
+.free-play .player-name,.free-play .player-sub,.free-play .discipline-info,.free-play .discipline-big{display:none}
+.free-play .topbar{min-height:64px}.free-play .game-time{margin-top:2px}
