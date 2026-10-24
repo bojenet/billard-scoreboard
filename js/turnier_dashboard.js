@@ -44,7 +44,7 @@
             const result = game ? event.results[game.key] : null;
             const live = result || (own ? table.live_state : null);
             const online = connected && isOnline(table);
-            const state = !connected ? 'Status unbekannt' : !online ? 'Offline' : table.event_id && !own ? 'Anderes Turnier' : own ? (table.paused ? 'Pausiert' : game ? (result ? 'Ergebnis gespeichert' : 'Partie zugewiesen') : 'Wartet auf nächste Partie') : 'Bereit';
+            const state = event.status === 'completed' ? 'Turnier beendet' : !connected ? 'Status unbekannt' : !online ? 'Offline' : table.event_id && !own ? 'Anderes Turnier' : own ? (table.paused ? 'Pausiert' : game ? (result ? 'Ergebnis gespeichert' : 'Partie zugewiesen') : 'Wartet auf nächste Partie') : 'Bereit';
             const snap = game?.snapshot || event.snapshot;
             const playerName = seed => snap.participants.find(p => Number(p.seed) === Number(seed))?.name || 'Paarung offen';
             return `<article class="dashboard-table"><div class="dashboard-table-head"><h3>${esc(id.toUpperCase())}</h3><span class="${online ? 'dashboard-online' : 'dashboard-offline'}">${esc(state)}</span></div>${game ? `<div class="dashboard-scoreboard">${[1,2].map(side => `<div class="dashboard-side side-${side}"><div class="dashboard-player">${esc(playerName(game['seed' + side]))}</div><strong class="dashboard-score">${live?.['score' + side] ?? 0}</strong><span class="dashboard-innings">Aufnahmen <b>${live?.['innings' + side] ?? 0}</b></span></div>`).join('')}</div><p class="dashboard-game-label">${esc(game.roundLabel)} · ${esc(game.label)}</p>` : `<p class="dashboard-table-wait">${own ? 'Wartet auf die nächste Paarung' : 'Wartet auf Turnierstart'}</p>`}<a href="turnier_tisch.html?tisch=${encodeURIComponent(id)}" target="_blank" rel="noopener">Tischdisplay öffnen ↗</a></article>`;
@@ -75,10 +75,8 @@
         polling = true;
         const revision = generation;
         try {
-            const [state, latest] = await Promise.all([
-                rpc('tournament_operation', { p_action: 'state' }),
-                rpc('get_t15_result_event', { p_id: event.id })
-            ]);
+            const state = await rpc('tournament_operation', { p_action: 'state' });
+            const latest = await rpc('get_t15_result_event', { p_id: event.id });
             if (revision !== generation) return;
             if (latest.can_delete !== true) {
                 disable();

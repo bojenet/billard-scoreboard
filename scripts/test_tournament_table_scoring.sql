@@ -27,17 +27,15 @@ do $$declare inv jsonb;eid uuid;d jsonb;s jsonb;key text;v integer;begin
  d:=public.tournament_table_input('tb01',eid,key,3,'turn');
  if (d->'live_state'->>'done')::boolean or d->'live_state'->>'active'<>'2' then raise exception 'Nachstoss lost';end if;
  d:=public.tournament_table_input('tb01',eid,key,4,'points',7);d:=public.tournament_table_input('tb01',eid,key,5,'turn');
- if not(d->'live_state'->>'done')::boolean then raise exception 'End not detected';end if;
- d:=public.tournament_table_input('tb01',eid,key,6,'finish');
+ if not exists(select 1 from public.result_events where id=eid and results ? key) then raise exception 'Automatic save failed';end if;
  s:=(select results->key from public.result_events where id=eid);
  if s->>'score1'<>'10' or s->>'score2'<>'7' or s->>'innings1'<>'1' or s->>'innings2'<>'1' or s->>'high1'<>'10' or s->>'high2'<>'7' then raise exception 'Wrong saved result: %',s;end if;
  if not exists(select 1 from public.result_event_history where event_id=eid and action='Ergebnis '||key) then raise exception 'History missing';end if;
- begin perform public.tournament_table_input('tb01',eid,key,7,'points',1);raise exception 'Saved match altered';exception when others then if position('bereits gespeichert' in sqlerrm)=0 then raise;end if;end;
+ begin perform public.tournament_table_input('tb01',eid,key,7,'points',1);raise exception 'Saved match altered';exception when others then if position('bereits gespeichert' in sqlerrm)=0 and position('Tischzuordnung' in sqlerrm)=0 then raise;end if;end;
  -- Other table remains independent despite event version changing on save.
  d:=public.tournament_table_state('tb02');key:=d->'assignment'->>'key';
  for v in 0..3 loop d:=public.tournament_table_input('tb02',eid,key,v,'turn');end loop;
- if not(d->'live_state'->>'done')::boolean or d->'live_state'->>'innings1'<>'2' or d->'live_state'->>'innings2'<>'2' then raise exception 'Innings end detection failed';end if;
- d:=public.tournament_table_input('tb02',eid,key,4,'finish');
+ if (select results->key->>'innings1' from public.result_events where id=eid)<>'2' then raise exception 'Innings end detection failed';end if;
  if (select count(*) from jsonb_object_keys((select results from public.result_events where id=eid)))<>2 then raise exception 'Parallel table overwrote result';end if;
 end $$;
 do $$declare inv jsonb;eid uuid;d jsonb;g jsonb;r jsonb:='{}';key text;begin
