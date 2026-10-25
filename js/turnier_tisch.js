@@ -6,6 +6,11 @@
     const el = id => document.getElementById(id);
     const text = (id, value) => { el(id).textContent = value; };
     let device, event, reading = false, writing = false, connected = false, generation = 0, readyAt = 0, transitionTimer;
+    let endscreen = null;
+    const nextButton = document.createElement('button');
+    nextButton.id = 'input-next';nextButton.className = 'input-primary';nextButton.textContent = 'Weiter';nextButton.hidden = true;
+    el('table-input').appendChild(nextButton);
+    nextButton.onclick = () => { endscreen = null;render(); };
     const rpc = async (name, args) => {
         const { data, error } = await supabaseClient.rpc(name, args);
         if (error) throw error;
@@ -20,7 +25,12 @@
     text('table-name', table.toUpperCase());text('gameTime', table.toUpperCase());
     if (!await requireAdmin()) return;
     const playerName = side => device?.event_id ? device.assignment?.snapshot.participants.find(p => Number(p.seed) === Number(device.assignment['seed' + side]))?.name || 'Spieler' : side === 1 ? 'Weiß' : 'Gelb';
-    function adopt(next, nextEvent) {
+    function adopt(next, nextEvent, previousEvent = nextEvent) {
+        const previousKey = device?.assignment?.key;
+        const completed = previousKey && previousEvent?.results?.[previousKey];
+        if (!endscreen && device?.event_id && completed && (next.event_id !== device.event_id || next.assignment?.key !== previousKey)) {
+            endscreen = { device: structuredClone(device), event: previousEvent };
+        }
         const changed = next.assignment?.key !== device?.assignment?.key || next.event_id !== device?.event_id || next.mode_version !== device?.mode_version;
         if (changed) {
             el('input-winner').value = '0';text('input-error', '');clearTimeout(transitionTimer);
@@ -30,6 +40,16 @@
         device = next;event = nextEvent;connected = true;
     }
     function render() {
+        if (!endscreen) { nextButton.hidden = true;renderBoard();return; }
+        const currentDevice = device, currentEvent = event;
+        try {
+            device = endscreen.device;event = endscreen.event;renderBoard();
+            text('input-active', 'Partie beendet · Ergebnis gespeichert');
+            for (const button of document.querySelectorAll('#table-input button')) button.disabled = true;
+            nextButton.hidden = false;nextButton.disabled = false;
+        } finally { device = currentDevice;event = currentEvent; }
+    }
+    function renderBoard() {
         const a = device?.assignment, free = !!device && !device.event_id;
         document.body.classList.toggle('free-play', free);
         el('input-reset').hidden = !free;
@@ -84,13 +104,14 @@
             const next = await rpc('tournament_operation', { p_action: 'heartbeat', p_table: table });
             const nextEvent = next.event_id ? await rpc('get_t15_result_event', { p_id: next.event_id }) : null;
             if (revision !== generation) return;
-            adopt(next, nextEvent);render();
+            const previousEvent = device?.event_id && device.event_id !== next.event_id ? await rpc('get_t15_result_event', { p_id: device.event_id }) : nextEvent;
+            adopt(next, nextEvent, previousEvent);render();
         } catch (error) {
             if (revision === generation) { connected = false;wait('Verbindung unterbrochen · erneuter Versuch …', error.message); }
         } finally { reading = false; }
     }
     async function input(action, value = 0) {
-        if (writing || Date.now() < readyAt || !connected || !device || (device.event_id && (!device.assignment || device.paused))) return;
+        if (endscreen || writing || Date.now() < readyAt || !connected || !device || (device.event_id && (!device.assignment || device.paused))) return;
         const free = !device.event_id;
         if (action === 'reset' && (!free || !confirm('Neues freies Spiel? Punkte und Aufnahmen dieses Tisches zurücksetzen.'))) return;
         writing = true;generation++;text('input-error', '');render();
@@ -98,7 +119,8 @@
             const next = free ? await rpc('table_free_input', { p_table: table, p_version: device.free_version || 0, p_mode_version: device.mode_version, p_action: action, p_value: value }) : await rpc('tournament_table_input', { p_table: table, p_event: device.event_id, p_key: device.assignment.key, p_version: device.live_version || 0, p_action: action, p_value: value });
             const changed = next.assignment?.key !== device.assignment?.key || next.event_id !== device.event_id;
             const nextEvent = next.event_id ? (changed || action === 'finish' ? await rpc('get_t15_result_event', { p_id: next.event_id }) : event) : null;
-            adopt(next, nextEvent);
+            const previousEvent = device.event_id && device.event_id !== next.event_id ? await rpc('get_t15_result_event', { p_id: device.event_id }) : nextEvent;
+            adopt(next, nextEvent, previousEvent);
         } catch (error) {
             connected = false;
             text('input-error', error.message + ' · Der aktuelle Stand wird neu geladen.');
