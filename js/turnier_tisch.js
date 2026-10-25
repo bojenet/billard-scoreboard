@@ -39,7 +39,7 @@
     }
     const nextButton = document.createElement('button');
     nextButton.id = 'input-next';nextButton.className = 'input-primary';nextButton.textContent = 'Weiter';nextButton.hidden = true;
-    el('table-input').appendChild(nextButton);
+    el('endActions').appendChild(nextButton);
     nextButton.onclick = () => { endscreen = null;warmup = {};storeWarmup();render(); };
     const rpc = async (name, args) => {
         const { data, error } = await supabaseClient.rpc(name, args);
@@ -69,12 +69,26 @@
         }
         device = next;event = nextEvent;connected = true;
     }
+    function renderEndscreen() {
+        const a = endscreen.device.assignment, r = endscreen.event.results[a.key];
+        const name = side => a.snapshot.participants.find(p => Number(p.seed) === Number(a['seed' + side]))?.name || 'Spieler';
+        const winner = Number(r.score1) === Number(r.score2) ? Number(r.winner || 0) : Number(r.score1) > Number(r.score2) ? 1 : 2;
+        text('winnerText', winner ? name(winner) + ' gewinnt' : 'Unentschieden');
+        for (const side of [1, 2]) {
+            const innings = Number(r['innings' + side] || 0), score = Number(r['score' + side] || 0);
+            text('endName' + side, name(side));text('endDisc' + side, a.snapshot.discipline || '');
+            text('endScore' + side, score);text('endInnings' + side, innings);
+            text('endAvg' + side, innings ? (score / innings).toFixed(3).replace('.', ',') : '0,000');
+            text('endHs' + side, r['high' + side] || 0);
+        }
+    }
     function render() {
+        el('endScreen').style.display = endscreen ? 'flex' : 'none';
         if (!endscreen) { nextButton.hidden = true;renderBoard();updateWarmup();return; }
         overlay.hidden = true;
         const currentDevice = device, currentEvent = event;
         try {
-            device = endscreen.device;event = endscreen.event;renderBoard();
+            device = endscreen.device;event = endscreen.event;renderBoard();renderEndscreen();
             text('input-active', 'Partie beendet · Ergebnis gespeichert');
             for (const button of document.querySelectorAll('#table-input button')) button.disabled = true;
             nextButton.hidden = false;nextButton.disabled = false;

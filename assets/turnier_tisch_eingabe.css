@@ -54,3 +54,13 @@ body.free-play{display:grid;grid-template-rows:minmax(0,1fr) auto;height:100dvh;
 #table-warmup strong{display:block;font-size:clamp(26px,4vw,54px);margin-top:18px;color:#fff}
 #table-warmup>div>div:first-child{font-size:clamp(20px,3vw,32px);color:#ffd84a}
 .warmup-countdown{font-size:clamp(80px,18vw,180px);font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;color:#fff}
+
+/* Same result-card treatment as the Club Remote scoreboard. */
+#endScreen{padding:16px;box-sizing:border-box}
+#endScreen .end-box{box-sizing:border-box;width:min(1100px,96vw);padding:clamp(20px,4vw,50px)}
+#endScreen .end-player-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+#endScreen .end-player{padding:20px 16px}
+#endScreen .end-summary-head>span{font-size:16px;color:#a5dfb3}
+#endScreen .end-stat strong{font-size:clamp(24px,3vw,40px)}
+#endScreen #input-next{background:#ffd84a;color:#101d3d;border:0;border-radius:12px;min-height:60px;min-width:180px;padding:14px 32px;font:700 24px Arial,sans-serif;cursor:pointer}
+@media(max-width:600px){#endScreen .end-summary-head{flex-wrap:wrap;gap:10px}#endScreen .end-stats{grid-template-columns:1fr}#endScreen .end-player h2{font-size:22px}#endScreen .end-stat{font-size:12px}}
