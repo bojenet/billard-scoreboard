@@ -55,15 +55,27 @@ body.free-play{display:grid;grid-template-rows:minmax(0,1fr) auto;height:100dvh;
 #table-warmup>div>div:first-child{font-size:clamp(20px,3vw,32px);color:#ffd84a}
 .warmup-countdown{font-size:clamp(80px,18vw,180px);font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;color:#fff}
 
-/* Same result-card treatment as the Club Remote scoreboard. */
-#endScreen{padding:16px;box-sizing:border-box}
-#endScreen .end-box{box-sizing:border-box;width:min(1100px,96vw);padding:clamp(20px,4vw,50px)}
-#endScreen .end-player-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
-#endScreen .end-player{padding:20px 16px}
-#endScreen .end-summary-head>span{font-size:16px;color:#a5dfb3}
-#endScreen .end-stat strong{font-size:clamp(24px,3vw,40px)}
-#endScreen #input-next{background:#ffd84a;color:#101d3d;border:0;border-radius:12px;min-height:60px;min-width:180px;padding:14px 32px;font:700 24px Arial,sans-serif;cursor:pointer}
-@media(max-width:600px){#endScreen .end-summary-head{flex-wrap:wrap;gap:10px}#endScreen .end-stats{grid-template-columns:1fr}#endScreen .end-player h2{font-size:22px}#endScreen .end-stat{font-size:12px}}
+/* Full-display result screen using the Club Remote palette. */
+#endScreen{padding:0;box-sizing:border-box;background:#0f1c3f}
+#endScreen .end-box{box-sizing:border-box;width:100%;max-width:none;height:100dvh;max-height:none;padding:clamp(16px,3vw,46px);border-radius:0;display:flex;flex-direction:column;gap:20px}
+#endScreen .end-summary{flex:1;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);gap:20px;margin:0}
+#endScreen .end-summary-head{align-items:center;padding-bottom:16px}
+#endScreen .end-box h1{font-size:clamp(26px,3.6vw,58px);line-height:1.15;overflow-wrap:anywhere}
+#endScreen .end-summary-head>span{font-size:clamp(14px,1.6vw,22px);color:#a5dfb3}
+#endScreen .end-stats{gap:clamp(12px,2vw,32px);min-height:0}
+#endScreen .end-player{padding:clamp(16px,2vw,32px);grid-template-rows:auto minmax(0,1fr);gap:16px;min-width:0}
+#endScreen .end-player h2{font-size:clamp(24px,3vw,48px);overflow-wrap:anywhere}
+#endScreen .end-discipline{font-size:clamp(13px,1.5vw,22px)}
+#endScreen .end-player-stats{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr) auto;gap:14px;align-items:center}
+#endScreen .end-player .end-stat{font-size:clamp(14px,1.7vw,25px);text-align:center;min-width:0}
+#endScreen .end-stat strong{font-size:clamp(25px,3.5vw,58px);font-variant-numeric:tabular-nums}
+#endScreen .end-stat:first-child{grid-column:1/-1}
+#endScreen .end-stat:first-child strong{font-size:clamp(64px,min(18vw,30dvh),280px);line-height:1.05}
+#endScreen .end-player:nth-child(2) .end-stat:first-child strong{color:#ffd84a}
+#endScreen .end-buttons{margin:0;flex-shrink:0;justify-content:center}
+#endScreen #input-next{background:#ffd84a;color:#101d3d;border:0;border-radius:12px;min-height:60px;min-width:200px;padding:14px 36px;font:700 26px Arial,sans-serif;cursor:pointer}
+@media(max-width:600px){#endScreen .end-box{gap:12px;overflow:auto}#endScreen .end-summary{min-height:560px;gap:12px}#endScreen .end-summary-head{flex-wrap:wrap;gap:8px}#endScreen .end-stats{grid-template-columns:1fr;gap:12px}#endScreen .end-player{padding:14px;gap:8px}#endScreen .end-player h2{font-size:23px}#endScreen .end-player-stats{gap:6px}#endScreen .end-stat:first-child strong{font-size:clamp(60px,12dvh,100px)}#endScreen .end-stat strong{font-size:25px}}
+@media(max-height:550px) and (min-width:601px){#endScreen .end-box{padding:14px;gap:10px}#endScreen .end-summary{gap:10px}#endScreen .end-player{padding:12px;gap:6px}#endScreen .end-player h2{font-size:24px}#endScreen .end-stat:first-child strong{font-size:clamp(60px,23dvh,130px)}#endScreen #input-next{min-height:48px;padding:8px 30px;font-size:22px}}
 
 .warmup-actions{display:flex;justify-content:center;gap:16px;margin-top:20px;flex-wrap:wrap}
 .warmup-actions button{font:700 24px Arial,sans-serif;min-width:150px;min-height:60px;padding:12px 28px;border-radius:12px;border:1px solid #8193bf;background:#213a77;color:white;cursor:pointer}
