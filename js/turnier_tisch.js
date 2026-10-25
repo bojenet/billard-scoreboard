@@ -16,9 +16,23 @@
     const warmupLabel = document.createElement('div');warmupLabel.textContent = 'Einspielzeit';
     const warmupPlayer = document.createElement('strong');
     const warmupTime = document.createElement('div');warmupTime.className = 'warmup-countdown';
-    warmupCard.append(warmupLabel, warmupPlayer, warmupTime);overlay.appendChild(warmupCard);document.body.appendChild(overlay);
+    const warmupActions = document.createElement('div');warmupActions.className = 'warmup-actions';
+    const warmupStart = document.createElement('button');warmupStart.type = 'button';warmupStart.textContent = 'Start';
+    const warmupEnd = document.createElement('button');warmupEnd.type = 'button';warmupEnd.textContent = 'Beenden';
+    warmupStart.onclick = () => {
+        if (!warmup?.key || warmup.deadline) return;
+        warmup.deadline = Date.now() + 300000;storeWarmup();updateWarmup();
+    };
+    warmupEnd.onclick = () => { if (warmup?.key) finishWarmup(); };
+    warmupActions.append(warmupStart, warmupEnd);
+    warmupCard.append(warmupLabel, warmupPlayer, warmupTime, warmupActions);overlay.appendChild(warmupCard);document.body.appendChild(overlay);
     function storeWarmup() {
         try { if (warmup) sessionStorage.setItem(warmupStorage, JSON.stringify(warmup));else sessionStorage.removeItem(warmupStorage); } catch (_) {}
+    }
+    function finishWarmup() {
+        if (warmup.side === 1) warmup = { key: warmup.key, side: 2, deadline: null };
+        else warmup = null;
+        storeWarmup();render();
     }
     function updateWarmup() {
         overlay.hidden = true;
@@ -26,12 +40,12 @@
         if (!device?.event_id || event?.status === 'completed') { warmup = null;storeWarmup();return; }
         const key = device.event_id + ':' + device.assignment?.key;
         if (!device.assignment) return;
-        if (!warmup.key) { warmup = { key, started: Date.now() };storeWarmup(); }
+        if (!warmup.key || !warmup.side) { warmup = { key, side: 1, deadline: null };storeWarmup(); }
         if (warmup.key !== key) { warmup = null;storeWarmup();return; }
-        const elapsed = Math.max(0, Date.now() - warmup.started);
-        if (elapsed >= 600000) { warmup = null;storeWarmup();render();return; }
-        const side = elapsed < 300000 ? 1 : 2;
-        const remaining = Math.ceil((side * 300000 - elapsed) / 1000);
+        if (warmup.deadline && Date.now() >= warmup.deadline) { finishWarmup();return; }
+        const side = warmup.side;
+        const remaining = warmup.deadline ? Math.ceil((warmup.deadline - Date.now()) / 1000) : 300;
+        warmupStart.hidden = !!warmup.deadline;
         warmupPlayer.textContent = playerName(side);
         warmupTime.textContent = Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0');
         overlay.hidden = false;

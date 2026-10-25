@@ -64,3 +64,8 @@ body.free-play{display:grid;grid-template-rows:minmax(0,1fr) auto;height:100dvh;
 #endScreen .end-stat strong{font-size:clamp(24px,3vw,40px)}
 #endScreen #input-next{background:#ffd84a;color:#101d3d;border:0;border-radius:12px;min-height:60px;min-width:180px;padding:14px 32px;font:700 24px Arial,sans-serif;cursor:pointer}
 @media(max-width:600px){#endScreen .end-summary-head{flex-wrap:wrap;gap:10px}#endScreen .end-stats{grid-template-columns:1fr}#endScreen .end-player h2{font-size:22px}#endScreen .end-stat{font-size:12px}}
+
+.warmup-actions{display:flex;justify-content:center;gap:16px;margin-top:20px;flex-wrap:wrap}
+.warmup-actions button{font:700 24px Arial,sans-serif;min-width:150px;min-height:60px;padding:12px 28px;border-radius:12px;border:1px solid #8193bf;background:#213a77;color:white;cursor:pointer}
+.warmup-actions button:first-child{background:#ffd84a;color:#101d3d;border-color:#ffd84a}
+.warmup-actions button[hidden]{display:none}
