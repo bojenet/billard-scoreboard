@@ -68,7 +68,7 @@
     if (!validTables.includes(table)) { wait('Ungültiger Tisch. Erlaubt: ' + validTables.join(', ')); return; }
     text('table-name', table.toUpperCase());text('gameTime', table.toUpperCase());
     if (!await requireAdmin()) return;
-    const playerName = side => device?.event_id ? device.assignment?.snapshot.participants.find(p => Number(p.seed) === Number(device.assignment['seed' + side]))?.name || 'Spieler' : side === 1 ? 'Weiß' : 'Gelb';
+    const playerName = side => device?.event_id ? device.assignment?.snapshot.participants.find(p => Number(p.seed) === Number(device.assignment['seed' + (device.live_state?.swapped ? 3 - side : side)]))?.name || 'Spieler' : side === 1 ? 'Weiß' : 'Gelb';
     function adopt(next, nextEvent, previousEvent = nextEvent) {
         const previousKey = device?.assignment?.key;
         const completed = previousKey && previousEvent?.results?.[previousKey];
@@ -118,7 +118,9 @@
             return;
         }
         const snapshot = free ? {} : a.snapshot, result = free ? null : event.results?.[a.key];
-        const s = (free ? device.free_state : result || device.live_state) || {};
+        const s = (free ? device.free_state : result ? { ...result, ...Object.fromEntries(['score','innings','high'].flatMap(k => [1,2].map(side => [k + side, result[k + (device.live_state?.swapped ? 3 - side : side)]]))) } : device.live_state) || {};
+        el('input-swap').hidden = free || !!s.started || !!result || !!s.saved || !!s.done || !!s.score1 || !!s.score2 || !!s.innings1 || !!s.innings2;
+        el('input-swap').disabled = writing || !connected || device.paused || !!warmup || Date.now() < readyAt;
         const saved = !free && (!!result || !!s.saved), done = !free && !!s.done, active = Number(s.active || 1);
         const changing = Date.now() < readyAt;
         const disabled = changing || writing || !connected || device.paused || saved || (!free && event.status === 'completed');
@@ -186,6 +188,7 @@
         } finally { writing = false;render();if (!connected) await refresh(); }
     }
     for (const button of document.querySelectorAll('[data-points]')) button.onclick = () => input('points', Number(button.dataset.points));
+    el('input-swap').onclick = () => input('swap');
     el('input-turn').onclick = () => input('turn');el('input-undo').onclick = () => input('undo');
     el('input-reset').onclick = () => input('reset');
     el('input-finish').onclick = () => input('finish', Number(el('input-winner').value));
