@@ -7,10 +7,40 @@
     const text = (id, value) => { el(id).textContent = value; };
     let device, event, reading = false, writing = false, connected = false, generation = 0, readyAt = 0, transitionTimer;
     let endscreen = null;
+    const warmupStorage = 'tournament-warmup-' + table;
+    let warmup = null;
+    try { warmup = JSON.parse(sessionStorage.getItem(warmupStorage)); } catch (_) {}
+    const overlay = document.createElement('div');
+    overlay.id = 'table-warmup';overlay.hidden = true;
+    const warmupCard = document.createElement('div');
+    const warmupLabel = document.createElement('div');warmupLabel.textContent = 'Einspielzeit';
+    const warmupPlayer = document.createElement('strong');
+    const warmupTime = document.createElement('div');warmupTime.className = 'warmup-countdown';
+    warmupCard.append(warmupLabel, warmupPlayer, warmupTime);overlay.appendChild(warmupCard);document.body.appendChild(overlay);
+    function storeWarmup() {
+        try { if (warmup) sessionStorage.setItem(warmupStorage, JSON.stringify(warmup));else sessionStorage.removeItem(warmupStorage); } catch (_) {}
+    }
+    function updateWarmup() {
+        overlay.hidden = true;
+        if (!warmup || endscreen) return;
+        if (!device?.event_id || event?.status === 'completed') { warmup = null;storeWarmup();return; }
+        const key = device.event_id + ':' + device.assignment?.key;
+        if (!device.assignment) return;
+        if (!warmup.key) { warmup = { key, started: Date.now() };storeWarmup(); }
+        if (warmup.key !== key) { warmup = null;storeWarmup();return; }
+        const elapsed = Math.max(0, Date.now() - warmup.started);
+        if (elapsed >= 600000) { warmup = null;storeWarmup();render();return; }
+        const side = elapsed < 300000 ? 1 : 2;
+        const remaining = Math.ceil((side * 300000 - elapsed) / 1000);
+        warmupPlayer.textContent = playerName(side);
+        warmupTime.textContent = Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0');
+        overlay.hidden = false;
+        for (const button of document.querySelectorAll('#table-input button')) button.disabled = true;
+    }
     const nextButton = document.createElement('button');
     nextButton.id = 'input-next';nextButton.className = 'input-primary';nextButton.textContent = 'Weiter';nextButton.hidden = true;
     el('table-input').appendChild(nextButton);
-    nextButton.onclick = () => { endscreen = null;render(); };
+    nextButton.onclick = () => { endscreen = null;warmup = {};storeWarmup();render(); };
     const rpc = async (name, args) => {
         const { data, error } = await supabaseClient.rpc(name, args);
         if (error) throw error;
@@ -40,7 +70,8 @@
         device = next;event = nextEvent;connected = true;
     }
     function render() {
-        if (!endscreen) { nextButton.hidden = true;renderBoard();return; }
+        if (!endscreen) { nextButton.hidden = true;renderBoard();updateWarmup();return; }
+        overlay.hidden = true;
         const currentDevice = device, currentEvent = event;
         try {
             device = endscreen.device;event = endscreen.event;renderBoard();
@@ -111,7 +142,7 @@
         } finally { reading = false; }
     }
     async function input(action, value = 0) {
-        if (endscreen || writing || Date.now() < readyAt || !connected || !device || (device.event_id && (!device.assignment || device.paused))) return;
+        if (endscreen || warmup || writing || Date.now() < readyAt || !connected || !device || (device.event_id && (!device.assignment || device.paused))) return;
         const free = !device.event_id;
         if (action === 'reset' && (!free || !confirm('Neues freies Spiel? Punkte und Aufnahmen dieses Tisches zurücksetzen.'))) return;
         writing = true;generation++;text('input-error', '');render();
@@ -130,5 +161,5 @@
     el('input-turn').onclick = () => input('turn');el('input-undo').onclick = () => input('undo');
     el('input-reset').onclick = () => input('reset');
     el('input-finish').onclick = () => input('finish', Number(el('input-winner').value));
-    await refresh();setInterval(refresh, 3000);
+    await refresh();setInterval(refresh, 3000);setInterval(updateWarmup, 250);
 })();

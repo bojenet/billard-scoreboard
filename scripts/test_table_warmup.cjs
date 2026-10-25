@@ -1,0 +1,13 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+const source=fs.readFileSync('js/turnier_tisch.js','utf8');
+const fn=source.slice(source.indexOf('    function updateWarmup()'),source.indexOf('    const nextButton'));
+const c=vm.createContext({Math,String});
+vm.runInContext(`let now=1000;const Date={now:()=>now};let warmup={},endscreen=null;const overlay={},warmupPlayer={},warmupTime={},buttons=[{}];const device={event_id:'e',assignment:{key:'R2'}};const event={status:'open'};const document={querySelectorAll:()=>buttons};let renders=0;function render(){renders++}function storeWarmup(){}function playerName(side){return 'Spieler '+side}${fn}updateWarmup();`,c);
+assert.equal(vm.runInContext('warmupTime.textContent',c),'5:00');assert.equal(vm.runInContext('warmupPlayer.textContent',c),'Spieler 1');
+vm.runInContext('now+=299000;updateWarmup()',c);assert.equal(vm.runInContext('warmupTime.textContent',c),'0:01');
+vm.runInContext('now+=1000;updateWarmup()',c);assert.equal(vm.runInContext('warmupTime.textContent',c),'5:00');assert.equal(vm.runInContext('warmupPlayer.textContent',c),'Spieler 2');
+vm.runInContext('now+=300000;updateWarmup()',c);assert.equal(vm.runInContext('warmup',c),null);assert.equal(vm.runInContext('overlay.hidden',c),true);assert.equal(vm.runInContext('renders',c),1);
+vm.runInContext("warmup={};device.assignment=null;updateWarmup()",c);assert.equal(vm.runInContext('overlay.hidden',c),true);
+vm.runInContext("device.assignment={key:'R3'};updateWarmup()",c);assert.equal(vm.runInContext('warmupTime.textContent',c),'5:00');
+vm.runInContext("device.assignment={key:'R4'};updateWarmup()",c);assert.equal(vm.runInContext('warmup',c),null);
+console.log('PASS: 5:00 per player, automatic second timer, input lock, expiry, pending pairing, changed assignment');
