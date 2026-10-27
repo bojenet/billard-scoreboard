@@ -35,8 +35,7 @@
         .hub-display{border-top:4px solid #244e7d}
         .additional{margin-top:28px;border-top:1px solid #d4dde6;padding-top:18px}
         summary{cursor:pointer;color:#1e3a5f;font-weight:700;padding:12px 0}
-        .legacy-tools{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:12px 0;padding:18px;background:#fff;border:1px solid #d4dde6;border-radius:10px}
-        .legacy-tools h2{font-size:18px}.legacy-tools p,.table-toolbar p{color:#526176;font-size:14px}
+        .table-toolbar p{color:#526176;font-size:14px}
         .table-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:10px 0 16px}
         [hidden] { display: none !important; }
         @media (max-width: 850px) { main { padding: 14px; } .tables { grid-template-columns: 1fr; } }
@@ -54,7 +53,6 @@
         <a class="hub-card hub-display" id="operation-link" href="turnier_displaybetrieb.html" hidden><span class="hub-label">Automatischer Betrieb</span><h2>Turnier mit Displays</h2><p>Turnier starten und den Spielbetrieb an den Tischen verfolgen.</p><span class="hub-action">Displaybetrieb öffnen →</span></a>
     </section>
     <details class="additional" id="additional-tools"><summary>Weitere Funktionen</summary>
-        <section class="legacy-tools"><div><h2>Weitere Turnierverwaltung</h2><p>Separate Verwaltung für Jeder-gegen-jeden-Turniere.</p></div><a href="turnier.html">Öffnen</a></section>
         <details id="table-controls"><summary>Club-Tische über die App bedienen</summary>
         <div class="table-toolbar"><p>Einzelpartien an Tisch 1 und Tisch 2 anlegen und zählen.</p><button id="refresh" type="button">Aktualisieren</button></div>
         <p id="message" role="status" aria-live="polite"></p>
