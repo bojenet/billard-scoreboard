@@ -23,7 +23,7 @@
         const time = String(snapshot.startTime || '').trim();
         if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error('Die Uhrzeit in der Einladung ist ungültig.');
         const lines = [];
-        const rounds = {HF1:'Halbfinale',HF2:'Halbfinale',P7:'Spiel um Platz 7',P5:'Spiel um Platz 5',P3:'Spiel um Platz 3',F:'Finale'};
+        const rounds = {HF1:'Halbfinale',HF2:'Halbfinale',P9:'Spiel um Platz 9',P7:'Spiel um Platz 7',P5:'Spiel um Platz 5',P3:'Spiel um Platz 3',F:'Finale'};
         event.schedule.forEach((match, index) => {
             const result = event.results[match.key];
             if (!result) return;

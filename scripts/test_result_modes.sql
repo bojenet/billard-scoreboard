@@ -3,8 +3,8 @@ begin;
 insert into auth.users(id,email,raw_user_meta_data,raw_app_meta_data,created_at,updated_at) values('f3150000-0000-4000-8000-000000000021','result-modes@example.invalid','{}','{}',now(),now());
 select set_config('request.jwt.claim.sub','f3150000-0000-4000-8000-000000000021',true);
 do $$declare code text;cfg jsonb;n integer;expected integer;invitation jsonb;eid uuid;v integer;schedule jsonb;g jsonb;state jsonb;r jsonb;group_count integer;pair_count integer;begin
- foreach code in array array['T3','T4','T5','T7','T8','T11','T12','T10','T15'] loop
-  cfg:=public.result_mode(code);n:=(cfg->>'count')::integer;expected:=case when code='T10' then 14 when code='T15' then 18 else n*(n-1)/2 end;
+ foreach code in array array['T3','T4','T5','T7','T8','T11','T12','T10','T15','T19'] loop
+  cfg:=public.result_mode(code);n:=(cfg->>'count')::integer;expected:=case when code='T10' then 14 when code='T15' then 18 when code='T19' then 27 else n*(n-1)/2 end;
   select jsonb_build_object('sourceUrl','https://example.invalid/results-mode-'||code,'selectedModeCode',code,'enableResultEntry',true,'title',code||' Test','date','2026-10-21','playingTargetPoints','100','playingTargetInnings','20','participants',jsonb_agg(jsonb_build_object('number',i,'name','Spieler '||i,'passNo','00'||i))) into invitation from generate_series(1,n) i;
   insert into public.calendar_invitation_drafts(source_url,invitation,updated_by) values(invitation->>'sourceUrl',invitation,auth.uid());
   insert into public.calendar_club_reminders(id,event_id,event_date,reminder_date,days_before,title,link,status,result_invitation_snapshot)
@@ -31,6 +31,14 @@ do $$declare code text;cfg jsonb;n integer;expected integer;invitation jsonb;eid
    if exists(select 1 from jsonb_array_elements(state->'standings'->'A') where (value->>'played')::integer<>n-1) then raise exception '%: player not scheduled n-1 times',code;end if;
   else
    if exists(select 1 from jsonb_array_elements(state->'schedule') where value->>'key' in ('HF1','HF2','P5') and not (value->>'ready')::boolean) then raise exception '%: knockout blocked',code;end if;
+   if code='T19' then
+    if cfg->'A'<>'[1,4,5,7,10]'::jsonb or cfg->'B'<>'[2,3,6,8,9]'::jsonb then raise exception 'T19: wrong groups';end if;
+    if exists(select 1 from jsonb_array_elements((state->'standings'->'A')||(state->'standings'->'B')) where (value->>'played')::integer<>4) then raise exception 'T19: each player needs four group games';end if;
+    select value into g from jsonb_array_elements(state->'schedule') where value->>'key'='P9';
+    if g->>'seed1'<>'10' or g->>'seed2'<>'9' or not(g->>'ready')::boolean then raise exception 'T19: wrong ninth-place pairing';end if;
+    select value into g from jsonb_array_elements(state->'schedule') where value->>'key'='HF1';
+    if g->>'seed1'<>'1' or g->>'seed2'<>'3' then raise exception 'T19: wrong crossover';end if;
+   end if;
    if code='T10' then
     select value into g from jsonb_array_elements(state->'schedule') where value->>'key'='HF1';
     if g->>'seed1'<>'1' or g->>'seed2'<>'3' then raise exception 'T10: wrong crossover';end if;
@@ -39,17 +47,24 @@ do $$declare code text;cfg jsonb;n integer;expected integer;invitation jsonb;eid
    end if;
     foreach r in array array['{"score1":100,"score2":50,"innings1":20,"innings2":20,"high1":10,"high2":8}'::jsonb] loop
      v:=public.save_t15_result(eid,'HF1',r,v);v:=public.save_t15_result(eid,'HF2',r,v);v:=public.save_t15_result(eid,'P5',r,v);v:=public.save_t15_result(eid,'P3',r,v);v:=public.save_t15_result(eid,'F',r,v);
-     if n=8 then v:=public.save_t15_result(eid,'P7',r,v);end if;
+     if n in (8,10) then v:=public.save_t15_result(eid,'P7',r,v);end if;
+     if n=10 then v:=public.save_t15_result(eid,'P9',r,v);end if;
     end loop;
   end if;
   v:=public.set_t15_status(eid,'completed',v);state:=public.get_t15_result_event(eid);
   if state->>'status'<>'completed' or (select count(*) from jsonb_object_keys(state->'results'))<>expected then raise exception '%: completion failed',code;end if;
+  if code='T19' then
+   v:=public.set_t15_status(eid,'open',v);
+   begin perform public.save_t15_result(eid,'A1',null,v,false);raise exception 'T19: dependent finals silently removed';exception when others then if position('DEPENDENTS_EXIST' in sqlerrm)=0 then raise;end if;end;
+   v:=public.save_t15_result(eid,'A1',null,v,true);
+   if exists(select 1 from public.result_events e where e.id=eid and e.results ?| array['HF1','HF2','P9','P7','P5','P3','F']) then raise exception 'T19: stale dependent finals retained';end if;
+  end if;
  end loop;
  -- Round-robin equality is a shared final rank, not a knockout blocker.
- invitation:=jsonb_set(invitation,'{selectedModeCode}','"T3"');invitation:=jsonb_set(invitation,'{participants}',(invitation->'participants')-7-6-5-4);
+ invitation:=jsonb_set(invitation,'{selectedModeCode}','"T3"');invitation:=jsonb_set(invitation,'{participants}',(select jsonb_agg(value) from jsonb_array_elements(invitation->'participants') with ordinality p(value,n) where p.n<=4));
  r:='{}';
  for g in select value from jsonb_array_elements(public.result_group_pairs(invitation,'A')) loop r:=r||jsonb_build_object(g->>'key','{"score1":0,"score2":0,"innings1":20,"innings2":20,"high1":0,"high2":0}'::jsonb);end loop;
  if exists(select 1 from jsonb_array_elements(public.result_group_stats(invitation,r,'A')) where value->>'rank'<>'1' or not (value->>'tied')::boolean) then raise exception 'RR equality must share rank';end if;
 end $$;
-select 'PASS: all 9 supported mode codes, exact schedules, unique pairs, n-1 matches per RR player, reload, PP/GD/HS standings, T10 crossover/automatic seventh, full completion and shared ranks' as result;
+select 'PASS: all 10 supported mode codes including T19, exact schedules, unique pairs, n-1 matches per RR player, reload, PP/GD/HS standings, T10 crossover/automatic seventh, full completion and shared ranks' as result;
 rollback;

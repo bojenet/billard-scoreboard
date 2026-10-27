@@ -25,3 +25,10 @@ const quoted=structuredClone(event);quoted.snapshot.participants[0].passNo='ab;"
 console.log('PASS: CSV data only without header, 13 columns, 18 games, UTF-8 without BOM, CRLF, pass numbers, archived pairings, partial/zero results, dates, quoting and missing-data validation');
 
 const rr=structuredClone(event);rr.schedule=[{...rr.schedule[0],roundLabel:'Hauptrunde'}];rr.results={A1:rr.results.A1};assert.ok(build(rr).startsWith('Hauptrunde;1;1;'));console.log('PASS: round-robin CSV round label without header');
+
+const t19=structuredClone(event);t19.snapshot.selectedModeCode='T19';
+t19.snapshot.participants=Array.from({length:10},(_,i)=>({seed:i+1,name:'Spieler '+(i+1),passNo:String(i+1).padStart(3,'0')}));
+t19.schedule=[{key:'P9',stage:'final',label:'Spiel um Platz 9',seed1:10,seed2:9,ready:true}];
+t19.results={P9:{score1:100,score2:87,innings1:12,innings2:11,high1:43,high2:8,winner:1}};
+assert.ok(build(t19).startsWith('Spiel um Platz 9;1;1;010;009;'));
+console.log('PASS: T19 ninth-place CSV round label and ten-player pass numbers');

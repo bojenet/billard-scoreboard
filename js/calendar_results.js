@@ -45,7 +45,7 @@ async function openCalendarResultEntry(eventId) {
                 invitation = draft?.invitation;
             }
             if (!invitation) throw new Error('Bitte zuerst die Einladung vorbereiten und versenden.');
-            if (!ResultModes.supports(invitation.selectedModeCode)) throw new Error('Ergebniserfassung verfügbar für T3, T4/T5, T7/T8, T11/T12, T10 und T15.');
+            if (!ResultModes.supports(invitation.selectedModeCode)) throw new Error('Ergebniserfassung verfügbar für T3, T4/T5, T7/T8, T11/T12, T10, T15 und T19.');
             validateT15ResultInvitation(invitation);
             id = await ensureT15ResultEvent(invitation);
         }

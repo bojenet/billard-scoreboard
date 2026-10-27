@@ -147,7 +147,7 @@
             }
         }
         const ranks=[];
-        for(const [key,first] of [['F',1],['P3',3],['P5',5],['P7',7]]) {
+        for(const [key,first] of [['F',1],['P3',3],['P5',5],['P7',7],['P9',9]]) {
             const match=event.schedule.find(m=>m.key===key),r=event.results[key];
             if(r && match?.ready)ranks.push({rank:first,seed:match[`seed${r.winner}`]},{rank:first+1,seed:match[`seed${Number(r.winner)===1?2:1}`]});
         }
