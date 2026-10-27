@@ -7,6 +7,7 @@
     let canUseApp = false;
     let canEdit = false;
     let refreshing = false;
+    let controlsStarted = false;
 
     function showFrame(table, source, key) {
         const frame = document.getElementById(`frame-${table}`);
@@ -142,16 +143,21 @@
         }
         document.getElementById("tables").hidden = false;
         document.getElementById("refresh").addEventListener("click", refresh);
-        await refresh();
-        // Polling also recovers after missed realtime events or reconnects.
-        const poll = window.setInterval(refresh, 4000);
-        const channel = supabaseClient.channel("tournament-table-control")
-            .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, refresh)
-            .subscribe();
-        window.addEventListener("pagehide", () => {
-            clearInterval(poll);
-            supabaseClient.removeChannel(channel);
-        }, { once: true });
+        const controls = document.getElementById('table-controls');
+        controls.addEventListener('toggle', () => {
+            if (!controls.open || controlsStarted) return;
+            controlsStarted = true;
+            refresh();
+            // Load app controllers only when explicitly opened.
+            const poll = window.setInterval(() => { if (controls.open) refresh(); }, 4000);
+            const channel = supabaseClient.channel("tournament-table-control")
+                .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, () => { if (controls.open) refresh(); })
+                .subscribe();
+            window.addEventListener("pagehide", () => {
+                clearInterval(poll);
+                supabaseClient.removeChannel(channel);
+            }, { once: true });
+        });
     }
 
     init().catch(error => {
