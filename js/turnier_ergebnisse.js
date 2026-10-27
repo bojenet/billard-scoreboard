@@ -179,7 +179,6 @@
         const resultContext=await getResultEntryContext();
         const restricted=resultContext.result_only || resultContext.can_manage!==true;
         document.querySelectorAll('[data-full-navigation]').forEach(link=>link.hidden=restricted);
-        $('resultListHelp').hidden=restricted;
         if(restricted){$('resultsBrand').textContent='Turnierergebnisse';$('resultListTitle').textContent='Meine Turniere';document.title='Meine Turniere · Billard Studio';}
         if (params.get('zugang') === '1') $('passwordSection').hidden = false;
         if (!eventId) {
