@@ -27,7 +27,7 @@
         $('automaticEntryLink').hidden = event.can_delete !== true;
         $('automaticEntryLink').href = `turnier_displaybetrieb.html?turnier=${encodeURIComponent(event.id)}`;
         $('modeForm').hidden=!event.can_manage || event.status!=='open' || !!event.archived_ranking;
-        $('resultMode').innerHTML=ResultModes.forCount(event.snapshot.participants.length).map(m=>`<option value="${m.code}"${m.code===event.snapshot.selectedModeCode?' selected':''}>${m.code}${m.label ? ' · '+esc(m.label) : ''}</option>`).join('');
+        $('resultMode').innerHTML=ResultModes.list().map(m=>`<option value="${m.code}"${m.code===event.snapshot.selectedModeCode?' selected':''}${m.count!==event.snapshot.participants.length?' disabled':''}>${m.code} · ${esc(m.label)}${m.count!==event.snapshot.participants.length ? ` (${m.count} Teilnehmer erforderlich)` : ''}</option>`).join('');
         $('changeModeBtn').disabled=busy;
         $('eventTitle').textContent = event.title;
         $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, `${event.snapshot.selectedModeCode} · ${event.snapshot.participants.length} Spieler`, `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
