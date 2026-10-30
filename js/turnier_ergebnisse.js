@@ -8,7 +8,7 @@
     const name = seed => player(seed)?.name || 'Paarung noch offen';
     const mode = () => ResultModes.get(event.snapshot.selectedModeCode);
     const roundRobin = () => mode().kind === 'roundRobin';
-    const groups = () => roundRobin() ? ['A'] : ['A','B'];
+    const groups = () => mode().groups || (roundRobin() ? ['A'] : ['A','B']);
     const gd = (points, innings) => (innings ? Math.trunc(points / innings * 1000) / 1000 : 0).toFixed(3).replace('.', ',');
     function notice(text = '', error = false) { $('message').textContent = text; $('message').classList.toggle('error', error); }
     async function rpc(fn, args) { const { data, error } = await supabaseClient.rpc(fn, args); if (error) throw error; return data; }
@@ -26,6 +26,9 @@
     function render() {
         $('automaticEntryLink').hidden = event.can_delete !== true;
         $('automaticEntryLink').href = `turnier_displaybetrieb.html?turnier=${encodeURIComponent(event.id)}`;
+        $('modeForm').hidden=!event.can_manage || event.status!=='open' || !!event.archived_ranking;
+        $('resultMode').innerHTML=ResultModes.forCount(event.snapshot.participants.length).map(m=>`<option value="${m.code}"${m.code===event.snapshot.selectedModeCode?' selected':''}>${m.code}${m.label ? ' · '+esc(m.label) : ''}</option>`).join('');
+        $('changeModeBtn').disabled=busy;
         $('eventTitle').textContent = event.title;
         $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, `${event.snapshot.selectedModeCode} · ${event.snapshot.participants.length} Spieler`, `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
         $('accessTab').hidden = !event.can_manage;
@@ -37,17 +40,19 @@
         if (!event.can_reload) { pendingReload=null; $('clubCloudPreview').hidden=true; }
         $('completeBtn').hidden = !event.can_manage || !!event.archived_ranking;
         $('completeBtn').textContent = event.status === 'completed' ? 'Für Korrektur wieder öffnen' : 'Turnier abschließen';
-        if(roundRobin() && ['B','final'].includes(view))view='A';
+        if(roundRobin() && ['B','C','final'].includes(view))view='A';
         document.querySelector('[data-view="A"]').textContent=roundRobin() ? 'Partien' : 'Gruppe A';
         document.querySelector('[data-view="B"]').hidden=roundRobin();
+        document.querySelector('[data-view="C"]').hidden=!groups().includes('C');
+        if(view==='C' && !groups().includes('C'))view='A';
         document.querySelector('[data-view="final"]').hidden=roundRobin();
         $('progress').max=event.schedule.length;
         $('progress').value = Object.keys(event.results).length;
         $('progressLabel').textContent = `${Object.keys(event.results).length} von ${event.schedule.length} Partien erfasst`;
         document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === view));
-        $('entryView').hidden = !['A', 'B', 'final'].includes(view);
+        $('entryView').hidden = !['A', 'B', 'C', 'final'].includes(view);
         $('standingsView').hidden = view !== 'standings'; $('accessView').hidden = view !== 'access'; $('historyView').hidden = view !== 'history';
-        if (['A','B','final'].includes(view)) renderMatches();
+        if (['A','B','C','final'].includes(view)) renderMatches();
         if (view === 'standings') renderStandings();
         if (view === 'access') renderMembers();
     }
@@ -134,6 +139,14 @@
             const fullTie=rows.some(r=>r.tied) && rows.every(r=>r.played===rows.length-1);
             return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2></div>${statsTable(rows)}${fullTie ? '<p class="form-content muted">* Partiepunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
         }).join('');
+        if(event.snapshot.selectedModeCode==='T16b') {
+            const seconds=groups().map(group=>event.standings[group][1]);
+            const compare=(a,b)=>b.points-a.points || Number(b.gd)-Number(a.gd) || b.high-a.high;
+            seconds.sort(compare);
+            const complete=groups().every(group=>event.standings[group].every(r=>r.played===2 && !r.tied));
+            const rows=seconds.map(r=>({...r,rank:complete ? 1+seconds.filter(s=>compare(s,r)<0).length : '—',tied:complete && seconds.some(s=>s.seed!==r.seed && compare(s,r)===0)}));
+            $('groupStandings').innerHTML+=`<section class="panel"><div class="panel-heading"><h2>Vergleich der Gruppenzweiten</h2></div>${statsTable(rows)}<p class="form-content muted">${complete ? 'Wertung: Partiepunkte, GD (3 Stellen), HS.' : 'Die Wertung steht nach Abschluss der Gruppenspiele fest.'}</p></section>`;
+        }
         const empty=()=>({points:0,balls:0,innings:0,high:0,played:0});
         const totals=new Map(event.snapshot.participants.map(p=>[p.seed,empty()]));
         const finalTotals=new Map(event.snapshot.participants.map(p=>[p.seed,empty()]));
@@ -154,7 +167,7 @@
         if(event.snapshot.selectedModeCode==='T10' && event.schedule.find(m=>m.key==='HF1')?.ready) {
             ranks.push({rank:7,seed:event.standings.B[3].seed});
         }
-        if(event.snapshot.selectedModeCode==='T16') {
+        if(['T16','T16b'].includes(event.snapshot.selectedModeCode)) {
             const match=event.schedule.find(m=>m.key==='P8'),r=event.results.P8;
             if(r && match?.ready)ranks.push({rank:9,seed:match[Number(r.winner)===1?'seed2':'seed1']});
         }
@@ -201,6 +214,22 @@
         const requestedMatch=event.schedule.find(m=>m.key===params.get('partie'));
         if(requestedMatch){view=requestedMatch.stage;selected=requestedMatch.key;render();}
         $('eventView').hidden=false;
+        $('modeForm').onsubmit=async e=>{
+            e.preventDefault();if(busy || !canLeave())return;
+            const code=$('resultMode').value;
+            if(code===event.snapshot.selectedModeCode)return;
+            busy=true;$('changeModeBtn').disabled=true;
+            const args={p_id:eventId,p_mode:code,p_version:event.version,p_reset:false};
+            try {
+                try { await rpc('change_result_mode',args); }
+                catch(error) {
+                    if(!error.message?.includes('RESET_REQUIRED'))throw error;
+                    if(!confirm('Modus ändern und alle bisherigen Ergebnisse und Live-Spielstände dieses Turniers zurücksetzen?'))return;
+                    await rpc('change_result_mode',{...args,p_reset:true});
+                }
+                dirty=false;view='A';await load();notice('Modus geändert. Gruppen und Spielplan wurden neu gebildet.');
+            }catch(error){failure(error);}finally{busy=false;$('changeModeBtn').disabled=false;}
+        };
         document.querySelectorAll('[data-view]').forEach(b=>b.onclick=async()=>{
             if(busy||!canLeave()||(!event.can_manage && ['history','access'].includes(b.dataset.view)))return;dirty=false;view=b.dataset.view;render();if(view==='history'){try{await history();}catch(error){failure(error);}}
         });

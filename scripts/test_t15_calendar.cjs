@@ -16,7 +16,7 @@ vm.createContext(context);vm.runInContext(fs.readFileSync('js/calendar_results.j
  existing={id:'existing-event'};await context.openCalendarResultEntry('calendar-id');assert.equal(context.window.location.href,'turnier_ergebnisse.html?turnier=existing-event');assert.equal(rpcCalls,0);
  existing=null;await context.openCalendarResultEntry();assert.equal(rpcCalls,1);assert.equal(context.window.location.href,'turnier_ergebnisse.html?turnier=event-id');
  context.currentInvitationDraft={...invitation,selectedModeCode:'T20'};await context.openCalendarResultEntry();assert.match(modalError,/T15/);assert.equal(rpcCalls,1);
- for(const code of ['T3','T4','T5','T7','T8','T11','T12','T10','T16','T18','T19']) {
+ for(const code of ['T3','T4','T5','T7','T8','T11','T12','T10','T16','T16b','T18','T19']) {
   const count=context.ResultModes.get(code).count;
   const candidate={...invitation,selectedModeCode:code,participants:Array.from({length:count},(_,i)=>({number:String(i+1),name:'Spieler '+(i+1),passNo:'test-'+i}))};
   context.validateT15ResultInvitation(candidate);

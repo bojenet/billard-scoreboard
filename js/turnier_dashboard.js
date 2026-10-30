@@ -53,7 +53,7 @@
     function renderOverview() {
         const next = event.schedule.filter(m => m.ready && !event.results[m.key] && !assignmentFor(m.key));
         $('dashboardNext').innerHTML = next.slice(0, 6).map(m => `<button class="dashboard-next" data-game="${esc(m.key)}" type="button"><span>${esc(m.roundLabel)} · ${esc(m.label)}</span><strong>${esc(name(m.seed1))} <span>–</span> ${esc(name(m.seed2))}</strong></button>`).join('') || '<p class="form-content muted">Keine weiteren spielbereiten Paarungen.</p>';
-        const groups = ResultModes.get(event.snapshot.selectedModeCode).kind === 'roundRobin' ? ['A'] : ['A','B'];
+        const groups = ResultModes.get(event.snapshot.selectedModeCode).groups || (ResultModes.get(event.snapshot.selectedModeCode).kind === 'roundRobin' ? ['A'] : ['A','B']);
         $('dashboardStandings').innerHTML = groups.map(group => `<div class="dashboard-ranking"><h3>${groups.length > 1 ? 'Gruppe ' + group : 'Jeder gegen jeden'}</h3><div class="table-wrap"><table><thead><tr><th>Pl.</th><th>Spieler</th><th class="number">PP</th><th class="number">GD</th><th class="number">HS</th></tr></thead><tbody>${(event.standings[group] || []).map(r => `<tr><td>${r.rank}${r.tied ? '*' : ''}</td><td>${esc(name(r.seed))}</td><td class="number">${r.points}</td><td class="number">${(r.innings ? Math.trunc(r.balls / r.innings * 1000) / 1000 : 0).toFixed(3).replace('.', ',')}</td><td class="number">${r.high}</td></tr>`).join('')}</tbody></table></div></div>`).join('');
         $('dashboardProgress').textContent = `${Object.keys(event.results).length} / ${event.schedule.length} Partien erfasst`;
         $('dashboardSchedule').innerHTML = event.schedule.map(m => {

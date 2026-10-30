@@ -36,3 +36,5 @@ console.log('PASS: T19 ninth-place CSV round label and ten-player pass numbers')
 const t16=structuredClone(t19);t16.snapshot.selectedModeCode='T16';t16.snapshot.participants=t16.snapshot.participants.slice(0,9);
 t16.schedule=[{key:'P8',stage:'final',label:'Spiel um Platz 8',seed1:7,seed2:9,ready:true}];t16.results={P8:t19.results.P9};
 assert.ok(build(t16).startsWith('Spiel um Platz 8;1;1;007;009;'));console.log('PASS: T16 neu eighth-place CSV');
+
+const t16b=structuredClone(t16);t16b.snapshot.selectedModeCode='T16b';t16b.schedule=[{key:'C1',stage:'C',roundLabel:'Gruppe C',seed1:3,seed2:7,ready:true}];t16b.results={C1:t16.results.P8};assert.ok(build(t16b).startsWith('Gruppe C;1;1;003;007;'));console.log('PASS: T16b group C export');
