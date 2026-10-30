@@ -1,0 +1,13 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync('calendar.html','utf8');
+const start=html.indexOf('        function getInvitationPlayingTarget(invitation)');
+const end=html.indexOf('        function getSportordnungSequence',start);
+const context={getPdfText:String,getSportordnungTarget:()=>({points:25,innings:25}),getSelectedSportordnungModeCode:i=>i.selectedModeCode,DEFAULT_INVITATION_PLAYING_TARGET:{points:'20',innings:'25'}};
+vm.createContext(context);vm.runInContext(html.slice(start,end),context);
+assert.equal(JSON.stringify(context.getInvitationPlayingTarget({selectedModeCode:'T16'})),JSON.stringify({points:'20',innings:'20'}));
+assert.equal(JSON.stringify(context.getInvitationPlayingTarget({selectedModeCode:'T18'})),JSON.stringify({points:'25',innings:'25'}));
+assert.equal(JSON.stringify(context.getInvitationPlayingTarget({selectedModeCode:'T16',playingTargetPoints:'18',playingTargetInnings:'20'})),JSON.stringify({points:'18',innings:'20'}));
+assert.equal(JSON.stringify(context.getInvitationPlayingTarget({selectedModeCode:'T16',playingTarget:'18 / 20'})),JSON.stringify({points:'18',innings:'20'}));
+const modeStart=html.indexOf('            T16: {');const mode=html.slice(modeStart,html.indexOf('            T16a: {',modeStart));
+assert(mode.includes('Gruppe 1: 1, 4, 5, 7, 9. Gruppe 2: 2, 3, 6, 8.'));assert(!mode.includes('3 Gruppen'));
+console.log('PASS: T16 neu group display, proportional five-inning reduction, unchanged manual/legacy targets and other modes');

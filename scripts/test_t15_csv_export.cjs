@@ -32,3 +32,7 @@ t19.schedule=[{key:'P9',stage:'final',label:'Spiel um Platz 9',seed1:10,seed2:9,
 t19.results={P9:{score1:100,score2:87,innings1:12,innings2:11,high1:43,high2:8,winner:1}};
 assert.ok(build(t19).startsWith('Spiel um Platz 9;1;1;010;009;'));
 console.log('PASS: T19 ninth-place CSV round label and ten-player pass numbers');
+
+const t16=structuredClone(t19);t16.snapshot.selectedModeCode='T16';t16.snapshot.participants=t16.snapshot.participants.slice(0,9);
+t16.schedule=[{key:'P8',stage:'final',label:'Spiel um Platz 8',seed1:7,seed2:9,ready:true}];t16.results={P8:t19.results.P9};
+assert.ok(build(t16).startsWith('Spiel um Platz 8;1;1;007;009;'));console.log('PASS: T16 neu eighth-place CSV');

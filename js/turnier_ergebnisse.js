@@ -154,6 +154,10 @@
         if(event.snapshot.selectedModeCode==='T10' && event.schedule.find(m=>m.key==='HF1')?.ready) {
             ranks.push({rank:7,seed:event.standings.B[3].seed});
         }
+        if(event.snapshot.selectedModeCode==='T16') {
+            const match=event.schedule.find(m=>m.key==='P8'),r=event.results.P8;
+            if(r && match?.ready)ranks.push({rank:9,seed:match[Number(r.winner)===1?'seed2':'seed1']});
+        }
         ranks.sort((a,b)=>a.rank-b.rank);
         const finalSeeds=new Set(event.schedule.filter(m=>m.stage==='final' && m.ready).flatMap(m=>[m.seed1,m.seed2]));
         const finalRows=[...finalSeeds].map(seed=>({seed,rank:ranks.find(r=>r.seed===seed)?.rank ?? '—',...finalTotals.get(seed)}))
