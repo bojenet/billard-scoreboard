@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Manuelle Ergebniserfassung · Billard Studio</title>
-<link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261030-mode-labels">
+<link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261030-roster-reload">
 </head>
 <body>
 <header class="topbar"><a id="resultsBrand" class="brand" href="turnier_ergebnisse.html">Billard Studio <span>/ Manuelle Ergebniserfassung</span></a><nav><a href="turnier_ergebnisse.html">Meine Turniere</a><a data-full-navigation href="calendar.html" hidden>Kalender</a><a data-full-navigation href="turnier_zentrale.html" hidden>Turnierzentrale</a><button id="logoutBtn" type="button">Abmelden</button></nav></header>
@@ -15,8 +15,8 @@
 <div class="page-heading"><div><h1 id="eventTitle"></h1><p id="eventMeta"></p></div><a id="automaticEntryLink" hidden>Zum Betrieb mit Displays →</a></div>
 <div class="toolbar"><div class="tabs" role="group" aria-label="Ansicht"><button data-view="A" aria-pressed="true">Gruppe A</button><button data-view="B" aria-pressed="false">Gruppe B</button><button data-view="C" aria-pressed="false" hidden>Gruppe C</button><button data-view="final" aria-pressed="false">Platzierung & Finale</button><button data-view="standings" aria-pressed="false">Tabellen</button><button data-view="access" id="accessTab" aria-pressed="false" hidden>Zugänge</button><button data-view="history" aria-pressed="false" hidden>Verlauf</button></div></div>
 <form id="modeForm" class="mode-settings" hidden><label for="resultMode">Turniermodus<select id="resultMode"></select></label><button id="changeModeBtn" type="submit">Modus ändern</button><span class="muted">Nur dieses Turnier · Einladung und Spielziel bleiben unverändert</span></form>
-<button id="reloadClubCloudBtn" type="button" hidden>Daten neu aus ClubCloud laden</button>
-<section id="clubCloudPreview" class="panel" hidden><div class="panel-heading"><h2>Aktuelle ClubCloud-Daten prüfen</h2></div><form id="clubCloudForm" class="form-content"><p id="clubCloudMeta"></p><div id="clubCloudParticipants" class="table-wrap"></div><p class="muted">Der Turniermodus bleibt bestehen. Spielziel und Aufnahmenbegrenzung werden aus der bisherigen Erfassung vorbelegt und können hier angepasst werden. Die versendete Einladung wird nicht geändert.</p><div class="fields"><label>Punkte<input id="reloadTarget" type="number" min="1" max="1000000" step="1" required></label><label>Max. Aufnahmen<input id="reloadInnings" type="number" min="1" max="1000000" step="1" required></label></div><div class="actions"><button id="applyClubCloudBtn" type="submit" class="primary">Daten übernehmen</button><button id="cancelClubCloudBtn" type="button">Abbrechen</button></div></form></section>
+<button id="reloadClubCloudBtn" type="button" hidden>Turnierdaten neu laden</button>
+<section id="clubCloudPreview" class="panel" hidden><div class="panel-heading"><h2>Aktuelle ClubCloud-Daten prüfen</h2></div><form id="clubCloudForm" class="form-content"><p id="clubCloudMeta"></p><div id="clubCloudParticipants" class="table-wrap"></div><button id="addReloadPlayerBtn" type="button">Spieler hinzufügen</button><label for="reloadMode">Turniermodus<select id="reloadMode" required></select></label><p class="muted">Teilnehmer und Setzreihenfolge prüfen. Modus und Spielziel gelten nur für dieses Turnier; die Einladung bleibt unverändert.</p><div class="fields"><label>Punkte<input id="reloadTarget" type="number" min="1" max="1000000" step="1" required></label><label>Max. Aufnahmen<input id="reloadInnings" type="number" min="1" max="1000000" step="1" required></label></div><div class="actions"><button id="applyClubCloudBtn" type="submit" class="primary">Daten übernehmen</button><button id="cancelClubCloudBtn" type="button">Abbrechen</button></div></form></section>
 
 <div id="entryView" class="entry-layout">
 <section class="panel"><div class="panel-heading"><h2 id="matchListHeading">Gruppe A</h2></div><div id="matchList"></div></section>
@@ -31,8 +31,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script><script src="js/auth.js"></script>
 <script src="js/result_entry_access.js?v=20261021-2"></script><script src="js/user_menu.js"></script>
-<script src="js/result_modes.js?v=20261030-mode-labels"></script>
-<script src="js/t15_clubcloud_reload.js"></script>
-<script src="js/t15_csv_export.js?v=20261030-mode-labels"></script>
-<script src="js/turnier_ergebnisse.js?v=20261030-mode-labels"></script>
+<script src="js/result_modes.js?v=20261030-roster-reload"></script>
+<script src="js/t15_clubcloud_reload.js?v=20261030-roster-reload"></script>
+<script src="js/t15_csv_export.js?v=20261030-roster-reload"></script>
+<script src="js/turnier_ergebnisse.js?v=20261030-roster-reload"></script>
 </body></html>

@@ -191,6 +191,15 @@
         if(error)throw error;
         $('historyList').innerHTML=(data||[]).map(h=>`<div class="history-row"><strong>${esc(h.action)}</strong> · ${new Date(h.created_at).toLocaleString('de-DE')}<details><summary>Gespeicherte Änderung ansehen</summary><pre>${esc(JSON.stringify({vorher:h.before_state,nachher:h.after_state},null,2))}</pre></details></div>`).join('')||'<p>Noch keine Ergebnisse geändert.</p>';
     }
+    function renderReloadParticipants() {
+        if(!pendingReload)return;
+        pendingReload.participants.forEach((p,i)=>{p.seed=i+1;p.number=String(i+1);});
+        const count=pendingReload.participants.length;
+        pendingReload.selectedModeCode=T15ClubCloudReload.suggestMode(pendingReload.selectedModeCode,count);
+        $('reloadMode').innerHTML=ResultModes.forCount(count).map(m=>`<option value="${m.code}"${m.code===pendingReload.selectedModeCode?' selected':''}>${m.code} · ${esc(m.label)}</option>`).join('') || '<option value="">Kein passender Modus</option>';
+        $('applyClubCloudBtn').disabled=!pendingReload.selectedModeCode;
+        $('clubCloudParticipants').innerHTML='<table class="reload-players"><thead><tr><th>Setzplatz</th><th>Spieler</th><th>Verein</th><th>Pass-Nr.</th><th>Reihenfolge</th></tr></thead><tbody>'+pendingReload.participants.map((p,i)=>`<tr data-index="${i}"><td>${i+1}</td><td><input data-player-field="name" aria-label="Name Setzplatz ${i+1}" value="${esc(p.name)}" required></td><td><input data-player-field="club" aria-label="Verein Setzplatz ${i+1}" value="${esc(p.club)}"></td><td><input data-player-field="passNo" aria-label="Passnummer Setzplatz ${i+1}" value="${esc(p.passNo)}"></td><td><button type="button" data-roster-action="up" aria-label="Spieler nach oben"${i===0?' disabled':''}>↑</button><button type="button" data-roster-action="down" aria-label="Spieler nach unten"${i===count-1?' disabled':''}>↓</button><button type="button" data-roster-action="remove" aria-label="Spieler entfernen">Entfernen</button></td></tr>`).join('')+'</tbody></table>';
+    }
     async function init() {
         const user = await requireAuth(); if (!user) return;
         const resultContext=await getResultEntryContext();
@@ -251,21 +260,34 @@
                 if(!response.ok)throw new Error('Die Passnummernliste konnte nicht geladen werden. Bitte erneut versuchen.');
                 pendingReload=T15ClubCloudReload.prepare(saved,data?.invitation,await response.json());reloadVersion=saved.version;
                 $('clubCloudMeta').textContent=[pendingReload.title,pendingReload.date,pendingReload.startTime,pendingReload.locationName,pendingReload.discipline].filter(Boolean).join(' · ');
-                $('clubCloudParticipants').innerHTML='<table><thead><tr><th>Setzplatz</th><th>Spieler</th><th>Verein</th><th>Pass-Nr.</th></tr></thead><tbody>'+pendingReload.participants.map(p=>`<tr><td>${p.seed}</td><td>${esc(p.name)}</td><td>${esc(p.club)}</td><td>${esc(p.passNo || 'Fehlt – CSV-Export erst mit Passnummer möglich')}</td></tr>`).join('')+'</tbody></table>';
+                renderReloadParticipants();
                 $('reloadTarget').value=pendingReload.playingTargetPoints;$('reloadInnings').value=pendingReload.playingTargetInnings;
-                $('clubCloudPreview').hidden=false;notice('ClubCloud-Daten geladen. Bitte Setzliste und Spielziel prüfen und übernehmen.');
+                $('clubCloudPreview').hidden=false;notice('ClubCloud-Daten geladen. Bitte Teilnehmer, Modus und Spielziel prüfen und übernehmen.');
             }catch(error){failure(error);}finally{busy=false;$('reloadClubCloudBtn').disabled=false;}
         };
+        $('clubCloudParticipants').oninput=e=>{
+            const field=e.target.dataset.playerField,index=Number(e.target.closest('[data-index]')?.dataset.index);
+            if(pendingReload && ['name','club','passNo'].includes(field) && pendingReload.participants[index])pendingReload.participants[index][field]=e.target.value;
+        };
+        $('clubCloudParticipants').onclick=e=>{
+            const button=e.target.closest('[data-roster-action]');if(!button || busy || !pendingReload)return;
+            const index=Number(button.closest('[data-index]').dataset.index),players=pendingReload.participants;
+            if(button.dataset.rosterAction==='remove')players.splice(index,1);
+            else { const other=index+(button.dataset.rosterAction==='up'?-1:1);if(other>=0 && other<players.length)[players[index],players[other]]=[players[other],players[index]]; }
+            renderReloadParticipants();
+        };
+        $('addReloadPlayerBtn').onclick=()=>{if(busy || !pendingReload)return;pendingReload.participants.push({name:'',club:'',passNo:''});renderReloadParticipants();};
+        $('reloadMode').onchange=()=>{if(pendingReload)pendingReload.selectedModeCode=$('reloadMode').value;};
         $('cancelClubCloudBtn').onclick=()=>{pendingReload=null;$('clubCloudPreview').hidden=true;notice();};
         $('clubCloudForm').onsubmit=async e=>{
             e.preventDefault();if(busy || !pendingReload)return;
             if(!canLeave())return;
             busy=true;$('applyClubCloudBtn').disabled=true;
             try{
-                const invitation={...pendingReload,playingTargetPoints:$('reloadTarget').value,playingTargetInnings:$('reloadInnings').value};
+                const invitation={...pendingReload,participants:pendingReload.participants.map(p=>({...p})),selectedModeCode:$('reloadMode').value,playingTargetPoints:$('reloadTarget').value,playingTargetInnings:$('reloadInnings').value};
                 await rpc('refresh_t15_event_data',{p_id:eventId,p_invitation:invitation,p_version:reloadVersion});
                 pendingReload=null;$('clubCloudPreview').hidden=true;
-                await load();notice('Aktuelle ClubCloud-Daten übernommen. Die versendete Einladung bleibt unverändert.');
+                view='A';dirty=false;await load();notice('Aktuelle Turnierdaten übernommen. Die versendete Einladung bleibt unverändert.');
             }catch(error){failure(error);}finally{busy=false;$('applyClubCloudBtn').disabled=false;}
         };
         $('exportCsvBtn').onclick=async()=>{

@@ -6,7 +6,7 @@ const fresh={title:'Current',participants:participants.map(({passNo,...p})=>({..
 fresh.participants[0].name='Neuer, Spieler';
 const next=prepare(event,fresh,[{name:'Spieler Neuer',passNo:'001234'}]);
 assert.equal(next.participants[0].passNo,'001234');assert.equal(next.participants[1].passNo,'001');assert.equal(next.sourceUrl,event.source_url);assert.equal(next.eventId,'original');assert.equal(next.selectedModeCode,'T15');assert.equal(next.startTime,'10:00');assert.equal(next.playingTargetPoints,'100');assert.equal(event.snapshot.participants[0].name,'Spieler 0');
-assert.throws(()=>prepare(event,{...fresh,participants:[]},[]),/8/);
+assert.throws(()=>prepare(event,{...fresh,participants:[]},[]),/Teilnehmerzahl/);
 const duplicate=structuredClone(fresh);duplicate.participants[0].number='2';assert.throws(()=>prepare(event,duplicate,[]),/doppelte/);
 const ambiguous=prepare(event,fresh,[{name:'Neuer, Spieler',passNo:'1'},{name:'Neuer, Spieler',passNo:'2'}]);assert.equal(ambiguous.participants[0].passNo,'');
 console.log('PASS: T15 reload preparation, refreshed roster, safe pass lookup, stable source/mode/targets, no snapshot mutation, invalid seeds');
@@ -16,6 +16,15 @@ for(const code of ['T3','T4','T7','T12','T10']) {
  const current={...event,snapshot:{...event.snapshot,selectedModeCode:code,participants:participants.slice(0,n)}};
  const loaded=prepare(current,{...fresh,participants:fresh.participants.slice(0,n)},[]);
  assert.equal(loaded.selectedModeCode,code);assert.equal(loaded.participants.length,n);
- assert.throws(()=>prepare(current,{...fresh,participants:fresh.participants.slice(0,n-1)},[]),/Teilnehmer/);
+ if(n>4)assert.equal(prepare(current,{...fresh,participants:fresh.participants.slice(0,n-1)},[]).participants.length,n-1);
+ else assert.throws(()=>prepare(current,{...fresh,participants:fresh.participants.slice(0,n-1)},[]),/Teilnehmer/);
 }
 console.log('PASS: ClubCloud reload preserves every new mode and validates participant count');
+
+const ten=Array.from({length:10},(_,i)=>({number:String(i+1),name:'Spieler '+i,club:'Club'}));
+const former={...event,snapshot:{...event.snapshot,selectedModeCode:'T19'}};
+const nine=prepare(former,{...fresh,participants:ten.slice(0,9)},[]);
+assert.equal(nine.participants.length,9);assert.equal(nine.selectedModeCode,'T16');
+assert.equal(require('../js/t15_clubcloud_reload.js').suggestMode('T16b',9),'T16b');
+assert.equal(require('../js/t15_clubcloud_reload.js').suggestMode('T16b',10),'T18');
+console.log('PASS: changed player count accepted, compatible suggested mode, retained T16b when matching count');

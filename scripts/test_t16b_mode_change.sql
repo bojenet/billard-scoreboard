@@ -54,7 +54,7 @@ do $$declare inv jsonb;eid uuid;v integer:=1;g jsonb;r jsonb;state jsonb;schedul
  perform public.result_sync_sent_invitation(inv,auth.uid());state:=public.get_t15_result_event(eid);v:=(state->>'version')::integer;
  if state->'snapshot'->>'selectedModeCode'<>'T16' then raise exception 'Sent invitation overrode independent mode';end if;
  v:=public.refresh_t15_event_data(eid,inv,v);state:=public.get_t15_result_event(eid);
- if state->'snapshot'->>'selectedModeCode'<>'T16' then raise exception 'Reload overrode independent mode';end if;
+ if state->'snapshot'->>'selectedModeCode'<>'T16b' then raise exception 'Explicit reload mode not applied';end if;
  begin perform public.change_result_mode(eid,'T16b',v-1);raise exception 'Stale mode update accepted';exception when others then if position('VERSION_CONFLICT' in sqlerrm)=0 then raise;end if;end;
  update public.user_roles set role='admin' where user_id=auth.uid();
  update public.tournament_operation_tables set event_id=null,assignment=null,last_seen=now();

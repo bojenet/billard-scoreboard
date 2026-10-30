@@ -17,3 +17,5 @@ main{padding-top:18px}
 @media(max-width:760px){.topbar{padding-top:8px;padding-bottom:8px;gap:8px}.topbar nav{gap:10px}main{padding-top:14px}#eventTitle{font-size:22px}#eventMeta{font-size:13px}#eventView>.toolbar{margin:10px 0 12px}.tabs{gap:6px}#eventView>.toolbar .tabs button{padding:8px 11px;min-height:42px}}
 
 .mode-settings{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 16px}.mode-settings label{display:flex;align-items:center;gap:10px;margin:0}.mode-settings select{width:auto;max-width:100%;min-height:40px;padding:8px 10px}.mode-settings button{min-height:40px;padding:8px 12px}.mode-settings .muted{font-size:12px}
+
+.reload-players{min-width:640px}.reload-players input{font-size:14px;min-width:110px;padding:8px;min-height:40px}.reload-players td:last-child{white-space:nowrap}.reload-players button{padding:8px;margin-right:4px}.reload-players th,.reload-players td{padding:8px}#addReloadPlayerBtn{margin:12px 0}#reloadMode{max-width:440px}

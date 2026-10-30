@@ -1,0 +1,14 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const src=fs.readFileSync('js/turnier_ergebnisse.js','utf8');
+const fn=src.slice(src.indexOf('    function renderReloadParticipants()'),src.indexOf('    async function init()'));
+const nodes={reloadMode:{},applyClubCloudBtn:{},clubCloudParticipants:{}};
+const pending={selectedModeCode:'T19',participants:Array.from({length:10},(_,i)=>({name:'Spieler '+(i+1),club:'Club',passNo:String(i+1)}))};
+const c={pendingReload:pending,$:id=>nodes[id],ResultModes:require('../js/result_modes.js'),T15ClubCloudReload:require('../js/t15_clubcloud_reload.js'),esc:v=>String(v??'')};
+vm.createContext(c);vm.runInContext(fn+'renderReloadParticipants()',c);
+assert(nodes.reloadMode.innerHTML.includes('T19'));assert(!nodes.reloadMode.innerHTML.includes('T16b'));assert.equal(pending.participants[9].seed,10);
+pending.participants.splice(2,1);vm.runInContext('renderReloadParticipants()',c);
+assert(nodes.reloadMode.innerHTML.includes('T16b'));assert.equal(pending.participants.length,9);assert.equal(pending.participants[2].name,'Spieler 4');assert.equal(pending.participants[2].seed,3);
+pending.selectedModeCode='T16b';pending.participants.unshift(pending.participants.pop());vm.runInContext('renderReloadParticipants()',c);
+assert.equal(pending.selectedModeCode,'T16b');assert.equal(pending.participants[0].name,'Spieler 10');assert.equal(pending.participants[0].number,'1');
+pending.participants.splice(3);vm.runInContext('renderReloadParticipants()',c);assert.equal(nodes.applyClubCloudBtn.disabled,true);
+console.log('PASS: editable roster preview, ten-to-nine change, T16b choice, reseeding after remove/reorder, unsupported count blocks apply');
