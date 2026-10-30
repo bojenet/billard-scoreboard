@@ -13,3 +13,8 @@ assert.match(select.innerHTML,/<option value="T16b" disabled>T16b · 3 Gruppen �
 assert.match(select.innerHTML,/<option value="T19" selected>T19 · 2 Gruppen à 5 Spieler<\/option>/);
 assert(modes.list().every(m=>m.label));
 console.log('PASS: all mode descriptions visible, T16b shown for ten-player event with count guard');
+const modeForm={},visibility=source.split('\n').find(line=>line.includes("$('modeForm').hidden="));
+vm.runInNewContext(visibility,{$:()=>modeForm,event:{can_change_mode:true,can_manage:false,status:'open'}});assert.equal(modeForm.hidden,false);
+vm.runInNewContext(visibility,{$:()=>modeForm,event:{can_change_mode:false,can_manage:false,status:'open'}});assert.equal(modeForm.hidden,true);
+vm.runInNewContext(visibility,{$:()=>modeForm,event:{can_change_mode:true,status:'completed'}});assert.equal(modeForm.hidden,true);
+console.log('PASS: mode form visible to invited editors and hidden for denied or completed contexts');
