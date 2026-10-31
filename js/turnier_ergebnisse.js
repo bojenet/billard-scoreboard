@@ -119,8 +119,12 @@
         } catch (error) { failure(error, 'entryMessage'); }
         finally { busy = false; $('saveBtn').disabled = event.status === 'completed'; $('deleteBtn').disabled = false; $('resultForm').querySelectorAll('input,select').forEach(input => input.disabled = event.status === 'completed'); }
     }
-    function statsTable(rows) {
-        return `<div class="table-wrap"><table class="standings-table"><colgroup><col class="col-rank"><col class="col-player"><col class="col-played"><col class="col-points"><col class="col-balls"><col class="col-innings"><col class="col-gd"><col class="col-high"></colgroup><thead><tr><th>Pl.</th><th>Spieler</th><th class="number">Sp.</th><th class="number">PP</th><th class="number">Bälle</th><th class="number">Aufn.</th><th class="number">GD</th><th class="number">HS</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.rank}${r.tied ? '*' : ''}</td><td>${esc(name(r.seed))}</td><td class="number">${r.played}</td><td class="number">${r.points}</td><td class="number">${r.balls}</td><td class="number">${r.innings}</td><td class="number">${gd(r.balls,r.innings)}</td><td class="number">${r.high}</td></tr>`).join('')}</tbody></table></div>`;
+    function bed(seed,scope) {
+        const value=ResultStatistics.bestIndividualAverage(event.schedule,event.results,seed,scope);
+        return value===null ? '—' : (Math.trunc(value*1000)/1000).toFixed(3).replace('.', ',');
+    }
+    function statsTable(rows,scope='all') {
+        return `<div class="table-wrap"><table class="standings-table"><colgroup><col class="col-rank"><col class="col-player"><col class="col-played"><col class="col-points"><col class="col-balls"><col class="col-innings"><col class="col-gd"><col class="col-bed"><col class="col-high"></colgroup><thead><tr><th>Pl.</th><th>Spieler</th><th class="number">Sp.</th><th class="number">PP</th><th class="number">Bälle</th><th class="number">Aufn.</th><th class="number">GD</th><th class="number"><abbr title="Bester Einzeldurchschnitt aus gewonnenen oder unentschiedenen Partien">BED</abbr></th><th class="number">HS</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.rank}${r.tied ? '*' : ''}</td><td>${esc(name(r.seed))}</td><td class="number">${r.played}</td><td class="number">${r.points}</td><td class="number">${r.balls}</td><td class="number">${r.innings}</td><td class="number">${gd(r.balls,r.innings)}</td><td class="number">${bed(r.seed,scope)}</td><td class="number">${r.high}</td></tr>`).join('')}</tbody></table></div>`;
     }
     function groupRows(group) {
         const stats=event.standings[group];
@@ -131,13 +135,13 @@
         $('finalStandingsHeading').textContent=roundRobin() ? 'Tabelle' : 'Endplatzierungen';
         if(roundRobin()) {
             $('groupStandings').innerHTML='';
-            $('finalStandings').innerHTML=statsTable(groupRows('A'));
+            $('finalStandings').innerHTML=statsTable(groupRows('A'),'A');
             return;
         }
         $('groupStandings').innerHTML=groups().map(group=>{
             const rows=groupRows(group);
             const fullTie=rows.some(r=>r.tied) && rows.every(r=>r.played===rows.length-1);
-            return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2></div>${statsTable(rows)}${fullTie ? '<p class="form-content muted">* Partiepunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
+            return `<section class="panel"><div class="panel-heading"><h2>Gruppe ${group}</h2></div>${statsTable(rows,group)}${fullTie ? '<p class="form-content muted">* Partiepunkte, GD und HS sind identisch. Diese Spieler teilen sich den Platz; die Folgepaarungen stehen noch nicht eindeutig fest.</p>' : ''}</section>`;
         }).join('');
         if(event.snapshot.selectedModeCode==='T16b') {
             const seconds=groups().map(group=>event.standings[group][1]);
@@ -145,7 +149,7 @@
             seconds.sort(compare);
             const complete=groups().every(group=>event.standings[group].every(r=>r.played===2 && !r.tied));
             const rows=seconds.map(r=>({...r,rank:complete ? 1+seconds.filter(s=>compare(s,r)<0).length : '—',tied:complete && seconds.some(s=>s.seed!==r.seed && compare(s,r)===0)}));
-            $('groupStandings').innerHTML+=`<section class="panel"><div class="panel-heading"><h2>Vergleich der Gruppenzweiten</h2></div>${statsTable(rows)}<p class="form-content muted">${complete ? 'Wertung: Partiepunkte, GD (3 Stellen), HS.' : 'Die Wertung steht nach Abschluss der Gruppenspiele fest.'}</p></section>`;
+            $('groupStandings').innerHTML+=`<section class="panel"><div class="panel-heading"><h2>Vergleich der Gruppenzweiten</h2></div>${statsTable(rows,'groups')}<p class="form-content muted">${complete ? 'Wertung: Partiepunkte, GD (3 Stellen), HS.' : 'Die Wertung steht nach Abschluss der Gruppenspiele fest.'}</p></section>`;
         }
         const empty=()=>({points:0,balls:0,innings:0,high:0,played:0});
         const totals=new Map(event.snapshot.participants.map(p=>[p.seed,empty()]));
@@ -175,7 +179,7 @@
         const finalSeeds=new Set(event.schedule.filter(m=>m.stage==='final' && m.ready).flatMap(m=>[m.seed1,m.seed2]));
         const finalRows=[...finalSeeds].map(seed=>({seed,rank:ranks.find(r=>r.seed===seed)?.rank ?? '—',...finalTotals.get(seed)}))
             .sort((a,b)=>(typeof a.rank==='number' ? a.rank : 99)-(typeof b.rank==='number' ? b.rank : 99) || a.seed-b.seed);
-        $('finalRoundStandings').innerHTML=finalRows.length ? statsTable(finalRows) : '<p class="form-content">Die Endrunde steht nach Abschluss der Gruppenspiele fest.</p>';
+        $('finalRoundStandings').innerHTML=finalRows.length ? statsTable(finalRows,'final') : '<p class="form-content">Die Endrunde steht nach Abschluss der Gruppenspiele fest.</p>';
         $('finalStandings').innerHTML=ranks.length ? statsTable(ranks.map(r=>({...r,...totals.get(r.seed)}))) : '<p class="form-content">Die Endplatzierungen stehen nach den jeweiligen Final- und Platzierungsspielen fest.</p>';
     }
     function renderMembers() {
