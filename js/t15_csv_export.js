@@ -20,8 +20,6 @@
         const snapshot = event.snapshot;
         const participants = new Map(snapshot.participants.map(p => [Number(p.seed),p]));
         const exportDate = date(event.event_date || snapshot.date || snapshot.eventDate);
-        const time = String(snapshot.startTime || '').trim();
-        if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error('Die Uhrzeit in der Einladung ist ungültig.');
         const lines = [];
         const rounds = {HF1:'Halbfinale',HF2:'Halbfinale',P8:'Spiel um Platz 8',P9:'Spiel um Platz 9',P7:'Spiel um Platz 7',P5:'Spiel um Platz 5',P3:'Spiel um Platz 3',F:'Finale'};
         event.schedule.forEach((match, index) => {
@@ -34,6 +32,10 @@
             }
             const values = ['score1','score2','innings1','innings2','high1','high2'].map(field => result[field]);
             if (values.some(v => !Number.isInteger(v) || v < 0)) throw new Error(`${match.label}: Die Ergebnisdaten sind unvollständig oder ungültig.`);
+            const captured=event.capture_times?.[match.key];
+            const timestamp=captured ? new Date(captured) : null;
+            if(timestamp && !Number.isFinite(timestamp.getTime()))throw new Error(`${match.label}: Die Erfassungszeit ist ungültig.`);
+            const time=timestamp ? new Intl.DateTimeFormat('de-DE',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(timestamp) : '';
             lines.push([match.roundLabel || (match.stage === 'A' || match.stage === 'B' ? `Gruppe ${match.stage}` : rounds[match.key]),index+1,1,String(players[0].passNo).trim(),String(players[1].passNo).trim(),...values,exportDate,time]);
         });
         if (lines.length === 0) throw new Error('Es sind noch keine gespeicherten Partien zum Exportieren vorhanden.');
