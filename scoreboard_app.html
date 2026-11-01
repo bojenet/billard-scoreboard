@@ -680,6 +680,8 @@
                 </div>
             </div>
 
+            <button id="swapMatchPlayersBtn" class="control-btn" type="button" onclick="swapMatchPlayers()">⇄ Spieler 1 / 2 tauschen</button>
+            <div id="swapMatchMessage" class="message" role="status" aria-live="polite"></div>
             <button class="control-btn" type="button" onclick="openScoreEditor()">✎ Spielstand korrigieren</button>
 
             <div id="seriesInfo" class="series">Serie: 0</div>
@@ -1535,15 +1537,61 @@
                 ? "Pause Timer · " + getShotClockRemaining()
                 : "Start Timer · " + getShotClockRemaining();
 
+            document.getElementById("swapMatchPlayersBtn").classList.toggle("hidden", !canSwapMatchPlayers());
             document.querySelectorAll("#controlView button").forEach((btn) => {
                 if (btn.id === "newMatchBtn") return;
-                btn.disabled = isFinished();
+                btn.disabled = isFinished() || (btn.id === "swapMatchPlayersBtn" && swappingMatchPlayers);
             });
+        }
+
+        const playerSideFields = [
+            ["player1", "player2"], ["player1_id", "player2_id"],
+            ["player1_country_code", "player2_country_code"], ["player1_club_name", "player2_club_name"],
+            ["discipline1", "discipline2"], ["target1", "target2"]
+        ];
+        let swappingMatchPlayers = false;
+
+        function canSwapMatchPlayers(state = matchData) {
+            return !!state && !state.finished &&
+                ["score1", "score2", "series1", "series2", "inn1", "inn2", "high1", "high2"].every(key => Number(state[key] || 0) === 0) &&
+                toArray(state.series_log1).length === 0 && toArray(state.series_log2).length === 0;
+        }
+
+        async function swapMatchPlayers() {
+            if (!matchId || swappingMatchPlayers || !canSwapMatchPlayers()) return;
+            const snapshot = { ...matchData };
+            const previous = createUndoState(snapshot);
+            const update = {};
+            for (const [left, right] of playerSideFields) {
+                update[left] = snapshot[right] ?? null;
+                update[right] = snapshot[left] ?? null;
+            }
+            // White keeps the first turn; only the players' side assignments change.
+            update.activePlayer = 1;
+            swappingMatchPlayers = true;
+            const button = document.getElementById("swapMatchPlayersBtn");
+            const message = document.getElementById("swapMatchMessage");
+            button.disabled = true;
+            message.textContent = "";
+            try {
+                if (await updateMatch(shotClockReset(update), snapshot)) {
+                    history.push(previous);
+                } else {
+                    message.textContent = "Spieler konnten nicht getauscht werden. Bitte aktuellen Spielstand und Verbindung prüfen.";
+                }
+            } catch (error) {
+                console.error(error);
+                message.textContent = "Spieler konnten nicht getauscht werden. Bitte erneut versuchen.";
+            } finally {
+                swappingMatchPlayers = false;
+                button.disabled = !canSwapMatchPlayers();
+            }
         }
 
         function createUndoState(state) {
             if (!state) return null;
             return {
+                ...Object.fromEntries(playerSideFields.flat().filter(key => key in state).map(key => [key, state[key]])),
                 score1: Number(state.score1 || 0),
                 score2: Number(state.score2 || 0),
                 series1: Number(state.series1 || 0),
@@ -1568,7 +1616,7 @@
 
         let scoreEditorSnapshot = null;
         let scoreEditorMatchId = null;
-        const correctionFields = ["score1", "score2", "inn1", "inn2", "high1", "high2", "series1", "series2", "activePlayer", "totalInnings", "finished", "status"];
+        const correctionFields = ["score1", "score2", "inn1", "inn2", "high1", "high2", "series1", "series2", "activePlayer", "totalInnings", "finished", "status", ...playerSideFields.flat()];
 
         function openScoreEditor() {
             if (!matchData || !matchId) return;
@@ -1668,23 +1716,7 @@
 
         function saveHistory() {
             if (!matchData) return;
-            history.push({
-                score1: matchData.score1,
-                score2: matchData.score2,
-                series1: matchData.series1,
-                series2: matchData.series2,
-                high1: matchData.high1,
-                high2: matchData.high2,
-                activePlayer: matchData.activePlayer,
-                inn1: matchData.inn1,
-                inn2: matchData.inn2,
-                totalInnings: matchData.totalInnings,
-                finished: matchData.finished,
-                series_log1: toArray(matchData.series_log1),
-                series_log2: toArray(matchData.series_log2),
-                shot_clock_timeouts1: Number(matchData.shot_clock_timeouts1 || 0),
-                shot_clock_timeouts2: Number(matchData.shot_clock_timeouts2 || 0)
-            });
+            history.push(createUndoState(matchData));
         }
 
         async function addPoints(delta) {
