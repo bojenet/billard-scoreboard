@@ -21,7 +21,7 @@
         const participants = new Map(snapshot.participants.map(p => [Number(p.seed),p]));
         const exportDate = date(event.event_date || snapshot.date || snapshot.eventDate);
         const lines = [];
-        const rounds = {HF1:'Halbfinale',HF2:'Halbfinale',P8:'Spiel um Platz 8',P9:'Spiel um Platz 9',P7:'Spiel um Platz 7',P5:'Spiel um Platz 5',P3:'Spiel um Platz 3',F:'Finale'};
+        const rounds = {HF1:'Halbfinale',HF2:'Halbfinale',P8:'Spiel um Platz 9',P9:'Spiel um Platz 9',P7:'Spiel um Platz 7',P5:'Spiel um Platz 5',P3:'Spiel um Platz 3',F:'Finale'};
         event.schedule.forEach((match, index) => {
             const result = event.results[match.key];
             if (!result) return;

@@ -34,7 +34,7 @@ do $$declare code text;cfg jsonb;n integer;expected integer;invitation jsonb;eid
    if code='T16' then
     if cfg->'A'<>'[1,4,5,7,9]'::jsonb or cfg->'B'<>'[2,3,6,8]'::jsonb then raise exception 'T16 neu: wrong groups';end if;
     select value into g from jsonb_array_elements(state->'schedule') where value->>'key'='P8';
-    if g->>'seed1'<>'7' or g->>'seed2'<>'9' then raise exception 'T16 neu: wrong P8';end if;
+    if g->>'seed1'<>'9' or g->>'seed2'<>'8' then raise exception 'T16 neu: wrong P8';end if;
     if exists(select 1 from jsonb_array_elements(state->'schedule') where value->>'key'='P7' and (value->>'ready')::boolean) then raise exception 'P7 premature';end if;
    end if;
    if code in ('T18','T19') then
@@ -63,7 +63,7 @@ do $$declare code text;cfg jsonb;n integer;expected integer;invitation jsonb;eid
   if code='T16' then
    v:=public.set_t15_status(eid,'open',v);
    select value into g from jsonb_array_elements(state->'schedule') where value->>'key'='P7';
-   if g->>'seed1'<>'7' or g->>'seed2'<>'8' then raise exception 'T16: P8 winner must face B4';end if;
+   if g->>'seed1'<>'7' or g->>'seed2'<>'9' then raise exception 'T16: A4 must face P8 winner';end if;
    begin perform public.save_t15_result(eid,'P8',null,v);raise exception 'P7 silently removed';exception when others then if position('DEPENDENTS_EXIST' in sqlerrm)=0 then raise;end if;end;
    v:=public.save_t15_result(eid,'P8',null,v,true);state:=public.get_t15_result_event(eid);
    if state->'results' ? 'P7' then raise exception 'T16 stale P7';end if;
