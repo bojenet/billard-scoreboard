@@ -336,6 +336,27 @@
             font-weight: 800;
         }
 
+        .score-editor {
+            width: min(94vw, 520px);
+            max-height: 90dvh;
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 20px;
+            background: var(--panel);
+            color: var(--text);
+        }
+        .score-editor::backdrop { background: rgba(0, 0, 0, .75); }
+        .score-editor h2 { margin-top: 0; }
+        .score-editor p { color: var(--muted); line-height: 1.4; }
+        .score-editor-players { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .score-editor fieldset { min-width: 0; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
+        .score-editor legend { overflow-wrap: anywhere; font-weight: 700; }
+        .score-editor label { display: block; margin: 10px 0 5px; }
+        .score-editor input, .score-editor select { width: 100%; min-height: 44px; font-size: 18px; }
+        .score-editor-actions { display: flex; gap: 10px; margin-top: 16px; }
+        .score-editor-actions button { flex: 1; }
+
         .score-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -659,6 +680,8 @@
                 </div>
             </div>
 
+            <button class="control-btn" type="button" onclick="openScoreEditor()">✎ Spielstand korrigieren</button>
+
             <div id="seriesInfo" class="series">Serie: 0</div>
 
             <div id="timerControls" class="timer-row hidden">
@@ -696,11 +719,39 @@
                 <div id="resultEmailStatus" class="email-status"></div>
             </div>
 
+            <button class="control-btn" type="button" onclick="openScoreEditor()">✎ Spielstand korrigieren</button>
             <div class="end-actions">
                 <button class="confirm-btn" type="button" onclick="confirmCloseMatch()">Bestätigen und schließen</button>
             </div>
         </section>
     </main>
+
+    <dialog id="scoreEditor" class="score-editor" aria-labelledby="scoreEditorTitle">
+        <form id="scoreEditorForm" onsubmit="saveScoreCorrection(event)">
+            <h2 id="scoreEditorTitle">Spielstand korrigieren</h2>
+            <p>Punkte sind der Stand nach den abgeschlossenen Aufnahmen. Die laufende Serie wird beim nächsten Wechsel addiert. Bisherige Einzelserien im Partieprotokoll bleiben unverändert.</p>
+            <div class="score-editor-players"><fieldset><legend id="editName1">Spieler 1</legend>
+<label for="editscore1">Punkte</label><input id="editscore1" name="score1" type="number" inputmode="numeric" min="0" max="2147483647" step="1" required>
+<label for="editinn1">Aufnahmen</label><input id="editinn1" name="inn1" type="number" inputmode="numeric" min="0" max="2147483647" step="1" required>
+<label for="edithigh1">Höchstserie</label><input id="edithigh1" name="high1" type="number" inputmode="numeric" min="0" max="2147483647" step="1" required>
+<label for="editseries1">Laufende Serie</label><input id="editseries1" name="series1" type="number" inputmode="numeric" min="0" max="2147483647" step="1" required>
+</fieldset>
+<fieldset><legend id="editName2">Spieler 2</legend>
+<label for="editscore2">Punkte</label><input id="editscore2" name="score2" type="number" inputmode="numeric" min="0" max="2147483647" step="1" required>
+<label for="editinn2">Aufnahmen</label><input id="editinn2" name="inn2" type="number" inputmode="numeric" min="0" max="2147483647" step="1" required>
+<label for="edithigh2">Höchstserie</label><input id="edithigh2" name="high2" type="number" inputmode="numeric" min="0" max="2147483647" step="1" required>
+<label for="editseries2">Laufende Serie</label><input id="editseries2" name="series2" type="number" inputmode="numeric" min="0" max="2147483647" step="1" required>
+</fieldset>
+</div>
+            <label for="editActivePlayer">Am Stoß</label>
+            <select id="editActivePlayer"><option value="1">Spieler 1</option><option value="2">Spieler 2</option></select>
+            <div id="scoreEditorMessage" class="message" role="status" aria-live="polite"></div>
+            <div class="score-editor-actions">
+                <button class="control-btn" type="button" onclick="document.getElementById('scoreEditor').close()">Abbrechen</button>
+                <button id="saveScoreCorrectionBtn" class="control-btn switch" type="submit">Speichern</button>
+            </div>
+        </form>
+    </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
@@ -1515,19 +1566,96 @@
             };
         }
 
-        async function updateMatch(update) {
+        let scoreEditorSnapshot = null;
+        let scoreEditorMatchId = null;
+        const correctionFields = ["score1", "score2", "inn1", "inn2", "high1", "high2", "series1", "series2", "activePlayer", "totalInnings", "finished", "status"];
+
+        function openScoreEditor() {
+            if (!matchData || !matchId) return;
+            scoreEditorSnapshot = { ...matchData };
+            scoreEditorMatchId = matchId;
+            for (const player of [1, 2]) {
+                const name = matchData["player" + player] || "Spieler " + player;
+                document.getElementById("editName" + player).textContent = name;
+                document.getElementById("editActivePlayer").options[player - 1].textContent = name;
+                for (const key of ["score", "inn", "high", "series"]) {
+                    document.getElementById("edit" + key + player).value = Number(matchData[key + player] || 0);
+                    document.getElementById("edit" + key + player).disabled = key === "series" && isFinished();
+                }
+            }
+            document.getElementById("editActivePlayer").value = Number(matchData.activePlayer || 1);
+            document.getElementById("editActivePlayer").disabled = isFinished();
+            document.getElementById("scoreEditorMessage").textContent = "";
+            document.getElementById("scoreEditor").showModal();
+            document.getElementById("editscore1").focus();
+        }
+
+        async function saveScoreCorrection(event) {
+            event.preventDefault();
+            const message = document.getElementById("scoreEditorMessage");
+            const button = document.getElementById("saveScoreCorrectionBtn");
+            if (button.disabled) return;
+            if (!matchData || !scoreEditorSnapshot || matchId !== scoreEditorMatchId) return;
+            const update = {};
+            for (const player of [1, 2]) {
+                for (const key of ["score", "inn", "high", "series"]) {
+                    const raw = document.getElementById("edit" + key + player).value;
+                    const value = Number(raw);
+                    if (!raw.trim() || !Number.isSafeInteger(value) || value < 0 || value > 2147483647) {
+                        message.textContent = "Bitte nur ganze Zahlen ab 0 eingeben.";
+                        return;
+                    }
+                    update[key + player] = value;
+                }
+            }
+            update.activePlayer = Number(document.getElementById("editActivePlayer").value);
+            if (![1, 2].includes(update.activePlayer)) return;
+            update.totalInnings = Math.max(1, update.inn1, update.inn2,
+                scoreEditorSnapshot.finished ? 1 : (update.activePlayer === 1 ? update.inn2 : update.inn1) + 1);
+            if (update.totalInnings > 2147483647) {
+                message.textContent = "Die Aufnahmezahl ist zu groß.";
+                return;
+            }
+            // Refuse to overwrite a score changed by another controller while the dialog was open.
+            if (correctionFields.some(key => matchData[key] !== scoreEditorSnapshot[key])) {
+                message.textContent = "Der Spielstand wurde inzwischen geändert. Bitte schließen und erneut öffnen.";
+                return;
+            }
+            button.disabled = true;
+            const previous = createUndoState(matchData);
+            try {
+                const saved = await updateMatch(shotClockReset(update), scoreEditorSnapshot);
+                if (!saved) {
+                    message.textContent = "Nicht gespeichert. Der Spielstand wurde geändert oder die Verbindung ist gestört. Bitte schließen und erneut öffnen.";
+                    return;
+                }
+                history.push(previous);
+                document.getElementById("scoreEditor").close();
+            } catch (error) {
+                console.error(error);
+                message.textContent = "Speichern fehlgeschlagen. Bitte erneut versuchen.";
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function updateMatch(update, expectedState = null) {
             if (!matchId) return;
             const payload = {
                 ...update,
                 undo_state: createUndoState(matchData)
             };
-            const { error } = await supabaseClient
-                .from("matches")
-                .update(payload)
-                .eq("id", matchId);
-            if (error) {
-                console.error(error);
-                return;
+            let query = supabaseClient.from("matches").update(payload).eq("id", matchId);
+            if (expectedState) {
+                for (const key of correctionFields) {
+                    query = expectedState[key] == null ? query.is(key, null) : query.eq(key, expectedState[key]);
+                }
+                query = query.select("id");
+            }
+            const { data, error } = await query;
+            if (error || (expectedState && !data?.length)) {
+                if (error) console.error(error);
+                return false;
             }
             matchData = { ...matchData, ...payload };
             if (isFinished()) {
@@ -1535,6 +1663,7 @@
             } else {
                 updateDisplay();
             }
+            return true;
         }
 
         function saveHistory() {
