@@ -30,7 +30,8 @@
         $('modeForm').hidden=event.can_change_mode!==true || event.status!=='open' || !!event.archived_ranking;
         $('resultMode').innerHTML=ResultModes.list().map(m=>`<option value="${m.code}"${m.code===event.snapshot.selectedModeCode?' selected':''}${m.count!==event.snapshot.participants.length?' disabled':''}>${m.code} · ${esc(m.label)}${m.count!==event.snapshot.participants.length ? ` (${m.count} Teilnehmer erforderlich)` : ''}</option>`).join('');
         $('changeModeBtn').disabled=busy;
-        $('participantEditor').hidden=event.can_change_mode!==true || event.status!=='open' || !!event.archived_ranking;
+        $('rosterTab').hidden=event.can_change_mode!==true || event.status!=='open' || !!event.archived_ranking;
+        $('participantEditor').hidden=view!=='roster' || event.can_change_mode!==true || event.status!=='open' || !!event.archived_ranking;
         renderParticipantGroups();
         renderRemovalModes();
         $('eventTitle').textContent = event.title;

@@ -25,7 +25,7 @@ async function test({selected=[3],code='T16b',reset=false,approveRemoval=true,ap
  r=await test({error:'VERSION_CONFLICT'});assert.equal(r.loads,0);assert.equal(r.c.dirty,true);assert.equal(r.c.busy,false);assert.deepEqual(r.messages,['VERSION_CONFLICT']);
  const visibility=source.split('\n').find(line=>line.includes("$('participantEditor').hidden="));
  for(const [event,hidden] of [[{can_change_mode:true,can_manage:false,status:'open'},false],[{can_change_mode:false,status:'open'},true],[{can_change_mode:true,status:'completed'},true],[{can_change_mode:true,status:'open',archived_ranking:{}},true]]) {
-  const node={};vm.runInNewContext(visibility,{$:()=>node,event});assert.equal(node.hidden,hidden);
+  const node={};vm.runInNewContext(visibility,{$:()=>node,event,view:'roster'});assert.equal(node.hidden,hidden);
  }
  r=await test({selected:[],approveRemoval:false});
  r.c.renderParticipantGroups();

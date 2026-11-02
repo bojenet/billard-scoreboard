@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Manuelle Ergebniserfassung · Billard Studio</title>
-<link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261102-group-roster">
+<link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261102-roster-tab">
 </head>
 <body>
 <header class="topbar"><a id="resultsBrand" class="brand" href="turnier_ergebnisse.html">Billard Studio <span>/ Manuelle Ergebniserfassung</span></a><nav><a href="turnier_ergebnisse.html">Meine Turniere</a><a data-full-navigation href="calendar.html" hidden>Kalender</a><a data-full-navigation href="turnier_zentrale.html" hidden>Turnierzentrale</a><button id="logoutBtn" type="button">Abmelden</button></nav></header>
@@ -13,9 +13,9 @@
 <section id="listView" hidden><div class="page-heading"><div><h1 id="resultListTitle">Meine Turnierergebnisse</h1></div></div><div id="eventList"></div></section>
 <section id="eventView" hidden>
 <div class="page-heading"><div><h1 id="eventTitle"></h1><p id="eventMeta"></p></div><a id="automaticEntryLink" hidden>Zum Betrieb mit Displays →</a></div>
-<div class="toolbar"><div class="tabs" role="group" aria-label="Ansicht"><button data-view="A" aria-pressed="true">Gruppe A</button><button data-view="B" aria-pressed="false">Gruppe B</button><button data-view="C" aria-pressed="false" hidden>Gruppe C</button><button data-view="final" aria-pressed="false">Platzierung & Finale</button><button data-view="standings" aria-pressed="false">Tabellen</button><button data-view="access" id="accessTab" aria-pressed="false" hidden>Zugänge</button><button data-view="history" aria-pressed="false" hidden>Verlauf</button></div></div>
+<div class="toolbar"><div class="tabs" role="group" aria-label="Ansicht"><button data-view="A" aria-pressed="true">Gruppe A</button><button data-view="roster" id="rosterTab" aria-pressed="false">Setzliste</button><button data-view="B" aria-pressed="false">Gruppe B</button><button data-view="C" aria-pressed="false" hidden>Gruppe C</button><button data-view="final" aria-pressed="false">Platzierung & Finale</button><button data-view="standings" aria-pressed="false">Tabellen</button><button data-view="access" id="accessTab" aria-pressed="false" hidden>Zugänge</button><button data-view="history" aria-pressed="false" hidden>Verlauf</button></div></div>
 <form id="modeForm" class="mode-settings" hidden><label for="resultMode">Turniermodus<select id="resultMode"></select></label><button id="changeModeBtn" type="submit">Modus ändern</button><span class="muted">Nur dieses Turnier · Einladung und Spielziel bleiben unverändert</span></form>
-<section id="participantEditor" class="panel" hidden><div class="panel-heading"><h2>Teilnehmer &amp; Gruppen</h2></div>
+<section id="participantEditor" class="panel" hidden><div class="panel-heading"><h2>Setzliste · Teilnehmer &amp; Gruppen</h2></div>
 <form id="removeParticipantsForm" class="form-content">
 <p class="muted">Nicht erschienen? Mit × beim Spieler entfernen. Danach den passenden Modus wählen und die Änderungen übernehmen.</p>
 <div id="absentParticipants"></div>
@@ -44,5 +44,5 @@
 <script src="js/t15_clubcloud_reload.js?v=20261030-invited-mode"></script>
 <script src="js/t15_csv_export.js?v=20261101-clubcloud-rounds"></script>
 <script src="js/result_statistics.js?v=20261031-bed"></script>
-<script src="js/turnier_ergebnisse.js?v=20261102-group-roster"></script>
+<script src="js/turnier_ergebnisse.js?v=20261102-roster-tab"></script>
 </body></html>
