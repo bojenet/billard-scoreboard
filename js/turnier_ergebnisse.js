@@ -6,6 +6,7 @@
     let event = null, view = 'A', selected = 'A1', dirty = false, busy = false, pendingReload = null, reloadVersion = null;
     let sortingMatches = false;
     const removedParticipantSeeds = new Set();
+    const restoredParticipantIds = new Set();
     const player = seed => event?.snapshot.participants.find(p => p.seed === Number(seed));
     const name = seed => player(seed)?.name || 'Paarung noch offen';
     const mode = () => ResultModes.get(event.snapshot.selectedModeCode);
@@ -22,7 +23,7 @@
     function canLeave() { return !dirty || window.confirm('Die aktuelle Eingabe wurde noch nicht gespeichert. Eingabe verwerfen?'); }
     async function load() {
         const next = await rpc('get_t15_result_event', { p_id: eventId });
-        event = next; dirty = false; removedParticipantSeeds.clear(); render();
+        event = next; dirty = false; removedParticipantSeeds.clear(); restoredParticipantIds.clear(); render();
         if (view === 'history') await history();
     }
     function render() {
@@ -73,36 +74,39 @@
             return `<section class="participant-group"><h3>${roundRobin() ? 'Teilnehmer · Jeder gegen jeden' : `Gruppe ${esc(group)}`}</h3><div class="table-wrap"><table><thead><tr><th>Setz.</th><th>Name</th><th>Verein</th><th>Pass-Nr.</th><th>GD Setzliste</th><th><span class="result-sr-only">Entfernen</span></th></tr></thead><tbody>${roster.map(p=>`<tr><td>${p.seed}</td><td>${esc(p.name)}</td><td>${esc(p.club || '—')}</td><td>${esc(p.passNo || '—')}</td><td>${esc(p.gd ?? '—')}</td><td><button type="button" class="remove-participant" data-remove-seed="${p.seed}" aria-label="${esc(p.name)} entfernen" title="Spieler entfernen"${busy ? ' disabled' : ''}>×</button></td></tr>`).join('') || '<tr><td colspan="6">Keine Spieler verbleiben in dieser Gruppe.</td></tr>'}</tbody></table></div></section>`;
         }).join('');
         $('removedParticipants').innerHTML=absentSeeds().map(seed=>`<span class="removed-participant">${esc(name(seed))} <button type="button" data-restore-seed="${seed}"${busy ? ' disabled' : ''} aria-label="${esc(name(seed))} wieder aufnehmen">Rückgängig</button></span>`).join('');
-        $('attendanceChanges').hidden=removedParticipantSeeds.size===0;
+        $('removedParticipants').innerHTML+=(event.snapshot.removedParticipants || []).map(p=>`<span class="removed-participant">${esc(p.name)}${restoredParticipantIds.has(p.attendance_id) ? ' · Wiederherstellung vorgemerkt' : ''} <button type="button" data-restore-id="${esc(p.attendance_id)}"${busy ? ' disabled' : ''}>${restoredParticipantIds.has(p.attendance_id) ? 'Rückgängig' : 'Wiederherstellen'}</button></span>`).join('');
+        $('attendanceChanges').hidden=removedParticipantSeeds.size===0 && !(event.snapshot.removedParticipants || []).length;
     }
     function renderRemovalModes() {
-        const removed=absentSeeds().length,count=event.snapshot.participants.length-removed;
+        const removed=absentSeeds().length,changed=removed+restoredParticipantIds.size,count=event.snapshot.participants.length-removed+restoredParticipantIds.size;
         const previous=$('resultMode').value || event.snapshot.selectedModeCode;
         const choices=ResultModes.forCount(count);
-        $('remainingParticipants').textContent=`${count} Spieler verbleiben`+(removed && !choices.length ? ' · Für diese Teilnehmerzahl ist kein Modus verfügbar.' : '');
+        $('remainingParticipants').textContent=`${count} Spieler verbleiben`+(changed && !choices.length ? ' · Für diese Teilnehmerzahl ist kein Modus verfügbar.' : '');
         const selectedMode=choices.some(m=>m.code===previous) ? previous : choices.some(m=>m.code===event.snapshot.selectedModeCode) ? event.snapshot.selectedModeCode : choices[0]?.code || '';
         $('resultMode').innerHTML=ResultModes.list().map(m=>`<option value="${m.code}"${m.code===selectedMode?' selected':''}${m.count!==count?' disabled':''}>${m.code} · ${esc(m.label)}${m.count!==count ? ` (${m.count} Teilnehmer erforderlich)` : ''}</option>`).join('');
         $('resultMode').value=selectedMode;
-        $('changeModeBtn').disabled=busy || (removed>0 && !choices.length);
-        $('changeModeBtn').textContent=removed ? 'Änderungen übernehmen' : 'Modus ändern';
+        $('changeModeBtn').disabled=busy || (changed>0 && !choices.length);
+        $('changeModeBtn').textContent=changed ? 'Änderungen übernehmen' : 'Modus ändern';
     }
     async function applyParticipantChanges(e) {
             e.preventDefault();if(busy || !canLeave())return;
             const seeds=absentSeeds(),code=$('resultMode').value;
-            if(!seeds.length || !ResultModes.forCount(event.snapshot.participants.length-seeds.length).some(m=>m.code===code))return;
-            const names=seeds.map(seed=>name(seed)).join(', ');
-            if(!confirm(`${names} aus diesem Turnier entfernen und den Spielplan mit Modus ${code} neu bilden?`))return;
+            if((!seeds.length && !restoredParticipantIds.size) || !ResultModes.forCount(event.snapshot.participants.length-seeds.length+restoredParticipantIds.size).some(m=>m.code===code))return;
+            const names=[...seeds.map(seed=>name(seed)+' entfernen'),...(event.snapshot.removedParticipants || []).filter(p=>restoredParticipantIds.has(p.attendance_id)).map(p=>p.name+' wiederherstellen')].join(', ');
+            if(!confirm(`${names} und den Spielplan mit Modus ${code} neu bilden?`))return;
             busy=true;$('changeModeBtn').disabled=true;
-            const args={p_id:eventId,p_seeds:seeds,p_mode:code,p_version:event.version,p_reset:false};
+            const restoring=restoredParticipantIds.size>0;
+            const fn=restoring ? 'adjust_result_participants' : 'remove_result_participants';
+            const args={p_id:eventId,p_seeds:seeds,p_mode:code,p_version:event.version,p_reset:false,...(restoring ? {p_restore_ids:Array.from(restoredParticipantIds)} : {})};
             try {
-                try { await rpc('remove_result_participants',args); }
+                try { await rpc(fn,args); }
                 catch(error) {
                     if(!error.message?.includes('RESET_REQUIRED'))throw error;
-                    if(!confirm('Spieler entfernen, Modus ändern und ALLE bisherigen Ergebnisse und Live-Spielstände dieses Turniers zurücksetzen?'))return;
-                    await rpc('remove_result_participants',{...args,p_reset:true});
+                    if(!confirm('Teilnehmerliste und Modus ändern und ALLE bisherigen Ergebnisse und Live-Spielstände dieses Turniers zurücksetzen?'))return;
+                    await rpc(fn,{...args,p_reset:true});
                 }
                 dirty=false;view='A';selected='';pendingReload=null;
-                await load();notice('Nicht erschienene Spieler entfernt. Modus, Gruppen und Spielplan wurden angepasst.');
+                await load();notice('Teilnehmerliste gespeichert. Modus, Gruppen und Spielplan wurden angepasst.');
             }catch(error){failure(error);}finally{busy=false;renderRemovalModes();}
         }
     function matchOrderStorageKey() {
@@ -317,12 +321,16 @@
             renderParticipantGroups();renderRemovalModes();
         };
         $('removedParticipants').onclick=e=>{
-            const button=e.target.closest('[data-restore-seed]');if(!button || busy)return;
-            removedParticipantSeeds.delete(Number(button.dataset.restoreSeed));
+            const button=e.target.closest('[data-restore-seed], [data-restore-id]');if(!button || busy)return;
+            if(button.dataset.restoreId) {
+                const id=button.dataset.restoreId;
+                if(!(event.snapshot.removedParticipants || []).some(p=>p.attendance_id===id))return;
+                if(restoredParticipantIds.has(id))restoredParticipantIds.delete(id);else restoredParticipantIds.add(id);
+            } else removedParticipantSeeds.delete(Number(button.dataset.restoreSeed));
             renderParticipantGroups();renderRemovalModes();
         };
         $('modeForm').onsubmit=async e=>{
-            if(absentSeeds().length)return applyParticipantChanges(e);
+            if(absentSeeds().length || restoredParticipantIds.size)return applyParticipantChanges(e);
             e.preventDefault();if(busy || !canLeave())return;
             const code=$('resultMode').value;
             if(code===event.snapshot.selectedModeCode)return;
