@@ -4,6 +4,7 @@
     const params = new URLSearchParams(location.search);
     const eventId = params.get('turnier');
     let event = null, view = 'A', selected = 'A1', dirty = false, busy = false, pendingReload = null, reloadVersion = null;
+    let sortingMatches = false;
     const removedParticipantSeeds = new Set();
     const player = seed => event?.snapshot.participants.find(p => p.seed === Number(seed));
     const name = seed => player(seed)?.name || 'Paarung noch offen';
@@ -84,11 +85,38 @@
         if(choices.some(m=>m.code===previous))$('remainingMode').value=previous;
         $('removeParticipantsBtn').disabled=busy || !removed || !choices.length;
     }
-    function renderMatches() {
-        const games = event.schedule.filter(m => m.stage === view);
+    function matchOrderStorageKey() {
+        return 'result_match_order:' + eventId + ':' + view;
+    }
+    function matchOrderFingerprint() {
+        return JSON.stringify([event.snapshot.selectedModeCode,event.snapshot.participants.map(p=>[p.seed,p.name,p.passNo])]);
+    }
+    function orderedMatches() {
+        const games=event.schedule.filter(m=>m.stage===view);
+        try {
+            const saved=JSON.parse(localStorage.getItem(matchOrderStorageKey()) || 'null');
+            if(saved?.fingerprint!==matchOrderFingerprint() || !Array.isArray(saved.keys))return games;
+            const keys=[...new Set(saved.keys)];
+            return [...keys.map(key=>games.find(m=>m.key===key)).filter(Boolean),...games.filter(m=>!keys.includes(m.key))];
+        } catch (_) { return games; }
+    }
+    function moveMatch(key,direction) {
+        if(busy || ![-1,1].includes(direction))return;
+        const games=orderedMatches(),index=games.findIndex(m=>m.key===key),other=index+direction;
+        if(index<0 || other<0 || other>=games.length)return;
+        [games[index],games[other]]=[games[other],games[index]];
+        try {
+            localStorage.setItem(matchOrderStorageKey(),JSON.stringify({fingerprint:matchOrderFingerprint(),keys:games.map(m=>m.key)}));
+            renderMatches(false);
+        } catch (_) { notice('Die Sortierung konnte auf diesem Gerät nicht gespeichert werden.',true); }
+    }
+    function renderMatches(updateEntry = true) {
+        const games = orderedMatches();
+        $('sortMatchesBtn').setAttribute('aria-pressed',String(sortingMatches));
+        $('sortMatchesBtn').textContent=sortingMatches ? 'Sortieren beenden' : 'Spiele sortieren';
         if (!games.some(m => m.key === selected)) selected = games[0]?.key;
         $('matchListHeading').textContent = view === 'final' ? 'Platzierung & Finale' : roundRobin() ? 'Jeder gegen jeden' : `Gruppe ${view}`;
-        $('matchList').innerHTML = games.map(m => {
+        $('matchList').innerHTML = games.map((m,index) => {
             const r = event.results[m.key];
             const winner = !r ? 0 : m.stage === 'final' && r.winner ? Number(r.winner) : r.score1 > r.score2 ? 1 : r.score2 > r.score1 ? 2 : 0;
             const rows = [1,2].map(side => {
@@ -96,10 +124,14 @@
                 const points = !r ? '—' : winner ? (won ? 2 : 0) : 1;
                 return `<span class="match-player${won ? ' winner' : ''}"><span class="match-player-name">${won ? `<strong>${esc(name(m[`seed${side}`]))}</strong>` : esc(name(m[`seed${side}`]))}${won ? '<span class="result-sr-only"> · Sieger</span>' : ''}</span><span class="match-number" aria-label="Partiepunkte">${points}</span><span class="match-number" aria-label="Bälle">${r?.[`score${side}`] ?? '—'}</span><span class="match-number" aria-label="Aufnahmen">${r?.[`innings${side}`] ?? '—'}</span><span class="match-number" aria-label="GD">${r ? gd(r[`score${side}`], r[`innings${side}`]) : '—'}</span><span class="match-number" aria-label="Höchstserie">${r?.[`high${side}`] ?? '—'}</span></span>`;
             }).join('');
-            return `<button class="match" type="button" data-key="${m.key}" aria-pressed="${selected === m.key}"><span class="match-meta"><span>${esc(m.label)}</span><span class="${r ? 'saved' : ''}">${r ? 'Erfasst' : m.ready ? 'Offen' : 'Paarung offen'}</span></span><span class="match-player-head" aria-hidden="true"><span>Spieler</span><abbr title="Partiepunkte">PP</abbr><span>Bälle</span><abbr title="Aufnahmen">Aufn.</abbr><abbr title="Generaldurchschnitt">GD</abbr><abbr title="Höchstserie">HS</abbr></span>${rows}</button>`;
+            return `<div class="match-item"><button class="match" type="button" data-key="${m.key}" aria-pressed="${selected === m.key}"><span class="match-meta"><span>${esc(m.label)}</span><span class="${r ? 'saved' : ''}">${r ? 'Erfasst' : m.ready ? 'Offen' : 'Paarung offen'}</span></span><span class="match-player-head" aria-hidden="true"><span>Spieler</span><abbr title="Partiepunkte">PP</abbr><span>Bälle</span><abbr title="Aufnahmen">Aufn.</abbr><abbr title="Generaldurchschnitt">GD</abbr><abbr title="Höchstserie">HS</abbr></span>${rows}</button>${sortingMatches ? `<div class="match-order-controls"><button type="button" data-move-key="${m.key}" data-direction="-1" aria-label="${esc(m.label)} nach oben"${index===0 || busy ? ' disabled' : ''}>↑</button><button type="button" data-move-key="${m.key}" data-direction="1" aria-label="${esc(m.label)} nach unten"${index===games.length-1 || busy ? ' disabled' : ''}>↓</button></div>` : ''}</div>`;
         }).join('');
         $('matchList').querySelectorAll('[data-key]').forEach(b => b.onclick = () => { if (busy || !canLeave()) return; dirty = false; selected = b.dataset.key; renderMatches(); if (matchMedia('(max-width:760px)').matches) $('entryPanel').scrollIntoView({ block: 'start', behavior: 'smooth' }); });
-        renderEntry();
+        $('matchList').querySelectorAll('[data-move-key]').forEach(b=>b.onclick=()=>{
+            moveMatch(b.dataset.moveKey,Number(b.dataset.direction));
+            $('matchList').querySelector(`[data-move-key="${b.dataset.moveKey}"][data-direction="${b.dataset.direction}"]`)?.focus();
+        });
+        if(updateEntry)renderEntry();
     }
     function renderEntry() {
         const match = event.schedule.find(m => m.key === selected), result = event.results[selected];
@@ -255,6 +287,10 @@
         const requestedMatch=event.schedule.find(m=>m.key===params.get('partie'));
         if(requestedMatch){view=requestedMatch.stage;selected=requestedMatch.key;render();}
         $('eventView').hidden=false;
+        $('sortMatchesBtn').onclick=()=>{
+            if(busy)return;
+            sortingMatches=!sortingMatches;renderMatches(false);
+        };
         $('absentParticipants').onclick=e=>{
             const button=e.target.closest('[data-remove-seed]');if(!button || busy)return;
             removedParticipantSeeds.add(Number(button.dataset.removeSeed));

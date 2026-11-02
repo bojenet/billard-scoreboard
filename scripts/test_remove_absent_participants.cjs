@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('js/turnier_ergebnisse.js','utf8');
 const ResultModes=require('../js/result_modes.js');
-const helpers=source.slice(source.indexOf('    function absentSeeds()'),source.indexOf('    function renderMatches()'));
+const helpers=source.slice(source.indexOf('    function absentSeeds()'),source.indexOf('    function matchOrderStorageKey()'));
 const handler=source.slice(source.indexOf("        $('absentParticipants').onclick="),source.indexOf("        $('modeForm').onsubmit="));
 async function test({selected=[3],code='T16b',reset=false,approveRemoval=true,approveReset=true,error=null}={}) {
  const nodes={},calls=[],confirms=[],messages=[];let loads=0;

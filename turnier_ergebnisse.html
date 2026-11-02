@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Manuelle Ergebniserfassung · Billard Studio</title>
-<link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261102-roster-tab">
+<link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261102-match-order">
 </head>
 <body>
 <header class="topbar"><a id="resultsBrand" class="brand" href="turnier_ergebnisse.html">Billard Studio <span>/ Manuelle Ergebniserfassung</span></a><nav><a href="turnier_ergebnisse.html">Meine Turniere</a><a data-full-navigation href="calendar.html" hidden>Kalender</a><a data-full-navigation href="turnier_zentrale.html" hidden>Turnierzentrale</a><button id="logoutBtn" type="button">Abmelden</button></nav></header>
@@ -13,7 +13,7 @@
 <section id="listView" hidden><div class="page-heading"><div><h1 id="resultListTitle">Meine Turnierergebnisse</h1></div></div><div id="eventList"></div></section>
 <section id="eventView" hidden>
 <div class="page-heading"><div><h1 id="eventTitle"></h1><p id="eventMeta"></p></div><a id="automaticEntryLink" hidden>Zum Betrieb mit Displays →</a></div>
-<div class="toolbar"><div class="tabs" role="group" aria-label="Ansicht"><button data-view="A" aria-pressed="true">Gruppe A</button><button data-view="roster" id="rosterTab" aria-pressed="false">Setzliste</button><button data-view="B" aria-pressed="false">Gruppe B</button><button data-view="C" aria-pressed="false" hidden>Gruppe C</button><button data-view="final" aria-pressed="false">Platzierung & Finale</button><button data-view="standings" aria-pressed="false">Tabellen</button><button data-view="access" id="accessTab" aria-pressed="false" hidden>Zugänge</button><button data-view="history" aria-pressed="false" hidden>Verlauf</button></div></div>
+<div class="toolbar"><div class="tabs" role="group" aria-label="Ansicht"><button data-view="roster" id="rosterTab" aria-pressed="false">Setzliste</button><button data-view="A" aria-pressed="true">Gruppe A</button><button data-view="B" aria-pressed="false">Gruppe B</button><button data-view="C" aria-pressed="false" hidden>Gruppe C</button><button data-view="final" aria-pressed="false">Platzierung & Finale</button><button data-view="standings" aria-pressed="false">Tabellen</button><button data-view="access" id="accessTab" aria-pressed="false" hidden>Zugänge</button><button data-view="history" aria-pressed="false" hidden>Verlauf</button></div></div>
 <form id="modeForm" class="mode-settings" hidden><label for="resultMode">Turniermodus<select id="resultMode"></select></label><button id="changeModeBtn" type="submit">Modus ändern</button><span class="muted">Nur dieses Turnier · Einladung und Spielziel bleiben unverändert</span></form>
 <section id="participantEditor" class="panel" hidden><div class="panel-heading"><h2>Setzliste · Teilnehmer &amp; Gruppen</h2></div>
 <form id="removeParticipantsForm" class="form-content">
@@ -28,7 +28,7 @@
 <section id="clubCloudPreview" class="panel" hidden><div class="panel-heading"><h2>Aktuelle ClubCloud-Daten prüfen</h2></div><form id="clubCloudForm" class="form-content"><p id="clubCloudMeta"></p><div id="clubCloudParticipants" class="table-wrap"></div><button id="addReloadPlayerBtn" type="button">Spieler hinzufügen</button><label for="reloadMode">Turniermodus<select id="reloadMode" required></select></label><p class="muted">Teilnehmer und Setzreihenfolge prüfen. Modus und Spielziel gelten nur für dieses Turnier; die Einladung bleibt unverändert.</p><div class="fields"><label>Punkte<input id="reloadTarget" type="number" min="1" max="1000000" step="1" required></label><label>Max. Aufnahmen<input id="reloadInnings" type="number" min="1" max="1000000" step="1" required></label></div><div class="actions"><button id="applyClubCloudBtn" type="submit" class="primary">Daten übernehmen</button><button id="cancelClubCloudBtn" type="button">Abbrechen</button></div></form></section>
 
 <div id="entryView" class="entry-layout">
-<section class="panel"><div class="panel-heading"><h2 id="matchListHeading">Gruppe A</h2></div><div id="matchList"></div></section>
+<section class="panel"><div class="panel-heading"><h2 id="matchListHeading">Gruppe A</h2><button id="sortMatchesBtn" type="button" aria-pressed="false">Spiele sortieren</button></div><div id="matchList"></div></section>
 <section class="panel" id="entryPanel"><div class="panel-heading"><h2 id="entryTitle">Ergebnis erfassen</h2><span id="entryMeta" class="muted"></span></div><p id="notReady" class="form-content" hidden></p><form id="resultForm" class="form-content" hidden><div id="playerInputs"></div><label id="winnerField" hidden>Sieger nach Entscheid<select id="winnerSelect"><option value="">Bitte auswählen</option></select></label><div class="actions"><button class="primary" id="saveBtn" type="submit">Ergebnis speichern</button><button id="deleteBtn" type="button" hidden>Ergebnis löschen</button></div><p id="entryMessage" aria-live="polite"></p></form></section>
 </div>
 <section id="standingsView" hidden><div id="groupStandings"></div><section class="panel" id="finalRoundPanel"><div class="panel-heading"><h2>Endrunde</h2></div><div id="finalRoundStandings"></div></section><section class="panel"><div class="panel-heading"><h2 id="finalStandingsHeading">Endplatzierungen</h2></div><div id="finalStandings"></div></section></section>
@@ -44,5 +44,5 @@
 <script src="js/t15_clubcloud_reload.js?v=20261030-invited-mode"></script>
 <script src="js/t15_csv_export.js?v=20261101-clubcloud-rounds"></script>
 <script src="js/result_statistics.js?v=20261031-bed"></script>
-<script src="js/turnier_ergebnisse.js?v=20261102-roster-tab"></script>
+<script src="js/turnier_ergebnisse.js?v=20261102-match-order"></script>
 </body></html>
