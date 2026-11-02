@@ -42,7 +42,7 @@ async function test({selected=[3],code='T16b',reset=false,approveRemoval=true,ap
  r.c.busy=false;r.c.groups=()=>['A'];r.c.roundRobin=()=>true;r.c.renderParticipantGroups();assert.match(r.nodes.absentParticipants.innerHTML,/Jeder gegen jeden/);assert.equal((r.nodes.absentParticipants.innerHTML.match(/data-remove-seed=/g)||[]).length,10);
  r=await test({selected:[],approveRemoval:false});
  r.c.event.snapshot.removedParticipants=[{attendance_id:'saved-player',name:'Saved Player'}];
- r.c.renderParticipantGroups();assert.match(r.nodes.removedParticipants.innerHTML,/Saved Player/);assert.match(r.nodes.removedParticipants.innerHTML,/Wiederherstellen/);assert.equal(r.nodes.attendanceChanges.hidden,false);
+ r.c.renderParticipantGroups();assert.match(r.nodes.removedParticipants.innerHTML,/Saved, Player/);assert.match(r.nodes.removedParticipants.innerHTML,/Wiederherstellen/);assert.equal(r.nodes.attendanceChanges.hidden,false);
  r.nodes.removedParticipants.onclick({target:{closest:()=>({dataset:{restoreId:'saved-player'}})}});
  assert.equal(r.c.restoredParticipantIds.has('saved-player'),true);assert.equal(r.nodes.changeModeBtn.textContent,'Änderungen übernehmen');
  r.nodes.removedParticipants.onclick({target:{closest:()=>({dataset:{restoreId:'unknown-player'}})}});assert.equal(r.c.restoredParticipantIds.size,1);
@@ -51,6 +51,7 @@ async function test({selected=[3],code='T16b',reset=false,approveRemoval=true,ap
  r.nodes.removedParticipants.onclick({target:{closest:()=>({dataset:{restoreId:'saved-player'}})}});
  r.c.confirm=()=>true;await r.c.applyParticipantChanges({preventDefault(){}});
  assert.equal(r.calls[0].fn,'adjust_result_participants');assert.deepEqual(Array.from(r.calls[0].p_restore_ids),['saved-player']);assert.equal(r.calls[0].p_mode,'T19');
+ for(const [raw,expected] of [['Weber Manfred','Weber, Manfred'],['Weber, Manfred','Weber, Manfred'],['Nachtmann Georg','Nachtmann, Georg'],['Meißner Andreas','Meißner, Andreas'],['Weber,Manfred','Weber, Manfred'],[' Weber   Manfred ','Weber, Manfred'],['Weber','Weber']])assert.equal(r.c.formatPlayerName(raw),expected);
  let applied=0;
  const routeContext={restoredParticipantIds:new Set(),absentSeeds:()=>[3],applyParticipantChanges:()=>{applied++},$:()=>({})};
  const routeForm={};routeContext.$=()=>routeForm;

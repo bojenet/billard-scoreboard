@@ -8,7 +8,7 @@
     const removedParticipantSeeds = new Set();
     const restoredParticipantIds = new Set();
     const player = seed => event?.snapshot.participants.find(p => p.seed === Number(seed));
-    const name = seed => player(seed)?.name || 'Paarung noch offen';
+    const name = seed => player(seed)?.name ? formatPlayerName(player(seed).name) : 'Paarung noch offen';
     const mode = () => ResultModes.get(event.snapshot.selectedModeCode);
     const roundRobin = () => mode().kind === 'roundRobin';
     const groups = () => mode().groups || (roundRobin() ? ['A'] : ['A','B']);
@@ -65,16 +65,21 @@
     function absentSeeds() {
         return Array.from(removedParticipantSeeds);
     }
+    function formatPlayerName(value) {
+        const text=String(value ?? '').trim().replace(/\s+/g,' ');
+        if(text.includes(','))return text.replace(/\s*,\s*/g,', ');
+        return text.replace(/^(\S+)\s+(.+)$/,'$1, $2');
+    }
     function renderParticipantGroups() {
         const participants=[...event.snapshot.participants].sort((a,b)=>a.seed-b.seed);
         $('absentParticipants').innerHTML=groups().map(group=>{
             const seeds=new Set((event.standings?.[group] || []).map(p=>Number(p.seed)));
             for(const game of event.schedule || [])if(game.stage===group){seeds.add(Number(game.seed1));seeds.add(Number(game.seed2));}
             const roster=participants.filter(p=>(roundRobin() || seeds.has(Number(p.seed))) && !removedParticipantSeeds.has(Number(p.seed)));
-            return `<section class="participant-group"><h3>${roundRobin() ? 'Teilnehmer · Jeder gegen jeden' : `Gruppe ${esc(group)}`}</h3><div class="table-wrap"><table><thead><tr><th>Setz.</th><th>Name</th><th>Verein</th><th>Pass-Nr.</th><th>GD Setzliste</th><th><span class="result-sr-only">Entfernen</span></th></tr></thead><tbody>${roster.map(p=>`<tr><td>${p.seed}</td><td>${esc(p.name)}</td><td>${esc(p.club || '—')}</td><td>${esc(p.passNo || '—')}</td><td>${esc(p.gd ?? '—')}</td><td><button type="button" class="remove-participant" data-remove-seed="${p.seed}" aria-label="${esc(p.name)} entfernen" title="Spieler entfernen"${busy ? ' disabled' : ''}>×</button></td></tr>`).join('') || '<tr><td colspan="6">Keine Spieler verbleiben in dieser Gruppe.</td></tr>'}</tbody></table></div></section>`;
+            return `<section class="participant-group"><h3>${roundRobin() ? 'Teilnehmer · Jeder gegen jeden' : `Gruppe ${esc(group)}`}</h3><div class="table-wrap"><table><thead><tr><th>Setz.</th><th>Name</th><th>Verein</th><th>Pass-Nr.</th><th>GD Setzliste</th><th><span class="result-sr-only">Entfernen</span></th></tr></thead><tbody>${roster.map(p=>`<tr><td>${p.seed}</td><td>${esc(formatPlayerName(p.name))}</td><td>${esc(p.club || '—')}</td><td>${esc(p.passNo || '—')}</td><td>${esc(p.gd ?? '—')}</td><td><button type="button" class="remove-participant" data-remove-seed="${p.seed}" aria-label="${esc(formatPlayerName(p.name))} entfernen" title="Spieler entfernen"${busy ? ' disabled' : ''}>×</button></td></tr>`).join('') || '<tr><td colspan="6">Keine Spieler verbleiben in dieser Gruppe.</td></tr>'}</tbody></table></div></section>`;
         }).join('');
         $('removedParticipants').innerHTML=absentSeeds().map(seed=>`<span class="removed-participant">${esc(name(seed))} <button type="button" data-restore-seed="${seed}"${busy ? ' disabled' : ''} aria-label="${esc(name(seed))} wieder aufnehmen">Rückgängig</button></span>`).join('');
-        $('removedParticipants').innerHTML+=(event.snapshot.removedParticipants || []).map(p=>`<span class="removed-participant">${esc(p.name)}${restoredParticipantIds.has(p.attendance_id) ? ' · Wiederherstellung vorgemerkt' : ''} <button type="button" data-restore-id="${esc(p.attendance_id)}"${busy ? ' disabled' : ''}>${restoredParticipantIds.has(p.attendance_id) ? 'Rückgängig' : 'Wiederherstellen'}</button></span>`).join('');
+        $('removedParticipants').innerHTML+=(event.snapshot.removedParticipants || []).map(p=>`<span class="removed-participant">${esc(formatPlayerName(p.name))}${restoredParticipantIds.has(p.attendance_id) ? ' · Wiederherstellung vorgemerkt' : ''} <button type="button" data-restore-id="${esc(p.attendance_id)}"${busy ? ' disabled' : ''}>${restoredParticipantIds.has(p.attendance_id) ? 'Rückgängig' : 'Wiederherstellen'}</button></span>`).join('');
         $('attendanceChanges').hidden=removedParticipantSeeds.size===0 && !(event.snapshot.removedParticipants || []).length;
     }
     function renderRemovalModes() {
@@ -92,7 +97,7 @@
             e.preventDefault();if(busy || !canLeave())return;
             const seeds=absentSeeds(),code=$('resultMode').value;
             if((!seeds.length && !restoredParticipantIds.size) || !ResultModes.forCount(event.snapshot.participants.length-seeds.length+restoredParticipantIds.size).some(m=>m.code===code))return;
-            const names=[...seeds.map(seed=>name(seed)+' entfernen'),...(event.snapshot.removedParticipants || []).filter(p=>restoredParticipantIds.has(p.attendance_id)).map(p=>p.name+' wiederherstellen')].join(', ');
+            const names=[...seeds.map(seed=>name(seed)+' entfernen'),...(event.snapshot.removedParticipants || []).filter(p=>restoredParticipantIds.has(p.attendance_id)).map(p=>formatPlayerName(p.name)+' wiederherstellen')].join(', ');
             if(!confirm(`${names} und den Spielplan mit Modus ${code} neu bilden?`))return;
             busy=true;$('changeModeBtn').disabled=true;
             const restoring=restoredParticipantIds.size>0;
@@ -166,7 +171,7 @@
         if (!match.ready) return;
         $('playerInputs').innerHTML = [1,2].map(side => {
             const p = player(match[`seed${side}`]);
-            return `<div class="player-input"><div class="player-name">${esc(p.name)}</div><div class="fields">${[['score','Bälle',0],['innings','Aufnahmen',1],['high','HS',0]].map(([key,label,min]) => `<label for="${key}${side}">${label}<input id="${key}${side}" type="number" inputmode="numeric" min="${min}" step="1" required value="${result?.[key + side] ?? ''}" ${event.status === 'completed' ? 'disabled' : ''}></label>`).join('')}</div></div>`;
+            return `<div class="player-input"><div class="player-name">${esc(formatPlayerName(p.name))}</div><div class="fields">${[['score','Bälle',0],['innings','Aufnahmen',1],['high','HS',0]].map(([key,label,min]) => `<label for="${key}${side}">${label}<input id="${key}${side}" type="number" inputmode="numeric" min="${min}" step="1" required value="${result?.[key + side] ?? ''}" ${event.status === 'completed' ? 'disabled' : ''}></label>`).join('')}</div></div>`;
         }).join('');
         $('winnerSelect').innerHTML = '<option value="">Sieger nach Entscheid wählen</option>' + [1,2].map(side => `<option value="${side}">${esc(name(match[`seed${side}`]))}</option>`).join('');
         $('winnerSelect').value = result?.winner || '';
