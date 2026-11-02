@@ -21,3 +21,5 @@ main{padding-top:18px}
 .reload-players{min-width:640px}.reload-players input{font-size:14px;min-width:110px;padding:8px;min-height:40px}.reload-players td:last-child{white-space:nowrap}.reload-players button{padding:8px;margin-right:4px}.reload-players th,.reload-players td{padding:8px}#addReloadPlayerBtn{margin:12px 0}#reloadMode{max-width:440px}
 
 .standings-table{min-width:720px}.standings-table .col-rank{width:6%}.standings-table .col-player{width:26%}.standings-table .col-played{width:6%}.standings-table .col-points{width:7%}.standings-table .col-balls,.standings-table .col-innings{width:11%}.standings-table .col-gd,.standings-table .col-bed{width:12%}.standings-table .col-high{width:9%}.standings-table th abbr{text-decoration:none}
+
+#participantEditor>summary{padding:14px 20px;cursor:pointer;font-weight:700;min-height:48px}#participantEditor[open]>summary{border-bottom:1px solid #dce2ea}#absentParticipants{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:4px 16px}#absentParticipants .checkbox{min-height:44px;margin:0;cursor:pointer;overflow-wrap:anywhere}#absentParticipants input{flex-shrink:0}

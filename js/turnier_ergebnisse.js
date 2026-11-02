@@ -29,6 +29,9 @@
         $('modeForm').hidden=event.can_change_mode!==true || event.status!=='open' || !!event.archived_ranking;
         $('resultMode').innerHTML=ResultModes.list().map(m=>`<option value="${m.code}"${m.code===event.snapshot.selectedModeCode?' selected':''}${m.count!==event.snapshot.participants.length?' disabled':''}>${m.code} · ${esc(m.label)}${m.count!==event.snapshot.participants.length ? ` (${m.count} Teilnehmer erforderlich)` : ''}</option>`).join('');
         $('changeModeBtn').disabled=busy;
+        $('participantEditor').hidden=event.can_change_mode!==true || event.status!=='open' || !!event.archived_ranking;
+        $('absentParticipants').innerHTML=event.snapshot.participants.map(p=>`<label class="checkbox"><input type="checkbox" value="${p.seed}"> ${esc(p.name)}${p.club ? ` · ${esc(p.club)}` : ''}</label>`).join('');
+        renderRemovalModes();
         $('eventTitle').textContent = event.title;
         $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, `${event.snapshot.selectedModeCode} · ${event.snapshot.participants.length} Spieler`, `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
         $('accessTab').hidden = !event.can_manage;
@@ -55,6 +58,18 @@
         if (['A','B','C','final'].includes(view)) renderMatches();
         if (view === 'standings') renderStandings();
         if (view === 'access') renderMembers();
+    }
+    function absentSeeds() {
+        return Array.from($('absentParticipants').querySelectorAll('input:checked'),input=>Number(input.value));
+    }
+    function renderRemovalModes() {
+        const removed=absentSeeds().length,count=event.snapshot.participants.length-removed;
+        const previous=$('remainingMode').value;
+        const choices=ResultModes.forCount(count);
+        $('remainingParticipants').textContent=`${count} Spieler verbleiben`+(removed && !choices.length ? ' · Für diese Teilnehmerzahl ist kein Modus verfügbar.' : '');
+        $('remainingMode').innerHTML=choices.map(m=>`<option value="${m.code}">${m.code} · ${esc(m.label)}</option>`).join('');
+        if(choices.some(m=>m.code===previous))$('remainingMode').value=previous;
+        $('removeParticipantsBtn').disabled=busy || !removed || !choices.length;
     }
     function renderMatches() {
         const games = event.schedule.filter(m => m.stage === view);
@@ -227,6 +242,26 @@
         const requestedMatch=event.schedule.find(m=>m.key===params.get('partie'));
         if(requestedMatch){view=requestedMatch.stage;selected=requestedMatch.key;render();}
         $('eventView').hidden=false;
+        $('absentParticipants').onchange=renderRemovalModes;
+        $('removeParticipantsForm').onsubmit=async e=>{
+            e.preventDefault();if(busy || !canLeave())return;
+            const seeds=absentSeeds(),code=$('remainingMode').value;
+            if(!seeds.length || !ResultModes.forCount(event.snapshot.participants.length-seeds.length).some(m=>m.code===code))return;
+            const names=seeds.map(seed=>name(seed)).join(', ');
+            if(!confirm(`${names} aus diesem Turnier entfernen und den Spielplan mit Modus ${code} neu bilden?`))return;
+            busy=true;$('removeParticipantsBtn').disabled=true;
+            const args={p_id:eventId,p_seeds:seeds,p_mode:code,p_version:event.version,p_reset:false};
+            try {
+                try { await rpc('remove_result_participants',args); }
+                catch(error) {
+                    if(!error.message?.includes('RESET_REQUIRED'))throw error;
+                    if(!confirm('Spieler entfernen, Modus ändern und ALLE bisherigen Ergebnisse und Live-Spielstände dieses Turniers zurücksetzen?'))return;
+                    await rpc('remove_result_participants',{...args,p_reset:true});
+                }
+                dirty=false;view='A';selected='';pendingReload=null;$('participantEditor').open=false;
+                await load();notice('Nicht erschienene Spieler entfernt. Modus, Gruppen und Spielplan wurden angepasst.');
+            }catch(error){failure(error);}finally{busy=false;renderRemovalModes();}
+        };
         $('modeForm').onsubmit=async e=>{
             e.preventDefault();if(busy || !canLeave())return;
             const code=$('resultMode').value;
