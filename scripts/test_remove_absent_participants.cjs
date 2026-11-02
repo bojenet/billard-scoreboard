@@ -6,11 +6,11 @@ const handler=source.slice(source.indexOf("        $('absentParticipants').oncli
 async function test({selected=[3],code='T16b',reset=false,approveRemoval=true,approveReset=true,error=null}={}) {
  const nodes={},calls=[],confirms=[],messages=[];let loads=0;
  const $=id=>nodes[id]??=(id==='absentParticipants'?{querySelectorAll:()=>selected.map(value=>({value:String(value)}))}:{});
- $('remainingMode').value=code;
+ $('resultMode').value=code;
  const c={$,ResultModes,esc:String,removedParticipantSeeds:new Set(selected),groups:()=>['A','B'],roundRobin:()=>false,busy:false,dirty:true,view:'B',selected:'B1',pendingReload:{},eventId:'test',event:{standings:{A:[1,4,5,8,9].map(seed=>({seed})),B:[2,3,6,7,10].map(seed=>({seed}))},version:7,can_change_mode:true,status:'open',snapshot:{participants:Array.from({length:10},(_,i)=>({seed:i+1,name:'Spieler '+(i+1)}))}},canLeave:()=>true,name:seed=>'Spieler '+seed,confirm:text=>{confirms.push(text);return confirms.length===1?approveRemoval:approveReset},rpc:async(fn,args)=>{calls.push({fn,...args});if(error)throw new Error(error);if(reset&&!args.p_reset)throw new Error('RESET_REQUIRED')},load:async()=>{loads++},notice:text=>messages.push(text),failure:e=>messages.push(e.message)};
  vm.createContext(c);vm.runInContext(helpers+handler,c);
  c.renderRemovalModes();
- await $('removeParticipantsForm').onsubmit({preventDefault(){}});
+ await c.applyParticipantChanges({preventDefault(){}});
  return{c,nodes,calls,confirms,messages,loads};
 }
 (async()=>{
@@ -18,9 +18,9 @@ async function test({selected=[3],code='T16b',reset=false,approveRemoval=true,ap
  assert.equal(r.calls.length,1);assert.equal(r.calls[0].fn,'remove_result_participants');assert.equal(r.calls[0].p_version,7);assert.deepEqual(Array.from(r.calls[0].p_seeds),[3]);assert.equal(r.calls[0].p_mode,'T16b');assert.equal(r.calls[0].p_reset,false);assert.equal(r.loads,1);assert.equal(r.c.dirty,false);assert.equal(r.c.view,'A');assert.equal(r.c.busy,false);
  r=await test({approveRemoval:false});assert.equal(r.calls.length,0);assert.equal(r.loads,0);assert.equal(r.c.dirty,true);
  r=await test({reset:true});assert.equal(r.calls.length,2);assert.equal(r.calls[1].p_reset,true);assert.match(r.confirms[1],/ALLE bisherigen Ergebnisse/);
- r=await test({reset:true,approveReset:false});assert.equal(r.calls.length,1);assert.equal(r.loads,0);assert.equal(r.c.dirty,true);assert.equal(r.c.busy,false);assert.equal(r.nodes.removeParticipantsBtn.disabled,false);
- r=await test({selected:[]});assert.equal(r.calls.length,0);assert.equal(r.nodes.removeParticipantsBtn.disabled,true);
- r=await test({selected:[1,2,3,4,5,6,7]});assert.equal(r.calls.length,0);assert.equal(r.nodes.removeParticipantsBtn.disabled,true);assert.match(r.nodes.remainingParticipants.textContent,/kein Modus/);
+ r=await test({reset:true,approveReset:false});assert.equal(r.calls.length,1);assert.equal(r.loads,0);assert.equal(r.c.dirty,true);assert.equal(r.c.busy,false);assert.equal(r.nodes.changeModeBtn.disabled,false);
+ r=await test({selected:[]});assert.equal(r.calls.length,0);assert.equal(r.nodes.changeModeBtn.disabled,false);
+ r=await test({selected:[1,2,3,4,5,6,7]});assert.equal(r.calls.length,0);assert.equal(r.nodes.changeModeBtn.disabled,true);assert.match(r.nodes.remainingParticipants.textContent,/kein Modus/);
  r=await test({selected:[1,2,3],code:'T10'});assert.equal(r.calls[0].p_mode,'T10');assert.equal(r.calls[0].p_seeds.length,3);
  r=await test({error:'VERSION_CONFLICT'});assert.equal(r.loads,0);assert.equal(r.c.dirty,true);assert.equal(r.c.busy,false);assert.deepEqual(r.messages,['VERSION_CONFLICT']);
  const visibility=source.split('\n').find(line=>line.includes("$('participantEditor').hidden="));
@@ -34,12 +34,18 @@ async function test({selected=[3],code='T16b',reset=false,approveRemoval=true,ap
  r.nodes.absentParticipants.onclick({target:{closest:()=>({dataset:{removeSeed:'3'}})}});
  assert.equal(r.c.removedParticipantSeeds.has(3),true);assert.doesNotMatch(r.nodes.absentParticipants.innerHTML,/data-remove-seed="3"/);
  assert.match(r.nodes.removedParticipants.innerHTML,/Spieler 3/);assert.equal(r.nodes.attendanceChanges.hidden,false);
- assert.match(r.nodes.remainingMode.innerHTML,/T16b/);assert.doesNotMatch(r.nodes.remainingMode.innerHTML,/T19/);
+ assert.match(r.nodes.resultMode.innerHTML,/T16b/);assert.match(r.nodes.resultMode.innerHTML,/<option value="T19" disabled>/);
  r.nodes.removedParticipants.onclick({target:{closest:()=>({dataset:{restoreSeed:'3'}})}});
  assert.equal(r.c.removedParticipantSeeds.size,0);assert.match(r.nodes.absentParticipants.innerHTML,/data-remove-seed="3"/);assert.equal(r.nodes.attendanceChanges.hidden,true);
  assert.equal(r.c.event.snapshot.participants.length,10);
  r.c.busy=true;r.nodes.absentParticipants.onclick({target:{closest:()=>({dataset:{removeSeed:'2'}})}});assert.equal(r.c.removedParticipantSeeds.size,0);
  r.c.busy=false;r.c.groups=()=>['A'];r.c.roundRobin=()=>true;r.c.renderParticipantGroups();assert.match(r.nodes.absentParticipants.innerHTML,/Jeder gegen jeden/);assert.equal((r.nodes.absentParticipants.innerHTML.match(/data-remove-seed=/g)||[]).length,10);
+ let applied=0;
+ const routeContext={absentSeeds:()=>[3],applyParticipantChanges:()=>{applied++},$:()=>({})};
+ const routeForm={};routeContext.$=()=>routeForm;
+ vm.runInNewContext(source.slice(source.indexOf("        $('modeForm').onsubmit="),source.indexOf("        document.querySelectorAll('[data-view]').forEach(b=>b.onclick")),routeContext);
+ await routeForm.onsubmit({preventDefault(){}});assert.equal(applied,1);
+ const html=fs.readFileSync('turnier_ergebnisse.html','utf8');assert.ok(html.indexOf('id="attendanceChanges"')<html.indexOf('id="absentParticipants"'));assert.doesNotMatch(html,/id="remainingMode"/);
  console.log('PASS: grouped invitation roster, remove/restore controls, compatible mode updates, original roster preserved, round robin and busy guard');
  console.log('PASS: invited editor UI, compatible modes, multi-removal, confirmation, reset/cancel, unsupported counts, stale edit, dirty and busy recovery');
 })().catch(error=>{console.error(error);process.exitCode=1});
