@@ -27,6 +27,16 @@
         if (view === 'history') await history();
     }
     function render() {
+        const clubCloudLink=$('clubCloudLink');
+        clubCloudLink.hidden=true;
+        clubCloudLink.removeAttribute('href');
+        try {
+            const source=new URL(event.source_url || event.snapshot.sourceUrl);
+            if(['https:','http:'].includes(source.protocol)) {
+                clubCloudLink.href=source.href;
+                clubCloudLink.hidden=false;
+            }
+        } catch (_) {}
         $('automaticEntryLink').hidden = event.can_delete !== true;
         $('automaticEntryLink').href = `turnier_displaybetrieb.html?turnier=${encodeURIComponent(event.id)}`;
         $('modeForm').hidden=event.can_change_mode!==true || event.status!=='open' || !!event.archived_ranking;
