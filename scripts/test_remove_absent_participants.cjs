@@ -2,12 +2,12 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const source=fs.readFileSync('js/turnier_ergebnisse.js','utf8');
 const ResultModes=require('../js/result_modes.js');
 const helpers=source.slice(source.indexOf('    function absentSeeds()'),source.indexOf('    function renderMatches()'));
-const handler=source.slice(source.indexOf("        $('absentParticipants').onchange="),source.indexOf("        $('modeForm').onsubmit="));
+const handler=source.slice(source.indexOf("        $('absentParticipants').onclick="),source.indexOf("        $('modeForm').onsubmit="));
 async function test({selected=[3],code='T16b',reset=false,approveRemoval=true,approveReset=true,error=null}={}) {
  const nodes={},calls=[],confirms=[],messages=[];let loads=0;
  const $=id=>nodes[id]??=(id==='absentParticipants'?{querySelectorAll:()=>selected.map(value=>({value:String(value)}))}:{});
  $('remainingMode').value=code;
- const c={$,ResultModes,esc:String,busy:false,dirty:true,view:'B',selected:'B1',pendingReload:{},eventId:'test',event:{version:7,can_change_mode:true,status:'open',snapshot:{participants:Array.from({length:10},(_,i)=>({seed:i+1,name:'Spieler '+(i+1)}))}},canLeave:()=>true,name:seed=>'Spieler '+seed,confirm:text=>{confirms.push(text);return confirms.length===1?approveRemoval:approveReset},rpc:async(fn,args)=>{calls.push({fn,...args});if(error)throw new Error(error);if(reset&&!args.p_reset)throw new Error('RESET_REQUIRED')},load:async()=>{loads++},notice:text=>messages.push(text),failure:e=>messages.push(e.message)};
+ const c={$,ResultModes,esc:String,removedParticipantSeeds:new Set(selected),groups:()=>['A','B'],roundRobin:()=>false,busy:false,dirty:true,view:'B',selected:'B1',pendingReload:{},eventId:'test',event:{standings:{A:[1,4,5,8,9].map(seed=>({seed})),B:[2,3,6,7,10].map(seed=>({seed}))},version:7,can_change_mode:true,status:'open',snapshot:{participants:Array.from({length:10},(_,i)=>({seed:i+1,name:'Spieler '+(i+1)}))}},canLeave:()=>true,name:seed=>'Spieler '+seed,confirm:text=>{confirms.push(text);return confirms.length===1?approveRemoval:approveReset},rpc:async(fn,args)=>{calls.push({fn,...args});if(error)throw new Error(error);if(reset&&!args.p_reset)throw new Error('RESET_REQUIRED')},load:async()=>{loads++},notice:text=>messages.push(text),failure:e=>messages.push(e.message)};
  vm.createContext(c);vm.runInContext(helpers+handler,c);
  c.renderRemovalModes();
  await $('removeParticipantsForm').onsubmit({preventDefault(){}});
@@ -15,7 +15,7 @@ async function test({selected=[3],code='T16b',reset=false,approveRemoval=true,ap
 }
 (async()=>{
  let r=await test();
- assert.equal(r.calls.length,1);assert.equal(r.calls[0].fn,'remove_result_participants');assert.equal(r.calls[0].p_version,7);assert.deepEqual(Array.from(r.calls[0].p_seeds),[3]);assert.equal(r.calls[0].p_mode,'T16b');assert.equal(r.calls[0].p_reset,false);assert.equal(r.loads,1);assert.equal(r.c.dirty,false);assert.equal(r.c.view,'A');assert.equal(r.nodes.participantEditor.open,false);assert.equal(r.c.busy,false);
+ assert.equal(r.calls.length,1);assert.equal(r.calls[0].fn,'remove_result_participants');assert.equal(r.calls[0].p_version,7);assert.deepEqual(Array.from(r.calls[0].p_seeds),[3]);assert.equal(r.calls[0].p_mode,'T16b');assert.equal(r.calls[0].p_reset,false);assert.equal(r.loads,1);assert.equal(r.c.dirty,false);assert.equal(r.c.view,'A');assert.equal(r.c.busy,false);
  r=await test({approveRemoval:false});assert.equal(r.calls.length,0);assert.equal(r.loads,0);assert.equal(r.c.dirty,true);
  r=await test({reset:true});assert.equal(r.calls.length,2);assert.equal(r.calls[1].p_reset,true);assert.match(r.confirms[1],/ALLE bisherigen Ergebnisse/);
  r=await test({reset:true,approveReset:false});assert.equal(r.calls.length,1);assert.equal(r.loads,0);assert.equal(r.c.dirty,true);assert.equal(r.c.busy,false);assert.equal(r.nodes.removeParticipantsBtn.disabled,false);
@@ -27,5 +27,19 @@ async function test({selected=[3],code='T16b',reset=false,approveRemoval=true,ap
  for(const [event,hidden] of [[{can_change_mode:true,can_manage:false,status:'open'},false],[{can_change_mode:false,status:'open'},true],[{can_change_mode:true,status:'completed'},true],[{can_change_mode:true,status:'open',archived_ranking:{}},true]]) {
   const node={};vm.runInNewContext(visibility,{$:()=>node,event});assert.equal(node.hidden,hidden);
  }
+ r=await test({selected:[],approveRemoval:false});
+ r.c.renderParticipantGroups();
+ assert.match(r.nodes.absentParticipants.innerHTML,/Gruppe A/);assert.match(r.nodes.absentParticipants.innerHTML,/Gruppe B/);
+ assert.match(r.nodes.absentParticipants.innerHTML,/GD Setzliste/);assert.match(r.nodes.absentParticipants.innerHTML,/data-remove-seed="3"/);
+ r.nodes.absentParticipants.onclick({target:{closest:()=>({dataset:{removeSeed:'3'}})}});
+ assert.equal(r.c.removedParticipantSeeds.has(3),true);assert.doesNotMatch(r.nodes.absentParticipants.innerHTML,/data-remove-seed="3"/);
+ assert.match(r.nodes.removedParticipants.innerHTML,/Spieler 3/);assert.equal(r.nodes.attendanceChanges.hidden,false);
+ assert.match(r.nodes.remainingMode.innerHTML,/T16b/);assert.doesNotMatch(r.nodes.remainingMode.innerHTML,/T19/);
+ r.nodes.removedParticipants.onclick({target:{closest:()=>({dataset:{restoreSeed:'3'}})}});
+ assert.equal(r.c.removedParticipantSeeds.size,0);assert.match(r.nodes.absentParticipants.innerHTML,/data-remove-seed="3"/);assert.equal(r.nodes.attendanceChanges.hidden,true);
+ assert.equal(r.c.event.snapshot.participants.length,10);
+ r.c.busy=true;r.nodes.absentParticipants.onclick({target:{closest:()=>({dataset:{removeSeed:'2'}})}});assert.equal(r.c.removedParticipantSeeds.size,0);
+ r.c.busy=false;r.c.groups=()=>['A'];r.c.roundRobin=()=>true;r.c.renderParticipantGroups();assert.match(r.nodes.absentParticipants.innerHTML,/Jeder gegen jeden/);assert.equal((r.nodes.absentParticipants.innerHTML.match(/data-remove-seed=/g)||[]).length,10);
+ console.log('PASS: grouped invitation roster, remove/restore controls, compatible mode updates, original roster preserved, round robin and busy guard');
  console.log('PASS: invited editor UI, compatible modes, multi-removal, confirmation, reset/cancel, unsupported counts, stale edit, dirty and busy recovery');
 })().catch(error=>{console.error(error);process.exitCode=1});

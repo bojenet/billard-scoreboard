@@ -4,6 +4,7 @@
     const params = new URLSearchParams(location.search);
     const eventId = params.get('turnier');
     let event = null, view = 'A', selected = 'A1', dirty = false, busy = false, pendingReload = null, reloadVersion = null;
+    const removedParticipantSeeds = new Set();
     const player = seed => event?.snapshot.participants.find(p => p.seed === Number(seed));
     const name = seed => player(seed)?.name || 'Paarung noch offen';
     const mode = () => ResultModes.get(event.snapshot.selectedModeCode);
@@ -20,7 +21,7 @@
     function canLeave() { return !dirty || window.confirm('Die aktuelle Eingabe wurde noch nicht gespeichert. Eingabe verwerfen?'); }
     async function load() {
         const next = await rpc('get_t15_result_event', { p_id: eventId });
-        event = next; dirty = false; render();
+        event = next; dirty = false; removedParticipantSeeds.clear(); render();
         if (view === 'history') await history();
     }
     function render() {
@@ -30,7 +31,7 @@
         $('resultMode').innerHTML=ResultModes.list().map(m=>`<option value="${m.code}"${m.code===event.snapshot.selectedModeCode?' selected':''}${m.count!==event.snapshot.participants.length?' disabled':''}>${m.code} · ${esc(m.label)}${m.count!==event.snapshot.participants.length ? ` (${m.count} Teilnehmer erforderlich)` : ''}</option>`).join('');
         $('changeModeBtn').disabled=busy;
         $('participantEditor').hidden=event.can_change_mode!==true || event.status!=='open' || !!event.archived_ranking;
-        $('absentParticipants').innerHTML=event.snapshot.participants.map(p=>`<label class="checkbox"><input type="checkbox" value="${p.seed}"> ${esc(p.name)}${p.club ? ` · ${esc(p.club)}` : ''}</label>`).join('');
+        renderParticipantGroups();
         renderRemovalModes();
         $('eventTitle').textContent = event.title;
         $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, `${event.snapshot.selectedModeCode} · ${event.snapshot.participants.length} Spieler`, `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
@@ -60,7 +61,18 @@
         if (view === 'access') renderMembers();
     }
     function absentSeeds() {
-        return Array.from($('absentParticipants').querySelectorAll('input:checked'),input=>Number(input.value));
+        return Array.from(removedParticipantSeeds);
+    }
+    function renderParticipantGroups() {
+        const participants=[...event.snapshot.participants].sort((a,b)=>a.seed-b.seed);
+        $('absentParticipants').innerHTML=groups().map(group=>{
+            const seeds=new Set((event.standings?.[group] || []).map(p=>Number(p.seed)));
+            for(const game of event.schedule || [])if(game.stage===group){seeds.add(Number(game.seed1));seeds.add(Number(game.seed2));}
+            const roster=participants.filter(p=>(roundRobin() || seeds.has(Number(p.seed))) && !removedParticipantSeeds.has(Number(p.seed)));
+            return `<section class="participant-group"><h3>${roundRobin() ? 'Teilnehmer · Jeder gegen jeden' : `Gruppe ${esc(group)}`}</h3><div class="table-wrap"><table><thead><tr><th>Setz.</th><th>Name</th><th>Verein</th><th>Pass-Nr.</th><th>GD Setzliste</th><th><span class="result-sr-only">Entfernen</span></th></tr></thead><tbody>${roster.map(p=>`<tr><td>${p.seed}</td><td>${esc(p.name)}</td><td>${esc(p.club || '—')}</td><td>${esc(p.passNo || '—')}</td><td>${esc(p.gd ?? '—')}</td><td><button type="button" class="remove-participant" data-remove-seed="${p.seed}" aria-label="${esc(p.name)} entfernen" title="Spieler entfernen"${busy ? ' disabled' : ''}>×</button></td></tr>`).join('') || '<tr><td colspan="6">Keine Spieler verbleiben in dieser Gruppe.</td></tr>'}</tbody></table></div></section>`;
+        }).join('');
+        $('removedParticipants').innerHTML=absentSeeds().map(seed=>`<span class="removed-participant">${esc(name(seed))} <button type="button" data-restore-seed="${seed}"${busy ? ' disabled' : ''} aria-label="${esc(name(seed))} wieder aufnehmen">Rückgängig</button></span>`).join('');
+        $('attendanceChanges').hidden=removedParticipantSeeds.size===0;
     }
     function renderRemovalModes() {
         const removed=absentSeeds().length,count=event.snapshot.participants.length-removed;
@@ -242,7 +254,16 @@
         const requestedMatch=event.schedule.find(m=>m.key===params.get('partie'));
         if(requestedMatch){view=requestedMatch.stage;selected=requestedMatch.key;render();}
         $('eventView').hidden=false;
-        $('absentParticipants').onchange=renderRemovalModes;
+        $('absentParticipants').onclick=e=>{
+            const button=e.target.closest('[data-remove-seed]');if(!button || busy)return;
+            removedParticipantSeeds.add(Number(button.dataset.removeSeed));
+            renderParticipantGroups();renderRemovalModes();
+        };
+        $('removedParticipants').onclick=e=>{
+            const button=e.target.closest('[data-restore-seed]');if(!button || busy)return;
+            removedParticipantSeeds.delete(Number(button.dataset.restoreSeed));
+            renderParticipantGroups();renderRemovalModes();
+        };
         $('removeParticipantsForm').onsubmit=async e=>{
             e.preventDefault();if(busy || !canLeave())return;
             const seeds=absentSeeds(),code=$('remainingMode').value;
@@ -258,7 +279,7 @@
                     if(!confirm('Spieler entfernen, Modus ändern und ALLE bisherigen Ergebnisse und Live-Spielstände dieses Turniers zurücksetzen?'))return;
                     await rpc('remove_result_participants',{...args,p_reset:true});
                 }
-                dirty=false;view='A';selected='';pendingReload=null;$('participantEditor').open=false;
+                dirty=false;view='A';selected='';pendingReload=null;
                 await load();notice('Nicht erschienene Spieler entfernt. Modus, Gruppen und Spielplan wurden angepasst.');
             }catch(error){failure(error);}finally{busy=false;renderRemovalModes();}
         };

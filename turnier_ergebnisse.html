@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Manuelle Ergebniserfassung · Billard Studio</title>
-<link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261102-absent-players">
+<link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261102-group-roster">
 </head>
 <body>
 <header class="topbar"><a id="resultsBrand" class="brand" href="turnier_ergebnisse.html">Billard Studio <span>/ Manuelle Ergebniserfassung</span></a><nav><a href="turnier_ergebnisse.html">Meine Turniere</a><a data-full-navigation href="calendar.html" hidden>Kalender</a><a data-full-navigation href="turnier_zentrale.html" hidden>Turnierzentrale</a><button id="logoutBtn" type="button">Abmelden</button></nav></header>
@@ -15,15 +15,15 @@
 <div class="page-heading"><div><h1 id="eventTitle"></h1><p id="eventMeta"></p></div><a id="automaticEntryLink" hidden>Zum Betrieb mit Displays →</a></div>
 <div class="toolbar"><div class="tabs" role="group" aria-label="Ansicht"><button data-view="A" aria-pressed="true">Gruppe A</button><button data-view="B" aria-pressed="false">Gruppe B</button><button data-view="C" aria-pressed="false" hidden>Gruppe C</button><button data-view="final" aria-pressed="false">Platzierung & Finale</button><button data-view="standings" aria-pressed="false">Tabellen</button><button data-view="access" id="accessTab" aria-pressed="false" hidden>Zugänge</button><button data-view="history" aria-pressed="false" hidden>Verlauf</button></div></div>
 <form id="modeForm" class="mode-settings" hidden><label for="resultMode">Turniermodus<select id="resultMode"></select></label><button id="changeModeBtn" type="submit">Modus ändern</button><span class="muted">Nur dieses Turnier · Einladung und Spielziel bleiben unverändert</span></form>
-<details id="participantEditor" class="panel" hidden><summary>Nicht erschienene Spieler entfernen</summary>
+<section id="participantEditor" class="panel" hidden><div class="panel-heading"><h2>Teilnehmer &amp; Gruppen</h2></div>
 <form id="removeParticipantsForm" class="form-content">
-<p>Wähle die nicht erschienenen Spieler und anschließend einen Modus für die verbleibenden Teilnehmer. Gruppen und Spielplan werden neu gebildet.</p>
+<p class="muted">Nicht erschienen? Mit × beim Spieler entfernen. Danach den passenden Modus wählen und die Änderungen übernehmen.</p>
 <div id="absentParticipants"></div>
-<p id="remainingParticipants" class="muted" aria-live="polite"></p>
+<div id="attendanceChanges" hidden><div id="removedParticipants" aria-live="polite"></div><p id="remainingParticipants" class="muted" aria-live="polite"></p>
 <label for="remainingMode">Neuer Turniermodus<select id="remainingMode" required></select></label>
 <p class="muted">Die Einladung bleibt unverändert. Bereits erfasste Ergebnisse und Live-Spielstände können nur nach gesonderter Bestätigung zurückgesetzt werden.</p>
-<button id="removeParticipantsBtn" type="submit">Spieler entfernen und Modus übernehmen</button>
-</form></details>
+<button id="removeParticipantsBtn" type="submit">Änderungen übernehmen</button>
+</div></form></section>
 <button id="reloadClubCloudBtn" type="button" hidden>Turnierdaten neu laden</button>
 <section id="clubCloudPreview" class="panel" hidden><div class="panel-heading"><h2>Aktuelle ClubCloud-Daten prüfen</h2></div><form id="clubCloudForm" class="form-content"><p id="clubCloudMeta"></p><div id="clubCloudParticipants" class="table-wrap"></div><button id="addReloadPlayerBtn" type="button">Spieler hinzufügen</button><label for="reloadMode">Turniermodus<select id="reloadMode" required></select></label><p class="muted">Teilnehmer und Setzreihenfolge prüfen. Modus und Spielziel gelten nur für dieses Turnier; die Einladung bleibt unverändert.</p><div class="fields"><label>Punkte<input id="reloadTarget" type="number" min="1" max="1000000" step="1" required></label><label>Max. Aufnahmen<input id="reloadInnings" type="number" min="1" max="1000000" step="1" required></label></div><div class="actions"><button id="applyClubCloudBtn" type="submit" class="primary">Daten übernehmen</button><button id="cancelClubCloudBtn" type="button">Abbrechen</button></div></form></section>
 
@@ -44,5 +44,5 @@
 <script src="js/t15_clubcloud_reload.js?v=20261030-invited-mode"></script>
 <script src="js/t15_csv_export.js?v=20261101-clubcloud-rounds"></script>
 <script src="js/result_statistics.js?v=20261031-bed"></script>
-<script src="js/turnier_ergebnisse.js?v=20261102-absent-players"></script>
+<script src="js/turnier_ergebnisse.js?v=20261102-group-roster"></script>
 </body></html>
