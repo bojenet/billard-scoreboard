@@ -142,3 +142,10 @@ body.tournament-tv {
 @media (max-width: 720px) {
     .tournament-tv .dashboard-overview-grid { grid-template-columns: 1fr; }
 }
+
+.tv-result-summary {
+    grid-column: 1 / -1;
+    margin: 3px 0 0;
+    text-align: center;
+    font-weight: 700;
+}

@@ -41,7 +41,13 @@
                 <strong class="dashboard-score">${score}</strong>
             </div>`;
         });
-        return `${players[0]}<strong class="tv-innings" aria-label="Aufnahmen: ${innings}">${innings}</strong>${players[1]}`;
+        const winner = result && (Number(result.score1) === Number(result.score2)
+            ? Number(result.winner || 0)
+            : Number(result.score1) > Number(result.score2) ? 1 : 2);
+        const summary = result
+            ? `<p class="tv-result-summary">${winner ? esc(playerName(game['seed' + winner])) + ' gewinnt' : 'Unentschieden'}</p>`
+            : '';
+        return `${players[0]}<strong class="tv-innings" aria-label="Aufnahmen: ${innings}">${innings}</strong>${players[1]}${summary}`;
     }
     function renderOperations() {
         const ids = savedTables();
@@ -64,7 +70,9 @@
             const table = tables.find(t => t.id === id);
             const tableLabel = tv && id.startsWith('tb') ? `Tisch ${Number(id.slice(2))}` : id.toUpperCase();
             const own = table?.event_id === event.id;
-            const game = own ? table.assignment : null;
+            const completedGame = tv && !table?.event_id && table?.completion?.event_id === event.id
+                ? table.completion.assignment : null;
+            const game = own ? table.assignment : completedGame;
             const result = game ? event.results[game.key] : null;
             const live = result || (own ? table.live_state : null);
             const online = connected && isOnline(table);
