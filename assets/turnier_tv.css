@@ -40,8 +40,8 @@ body.tournament-tv {
 .tournament-tv .dashboard-tables {
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
-    gap: 16px;
-    margin-bottom: 24px;
+    gap: 10px;
+    margin-bottom: 14px;
 }
 
 .tournament-tv .dashboard-table,
@@ -55,7 +55,7 @@ body.tournament-tv {
 
 .tournament-tv .dashboard-table {
     container-type: inline-size;
-    padding: clamp(6px, 1vw, 16px);
+    padding: clamp(4px, .55vw, 10px);
 }
 
 .tournament-tv .dashboard-table h3,
@@ -73,9 +73,10 @@ body.tournament-tv {
 .tv-player {
     display: grid;
     align-content: start;
-    grid-template-rows: minmax(2.5em, auto) auto 1.2em auto;
-    gap: 4px;
-    padding: clamp(4px, 2cqi, 14px);
+    position: relative;
+    grid-template-rows: minmax(1.25em, auto) auto auto;
+    gap: 2px;
+    padding: clamp(3px, 1.2cqi, 8px);
     border-radius: 8px;
     text-align: center;
     background: #122252;
@@ -96,10 +97,15 @@ body.tournament-tv {
     color: inherit;
     min-width: 0;
     text-align: center;
-    font-size: clamp(18px, 14cqi, 100px);
+    font-size: clamp(24px, 17cqi, 120px);
+    line-height: .9;
 }
 
 .tv-series {
+    position: absolute;
+    inset-inline-end: 4px;
+    bottom: 1.65em;
+    font-size: clamp(9px, 2.4cqi, 15px);
     font-weight: 700;
     line-height: 1;
 }
