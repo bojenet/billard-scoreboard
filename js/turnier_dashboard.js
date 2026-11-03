@@ -27,6 +27,19 @@
     const isOnline = table => table?.last_seen && Date.now() - Date.parse(table.last_seen) < 30000;
     const ownTables = () => tables.filter(t => t.event_id === event.id);
     const assignmentFor = key => ownTables().find(t => t.assignment?.key === key);
+    function fitTvNames() {
+        for (const label of $('dashboardTables').querySelectorAll('[data-full-name]')) {
+            const full = label.dataset.fullName;
+            label.textContent = full;
+            if (label.scrollWidth > label.clientWidth) {
+                label.textContent = full.replace(/, (\S).*$/u, ', $1.');
+            }
+        }
+    }
+    if (new URLSearchParams(location.search).get('ansicht') === 'tv') {
+        window.addEventListener('resize', fitTvNames);
+        document.fonts?.ready.then(fitTvNames);
+    }
     function renderTvScoreboard(game, live, result, playerName) {
         const finished = result || live?.done || live?.saved;
         const innings = finished
@@ -36,8 +49,9 @@
             const seedSide = live?.swapped && !result ? 3 - side : side;
             const score = Number(live?.['score' + side] || 0);
             const active = live && !finished && Number(live.active || 1) === side;
+            const fullName = esc(playerName(game['seed' + seedSide]));
             return `<div class="tv-player tv-player-${side}${active ? ' is-active' : ''}">
-                <div class="dashboard-player">${esc(playerName(game['seed' + seedSide]))}</div>
+                <div class="dashboard-player" data-full-name="${fullName}" title="${fullName}">${fullName}</div>
                 <strong class="dashboard-score">${score}</strong>
             </div>`;
         });
@@ -81,6 +95,7 @@
             const tablePlayerName = seed => playerName(seed, snap);
             return `<article class="dashboard-table"><div class="dashboard-table-head"><h3>${esc(tableLabel)}</h3><span class="${online ? 'dashboard-online' : 'dashboard-offline'}">${esc(state)}</span></div>${game ? `<div class="dashboard-scoreboard">${tv ? renderTvScoreboard(game, live, result, tablePlayerName) : [1,2].map(side => `<div class="dashboard-side side-${side}"><div class="dashboard-player">${esc(tablePlayerName(game['seed' + side]))}</div><strong class="dashboard-score">${live?.['score' + (!result && live?.swapped ? 3 - side : side)] ?? 0}</strong><span class="dashboard-innings">Aufnahmen <b>${live?.['innings' + (!result && live?.swapped ? 3 - side : side)] ?? 0}</b></span></div>`).join('')}</div><p class="dashboard-game-label">${esc(game.roundLabel)} · ${esc(game.label)}</p>` : `<p class="dashboard-table-wait">${own ? 'Wartet auf die nächste Paarung' : 'Wartet auf Turnierstart'}</p>`}${tv ? '' : `<a href="turnier_tisch.html?tisch=${encodeURIComponent(id)}" target="_blank" rel="noopener">Tischdisplay öffnen ↗</a>`}</article>`;
         }).join('') || '<p class="muted">Diesem Turnier sind noch keine Tische zugeordnet. <a href="calendar.html">Einladung bearbeiten</a></p>';
+        if (tv) fitTvNames();
     }
     function renderFinishedResults() {
         const finished = event.schedule.filter(game => event.results[game.key]);
