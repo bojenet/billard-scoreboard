@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Turnier · Displaybetrieb</title><link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261021-2"><link rel="stylesheet" href="assets/turnier_dashboard.css?v=20261024-light-compact"><link rel="stylesheet" href="assets/turnier_tv.css?v=4"></head><body class="tournament-dashboard-page">
+<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Turnier · Displaybetrieb</title><link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261021-2"><link rel="stylesheet" href="assets/turnier_dashboard.css?v=20261024-light-compact"><link rel="stylesheet" href="assets/turnier_tv.css?v=5"></head><body class="tournament-dashboard-page">
 <header class="topbar"><a class="brand" href="turnier_displaybetrieb.html">Billard Studio <span>/ Displaybetrieb</span></a><nav><a href="turnier_displaybetrieb.html">Display-Turniere</a><a href="turnier_ergebnisse.html">Manuelle Ergebniserfassung</a><a href="turnier_zentrale.html">Turnierzentrale</a><button id="logoutBtn" type="button">Abmelden</button></nav></header>
 <main><p id="message" role="status" aria-live="polite">Zugriff wird geprüft …</p><section id="automaticList" hidden><h1>Turnierbetrieb mit Displays</h1><div id="automaticEvents"></div></section><section id="automaticEvent" hidden><div class="breadcrumb"><a href="turnier_displaybetrieb.html">Display-Turniere</a> / Automatischer Betrieb</div><div class="page-heading"><div><h1 id="eventTitle"></h1><p id="eventMeta"></p></div><div class="display-links"><a id="tvLink" target="_blank" rel="noopener">TV-Ansicht öffnen ↗</a><a id="manualEntryLink">Manuelle Erfassung / Korrektur öffnen →</a></div></div>
 <section id="tournamentDashboard" aria-label="Turniersteuerung" hidden>
@@ -15,7 +15,7 @@
 <div id="dashboardOverview">
 <div class="dashboard-overview-grid"><section class="panel"><div class="panel-heading"><h2>Nächste Paarungen</h2></div><div id="dashboardNext"></div></section><section class="panel"><div class="panel-heading"><h2>Tabellenstand</h2></div><div id="dashboardStandings"></div></section></div>
 <section id="dashboardPlan" class="panel"><div class="panel-heading"><h2>Gesamter Spielplan</h2><span id="dashboardProgress"></span></div><div class="table-wrap"><table class="dashboard-plan"><thead><tr><th>Runde / Partie</th><th>Spieler</th><th>Tisch</th><th>Stand</th><th></th></tr></thead><tbody id="dashboardSchedule"></tbody></table></div></section>
-<section class="panel"><div class="panel-heading"><h2>Teilnehmer</h2></div><div id="dashboardParticipants" class="dashboard-participants"></div></section>
+<section id="dashboardRoster" class="panel"><div class="panel-heading"><h2>Teilnehmer</h2></div><div id="dashboardParticipants" class="dashboard-participants"></div></section>
 </div>
 </section>
 

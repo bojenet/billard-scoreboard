@@ -17,7 +17,8 @@ body.tournament-tv {
 .tournament-tv .display-links,
 .tournament-tv .dashboard-command,
 .tournament-tv #dashboardFinished,
-.tournament-tv #dashboardPlan {
+.tournament-tv #dashboardPlan,
+.tournament-tv #dashboardRoster {
     display: none;
 }
 
