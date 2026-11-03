@@ -114,7 +114,7 @@
         const changed = next.assignment?.key !== previousKey || next.event_id !== device?.event_id || next.mode_version !== device?.mode_version;
         const previousAssignment = next.completion?.event_id === next.event_id && next.completion.assignment;
         const roundEnds = previousAssignment ? Date.parse(next.completion.ended_at) + 60000 : 0;
-        if (next.assignment && roundEnds > Date.now() && nextEvent?.results?.[previousAssignment.key]) {
+        if (roundEnds > Date.now() && nextEvent?.results?.[previousAssignment.key]) {
             endscreen = { device: { ...next, assignment: previousAssignment }, event: nextEvent };
             endscreenUntil = roundEnds;
         }
@@ -133,7 +133,7 @@
                 warmup = { key, side: null, deadline: null };
                 storeWarmup();
             }
-        } else if (!next.assignment && completed) {
+        } else if (!next.assignment && completed && (!next.event_id || !roundEnds)) {
             endscreen = { device, event: previousEvent };
         }
         if (changed) {
@@ -156,12 +156,13 @@
             text('endHs' + side, r['high' + side] || 0);
         }
     }
+    function endscreenElapsed() {
+        return endscreen && device.event_id &&
+            device.assignment?.key !== endscreen.device.assignment.key &&
+            Date.now() >= endscreenUntil;
+    }
     function render() {
-        if (endscreen && device.assignment &&
-            (device.event_id !== endscreen.device.event_id || device.assignment.key !== endscreen.device.assignment.key) &&
-            Date.now() >= endscreenUntil) {
-            endscreen = null;
-        }
+        if (endscreenElapsed()) endscreen = null;
         el('endScreen').style.display = endscreen ? 'flex' : 'none';
         if (!endscreen) { nextButton.hidden = true;renderBoard();updateWarmup();return; }
         overlay.hidden = true;
@@ -179,7 +180,7 @@
         el('input-reset').hidden = !free;
         if (!free && !a) {
             if (device?.paused) wait('Turnier pausiert');
-            else wait('Wartet auf die nächste spielbereite Partie');
+            else wait('', 'Warte auf die nächste Partie');
             return;
         }
         const snapshot = free ? {} : a.snapshot, result = free ? null : event.results?.[a.key];
@@ -264,7 +265,7 @@
     el('input-reset').onclick = () => input('reset');
     el('input-finish').onclick = () => input('finish', Number(el('input-winner').value));
     await refresh();setInterval(refresh, 3000);setInterval(() => {
-        if (endscreen && device.assignment && device.assignment.key !== endscreen.device.assignment.key) render();
+        if (endscreenElapsed()) render();
         else updateWarmup();
     }, 250);
 })();
