@@ -13,6 +13,7 @@ body.tournament-tv {
 
 .tournament-tv .topbar,
 .tournament-tv .breadcrumb,
+.tournament-tv #eventMeta,
 .tournament-tv .display-links,
 .tournament-tv .dashboard-command,
 .tournament-tv .dashboard-plan th:last-child:empty,
@@ -29,7 +30,6 @@ body.tournament-tv {
     font-size: clamp(28px, 3vw, 64px);
 }
 
-.tournament-tv #eventMeta,
 .tournament-tv .muted,
 .tournament-tv .dashboard-game-label,
 .tournament-tv .dashboard-table-wait {
