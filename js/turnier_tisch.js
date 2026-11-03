@@ -21,19 +21,29 @@
     const warmupEnd = document.createElement('button');warmupEnd.type = 'button';warmupEnd.textContent = 'Beenden';
     warmupStart.onclick = async () => {
         if (!warmup?.key || warmup.deadline || !connected || device.paused || writing) return;
-        if (warmup.side == null) {
-            writing = true;
-            try {
-                await rpc('tournament_start_warmup', { p_table: table, p_event: device.event_id, p_key: device.assignment.key });
-            } catch (error) {
-                warmupLabel.textContent = error.message;
-                return;
-            } finally { writing = false; }
-            warmup.side = 1;
-        }
+        writing = true;
+        try {
+            await rpc('tournament_start_warmup', { p_table: table, p_event: device.event_id, p_key: device.assignment.key, p_running: true });
+        } catch (error) {
+            text('input-error', error.message);
+            return;
+        } finally { writing = false; }
+        warmup.side ??= 1;
         warmup.deadline = Date.now() + 300000;storeWarmup();updateWarmup();
     };
-    warmupEnd.onclick = () => { if (warmup?.key) finishWarmup(); };
+    warmupEnd.onclick = async () => {
+        if (!warmup?.key || writing) return;
+        if (warmup.deadline) {
+            writing = true;
+            try {
+                await rpc('tournament_start_warmup', { p_table: table, p_event: device.event_id, p_key: device.assignment.key, p_running: false });
+            } catch (error) {
+                text('input-error', error.message);
+                return;
+            } finally { writing = false; }
+        }
+        finishWarmup();
+    };
     warmupActions.append(warmupStart, warmupEnd);
     warmupCard.append(warmupLabel, warmupPlayer, warmupTime, warmupActions);overlay.appendChild(warmupCard);document.body.appendChild(overlay);
     function storeWarmup() {

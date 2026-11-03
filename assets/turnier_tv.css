@@ -57,6 +57,7 @@ body.tournament-tv {
     background: #223667;
     border-color: #4b608c;
     box-shadow: 0 6px 16px rgb(0 0 0 / 30%);
+    position: relative;
     container-type: inline-size;
     padding: clamp(4px, .55vw, 10px);
 }
@@ -152,4 +153,17 @@ body.tournament-tv {
     margin: 3px 0 0;
     text-align: center;
     font-weight: 700;
+}
+
+.tv-warmup-overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: inherit;
+    background: rgb(10 18 43 / 65%);
+    color: white;
+    font-size: clamp(14px, 5cqi, 30px);
+    font-weight: 700;
+    text-align: center;
 }
