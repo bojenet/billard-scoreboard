@@ -1,0 +1,113 @@
+.display-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+body.tournament-tv {
+    color-scheme: dark;
+    background: radial-gradient(ellipse at top, #162b66, #0a122b 64%);
+    color: #f5f8ff;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.tournament-tv .topbar,
+.tournament-tv .breadcrumb,
+.tournament-tv .display-links,
+.tournament-tv .dashboard-command,
+.tournament-tv .dashboard-plan th:last-child:empty,
+.tournament-tv #dashboardSchedule td:last-child {
+    display: none;
+}
+
+.tournament-tv main {
+    max-width: none;
+    padding: clamp(16px, 2.4vw, 48px);
+}
+
+.tournament-tv .page-heading h1 {
+    font-size: clamp(28px, 3vw, 64px);
+}
+
+.tournament-tv #eventMeta,
+.tournament-tv .muted,
+.tournament-tv .dashboard-game-label,
+.tournament-tv .dashboard-table-wait {
+    color: #b9c9ec;
+}
+
+.tournament-tv .dashboard-tables {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.tournament-tv .dashboard-table,
+.tournament-tv .panel {
+    background: #101e40;
+    color: inherit;
+    border: 1px solid #324675;
+    border-radius: 14px;
+    box-shadow: 0 12px 30px #050a1b55;
+}
+
+.tournament-tv .dashboard-table {
+    padding: 16px;
+}
+
+.tournament-tv .dashboard-table h3,
+.tournament-tv .panel h2 {
+    font-size: clamp(18px, 1.5vw, 28px);
+}
+
+.tournament-tv .dashboard-online { color: #86efb1; }
+.tournament-tv .dashboard-offline { color: #ffc3a1; }
+
+.tournament-tv .dashboard-side {
+    background: linear-gradient(110deg, #263f83, #192b5a);
+    padding: 8px 14px;
+}
+
+.tournament-tv .dashboard-side.side-2 {
+    background: linear-gradient(110deg, #ffdf65, #f4bf36);
+    color: #18203b;
+}
+
+.tournament-tv .dashboard-player {
+    font-size: clamp(17px, 1.5vw, 30px);
+}
+
+.tournament-tv .dashboard-score {
+    color: inherit;
+    font-size: clamp(36px, 3.5vw, 76px);
+}
+
+.tournament-tv .dashboard-innings,
+.tournament-tv .dashboard-innings b {
+    color: inherit;
+}
+
+.tournament-tv .dashboard-overview-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: 16px;
+}
+
+.tournament-tv .panel-heading,
+.tournament-tv th,
+.tournament-tv td,
+.tournament-tv .dashboard-next {
+    background: transparent;
+    color: inherit;
+    border-color: #324675;
+}
+
+.tournament-tv .dashboard-next {
+    display: grid;
+    gap: 4px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #324675;
+}
+
+@media (max-width: 720px) {
+    .tournament-tv .dashboard-overview-grid { grid-template-columns: 1fr; }
+}

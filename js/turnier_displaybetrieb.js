@@ -3,6 +3,8 @@
     'use strict';
     const $ = id => document.getElementById(id);
     const eventId = new URLSearchParams(location.search).get('turnier');
+    const tv = Boolean(eventId && new URLSearchParams(location.search).get('ansicht') === 'tv');
+    document.body.classList.toggle('tournament-tv', tv);
     $('logoutBtn').onclick = signOutAndRedirect;
     const rpc = async (fn, args) => {
         const {data, error} = await supabaseClient.rpc(fn, args);
@@ -29,9 +31,10 @@
             if(event.can_delete !== true) throw new Error('Nur Administratoren dürfen den Displaybetrieb verwalten.');
             $('eventTitle').textContent = event.title;
             $('eventMeta').textContent = [event.event_date, event.snapshot.locationName, event.snapshot.discipline, `${event.snapshot.selectedModeCode} · ${event.snapshot.participants.length} Spieler`, `Ziel ${event.snapshot.playingTargetPoints} / ${event.snapshot.playingTargetInnings} Aufnahmen`].filter(Boolean).join(' · ');
+            $('tvLink').href = 'turnier_displaybetrieb.html?ansicht=tv&turnier=' + encodeURIComponent(eventId);
             $('manualEntryLink').href = 'turnier_ergebnisse.html?turnier=' + encodeURIComponent(eventId);
             $('automaticEvent').hidden = false;
-            window.TournamentDashboard.update(event, 'overview');
+            window.TournamentDashboard.update(event, tv ? 'tv' : 'overview');
         }
         $('message').textContent = '';
     } catch(error) {
