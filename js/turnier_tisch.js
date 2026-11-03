@@ -65,7 +65,7 @@
         warmupTime.hidden = upcoming;
         const remaining = warmup.deadline ? Math.ceil((warmup.deadline - Date.now()) / 1000) : 300;
         warmupStart.hidden = !!warmup.deadline;
-        warmupPlayer.textContent = upcoming ? playerName(1) + ' · ' + playerName(2) : playerName(side);
+        warmupPlayer.textContent = upcoming ? [playerName(1), '-', playerName(2)].join('\n') : playerName(side);
         warmupTime.textContent = Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0');
         overlay.hidden = false;
         for (const button of document.querySelectorAll('#table-input button')) button.disabled = true;

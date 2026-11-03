@@ -89,6 +89,8 @@ body.free-play{display:grid;grid-template-rows:minmax(0,1fr) auto;height:100dvh;
 }
 
 #table-warmup.next-match strong {
-    font-size: clamp(30px, 5vw, 76px);
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    font-size: clamp(36px, min(7vw, 10vh), 108px);
     line-height: 1.15;
 }
