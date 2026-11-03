@@ -5,6 +5,7 @@
     const eventId = params.get('turnier');
     let event = null, view = 'A', selected = 'A1', dirty = false, busy = false, pendingReload = null, reloadVersion = null;
     let sortingMatches = false;
+    const displayTables = ['tb01', 'tb02', 'tb03', 'tb04', 'mb01', 'mb02'];
     const removedParticipantSeeds = new Set();
     const restoredParticipantIds = new Set();
     const player = seed => event?.snapshot.participants.find(p => p.seed === Number(seed));
@@ -41,8 +42,9 @@
         $('automaticEntryLink').href = `turnier_displaybetrieb.html?turnier=${encodeURIComponent(event.id)}`;
         $('modeForm').hidden=event.can_change_mode!==true || event.status!=='open' || !!event.archived_ranking;
         $('changeModeBtn').disabled=busy;
-        $('rosterTab').hidden=event.can_change_mode!==true || event.status!=='open' || !!event.archived_ranking;
+        $('rosterTab').hidden=(event.can_change_mode!==true && event.can_delete!==true) || event.status!=='open' || !!event.archived_ranking;
         $('participantEditor').hidden=view!=='roster' || event.can_change_mode!==true || event.status!=='open' || !!event.archived_ranking;
+        renderTableEditor();
         renderParticipantGroups();
         renderRemovalModes();
         $('eventTitle').textContent = event.title;
@@ -72,6 +74,55 @@
         if (view === 'standings') renderStandings();
         if (view === 'access') renderMembers();
     }
+    function suggestedTables() {
+        const used = new Set();
+        let simultaneous = 0;
+        for (const game of event.schedule) {
+            if (!game.ready || event.results[game.key] || used.has(game.seed1) || used.has(game.seed2)) continue;
+            used.add(game.seed1);
+            used.add(game.seed2);
+            simultaneous++;
+        }
+        const preferred = (event.snapshot.tableIds || []).filter(id => displayTables.includes(id));
+        return [...new Set([...preferred, ...displayTables])].slice(0, simultaneous);
+    }
+    function renderTableEditor() {
+        $('tableEditor').hidden = view !== 'roster' || event.can_delete !== true || event.status !== 'open' || !!event.archived_ranking;
+        if ($('tableEditor').hidden) return;
+        const saved = event.snapshot.tableIds || [];
+        const count = suggestedTables().length;
+        $('tableSuggestion').textContent = count
+            ? `Vorschlag für den gespeicherten Spielplan: ${count} ${count === 1 ? 'Tisch' : 'Tische'}. Änderungen an Teilnehmern oder Modus zuerst speichern.`
+            : 'Aktuell sind keine offenen Paarungen spielbereit.';
+        $('applyTableSuggestion').disabled = !count;
+        $('tableChoices').innerHTML = displayTables.map(id => {
+            const label = id.startsWith('tb') ? `Tisch ${Number(id.slice(2))}` : id.toUpperCase();
+            return `<label><input type="checkbox" name="tables" value="${id}"${saved.includes(id) ? ' checked' : ''}> ${label}</label>`;
+        }).join('');
+    }
+    $('applyTableSuggestion').onclick = () => {
+        const suggestion = suggestedTables();
+        for (const input of $('tableChoices').querySelectorAll('input')) input.checked = suggestion.includes(input.value);
+    };
+    $('tableForm').onsubmit = async e => {
+        e.preventDefault();
+        if (busy || !canLeave()) return;
+        if (removedParticipantSeeds.size || restoredParticipantIds.size) {
+            notice('Bitte zuerst die Änderungen an der Teilnehmerliste übernehmen.', true);
+            return;
+        }
+        const chosen = new FormData(e.currentTarget).getAll('tables');
+        if (!chosen.length) { notice('Bitte mindestens einen Tisch auswählen.', true); return; }
+        // Retain the dispatch priority of tables already in the saved selection.
+        const tables = [...new Set([...(event.snapshot.tableIds || []), ...chosen])].filter(id => chosen.includes(id));
+        busy = true;
+        try {
+            await rpc('select_result_event_tables', { p_id: eventId, p_tables: tables, p_version: event.version });
+            await load();
+            notice('Tischauswahl für den Displaybetrieb gespeichert.');
+        } catch (error) { failure(error); }
+        finally { busy = false; renderRemovalModes(); }
+    };
     function absentSeeds() {
         return Array.from(removedParticipantSeeds);
     }
@@ -120,7 +171,7 @@
                     if(!confirm('Teilnehmerliste und Modus ändern und ALLE bisherigen Ergebnisse und Live-Spielstände dieses Turniers zurücksetzen?'))return;
                     await rpc(fn,{...args,p_reset:true});
                 }
-                dirty=false;view='A';selected='';pendingReload=null;
+                dirty=false;view=event.can_delete === true ? 'roster' : 'A';selected='';pendingReload=null;
                 await load();notice('Teilnehmerliste gespeichert. Modus, Gruppen und Spielplan wurden angepasst.');
             }catch(error){failure(error);}finally{busy=false;renderRemovalModes();}
         }

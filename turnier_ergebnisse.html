@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Manuelle Ergebniserfassung · Billard Studio</title>
-<link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261102-clubcloud-link">
+<link rel="stylesheet" href="assets/turnier_ergebnisse.css?v=20261103-table-selection">
 </head>
 <body>
 <header class="topbar"><a id="resultsBrand" class="brand" href="turnier_ergebnisse.html">Billard Studio <span>/ Manuelle Ergebniserfassung</span></a><nav><a href="turnier_ergebnisse.html">Meine Turniere</a><a data-full-navigation href="calendar.html" hidden>Kalender</a><a data-full-navigation href="turnier_zentrale.html" hidden>Turnierzentrale</a><button id="logoutBtn" type="button">Abmelden</button></nav></header>
@@ -21,6 +21,14 @@
 <p class="muted">Die Einladung bleibt unverändert. Bereits erfasste Ergebnisse und Live-Spielstände können nur nach gesonderter Bestätigung zurückgesetzt werden.</p></div>
 <div id="absentParticipants"></div>
 </div></section>
+<section id="tableEditor" class="panel" hidden>
+<div class="panel-heading"><h2>Tische für den Displaybetrieb</h2></div>
+<form id="tableForm" class="form-content">
+<p id="tableSuggestion"></p>
+<div id="tableChoices" class="actions"></div>
+<div class="actions"><button id="applyTableSuggestion" type="button">Vorschlag auswählen</button><button type="submit" class="primary">Tischauswahl speichern</button></div>
+</form>
+</section>
 <button id="reloadClubCloudBtn" type="button" hidden>Turnierdaten neu laden</button>
 <section id="clubCloudPreview" class="panel" hidden><div class="panel-heading"><h2>Aktuelle ClubCloud-Daten prüfen</h2></div><form id="clubCloudForm" class="form-content"><p id="clubCloudMeta"></p><div id="clubCloudParticipants" class="table-wrap"></div><button id="addReloadPlayerBtn" type="button">Spieler hinzufügen</button><label for="reloadMode">Turniermodus<select id="reloadMode" required></select></label><p class="muted">Teilnehmer und Setzreihenfolge prüfen. Modus und Spielziel gelten nur für dieses Turnier; die Einladung bleibt unverändert.</p><div class="fields"><label>Punkte<input id="reloadTarget" type="number" min="1" max="1000000" step="1" required></label><label>Max. Aufnahmen<input id="reloadInnings" type="number" min="1" max="1000000" step="1" required></label></div><div class="actions"><button id="applyClubCloudBtn" type="submit" class="primary">Daten übernehmen</button><button id="cancelClubCloudBtn" type="button">Abbrechen</button></div></form></section>
 
@@ -41,5 +49,5 @@
 <script src="js/t15_clubcloud_reload.js?v=20261030-invited-mode"></script>
 <script src="js/t15_csv_export.js?v=20261101-clubcloud-rounds"></script>
 <script src="js/result_statistics.js?v=20261031-bed"></script>
-<script src="js/turnier_ergebnisse.js?v=20261102-clubcloud-link"></script>
+<script src="js/turnier_ergebnisse.js?v=20261103-table-selection"></script>
 </body></html>
