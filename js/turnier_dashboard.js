@@ -84,8 +84,7 @@
             const table = tables.find(t => t.id === id);
             const tableLabel = tv && id.startsWith('tb') ? `Tisch ${Number(id.slice(2))}` : id.toUpperCase();
             const own = table?.event_id === event.id;
-            const completedGame = tv && table?.completion?.event_id === event.id && event.results[table.completion.assignment?.key]
-                ? table.completion.assignment : null;
+            const completedGame = tv ? heldTvGame(table) : null;
             const game = completedGame || (own ? table.assignment : null);
             const result = game ? event.results[game.key] : null;
             const live = result || (own ? table.live_state : null);
@@ -124,10 +123,22 @@
         const value = ResultStatistics.bestIndividualAverage(event.schedule, event.results, seed, group);
         return value === null ? '—' : (Math.trunc(value * 1000) / 1000).toFixed(3).replace('.', ',');
     }
+    function heldTvGame(table) {
+        const completion = table?.completion;
+        return completion?.event_id === event.id && event.results[completion.assignment?.key]
+            ? completion.assignment : null;
+    }
     function renderOverview() {
-        const next = event.schedule.filter(m => m.ready && !event.results[m.key] && !assignmentFor(m.key));
-        const preview = tv ? previewTables(next) : null;
-        $('dashboardNext').innerHTML = next.slice(0, 6).map(m => `${tv ? '<div class="dashboard-next">' : `<button class="dashboard-next" data-game="${esc(m.key)}" type="button">`}<span>${esc(m.roundLabel)} · ${esc(m.label)}${tv ? ` · ${esc(preview.has(m.key) ? preview.get(m.key) + ' (voraussichtlich)' : 'Tisch offen')}` : ''}</span><strong>${esc(name(m.seed1))} <span>–</span> ${esc(name(m.seed2))}</strong>${tv ? '</div>' : '</button>'}`).join('') || '<p class="form-content muted">Keine weiteren spielbereiten Paarungen.</p>';
+        const unassigned = event.schedule.filter(m => m.ready && !event.results[m.key] && !assignmentFor(m.key));
+        const waiting = tv ? ownTables().filter(t => t.assignment && !event.results[t.assignment.key] && heldTvGame(t)) : [];
+        const next = [...waiting.map(t => t.assignment), ...unassigned];
+        const preview = tv ? previewTables(unassigned) : null;
+        const nextTable = game => {
+            const assigned = waiting.find(t => t.assignment.key === game.key);
+            if (assigned) return assigned.id.startsWith('tb') ? `Tisch ${Number(assigned.id.slice(2))}` : assigned.id.toUpperCase();
+            return preview.has(game.key) ? preview.get(game.key) + ' (voraussichtlich)' : 'Tisch offen';
+        };
+        $('dashboardNext').innerHTML = next.slice(0, 6).map(m => `${tv ? '<div class="dashboard-next">' : `<button class="dashboard-next" data-game="${esc(m.key)}" type="button">`}<span>${esc(m.roundLabel)} · ${esc(m.label)}${tv ? ` · ${esc(nextTable(m))}` : ''}</span><strong>${esc(name(m.seed1))} <span>–</span> ${esc(name(m.seed2))}</strong>${tv ? '</div>' : '</button>'}`).join('') || '<p class="form-content muted">Keine weiteren spielbereiten Paarungen.</p>';
         const groups = ResultModes.get(event.snapshot.selectedModeCode).groups || (ResultModes.get(event.snapshot.selectedModeCode).kind === 'roundRobin' ? ['A'] : ['A','B']);
         $('dashboardStandings').innerHTML = groups.map(group => `<div class="dashboard-ranking"><h3>${groups.length > 1 ? 'Gruppe ' + group : 'Jeder gegen jeden'}</h3><div class="table-wrap"><table><thead><tr><th>Pl.</th><th>Spieler</th><th class="number">PP</th><th class="number">GD</th>${tv ? '<th class="number">BED</th>' : ''}<th class="number">HS</th></tr></thead><tbody>${(event.standings[group] || []).map(r => `<tr><td>${r.rank}${r.tied ? '*' : ''}</td><td>${esc(name(r.seed))}</td><td class="number">${r.points}</td><td class="number">${(r.innings ? Math.trunc(r.balls / r.innings * 1000) / 1000 : 0).toFixed(3).replace('.', ',')}</td>${tv ? `<td class="number">${bestAverage(r.seed, group)}</td>` : ''}<td class="number">${r.high}</td></tr>`).join('')}</tbody></table></div></div>`).join('');
         $('dashboardProgress').textContent = `${Object.keys(event.results).length} / ${event.schedule.length} Partien erfasst`;
