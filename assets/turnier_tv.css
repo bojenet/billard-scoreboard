@@ -6,7 +6,7 @@
 
 body.tournament-tv {
     color-scheme: dark;
-    background: radial-gradient(ellipse at top, #162b66, #0a122b 64%);
+    background: #0c1429;
     color: #f5f8ff;
     font-family: 'Segoe UI', Arial, sans-serif;
 }
@@ -48,9 +48,8 @@ body.tournament-tv {
 .tournament-tv .panel {
     background: #101e40;
     color: inherit;
-    border: 1px solid #324675;
+    border: 1px solid #263655;
     border-radius: 14px;
-    box-shadow: 0 12px 30px #050a1b55;
 }
 
 .tournament-tv .dashboard-table {
@@ -63,7 +62,7 @@ body.tournament-tv {
     font-size: clamp(18px, 1.5vw, 28px);
 }
 
-.tournament-tv .dashboard-online { color: #86efb1; }
+.tournament-tv .dashboard-online { color: #aab9d4; }
 .tournament-tv .dashboard-offline { color: #ffc3a1; }
 
 .tournament-tv .dashboard-scoreboard {
@@ -79,15 +78,14 @@ body.tournament-tv {
     padding: clamp(3px, 1.2cqi, 8px);
     border-radius: 8px;
     text-align: center;
-    background: #122252;
-    color: white;
+    background: #162547;
+    color: #f5f8ff;
     font-size: clamp(11px, 4cqi, 24px);
 }
 
-.tv-player-2 { color: #ffd84a; }
-.tv-player.is-active { background: white; color: #111; }
-.tv-player-2.is-active { background: #ffd84a; }
-.tv-turn { font-size: .65em; }
+.tv-player.is-active { box-shadow: inset 0 2px #f5f8ff; }
+.tv-player-2.is-active { box-shadow: inset 0 2px #ffd84a; }
+.tv-turn { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
 .tournament-tv .dashboard-player {
     font-size: inherit;
@@ -131,16 +129,26 @@ body.tournament-tv {
 .tournament-tv .dashboard-next {
     background: transparent;
     color: inherit;
-    border-color: #324675;
+    border-color: #263655;
 }
 
 .tournament-tv .dashboard-next {
     display: grid;
     gap: 4px;
     padding: 10px 14px;
-    border-bottom: 1px solid #324675;
+    border-bottom: 1px solid #263655;
 }
 
 @media (max-width: 720px) {
     .tournament-tv .dashboard-overview-grid { grid-template-columns: 1fr; }
+}
+
+.tournament-tv .dashboard-next > span,
+.tournament-tv .dashboard-ranking h3,
+.tournament-tv .dashboard-ranking th {
+    color: #aab9d4;
+}
+
+.tournament-tv .tv-stats {
+    color: #c1cde4;
 }
