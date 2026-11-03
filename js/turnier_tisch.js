@@ -19,33 +19,42 @@
     const warmupActions = document.createElement('div');warmupActions.className = 'warmup-actions';
     const warmupStart = document.createElement('button');warmupStart.type = 'button';warmupStart.textContent = 'Start';
     const warmupEnd = document.createElement('button');warmupEnd.type = 'button';warmupEnd.textContent = 'Beenden';
+    const warmupError = document.createElement('p');
+    warmupError.setAttribute('role', 'status');
+    const syncWarmup = deadline => rpc('tournament_sync_warmup', {
+        p_table: table, p_event: device.event_id, p_key: device.assignment.key,
+        p_deadline: deadline ? new Date(deadline).toISOString() : null
+    });
     warmupStart.onclick = async () => {
         if (!warmup?.key || warmup.deadline || !connected || device.paused || writing) return;
+        const deadline = Date.now() + 300000;
         writing = true;
         try {
-            await rpc('tournament_start_warmup', { p_table: table, p_event: device.event_id, p_key: device.assignment.key, p_running: true });
+            await syncWarmup(deadline);
         } catch (error) {
-            text('input-error', error.message);
+            warmupError.textContent = error.message;
             return;
         } finally { writing = false; }
         warmup.side ??= 1;
-        warmup.deadline = Date.now() + 300000;storeWarmup();updateWarmup();
+        warmupError.textContent = '';
+        warmup.deadline = deadline;storeWarmup();updateWarmup();
     };
     warmupEnd.onclick = async () => {
         if (!warmup?.key || writing) return;
         if (warmup.deadline) {
             writing = true;
             try {
-                await rpc('tournament_start_warmup', { p_table: table, p_event: device.event_id, p_key: device.assignment.key, p_running: false });
+                await syncWarmup(null);
             } catch (error) {
-                text('input-error', error.message);
+                warmupError.textContent = error.message;
                 return;
             } finally { writing = false; }
         }
+        warmupError.textContent = '';
         finishWarmup();
     };
     warmupActions.append(warmupStart, warmupEnd);
-    warmupCard.append(warmupLabel, warmupPlayer, warmupTime, warmupActions);overlay.appendChild(warmupCard);document.body.appendChild(overlay);
+    warmupCard.append(warmupLabel, warmupPlayer, warmupTime, warmupActions, warmupError);overlay.appendChild(warmupCard);document.body.appendChild(overlay);
     function storeWarmup() {
         try { if (warmup) sessionStorage.setItem(warmupStorage, JSON.stringify(warmup));else sessionStorage.removeItem(warmupStorage); } catch (_) {}
     }
@@ -222,7 +231,13 @@
             const nextEvent = next.event_id ? await rpc('get_t15_result_event', { p_id: next.event_id }) : null;
             if (revision !== generation) return;
             const previousEvent = device?.event_id && device.event_id !== next.event_id ? await rpc('get_t15_result_event', { p_id: device.event_id }) : nextEvent;
-            adopt(next, nextEvent, previousEvent);render();
+            adopt(next, nextEvent, previousEvent);
+            if (next.assignment && warmup?.key === next.event_id + ':' + next.assignment.key &&
+                warmup.deadline > Date.now() && !(Date.parse(next.warmup_until) > Date.now())) {
+                try { await syncWarmup(warmup.deadline); }
+                catch (error) { warmupError.textContent = error.message; }
+            }
+            render();
         } catch (error) {
             if (revision === generation) { connected = false;wait('Verbindung unterbrochen · erneuter Versuch …', error.message); }
         } finally { reading = false; }
