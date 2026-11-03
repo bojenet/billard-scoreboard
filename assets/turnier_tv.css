@@ -164,7 +164,11 @@ body.tournament-tv {
     border-radius: inherit;
     background: rgb(10 18 43 / 65%);
     color: white;
+    text-align: center;
+}
+
+.tv-warmup-overlay,
+.tournament-tv .dashboard-table-wait {
     font-size: clamp(14px, 5cqi, 30px);
     font-weight: 700;
-    text-align: center;
 }
