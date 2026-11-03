@@ -172,3 +172,15 @@ body.tournament-tv {
     font-size: clamp(14px, 5cqi, 30px);
     font-weight: 700;
 }
+
+.tournament-tv .dashboard-table-wait {
+    position: absolute;
+    inset: 0;
+    min-height: 0;
+    margin: 0;
+    text-align: center;
+}
+
+.tournament-tv .dashboard-table:has(.dashboard-table-wait) {
+    min-height: 108px;
+}
