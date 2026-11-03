@@ -13,10 +13,7 @@ body.tournament-tv {
 
 .tournament-tv .topbar,
 .tournament-tv .breadcrumb,
-.tournament-tv .page-heading,
-.tournament-tv .dashboard-table-head,
-.tournament-tv .dashboard-game-label,
-.tournament-tv #dashboardOverview,
+.tournament-tv #eventMeta,
 .tournament-tv .display-links,
 .tournament-tv .dashboard-command,
 .tournament-tv #dashboardFinished,
@@ -115,4 +112,29 @@ body.tournament-tv {
     text-align: center;
     font-size: clamp(14px, 8cqi, 64px);
     font-variant-numeric: tabular-nums;
+}
+
+.tournament-tv .dashboard-overview-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: 16px;
+}
+
+.tournament-tv .panel-heading,
+.tournament-tv th,
+.tournament-tv td,
+.tournament-tv .dashboard-next {
+    background: transparent;
+    color: inherit;
+    border-color: #324675;
+}
+
+.tournament-tv .dashboard-next {
+    display: grid;
+    gap: 4px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #324675;
+}
+
+@media (max-width: 720px) {
+    .tournament-tv .dashboard-overview-grid { grid-template-columns: 1fr; }
 }
