@@ -72,36 +72,37 @@ body.tournament-tv {
     margin: 0;
 }
 
-.tv-player {
-    display: grid;
-    align-content: start;
-    grid-template-rows: subgrid;
-    grid-row: span 2;
-    gap: 2px;
-    padding: clamp(3px, 1.2cqi, 8px);
+.tournament-tv .dashboard-scoreboard::before {
+    content: '';
+    grid-area: 1 / 1 / 2 / -1;
+    background: linear-gradient(180deg, #192e68, #122252);
     border-radius: 8px;
-    text-align: center;
-    color: white;
-    font-size: clamp(11px, 4cqi, 24px);
 }
 
-.tv-player-1 { grid-column: 1; grid-row: 1 / span 2; }
-.tv-player-2 { grid-column: 3; grid-row: 1 / span 2; color: #ffd84a; }
+.tv-player { display: contents; }
+.tv-player-1 { --player-column: 1; }
+.tv-player-2 { --player-column: 3; color: #ffd84a; }
 .tv-player.is-active .dashboard-score { background: white; color: #111; }
 .tv-player-2.is-active .dashboard-score { background: #ffd84a; }
 
-
 .tournament-tv .dashboard-player {
-    font-size: inherit;
+    position: relative;
+    grid-area: 1 / var(--player-column);
+    align-self: center;
+    padding: .35em .45em;
+    font-size: clamp(11px, 4cqi, 24px);
 }
 
+.tv-player-2 .dashboard-player { text-align: right; }
+
 .tournament-tv .dashboard-score {
+    grid-area: 2 / var(--player-column);
     color: inherit;
     min-width: 0;
     text-align: center;
     font-size: clamp(18px, 13cqi, 120px);
-    line-height: .9;
-    padding: .08em 0;
+    line-height: 1;
+    padding: .14em 0;
     background: #122252;
     border-radius: 8px;
 }
