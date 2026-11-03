@@ -66,30 +66,53 @@ body.tournament-tv {
 .tournament-tv .dashboard-online { color: #86efb1; }
 .tournament-tv .dashboard-offline { color: #ffc3a1; }
 
-.tournament-tv .dashboard-side {
-    background: linear-gradient(110deg, #263f83, #192b5a);
-    padding: clamp(4px, 3cqi, 14px);
-    gap: clamp(3px, 2cqi, 12px);
+.tournament-tv .dashboard-scoreboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.tournament-tv .dashboard-side.side-2 {
-    background: linear-gradient(110deg, #ffdf65, #f4bf36);
-    color: #18203b;
+.tv-player {
+    display: grid;
+    align-content: start;
+    grid-template-rows: minmax(2.5em, auto) auto 1.2em auto;
+    gap: 4px;
+    padding: clamp(4px, 2cqi, 14px);
+    border-radius: 8px;
+    text-align: center;
+    background: #122252;
+    color: white;
+    font-size: clamp(11px, 4cqi, 24px);
 }
+
+.tv-player-2 { color: #ffd84a; }
+.tv-player.is-active { background: white; color: #111; }
+.tv-player-2.is-active { background: #ffd84a; }
+.tv-turn { font-size: .65em; }
 
 .tournament-tv .dashboard-player {
-    font-size: clamp(12px, 5cqi, 36px);
+    font-size: inherit;
 }
 
 .tournament-tv .dashboard-score {
     color: inherit;
-    font-size: clamp(20px, 14cqi, 100px);
+    min-width: 0;
+    text-align: center;
+    font-size: clamp(18px, 14cqi, 100px);
 }
 
-.tournament-tv .dashboard-innings,
-.tournament-tv .dashboard-innings b {
-    color: inherit;
+.tv-series {
+    font-weight: 700;
+    line-height: 1;
 }
+
+.tv-stats {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px 8px;
+    font-size: clamp(10px, 3cqi, 16px);
+}
+
+.tv-stats span { white-space: nowrap; }
 
 .tournament-tv .dashboard-overview-grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
@@ -114,9 +137,4 @@ body.tournament-tv {
 
 @media (max-width: 720px) {
     .tournament-tv .dashboard-overview-grid { grid-template-columns: 1fr; }
-}
-
-@container (max-width: 230px) {
-    .tournament-tv .dashboard-side { grid-template-columns: minmax(0, 1fr) auto; }
-    .tournament-tv .dashboard-innings { grid-column: 1 / -1; }
 }

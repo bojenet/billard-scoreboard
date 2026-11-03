@@ -20,6 +20,23 @@
     const isOnline = table => table?.last_seen && Date.now() - Date.parse(table.last_seen) < 30000;
     const ownTables = () => tables.filter(t => t.event_id === event.id);
     const assignmentFor = key => ownTables().find(t => t.assignment?.key === key);
+    function renderTvScoreboard(game, live, result, playerName) {
+        return [1, 2].map(side => {
+            const seedSide = live?.swapped && !result ? 3 - side : side;
+            const score = Number(live?.['score' + side] || 0);
+            const innings = Number(live?.['innings' + side] || 0);
+            const series = Number(live?.['series' + side] || 0);
+            const high = Math.max(Number(live?.['high' + side] || 0), series);
+            const average = (innings ? Math.trunc(score / innings * 1000) / 1000 : 0).toFixed(3);
+            const active = live && !result && !live.done && !live.saved && Number(live.active || 1) === side;
+            return `<div class="tv-player tv-player-${side}${active ? ' is-active' : ''}">
+                <div class="dashboard-player">${active ? '<span class="tv-turn" aria-label="Am Spiel">●</span> ' : ''}${esc(playerName(game['seed' + seedSide]))}</div>
+                <strong class="dashboard-score">${score}</strong>
+                <span class="tv-series">${active && series ? '+' + series : ''}</span>
+                <div class="tv-stats"><span>A <b>${innings}</b></span><span>DS <b>${average}</b></span><span>HS <b>${high}</b></span></div>
+            </div>`;
+        }).join('');
+    }
     function renderOperations() {
         const ids = savedTables();
         const active = ownTables();
@@ -48,7 +65,7 @@
             const state = event.status === 'completed' ? 'Turnier beendet' : !connected ? 'Status unbekannt' : !online ? 'Offline' : table.event_id && !own ? 'Anderes Turnier' : own ? (table.paused ? 'Pausiert' : game ? (result ? 'Ergebnis gespeichert' : 'Partie zugewiesen') : 'Wartet auf nächste Partie') : 'Bereit';
             const snap = game?.snapshot || event.snapshot;
             const playerName = seed => snap.participants.find(p => Number(p.seed) === Number(seed))?.name || 'Paarung offen';
-            return `<article class="dashboard-table"><div class="dashboard-table-head"><h3>${esc(tableLabel)}</h3><span class="${online ? 'dashboard-online' : 'dashboard-offline'}">${esc(state)}</span></div>${game ? `<div class="dashboard-scoreboard">${[1,2].map(side => `<div class="dashboard-side side-${side}"><div class="dashboard-player">${esc(playerName(game['seed' + side]))}</div><strong class="dashboard-score">${live?.['score' + (!result && live?.swapped ? 3 - side : side)] ?? 0}</strong><span class="dashboard-innings">Aufnahmen <b>${live?.['innings' + (!result && live?.swapped ? 3 - side : side)] ?? 0}</b></span></div>`).join('')}</div><p class="dashboard-game-label">${esc(game.roundLabel)} · ${esc(game.label)}</p>` : `<p class="dashboard-table-wait">${own ? 'Wartet auf die nächste Paarung' : 'Wartet auf Turnierstart'}</p>`}${tv ? '' : `<a href="turnier_tisch.html?tisch=${encodeURIComponent(id)}" target="_blank" rel="noopener">Tischdisplay öffnen ↗</a>`}</article>`;
+            return `<article class="dashboard-table"><div class="dashboard-table-head"><h3>${esc(tableLabel)}</h3><span class="${online ? 'dashboard-online' : 'dashboard-offline'}">${esc(state)}</span></div>${game ? `<div class="dashboard-scoreboard">${tv ? renderTvScoreboard(game, live, result, playerName) : [1,2].map(side => `<div class="dashboard-side side-${side}"><div class="dashboard-player">${esc(playerName(game['seed' + side]))}</div><strong class="dashboard-score">${live?.['score' + (!result && live?.swapped ? 3 - side : side)] ?? 0}</strong><span class="dashboard-innings">Aufnahmen <b>${live?.['innings' + (!result && live?.swapped ? 3 - side : side)] ?? 0}</b></span></div>`).join('')}</div><p class="dashboard-game-label">${esc(game.roundLabel)} · ${esc(game.label)}</p>` : `<p class="dashboard-table-wait">${own ? 'Wartet auf die nächste Paarung' : 'Wartet auf Turnierstart'}</p>`}${tv ? '' : `<a href="turnier_tisch.html?tisch=${encodeURIComponent(id)}" target="_blank" rel="noopener">Tischdisplay öffnen ↗</a>`}</article>`;
         }).join('') || '<p class="muted">Diesem Turnier sind noch keine Tische zugeordnet. <a href="calendar.html">Einladung bearbeiten</a></p>';
     }
     function renderFinishedResults() {
