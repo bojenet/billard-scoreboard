@@ -37,7 +37,7 @@
             const average = (innings ? Math.trunc(score / innings * 1000) / 1000 : 0).toFixed(3);
             const active = live && !result && !live.done && !live.saved && Number(live.active || 1) === side;
             return `<div class="tv-player tv-player-${side}${active ? ' is-active' : ''}">
-                <div class="dashboard-player">${active ? '<span class="tv-turn">Am Spiel: </span>' : ''}${esc(playerName(game['seed' + seedSide]))}</div>
+                <div class="dashboard-player">${active ? '<span class="tv-turn" aria-label="Am Spiel">●</span> ' : ''}${esc(playerName(game['seed' + seedSide]))}</div>
                 <strong class="dashboard-score">${score}</strong>
                 <span class="tv-series">${active && series ? '+' + series : ''}</span>
                 <div class="tv-stats"><span>A <b>${innings}</b></span><span>DS <b>${average}</b></span><span>HS <b>${high}</b></span></div>
