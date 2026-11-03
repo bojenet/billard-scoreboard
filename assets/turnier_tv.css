@@ -13,7 +13,10 @@ body.tournament-tv {
 
 .tournament-tv .topbar,
 .tournament-tv .breadcrumb,
-.tournament-tv #eventMeta,
+.tournament-tv .page-heading,
+.tournament-tv .dashboard-table-head,
+.tournament-tv .dashboard-game-label,
+.tournament-tv #dashboardOverview,
 .tournament-tv .display-links,
 .tournament-tv .dashboard-command,
 .tournament-tv #dashboardFinished,
@@ -67,14 +70,16 @@ body.tournament-tv {
 .tournament-tv .dashboard-offline { color: #ffc3a1; }
 
 .tournament-tv .dashboard-scoreboard {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) minmax(0, .4fr) minmax(0, 1fr);
+    align-items: stretch;
+    margin: 0;
 }
 
 .tv-player {
     display: grid;
     align-content: start;
-    position: relative;
-    grid-template-rows: minmax(1.25em, auto) auto auto;
+    grid-template-rows: subgrid;
+    grid-row: span 2;
     gap: 2px;
     padding: clamp(3px, 1.2cqi, 8px);
     border-radius: 8px;
@@ -87,7 +92,7 @@ body.tournament-tv {
 .tv-player-2 { color: #ffd84a; }
 .tv-player.is-active { background: white; color: #111; }
 .tv-player-2.is-active { background: #ffd84a; }
-.tv-turn { font-size: .65em; }
+
 
 .tournament-tv .dashboard-player {
     font-size: inherit;
@@ -97,50 +102,17 @@ body.tournament-tv {
     color: inherit;
     min-width: 0;
     text-align: center;
-    font-size: clamp(24px, 17cqi, 120px);
+    font-size: clamp(18px, 13cqi, 120px);
     line-height: .9;
 }
 
-.tv-series {
-    position: absolute;
-    inset-inline-end: 4px;
-    bottom: 1.65em;
-    font-size: clamp(9px, 2.4cqi, 15px);
-    font-weight: 700;
-    line-height: 1;
-}
-
-.tv-stats {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 2px 8px;
-    font-size: clamp(10px, 3cqi, 16px);
-}
-
-.tv-stats span { white-space: nowrap; }
-
-.tournament-tv .dashboard-overview-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-    gap: 16px;
-}
-
-.tournament-tv .panel-heading,
-.tournament-tv th,
-.tournament-tv td,
-.tournament-tv .dashboard-next {
-    background: transparent;
-    color: inherit;
-    border-color: #324675;
-}
-
-.tournament-tv .dashboard-next {
-    display: grid;
-    gap: 4px;
-    padding: 10px 14px;
-    border-bottom: 1px solid #324675;
-}
-
-@media (max-width: 720px) {
-    .tournament-tv .dashboard-overview-grid { grid-template-columns: 1fr; }
+.tv-innings {
+    grid-row: span 2;
+    align-self: center;
+    padding: .35em 0;
+    background: #192e68;
+    border-radius: 8px;
+    text-align: center;
+    font-size: clamp(14px, 8cqi, 64px);
+    font-variant-numeric: tabular-nums;
 }

@@ -28,21 +28,20 @@
     const ownTables = () => tables.filter(t => t.event_id === event.id);
     const assignmentFor = key => ownTables().find(t => t.assignment?.key === key);
     function renderTvScoreboard(game, live, result, playerName) {
-        return [1, 2].map(side => {
+        const finished = result || live?.done || live?.saved;
+        const innings = finished
+            ? Math.max(Number(live?.innings1 || 0), Number(live?.innings2 || 0))
+            : Number(live?.innings2 || 0) + 1;
+        const players = [1, 2].map(side => {
             const seedSide = live?.swapped && !result ? 3 - side : side;
             const score = Number(live?.['score' + side] || 0);
-            const innings = Number(live?.['innings' + side] || 0);
-            const series = Number(live?.['series' + side] || 0);
-            const high = Math.max(Number(live?.['high' + side] || 0), series);
-            const average = (innings ? Math.trunc(score / innings * 1000) / 1000 : 0).toFixed(3);
-            const active = live && !result && !live.done && !live.saved && Number(live.active || 1) === side;
+            const active = live && !finished && Number(live.active || 1) === side;
             return `<div class="tv-player tv-player-${side}${active ? ' is-active' : ''}">
-                <div class="dashboard-player">${active ? '<span class="tv-turn" aria-label="Am Spiel">●</span> ' : ''}${esc(playerName(game['seed' + seedSide]))}</div>
+                <div class="dashboard-player">${esc(playerName(game['seed' + seedSide]))}</div>
                 <strong class="dashboard-score">${score}</strong>
-                <span class="tv-series">${active && series ? '+' + series : ''}</span>
-                <div class="tv-stats"><span>A <b>${innings}</b></span><span>DS <b>${average}</b></span><span>HS <b>${high}</b></span></div>
             </div>`;
-        }).join('');
+        });
+        return `${players[0]}<strong class="tv-innings" aria-label="Aufnahmen: ${innings}">${innings}</strong>${players[1]}`;
     }
     function renderOperations() {
         const ids = savedTables();
