@@ -83,3 +83,12 @@ body.free-play{display:grid;grid-template-rows:minmax(0,1fr) auto;height:100dvh;
 .warmup-actions button[hidden]{display:none}
 
 .center-box{position:relative}#input-swap{position:absolute;top:100%;left:50%;transform:translateX(-50%);display:block;margin:12px auto 0;min-width:70px;min-height:50px;font-size:42px;line-height:1;border:2px solid #ffd84a;border-radius:10px;background:#213a77;color:#ffd84a;cursor:pointer}#input-swap[hidden]{display:none}
+
+#table-warmup.next-match > div {
+    width: min(1000px, 90vw);
+}
+
+#table-warmup.next-match strong {
+    font-size: clamp(30px, 5vw, 76px);
+    line-height: 1.15;
+}

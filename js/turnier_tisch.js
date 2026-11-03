@@ -20,7 +20,8 @@
     const warmupStart = document.createElement('button');warmupStart.type = 'button';warmupStart.textContent = 'Start';
     const warmupEnd = document.createElement('button');warmupEnd.type = 'button';warmupEnd.textContent = 'Beenden';
     warmupStart.onclick = () => {
-        if (!warmup?.key || warmup.deadline) return;
+        if (!warmup?.key || warmup.deadline || !connected || device.paused) return;
+        warmup.side ??= 1;
         warmup.deadline = Date.now() + 300000;storeWarmup();updateWarmup();
     };
     warmupEnd.onclick = () => { if (warmup?.key) finishWarmup(); };
@@ -31,7 +32,7 @@
     }
     function finishWarmup() {
         if (warmup.side === 1) warmup = { key: warmup.key, side: 2, deadline: null };
-        else warmup = null;
+        else warmup = { key: warmup.key, side: 0 };
         storeWarmup();render();
     }
     function updateWarmup() {
@@ -40,13 +41,22 @@
         if (!device?.event_id || event?.status === 'completed') { warmup = null;storeWarmup();return; }
         const key = device.event_id + ':' + device.assignment?.key;
         if (!device.assignment) return;
-        if (!warmup.key || !warmup.side) { warmup = { key, side: 1, deadline: null };storeWarmup(); }
+        if (!warmup.key) { warmup = { key, side: null, deadline: null };storeWarmup(); }
         if (warmup.key !== key) { warmup = null;storeWarmup();return; }
+        if (warmup.side === 0) return;
         if (warmup.deadline && Date.now() >= warmup.deadline) { finishWarmup();return; }
         const side = warmup.side;
+        const upcoming = side == null;
+        const assignment = device.assignment;
+        overlay.classList.toggle('next-match', upcoming);
+        warmupLabel.textContent = upcoming ? 'Nächste Partie · ' + (assignment.roundLabel || assignment.label) : 'Einspielzeit';
+        warmupStart.textContent = upcoming ? 'Einspielzeit starten' : 'Start';
+        warmupStart.disabled = !connected || device.paused;
+        warmupEnd.hidden = upcoming;
+        warmupTime.hidden = upcoming;
         const remaining = warmup.deadline ? Math.ceil((warmup.deadline - Date.now()) / 1000) : 300;
         warmupStart.hidden = !!warmup.deadline;
-        warmupPlayer.textContent = playerName(side);
+        warmupPlayer.textContent = upcoming ? playerName(1) + ' · ' + playerName(2) : playerName(side);
         warmupTime.textContent = Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0');
         overlay.hidden = false;
         for (const button of document.querySelectorAll('#table-input button')) button.disabled = true;
@@ -54,7 +64,7 @@
     const nextButton = document.createElement('button');
     nextButton.id = 'input-next';nextButton.className = 'input-primary';nextButton.textContent = 'Weiter';nextButton.hidden = true;
     el('endActions').appendChild(nextButton);
-    nextButton.onclick = () => { endscreen = null;warmup = {};storeWarmup();render(); };
+    nextButton.onclick = () => { endscreen = null;warmup = null;storeWarmup();render(); };
     const rpc = async (name, args) => {
         const { data, error } = await supabaseClient.rpc(name, args);
         if (error) throw error;
@@ -72,10 +82,20 @@
     function adopt(next, nextEvent, previousEvent = nextEvent) {
         const previousKey = device?.assignment?.key;
         const completed = previousKey && previousEvent?.results?.[previousKey];
-        if (!endscreen && device?.event_id && completed && (next.event_id !== device.event_id || next.assignment?.key !== previousKey)) {
-            endscreen = { device: structuredClone(device), event: previousEvent };
+        const result = next.assignment && nextEvent?.results?.[next.assignment.key];
+        const changed = next.assignment?.key !== previousKey || next.event_id !== device?.event_id || next.mode_version !== device?.mode_version;
+        if (result) {
+            endscreen = { device: next, event: nextEvent };
+        } else if (next.assignment && changed && (device || warmup)) {
+            endscreen = null;
+            const key = next.event_id + ':' + next.assignment.key;
+            if (warmup?.key !== key && next.live_version === 0) {
+                warmup = { key, side: null, deadline: null };
+                storeWarmup();
+            }
+        } else if (!next.assignment && completed) {
+            endscreen = { device, event: previousEvent };
         }
-        const changed = next.assignment?.key !== device?.assignment?.key || next.event_id !== device?.event_id || next.mode_version !== device?.mode_version;
         if (changed) {
             el('input-winner').value = '0';text('input-error', '');clearTimeout(transitionTimer);
             readyAt = device && (next.assignment || !next.event_id) ? Date.now() + 3000 : 0;
@@ -105,7 +125,7 @@
             device = endscreen.device;event = endscreen.event;renderBoard();renderEndscreen();
             text('input-active', 'Partie beendet · Ergebnis gespeichert');
             for (const button of document.querySelectorAll('#table-input button')) button.disabled = true;
-            nextButton.hidden = false;nextButton.disabled = false;
+            nextButton.hidden = !!currentDevice.event_id;nextButton.disabled = false;
         } finally { device = currentDevice;event = currentEvent; }
     }
     function renderBoard() {
@@ -120,7 +140,7 @@
         const snapshot = free ? {} : a.snapshot, result = free ? null : event.results?.[a.key];
         const s = (free ? device.free_state : result ? { ...result, ...Object.fromEntries(['score','innings','high'].flatMap(k => [1,2].map(side => [k + side, result[k + (device.live_state?.swapped ? 3 - side : side)]]))) } : device.live_state) || {};
         el('input-swap').hidden = free || !!s.started || !!result || !!s.saved || !!s.done || !!s.score1 || !!s.score2 || !!s.innings1 || !!s.innings2;
-        el('input-swap').disabled = writing || !connected || device.paused || !!warmup || Date.now() < readyAt;
+        el('input-swap').disabled = writing || !connected || device.paused || (warmup && warmup.side !== 0) || Date.now() < readyAt;
         const saved = !free && (!!result || !!s.saved), done = !free && !!s.done, active = Number(s.active || 1);
         const changing = Date.now() < readyAt;
         const disabled = changing || writing || !connected || device.paused || saved || (!free && event.status === 'completed');
@@ -172,14 +192,14 @@
         } finally { reading = false; }
     }
     async function input(action, value = 0) {
-        if (endscreen || warmup || writing || Date.now() < readyAt || !connected || !device || (device.event_id && (!device.assignment || device.paused))) return;
+        if (endscreen || (warmup && warmup.side !== 0) || writing || Date.now() < readyAt || !connected || !device || (device.event_id && (!device.assignment || device.paused))) return;
         const free = !device.event_id;
         if (action === 'reset' && (!free || !confirm('Neues freies Spiel? Punkte und Aufnahmen dieses Tisches zurücksetzen.'))) return;
         writing = true;generation++;text('input-error', '');render();
         try {
             const next = free ? await rpc('table_free_input', { p_table: table, p_version: device.free_version || 0, p_mode_version: device.mode_version, p_action: action, p_value: value }) : await rpc('tournament_table_input', { p_table: table, p_event: device.event_id, p_key: device.assignment.key, p_version: device.live_version || 0, p_action: action, p_value: value });
             const changed = next.assignment?.key !== device.assignment?.key || next.event_id !== device.event_id;
-            const nextEvent = next.event_id ? (changed || action === 'finish' ? await rpc('get_t15_result_event', { p_id: next.event_id }) : event) : null;
+            const nextEvent = next.event_id ? (changed || next.live_state?.saved || action === 'finish' ? await rpc('get_t15_result_event', { p_id: next.event_id }) : event) : null;
             const previousEvent = device.event_id && device.event_id !== next.event_id ? await rpc('get_t15_result_event', { p_id: device.event_id }) : nextEvent;
             adopt(next, nextEvent, previousEvent);
         } catch (error) {
