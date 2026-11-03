@@ -66,8 +66,7 @@ body.tournament-tv {
     font-size: clamp(18px, 1.5vw, 28px);
 }
 
-.tournament-tv .dashboard-online { color: #86efb1; }
-.tournament-tv .dashboard-offline { color: #ffc3a1; }
+.tournament-tv .dashboard-table-head span { display: none; }
 
 .tournament-tv .dashboard-scoreboard {
     grid-template-columns: minmax(0, 1fr) minmax(0, .4fr) minmax(0, 1fr);
