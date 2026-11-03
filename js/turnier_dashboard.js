@@ -84,9 +84,9 @@
             const table = tables.find(t => t.id === id);
             const tableLabel = tv && id.startsWith('tb') ? `Tisch ${Number(id.slice(2))}` : id.toUpperCase();
             const own = table?.event_id === event.id;
-            const completedGame = tv && !table?.event_id && table?.completion?.event_id === event.id
+            const completedGame = tv && table?.completion?.event_id === event.id && event.results[table.completion.assignment?.key]
                 ? table.completion.assignment : null;
-            const game = own ? table.assignment : completedGame;
+            const game = completedGame || (own ? table.assignment : null);
             const result = game ? event.results[game.key] : null;
             const live = result || (own ? table.live_state : null);
             const online = connected && isOnline(table);

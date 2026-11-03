@@ -19,9 +19,18 @@
     const warmupActions = document.createElement('div');warmupActions.className = 'warmup-actions';
     const warmupStart = document.createElement('button');warmupStart.type = 'button';warmupStart.textContent = 'Start';
     const warmupEnd = document.createElement('button');warmupEnd.type = 'button';warmupEnd.textContent = 'Beenden';
-    warmupStart.onclick = () => {
-        if (!warmup?.key || warmup.deadline || !connected || device.paused) return;
-        warmup.side ??= 1;
+    warmupStart.onclick = async () => {
+        if (!warmup?.key || warmup.deadline || !connected || device.paused || writing) return;
+        if (warmup.side == null) {
+            writing = true;
+            try {
+                await rpc('tournament_start_warmup', { p_table: table, p_event: device.event_id, p_key: device.assignment.key });
+            } catch (error) {
+                warmupLabel.textContent = error.message;
+                return;
+            } finally { writing = false; }
+            warmup.side = 1;
+        }
         warmup.deadline = Date.now() + 300000;storeWarmup();updateWarmup();
     };
     warmupEnd.onclick = () => { if (warmup?.key) finishWarmup(); };
@@ -84,15 +93,21 @@
         const completed = previousKey && previousEvent?.results?.[previousKey];
         const result = next.assignment && nextEvent?.results?.[next.assignment.key];
         const changed = next.assignment?.key !== previousKey || next.event_id !== device?.event_id || next.mode_version !== device?.mode_version;
+        const previousAssignment = next.completion?.event_id === next.event_id && next.completion.assignment;
+        const roundEnds = previousAssignment ? Date.parse(next.completion.ended_at) + 60000 : 0;
+        if (next.assignment && roundEnds > Date.now() && nextEvent?.results?.[previousAssignment.key]) {
+            endscreen = { device: { ...next, assignment: previousAssignment }, event: nextEvent };
+            endscreenUntil = roundEnds;
+        }
         if (result) {
             if (endscreen?.device.assignment?.key !== next.assignment.key || endscreen.device.event_id !== next.event_id) {
                 endscreenUntil = Date.now() + 5000;
             }
             endscreen = { device: next, event: nextEvent };
-        } else if (next.assignment && changed && (device || warmup)) {
+        } else if (next.assignment && changed && (device || warmup || previousAssignment)) {
             if (completed && !endscreen) {
                 endscreen = { device, event: previousEvent };
-                endscreenUntil = Date.now() + 5000;
+                endscreenUntil = roundEnds || Date.now() + 60000;
             }
             const key = next.event_id + ':' + next.assignment.key;
             if (warmup?.key !== key && next.live_version === 0) {
