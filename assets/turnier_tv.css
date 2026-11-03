@@ -37,7 +37,8 @@ body.tournament-tv {
 }
 
 .tournament-tv .dashboard-tables {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 16px;
     margin-bottom: 24px;
 }
@@ -52,7 +53,8 @@ body.tournament-tv {
 }
 
 .tournament-tv .dashboard-table {
-    padding: 16px;
+    container-type: inline-size;
+    padding: clamp(6px, 1vw, 16px);
 }
 
 .tournament-tv .dashboard-table h3,
@@ -65,7 +67,8 @@ body.tournament-tv {
 
 .tournament-tv .dashboard-side {
     background: linear-gradient(110deg, #263f83, #192b5a);
-    padding: 8px 14px;
+    padding: clamp(4px, 3cqi, 14px);
+    gap: clamp(3px, 2cqi, 12px);
 }
 
 .tournament-tv .dashboard-side.side-2 {
@@ -74,12 +77,12 @@ body.tournament-tv {
 }
 
 .tournament-tv .dashboard-player {
-    font-size: clamp(17px, 1.5vw, 30px);
+    font-size: clamp(12px, 5cqi, 36px);
 }
 
 .tournament-tv .dashboard-score {
     color: inherit;
-    font-size: clamp(36px, 3.5vw, 76px);
+    font-size: clamp(20px, 14cqi, 100px);
 }
 
 .tournament-tv .dashboard-innings,
@@ -110,4 +113,9 @@ body.tournament-tv {
 
 @media (max-width: 720px) {
     .tournament-tv .dashboard-overview-grid { grid-template-columns: 1fr; }
+}
+
+@container (max-width: 230px) {
+    .tournament-tv .dashboard-side { grid-template-columns: minmax(0, 1fr) auto; }
+    .tournament-tv .dashboard-innings { grid-column: 1 / -1; }
 }
