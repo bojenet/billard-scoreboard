@@ -54,6 +54,9 @@ body.tournament-tv {
 }
 
 .tournament-tv .dashboard-table {
+    background: #19294e;
+    border-color: #4b608c;
+    box-shadow: 0 6px 16px rgb(0 0 0 / 30%);
     container-type: inline-size;
     padding: clamp(4px, .55vw, 10px);
 }
