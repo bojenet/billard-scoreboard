@@ -81,14 +81,14 @@ body.tournament-tv {
     padding: clamp(3px, 1.2cqi, 8px);
     border-radius: 8px;
     text-align: center;
-    background: #122252;
     color: white;
     font-size: clamp(11px, 4cqi, 24px);
 }
 
-.tv-player-2 { color: #ffd84a; }
-.tv-player.is-active { background: white; color: #111; }
-.tv-player-2.is-active { background: #ffd84a; }
+.tv-player-1 { grid-column: 1; grid-row: 1 / span 2; }
+.tv-player-2 { grid-column: 3; grid-row: 1 / span 2; color: #ffd84a; }
+.tv-player.is-active .dashboard-score { background: white; color: #111; }
+.tv-player-2.is-active .dashboard-score { background: #ffd84a; }
 
 
 .tournament-tv .dashboard-player {
@@ -101,10 +101,14 @@ body.tournament-tv {
     text-align: center;
     font-size: clamp(18px, 13cqi, 120px);
     line-height: .9;
+    padding: .08em 0;
+    background: #122252;
+    border-radius: 8px;
 }
 
 .tv-innings {
-    grid-row: span 2;
+    grid-column: 2;
+    grid-row: 2;
     align-self: center;
     padding: .35em 0;
     background: #192e68;
