@@ -75,13 +75,6 @@ body.tournament-tv {
     margin: 0;
 }
 
-.tournament-tv .dashboard-scoreboard::before {
-    content: '';
-    grid-area: 1 / 1 / 2 / -1;
-    background: linear-gradient(180deg, #192e68, #122252);
-    border-radius: 8px;
-}
-
 .tv-player { display: contents; }
 .tv-player-1 { --player-column: 1; }
 .tv-player-2 { --player-column: 3; color: #ffd84a; }
