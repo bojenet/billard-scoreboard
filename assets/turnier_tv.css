@@ -98,7 +98,11 @@ body.tournament-tv {
     text-align: center;
     font-size: clamp(18px, 13cqi, 120px);
     line-height: 1;
-    padding: .14em 0;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1.2;
+    width: min(100%, 1.95em);
+    justify-self: center;
     background: #122252;
     border-radius: 8px;
 }
