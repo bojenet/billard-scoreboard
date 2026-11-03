@@ -16,8 +16,8 @@ body.tournament-tv {
 .tournament-tv #eventMeta,
 .tournament-tv .display-links,
 .tournament-tv .dashboard-command,
-.tournament-tv .dashboard-plan th:last-child:empty,
-.tournament-tv #dashboardSchedule td:last-child {
+.tournament-tv #dashboardFinished,
+.tournament-tv #dashboardPlan {
     display: none;
 }
 
