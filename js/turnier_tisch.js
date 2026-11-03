@@ -6,7 +6,7 @@
     const el = id => document.getElementById(id);
     const text = (id, value) => { el(id).textContent = value; };
     let device, event, reading = false, writing = false, connected = false, generation = 0, readyAt = 0, transitionTimer;
-    let endscreen = null;
+    let endscreen = null, endscreenUntil = 0;
     const warmupStorage = 'tournament-warmup-' + table;
     let warmup = null;
     try { warmup = JSON.parse(sessionStorage.getItem(warmupStorage)); } catch (_) {}
@@ -85,9 +85,15 @@
         const result = next.assignment && nextEvent?.results?.[next.assignment.key];
         const changed = next.assignment?.key !== previousKey || next.event_id !== device?.event_id || next.mode_version !== device?.mode_version;
         if (result) {
+            if (endscreen?.device.assignment?.key !== next.assignment.key || endscreen.device.event_id !== next.event_id) {
+                endscreenUntil = Date.now() + 5000;
+            }
             endscreen = { device: next, event: nextEvent };
         } else if (next.assignment && changed && (device || warmup)) {
-            endscreen = null;
+            if (completed && !endscreen) {
+                endscreen = { device, event: previousEvent };
+                endscreenUntil = Date.now() + 5000;
+            }
             const key = next.event_id + ':' + next.assignment.key;
             if (warmup?.key !== key && next.live_version === 0) {
                 warmup = { key, side: null, deadline: null };
@@ -117,6 +123,11 @@
         }
     }
     function render() {
+        if (endscreen && device.assignment &&
+            (device.event_id !== endscreen.device.event_id || device.assignment.key !== endscreen.device.assignment.key) &&
+            Date.now() >= endscreenUntil) {
+            endscreen = null;
+        }
         el('endScreen').style.display = endscreen ? 'flex' : 'none';
         if (!endscreen) { nextButton.hidden = true;renderBoard();updateWarmup();return; }
         overlay.hidden = true;
@@ -212,5 +223,8 @@
     el('input-turn').onclick = () => input('turn');el('input-undo').onclick = () => input('undo');
     el('input-reset').onclick = () => input('reset');
     el('input-finish').onclick = () => input('finish', Number(el('input-winner').value));
-    await refresh();setInterval(refresh, 3000);setInterval(updateWarmup, 250);
+    await refresh();setInterval(refresh, 3000);setInterval(() => {
+        if (endscreen && device.assignment && device.assignment.key !== endscreen.device.assignment.key) render();
+        else updateWarmup();
+    }, 250);
 })();
