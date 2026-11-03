@@ -50,6 +50,14 @@
             return `<article class="dashboard-table"><div class="dashboard-table-head"><h3>${esc(id.toUpperCase())}</h3><span class="${online ? 'dashboard-online' : 'dashboard-offline'}">${esc(state)}</span></div>${game ? `<div class="dashboard-scoreboard">${[1,2].map(side => `<div class="dashboard-side side-${side}"><div class="dashboard-player">${esc(playerName(game['seed' + side]))}</div><strong class="dashboard-score">${live?.['score' + (!result && live?.swapped ? 3 - side : side)] ?? 0}</strong><span class="dashboard-innings">Aufnahmen <b>${live?.['innings' + (!result && live?.swapped ? 3 - side : side)] ?? 0}</b></span></div>`).join('')}</div><p class="dashboard-game-label">${esc(game.roundLabel)} · ${esc(game.label)}</p>` : `<p class="dashboard-table-wait">${own ? 'Wartet auf die nächste Paarung' : 'Wartet auf Turnierstart'}</p>`}<a href="turnier_tisch.html?tisch=${encodeURIComponent(id)}" target="_blank" rel="noopener">Tischdisplay öffnen ↗</a></article>`;
         }).join('') || '<p class="muted">Diesem Turnier sind noch keine Tische zugeordnet. <a href="calendar.html">Einladung bearbeiten</a></p>';
     }
+    function renderFinishedResults() {
+        const finished = event.schedule.filter(game => event.results[game.key]);
+        $('dashboardFinished').hidden = !finished.length || finished.length === event.schedule.length;
+        $('dashboardFinishedResults').innerHTML = finished.map(game => {
+            const result = event.results[game.key];
+            return `<tr><td>${esc(game.roundLabel)}<br><small>${esc(game.label)}</small></td><td>${esc(name(game.seed1))}<br>${esc(name(game.seed2))}</td><td>${esc(result.score1)} : ${esc(result.score2)}</td></tr>`;
+        }).join('');
+    }
     function renderOverview() {
         const next = event.schedule.filter(m => m.ready && !event.results[m.key] && !assignmentFor(m.key));
         $('dashboardNext').innerHTML = next.slice(0, 6).map(m => `<button class="dashboard-next" data-game="${esc(m.key)}" type="button"><span>${esc(m.roundLabel)} · ${esc(m.label)}</span><strong>${esc(name(m.seed1))} <span>–</span> ${esc(name(m.seed2))}</strong></button>`).join('') || '<p class="form-content muted">Keine weiteren spielbereiten Paarungen.</p>';
@@ -68,6 +76,7 @@
         if (!event || event.can_delete !== true) return;
         $('dashboardOverview').hidden = !overview;
         renderOperations();
+        renderFinishedResults();
         renderOverview();
     }
     async function poll() {
