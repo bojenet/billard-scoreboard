@@ -184,3 +184,21 @@ body.tournament-tv {
 .tournament-tv .dashboard-table:has(.dashboard-table-wait) {
     min-height: 108px;
 }
+
+.tournament-tv-final #dashboardTables,
+.tournament-tv-final #dashboardUpcoming {
+    display: none;
+}
+
+.tournament-tv-final .dashboard-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.tournament-tv-final #dashboardStandingsHeading {
+    font-size: clamp(24px, 2.5vw, 48px);
+}
+
+.tournament-tv-final #dashboardStandings table {
+    font-size: clamp(16px, 1.65vw, 34px);
+    font-variant-numeric: tabular-nums;
+}

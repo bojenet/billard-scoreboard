@@ -301,31 +301,7 @@
             const rows=seconds.map(r=>({...r,rank:complete ? 1+seconds.filter(s=>compare(s,r)<0).length : '—',tied:complete && seconds.some(s=>s.seed!==r.seed && compare(s,r)===0)}));
             $('groupStandings').innerHTML+=`<section class="panel"><div class="panel-heading"><h2>Vergleich der Gruppenzweiten</h2></div>${statsTable(rows,'groups')}<p class="form-content muted">${complete ? 'Wertung: Partiepunkte, GD (3 Stellen), HS.' : 'Die Wertung steht nach Abschluss der Gruppenspiele fest.'}</p></section>`;
         }
-        const empty=()=>({points:0,balls:0,innings:0,high:0,played:0});
-        const totals=new Map(event.snapshot.participants.map(p=>[p.seed,empty()]));
-        const finalTotals=new Map(event.snapshot.participants.map(p=>[p.seed,empty()]));
-        for(const match of event.schedule) {
-            const r=event.results[match.key];if(!r || !match.ready)continue;
-            for(const side of [1,2]) {
-                const pp=match.stage==='final' ? (Number(r.winner)===side ? 2 : 0) : (r.score1===r.score2 ? 1 : ((r.score1>r.score2)===(side===1) ? 2 : 0));
-                for(const map of (match.stage==='final' ? [totals,finalTotals] : [totals])) {
-                    const t=map.get(match[`seed${side}`]);t.played++;t.points+=pp;t.balls+=r[`score${side}`];t.innings+=r[`innings${side}`];t.high=Math.max(t.high,r[`high${side}`]);
-                }
-            }
-        }
-        const ranks=[];
-        for(const [key,first] of [['F',1],['P3',3],['P5',5],['P7',7],['P9',9]]) {
-            const match=event.schedule.find(m=>m.key===key),r=event.results[key];
-            if(r && match?.ready)ranks.push({rank:first,seed:match[`seed${r.winner}`]},{rank:first+1,seed:match[`seed${Number(r.winner)===1?2:1}`]});
-        }
-        if(event.snapshot.selectedModeCode==='T10' && event.schedule.find(m=>m.key==='HF1')?.ready) {
-            ranks.push({rank:7,seed:event.standings.B[3].seed});
-        }
-        if(['T16','T16b'].includes(event.snapshot.selectedModeCode)) {
-            const match=event.schedule.find(m=>m.key==='P8'),r=event.results.P8;
-            if(r && match?.ready)ranks.push({rank:9,seed:match[Number(r.winner)===1?'seed2':'seed1']});
-        }
-        ranks.sort((a,b)=>a.rank-b.rank);
+        const { ranks, totals, finalTotals } = ResultStatistics.finalStandings(event);
         const finalSeeds=new Set(event.schedule.filter(m=>m.stage==='final' && m.ready).flatMap(m=>[m.seed1,m.seed2]));
         const finalRows=[...finalSeeds].map(seed=>({seed,rank:ranks.find(r=>r.seed===seed)?.rank ?? '—',...finalTotals.get(seed)}))
             .sort((a,b)=>(typeof a.rank==='number' ? a.rank : 99)-(typeof b.rank==='number' ? b.rank : 99) || a.seed-b.seed);

@@ -153,12 +153,28 @@
         $('dashboardParticipants').innerHTML = event.snapshot.participants.map(p => `<span><b>${esc(p.seed)}.</b> ${esc(p.name)}</span>`).join('');
         for (const button of $('dashboardOverview').querySelectorAll('[data-game]')) button.onclick = () => openMatch(button.dataset.game);
     }
+    function renderFinalTv() {
+        const latestEnd = Math.max(0, ...tables.filter(t => t.completion?.event_id === event.id)
+            .map(t => Date.parse(t.completion.ended_at) || 0));
+        const show = tv && connected && event.status === 'completed' && Date.now() >= latestEnd + 60000;
+        document.body.classList.toggle('tournament-tv-final', show);
+        if (!show) return;
+        const { ranks, totals } = ResultStatistics.finalStandings(event);
+        const roundRobin = ResultModes.get(event.snapshot.selectedModeCode).kind === 'roundRobin';
+        const rows = roundRobin ? event.standings.A : ranks.map(r => ({ ...r, ...totals.get(r.seed) }));
+        $('dashboardStandings').innerHTML = `<div class="table-wrap"><table>
+            <thead><tr><th>Pl.</th><th>Spieler</th><th class="number">Sp.</th><th class="number">PP</th><th class="number">GD</th><th class="number">BED</th><th class="number">HS</th></tr></thead>
+            <tbody>${rows.map(r => `<tr><td>${r.rank}${r.tied ? '*' : ''}</td><td>${esc(name(r.seed))}</td><td class="number">${r.played}</td><td class="number">${r.points}</td><td class="number">${(r.innings ? Math.trunc(r.balls / r.innings * 1000) / 1000 : 0).toFixed(3).replace('.', ',')}</td><td class="number">${bestAverage(r.seed, roundRobin ? 'A' : 'all')}</td><td class="number">${r.high}</td></tr>`).join('')}</tbody></table></div>`;
+    }
     function render() {
         if (!event || event.can_delete !== true) return;
         $('dashboardOverview').hidden = !overview;
         renderOperations();
         renderFinishedResults();
+        $('dashboardStandingsHeading').textContent = 'Tabellenstand';
         renderOverview();
+        renderFinalTv();
+        if (document.body.classList.contains('tournament-tv-final')) $('dashboardStandingsHeading').textContent = 'Endtabelle';
     }
     async function poll() {
         if (!event || event.can_delete !== true || polling || acting) return;
