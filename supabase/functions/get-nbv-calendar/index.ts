@@ -81,11 +81,7 @@ function isRetryableFetchError(error: unknown) {
 }
 
 async function fetchHtml(url: string, attempt = 1): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": "billard-scoreboard-calendar/1.0",
-    },
-  });
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`NBV request failed with HTTP ${response.status}`);
