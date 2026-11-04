@@ -216,7 +216,20 @@
             }).join('');
             return `<div class="match-item"><button class="match" type="button" data-key="${m.key}" aria-pressed="${selected === m.key}"><span class="match-meta"><span>${esc(m.label)}</span><span class="${r ? 'saved' : ''}">${r ? 'Erfasst' : m.ready ? 'Offen' : 'Paarung offen'}</span></span><span class="match-player-head" aria-hidden="true"><span>Spieler</span><abbr title="Partiepunkte">PP</abbr><span>Bälle</span><abbr title="Aufnahmen">Aufn.</abbr><abbr title="Generaldurchschnitt">GD</abbr><abbr title="Höchstserie">HS</abbr></span>${rows}</button>${sortingMatches ? `<div class="match-order-controls"><button type="button" data-move-key="${m.key}" data-direction="-1" aria-label="${esc(m.label)} nach oben"${index===0 || busy ? ' disabled' : ''}>↑</button><button type="button" data-move-key="${m.key}" data-direction="1" aria-label="${esc(m.label)} nach unten"${index===games.length-1 || busy ? ' disabled' : ''}>↓</button></div>` : ''}</div>`;
         }).join('');
-        $('matchList').querySelectorAll('[data-key]').forEach(b => b.onclick = () => { if (busy || !canLeave()) return; dirty = false; selected = b.dataset.key; renderMatches(); if (matchMedia('(max-width:760px)').matches) $('entryPanel').scrollIntoView({ block: 'start', behavior: 'smooth' }); });
+        $('matchList').querySelectorAll('[data-key]').forEach(button => button.onclick = () => {
+            if (busy || !canLeave()) return;
+            dirty = false;
+            selected = button.dataset.key;
+            renderMatches();
+            const panel = $('entryPanel');
+            const bounds = panel.getBoundingClientRect();
+            if (bounds.top < 0 || bounds.bottom > window.innerHeight) {
+                panel.scrollIntoView({
+                    block: 'start',
+                    behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
+                });
+            }
+        });
         $('matchList').querySelectorAll('[data-move-key]').forEach(b=>b.onclick=()=>{
             moveMatch(b.dataset.moveKey,Number(b.dataset.direction));
             $('matchList').querySelector(`[data-move-key="${b.dataset.moveKey}"][data-direction="${b.dataset.direction}"]`)?.focus();
