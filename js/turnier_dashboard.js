@@ -5,6 +5,9 @@
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const tableIds = ['tb01', 'tb02', 'tb03', 'tb04', 'mb01', 'mb02'];
     let event, tables = [], connected = false, polling = false, acting = false, timer, overview = true, tv = false, generation = 0;
+    let tvRotation;
+    const tvRotationInterval = 12000;
+
     function playerName(seed, snapshot = event.snapshot) {
         const value = snapshot.participants.find(p => Number(p.seed) === Number(seed))?.name;
         if (!value) return 'Paarung noch offen';
@@ -99,7 +102,7 @@
     }
     function renderFinishedResults() {
         const finished = event.schedule.filter(game => event.results[game.key]);
-        $('dashboardFinished').hidden = !finished.length || finished.length === event.schedule.length;
+        $('dashboardFinished').hidden = !finished.length || (!tv && finished.length === event.schedule.length);
         $('dashboardFinishedResults').innerHTML = finished.map(game => {
             const result = event.results[game.key];
             return `<tr><td>${esc(game.roundLabel)}<br><small>${esc(game.label)}</small></td><td>${esc(name(game.seed1))}<br>${esc(name(game.seed2))}</td><td>${esc(result.score1)} : ${esc(result.score2)}</td></tr>`;
@@ -166,6 +169,20 @@
             <thead><tr><th>Pl.</th><th>Spieler</th><th class="number">Sp.</th><th class="number">PP</th><th class="number">GD</th><th class="number">BED</th><th class="number">HS</th></tr></thead>
             <tbody>${rows.map(r => `<tr><td>${r.rank}${r.tied ? '*' : ''}</td><td>${esc(name(r.seed))}</td><td class="number">${r.played}</td><td class="number">${r.points}</td><td class="number">${(r.innings ? Math.trunc(r.balls / r.innings * 1000) / 1000 : 0).toFixed(3).replace('.', ',')}</td><td class="number">${bestAverage(r.seed, roundRobin ? 'A' : 'all')}</td><td class="number">${r.high}</td></tr>`).join('')}</tbody></table></div>`;
     }
+    function stopTvRotation() {
+        clearInterval(tvRotation);
+        tvRotation = null;
+        document.body.classList.remove('tournament-tv-results');
+    }
+    function updateTvRotation() {
+        if (!tv || $('dashboardFinished').hidden || document.body.classList.contains('tournament-tv-final')) {
+            stopTvRotation();
+        } else if (!tvRotation) {
+            tvRotation = setInterval(() => {
+                document.body.classList.toggle('tournament-tv-results');
+            }, tvRotationInterval);
+        }
+    }
     function render() {
         if (!event || event.can_delete !== true) return;
         $('dashboardOverview').hidden = !overview;
@@ -174,6 +191,7 @@
         $('dashboardStandingsHeading').textContent = 'Tabellenstand';
         renderOverview();
         renderFinalTv();
+        updateTvRotation();
         if (document.body.classList.contains('tournament-tv-final')) $('dashboardStandingsHeading').textContent = 'Endtabelle';
     }
     async function poll() {
@@ -200,6 +218,7 @@
         }
     }
     function disable() {
+        stopTvRotation();
         clearInterval(timer); timer = null;
         $('tournamentDashboard').hidden = true;
         document.body.classList.remove('tournament-dashboard-page');
@@ -226,8 +245,15 @@
         current() { return event; },
         update(next, view) {
             if (next.can_delete !== true) { disable(); return; }
+            if (event?.id !== next.id || tv !== (view === 'tv')) stopTvRotation();
             if (!event || event.id !== next.id || next.version >= event.version) event = next;
             tv = view === 'tv';
+            const finished = $('dashboardFinished');
+            if (tv) {
+                $('dashboardTvPanels').append(finished);
+            } else {
+                $('dashboardOverview').before(finished);
+            }
             overview = tv || view === 'overview';
             document.body.classList.add('tournament-dashboard-page');
             $('tournamentDashboard').hidden = false;

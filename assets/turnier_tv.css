@@ -16,7 +16,7 @@ body.tournament-tv {
 .tournament-tv #eventMeta,
 .tournament-tv .display-links,
 .tournament-tv .dashboard-command,
-.tournament-tv #dashboardFinished,
+.tournament-tv #dashboardUpcoming,
 .tournament-tv #dashboardPlan,
 .tournament-tv #dashboardRoster {
     display: none;
@@ -38,6 +38,10 @@ body.tournament-tv {
 }
 
 .tournament-tv .dashboard-tables {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #0a122b;
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
     gap: 10px;
@@ -124,7 +128,7 @@ body.tournament-tv {
 }
 
 .tournament-tv .dashboard-overview-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
 }
 
@@ -144,8 +148,29 @@ body.tournament-tv {
     border-bottom: 1px solid #324675;
 }
 
-@media (max-width: 720px) {
-    .tournament-tv .dashboard-overview-grid { grid-template-columns: 1fr; }
+.tournament-tv #dashboardRankingPanel,
+.tournament-tv #dashboardFinished {
+    grid-area: 1 / 1;
+    align-self: start;
+    transition: opacity 600ms ease, visibility 600ms;
+}
+
+.tournament-tv #dashboardFinished,
+.tournament-tv-results #dashboardRankingPanel {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.tournament-tv-results #dashboardFinished {
+    opacity: 1;
+    visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tournament-tv #dashboardRankingPanel,
+    .tournament-tv #dashboardFinished {
+        transition: none;
+    }
 }
 
 .tv-result-summary {
@@ -186,12 +211,8 @@ body.tournament-tv {
 }
 
 .tournament-tv-final #dashboardTables,
-.tournament-tv-final #dashboardUpcoming {
+.tournament-tv-final #dashboardFinished {
     display: none;
-}
-
-.tournament-tv-final .dashboard-overview-grid {
-    grid-template-columns: minmax(0, 1fr);
 }
 
 .tournament-tv-final #dashboardStandingsHeading {
