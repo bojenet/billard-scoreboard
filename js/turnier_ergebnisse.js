@@ -240,7 +240,7 @@
         const match = event.schedule.find(m => m.key === selected), result = event.results[selected];
         $('entryTitle').textContent = result ? 'Ergebnis bearbeiten' : 'Ergebnis erfassen'; $('entryMeta').textContent = match.label;
         $('resultForm').hidden = !match.ready; $('notReady').hidden = match.ready;
-        $('notReady').textContent = selected === 'F' || selected === 'P3' ? 'Zuerst beide Halbfinalspiele erfassen.' : 'Zuerst alle Gruppenpartien erfassen. Bei identischen Partiepunkten, GD und HS bleiben die betroffenen Plätze geteilt.';
+        $('notReady').textContent = mode().kind !== 'groupFinal' && (selected === 'F' || selected === 'P3') ? 'Zuerst beide Halbfinalspiele erfassen.' : 'Zuerst alle Gruppenpartien erfassen. Bei identischen Partiepunkten, GD und HS bleiben die betroffenen Plätze geteilt.';
         $('entryMessage').textContent = ''; $('entryMessage').className = '';
         if (!match.ready) return;
         $('playerInputs').innerHTML = [1,2].map(side => {
